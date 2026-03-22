@@ -410,52 +410,56 @@ const isOff = product.isActive === false;
                 className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
               >
 
-                {/* IMAGE */}
-
+                Viết đoạn này gọn chuẩn .
                 <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
 
-  {/* BADGES */}
-  <div className="absolute top-1 left-1 flex flex-col gap-1 z-10">
-    {isSale && (
-      <span className="badge bg-red-600">SALE</span>
-    )}
-    {upcoming && (
-      <span className="badge bg-blue-600">
-        {t.upcoming}
-      </span>
-    )}
-    {ended && (
-      <span className="badge bg-gray-500">
-        {t.ended}
-      </span>
-    )}
-    {isOut && (
-      <span className="badge bg-gray-600">
-        {t.out_of_stock || "Hết hàng"}
-      </span>
-    )}
-    {isOff && (
-      <span className="badge bg-black">
-        {t.inactive || "Ngưng"}
-      </span>
-    )}
-  </div>
+                  {isSale && (
+                    <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                      SALE
+                    </span>
+                  )}
 
-  {/* IMAGE */}
-  {product.thumbnail ? (
-    <Image
-      src={product.thumbnail}
-      alt={product.name}
-      fill
-      className={`object-cover ${isOut || isOff ? "opacity-40" : ""}`}
-    />
-  ) : (
-    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-      {t.no_image}
-    </div>
-  )}
+                  {upcoming && (
+                    <span className="absolute top-1 left-1 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                      UPCOMING
+                    </span>
+                  )}
 
-</div>
+                  {ended && (
+                    <span className="absolute top-1 left-1 bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                      ENDED
+                    </span>
+                  )}
+
+{isOut && (
+  <span className="absolute top-1 left-1 bg-gray-600 text-white text-xs px-2 py-0.5 rounded z-10">
+    {t.out_of_stock || "Hết hàng"}
+  </span>
+)}
+
+{isOff && (
+  <span className="absolute top-1 left-1 bg-black text-white text-xs px-2 py-0.5 rounded z-10">
+    {t.inactive || "Ngưng"}
+  </span>
+)}
+
+                  {product.thumbnail ? (
+              <Image
+  src={product.thumbnail || "/placeholder.png"}
+  alt={product.name}
+  fill
+  className={`object-cover ${
+    isOut || isOff ? "opacity-40" : ""
+  }`}
+/>
+) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                      {t.no_image}
+                    </div>
+                  )}
+
+                </div>
+
                 {/* CONTENT */}
 
                 <div className="flex-1 min-w-0">
