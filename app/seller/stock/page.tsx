@@ -20,8 +20,11 @@ interface Product {
   salePrice: number | null;
   saleStart: string | null;
   saleEnd: string | null;
-  images: string[];
   thumbnail: string | null;
+stock?: number;
+sold?: number;
+rating_avg?: number;
+isActive?: boolean;
 
 }
 
@@ -32,7 +35,6 @@ interface RawProduct {
   sale_price?: unknown;
   sale_start?: unknown;
   sale_end?: unknown;
-  images?: unknown;
   thumbnail?: unknown;
 }
 
@@ -104,30 +106,26 @@ export default function SellerStockPage() {
       }
 
       const mapped: Product[] = raw.map((item) => {
-  const p = item as RawProduct;
-
-  const images = Array.isArray(p.images)
-    ? p.images.filter((i): i is string => typeof i === "string")
-    : [];
+  const p = item as any;
 
   return {
-    id: typeof p.id === "string" ? p.id : String(p.id ?? ""),
-    name: typeof p.name === "string" ? p.name : "Unnamed",
-    price:
-      typeof p.price === "number" && !Number.isNaN(p.price)
-        ? p.price
-        : 0,
+    id: String(p.id ?? ""),
+    name: p.name ?? "Unnamed",
+    price: Number(p.price ?? 0),
+
     salePrice:
-      typeof p.sale_price === "number" && !Number.isNaN(p.sale_price)
-        ? p.sale_price
-        : null,
-    saleStart: typeof p.sale_start === "string" ? p.sale_start : null,
-    saleEnd: typeof p.sale_end === "string" ? p.sale_end : null,
-    images,
-    thumbnail:
-      typeof p.thumbnail === "string" && p.thumbnail.trim()
-        ? p.thumbnail
-        : images[0] || null,
+      typeof p.sale_price === "number" ? p.sale_price : null,
+
+    saleStart: p.sale_start ?? null,
+    saleEnd: p.sale_end ?? null,
+
+    thumbnail: p.thumbnail || null,
+
+    stock: Number(p.stock ?? 0),
+    sold: Number(p.sold ?? 0),
+    rating_avg: Number(p.rating_avg ?? 0),
+
+    isActive: Boolean(p.is_active),
   };
 });
 
@@ -306,28 +304,30 @@ export default function SellerStockPage() {
 
         </div>
 
-        {/* AVATAR */}
+        <div className="flex items-center gap-3 mt-4">
 
-        <div className="flex justify-center -mt-12">
+  {/* AVATAR */}
+  <div className="w-16 h-16 relative">
+    <Image
+      src={shop.avatar_url || "/avatar.png"}
+      alt="avatar"
+      fill
+      className="rounded-full object-cover"
+    />
+  </div>
 
-          <div className="relative w-24 h-24">
+  {/* INFO */}
+  <div>
+    <h2 className="font-bold text-lg">
+      {shop.shop_name || t.my_store}
+    </h2>
 
-            {shop.avatar_url ? (
-              <Image
-                src={shop.avatar_url}
-                alt="avatar"
-                fill
-                className="rounded-full border-4 border-white shadow-lg object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center text-gray-500">
-                ?
-              </div>
-            )}
+    <p className="text-sm text-gray-500">
+      {shop.shop_description || t.no_description || "No description"}
+    </p>
+  </div>
 
-          </div>
-
-        </div>
+</div>
 
         {/* SHOP NAME */}
 
@@ -383,6 +383,9 @@ export default function SellerStockPage() {
         <div className="space-y-4">
 
           {products.map((product) => {
+
+       const isOut = (product.stock ?? 0) <= 0;
+const isOff = product.isActive === false;
 
             const now = new Date();
 
@@ -444,13 +447,14 @@ export default function SellerStockPage() {
                   )}
 
                   {product.thumbnail ? (
-  <Image
-    src={product.thumbnail}
-    alt={product.name}
-    fill
-    sizes="96px"
-    className="object-cover"
-  />
+              <Image
+  src={product.thumbnail || "/placeholder.png"}
+  alt={product.name}
+  fill
+  className={`object-cover ${
+    isOut || isOff ? "opacity-40" : ""
+  }`}
+/>
 ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
                       {t.no_image}
