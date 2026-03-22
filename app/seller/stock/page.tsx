@@ -266,67 +266,61 @@ export default function SellerStockPage() {
 
       <div className="mb-10">
 
-        {/* BANNER */}
+        <div className="relative">
 
-        <div className="relative w-full h-40 rounded-xl overflow-hidden">
+  {/* BANNER */}
+  <div className="relative w-full h-40 rounded-xl overflow-hidden">
+    <Image
+      src={shop.shop_banner || "/banners/default-shop.png"}
+      alt="Shop banner"
+      fill
+      priority
+      unoptimized
+      className="object-cover"
+    />
 
-          <Image
-            src={shop.shop_banner || "/banners/default-shop.png"}
-            alt="Shop banner"
-            fill
-            priority
-            unoptimized
-            className="object-cover"
-          />
+    {/* CHANGE BANNER */}
+    <label className="absolute top-3 left-3 bg-black/60 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
+      <Upload size={14} />
+      {t.change_banner}
+      <input
+        type="file"
+        hidden
+        accept="image/*"
+        onChange={handleBannerUpload}
+      />
+    </label>
 
-          {/* CHANGE BANNER */}
+    {/* POST PRODUCT */}
+    <button
+      onClick={() => router.push("/seller/post")}
+      className="absolute top-3 right-3 bg-orange-500 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
+    >
+      <Plus size={20} />
+    </button>
+  </div>
 
-          <label className="absolute top-3 left-3 bg-black/60 hover:bg-black/70 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
-            <Upload size={14} />
-            {t.change_banner}
-
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              onChange={handleBannerUpload}
-            />
-          </label>
-
-          {/* POST PRODUCT */}
-
-          <button
-            onClick={() => router.push("/seller/post")}
-            className="absolute top-3 right-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
-          >
-            <Plus size={20} />
-          </button>
-
-        </div>
-
-        <div className="flex items-center gap-3 mt-4">
-
-  {/* AVATAR */}
-  <div className="w-24 h-24 relative">
+  {/* AVATAR (ĐÈ 50%) */}
+  <div className="absolute left-4 -bottom-12 w-24 h-24 border-4 border-white rounded-full overflow-hidden bg-white shadow">
     <Image
       src={shop.avatar_url || "/avatar.png"}
       alt="avatar"
       fill
-      className="rounded-full object-cover"
+      className="object-cover"
     />
   </div>
 
-  {/* INFO */}
-  <div>
-    <h2 className="font-bold text-lg">
-      {shop.shop_name || t.my_store}
-    </h2>
+</div>
 
-    <p className="text-sm text-gray-500">
-      {shop.shop_description || t.no_description || "No description"}
-    </p>
-  </div>
+{/* INFO */}
+<div className="mt-16 px-1">
+  <h2 className="font-bold text-lg">
+    {shop.shop_name || t.my_store}
+  </h2>
 
+  <p className="text-sm text-gray-500">
+    {shop.shop_description || t.no_description || "No description"}
+  </p>
 </div>
 
         {/* STATS */}
