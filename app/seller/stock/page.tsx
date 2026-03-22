@@ -329,12 +329,6 @@ export default function SellerStockPage() {
 
 </div>
 
-        {/* SHOP NAME */}
-
-        <h2 className="text-center font-bold text-xl mt-3">
-          {shop.shop_name || t.my_store}
-        </h2>
-
         {/* STATS */}
 
         <div className="flex justify-center gap-6 text-sm text-gray-600 mt-2">
