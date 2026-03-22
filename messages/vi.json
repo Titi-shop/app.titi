@@ -468,10 +468,13 @@
   "pi_not_ready": "Pi chưa sẵn sàng",
   "product_unavailable": "Sản phẩm hiện không khả dụng",
   "select_variant": "Vui lòng chọn kích thước / phân loại",
-  "out_of_stock": "Sản phẩm đã hết hàng",
   "added_to_cart": "Đã thêm vào giỏ hàng",
    "invalid_quantity": "Số lượng không hợp lệ",
-   "please_select_product": "Vui lòng chọn sản phẩm"
+   "please_select_product": "Vui lòng chọn sản phẩm",
+   "out_of_stock":  "Hết hàng",
+  "inactive": "Ngưng",
+  "upcoming": "Sắp diễn ra",
+  "ended":  "Đã kết thúc"
 
 
 
