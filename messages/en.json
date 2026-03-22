@@ -405,5 +405,13 @@
   "return_rejected": "Rejected",
   "refunded_at": "Refunded at",
   "province_city": "Province / City",
-  "postal_code_optional": "Postal Code (optional)"
+  "postal_code_optional": "Postal Code (optional)",
+
+  "out_of_stock": "Out of stock",
+
+ "inactive":  "Inactive",
+
+ "upcoming": "Upcoming",
+
+ "ended":  "Ended"
 }
