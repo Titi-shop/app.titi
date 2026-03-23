@@ -502,7 +502,7 @@ if (val < 1) {
       {/* GIÁ CŨ */}
       {typeof item.sale_price === "number" &&
         item.sale_price < item.price && (
-          <p className="font-semibold text-orange-600">
+          <p className="text-sm text-gray-400 line-through">
             {formatPi(item.price * item.quantity)} π
           </p>
         )}
