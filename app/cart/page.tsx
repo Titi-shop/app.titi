@@ -373,100 +373,99 @@ export default function CartPage() {
 </div> {/* ✅ đóng ở đây */}
 
 <div className="flex-1">
-                <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+  <p className="text-sm font-medium line-clamp-2">
+    {item.name}
+  </p>
 
-                <div className="mt-1 flex items-center gap-2">
-  <div className="flex items-center gap-2">
+  <div className="mt-2 space-y-1">
 
-  <div className="mt-1 space-y-1">
+    {/* QUANTITY */}
+    <div className="flex items-center gap-2">
 
-  {/* QUANTITY */}
-  <div className="flex items-center gap-2">
+      <button
+        onClick={() => {
+          const val = Math.max(1, item.quantity - 1);
+          updateQty(item.id, val);
+        }}
+        disabled={item.quantity <= 1}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        -
+      </button>
 
-    <button
-      onClick={() => {
-        const val = Math.max(1, item.quantity - 1);
-        updateQty(item.id, val);
-      }}
-      disabled={item.quantity <= 1}
-      className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-    >
-      -
-    </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={item.quantity}
+        onChange={(e) => {
+          if (!/^\d*$/.test(e.target.value)) return;
 
-    <input
-      type="text"
-      inputMode="numeric"
-      value={item.quantity}
-      onChange={(e) => {
-        if (!/^\d*$/.test(e.target.value)) return;
+          const maxStock = item.variant?.stock ?? item.stock ?? 99;
+          const val = Number(e.target.value || "0");
 
-        const maxStock = item.variant?.stock ?? item.stock ?? 99;
-        const val = Number(e.target.value || "0");
+          if (val > maxStock) {
+            updateQty(item.id, maxStock);
+            return;
+          }
 
-        if (val > maxStock) {
-          updateQty(item.id, maxStock);
-          return;
+          updateQty(item.id, val);
+        }}
+        onBlur={(e) => {
+          const maxStock = item.variant?.stock ?? item.stock ?? 99;
+          const val = Number(e.target.value || "0");
+
+          if (val < 1) updateQty(item.id, 1);
+          else if (val > maxStock) updateQty(item.id, maxStock);
+        }}
+        className="w-12 text-center border rounded py-1 text-sm"
+      />
+
+      <button
+        onClick={() => {
+          const maxStock = item.variant?.stock ?? item.stock ?? 99;
+          const val = Math.min(maxStock, item.quantity + 1);
+          updateQty(item.id, val);
+        }}
+        disabled={
+          item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
         }
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        +
+      </button>
 
-        updateQty(item.id, val);
-      }}
-      onBlur={(e) => {
-        const maxStock = item.variant?.stock ?? item.stock ?? 99;
-        const val = Number(e.target.value || "0");
+    </div>
 
-        if (val < 1) updateQty(item.id, 1);
-        else if (val > maxStock) updateQty(item.id, maxStock);
-      }}
-      className="w-12 text-center border rounded py-1 text-sm"
-    />
+    {/* PRICE */}
+    <div className="flex flex-col text-xs">
 
-    <button
-      onClick={() => {
-        const maxStock = item.variant?.stock ?? item.stock ?? 99;
-        const val = Math.min(maxStock, item.quantity + 1);
-        updateQty(item.id, val);
-      }}
-      disabled={
-        item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
-      }
-      className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-    >
-      +
-    </button>
+      {typeof item.sale_price === "number" &&
+        item.sale_price < item.price && (
+          <span className="text-red-500 font-semibold">
+            -{calcSalePercent(item.price, item.sale_price)}%
+          </span>
+        )}
 
-  </div>
-
-  {/* PRICE */}
-  <div className="flex flex-col text-xs">
-
-    {typeof item.sale_price === "number" &&
-      item.sale_price < item.price && (
-        <span className="text-red-500 font-semibold">
-          -{calcSalePercent(item.price, item.sale_price)}%
+      {typeof item.sale_price === "number" &&
+      item.sale_price < item.price ? (
+        <>
+          <span className="text-orange-600 font-semibold">
+            {formatPi(item.sale_price)} π
+          </span>
+          <span className="text-gray-400 line-through">
+            {formatPi(item.price)} π
+          </span>
+        </>
+      ) : (
+        <span className="text-gray-600">
+          {formatPi(item.price)} π
         </span>
       )}
 
-    {typeof item.sale_price === "number" &&
-    item.sale_price < item.price ? (
-      <>
-        <span className="text-orange-600 font-semibold">
-          {formatPi(item.sale_price)} π
-        </span>
-        <span className="text-gray-400 line-through">
-          {formatPi(item.price)} π
-        </span>
-      </>
-    ) : (
-      <span className="text-gray-600">
-        {formatPi(item.price)} π
-      </span>
-    )}
+    </div>
 
   </div>
-
 </div>
-                </div>
               </div>
 
               <div className="text-right">
