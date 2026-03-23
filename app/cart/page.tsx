@@ -475,7 +475,7 @@ if (val < 1) {
     {/* INFO */}
     <div className="flex-1">
 
-      <p className="text-sm font-medium line-clamp-2">
+      <p className="text-sm font-medium break-words">
   {item.name}
 </p>
 
