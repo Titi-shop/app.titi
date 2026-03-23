@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -81,6 +80,7 @@ interface Props {
     price: number;
     finalPrice?: number;
     thumbnail?: string;
+     stock?: number;
   };
 }
 
@@ -108,8 +108,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
   };
-
   const quantity = useMemo(() => {
+  const maxStock = item?.stock ?? 99;
     const n = Number(qtyDraft);
     return Number.isInteger(n) && n >= 1 && n <= 99 ? n : 1;
   }, [qtyDraft]);
@@ -122,6 +122,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       price: product.price,
       finalPrice: product.finalPrice,
       thumbnail: product.thumbnail || "",
+     stock: product.stock ?? 99,
+       
     };
   }, [product]);
 
@@ -199,10 +201,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const validateBeforePay = () => {
 
-     if (!window.Pi || !piReady) {
-  showMessage(t.pi_not_ready || "Pi is not ready");
-  return false;
-}
+     
     if (!window.Pi || !piReady) {
       showMessage(t.pi_not_ready || "Pi is not ready");
       return false;
@@ -399,22 +398,59 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             <div className="flex-1">
               <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                value={qtyDraft}
-                onChange={(e) => {
-                  if (/^\d*$/.test(e.target.value)) {
-                    setQtyDraft(e.target.value);
-                  }
-                }}
-                onBlur={() => {
-                  if (!qtyDraft || Number(qtyDraft) < 1) {
-                    setQtyDraft("1");
-                  }
-                }}
-                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-              />
+              <div className="flex items-center gap-2 mt-1">
+
+  {/* NÚT - */}
+  <button
+    onClick={() => {
+      const val = Math.max(1, quantity - 1);
+      setQtyDraft(String(val));
+    }}
+    disabled={quantity <= 1}
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    -
+  </button>
+
+  {/* INPUT */}
+  <input
+    type="text"
+    inputMode="numeric"
+    value={qtyDraft}
+    onChange={(e) => {
+      if (!/^\d*$/.test(e.target.value)) return;
+
+      const val = Number(e.target.value || "0");
+
+      if (val > maxStock) {
+        setQtyDraft(String(maxStock)); // ✅ không vượt kho
+        return;
+      }
+
+      setQtyDraft(e.target.value);
+    }}
+    onBlur={() => {
+      const val = Number(qtyDraft || "0");
+
+      if (val < 1) setQtyDraft("1");
+      else if (val > maxStock) setQtyDraft(String(maxStock));
+    }}
+    className="w-12 text-center border rounded py-1 text-sm"
+  />
+
+  {/* NÚT + */}
+  <button
+    onClick={() => {
+      const val = Math.min(maxStock, quantity + 1);
+      setQtyDraft(String(val));
+    }}
+    disabled={quantity >= maxStock}
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    +
+  </button>
+
+</div>
             </div>
 
             <div className="text-right">
