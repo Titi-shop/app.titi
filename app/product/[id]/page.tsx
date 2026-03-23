@@ -581,15 +581,18 @@ const canBuy = hasVariants
       hasVariants && selectedVariant?.id
         ? `${product.id}-${selectedVariant.id}`
         : product.id,
+
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
+
     price: product.price,
     finalPrice: product.finalPrice,
-    thumbnail: product.thumbnail,
-    image: product.thumbnail || product.images?.[0] || "",
-    stock: p.stock,
+
+    thumbnail: product.thumbnail || "/placeholder.png",
+
+    stock: selectedStock, // ✅ quan trọng nhất
   }}
 />
     </div>
