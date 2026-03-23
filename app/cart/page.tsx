@@ -370,7 +370,6 @@ export default function CartPage() {
     alt={item.name}
     className="h-16 w-16 rounded object-cover"
   />
-</div>
 
               <div className="flex-1">
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
