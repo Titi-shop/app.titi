@@ -370,20 +370,69 @@ export default function CartPage() {
     alt={item.name}
     className="h-16 w-16 rounded object-cover"
   />
+</div> {/* ✅ đóng ở đây */}
 
-              <div className="flex-1">
+<div className="flex-1">
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
                 <div className="mt-1 flex items-center gap-2">
+  <div className="flex items-center gap-2">
+
+  {/* - */}
+  <button
+    onClick={() => {
+      const maxStock = item.variant?.stock ?? item.stock ?? 99;
+      const val = Math.max(1, item.quantity - 1);
+      updateQty(item.id, val);
+    }}
+    disabled={item.quantity <= 1}
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    -
+  </button>
+
+  {/* INPUT */}
   <input
-    type="number"
-    min={1}
-    max={99}
+    type="text"
+    inputMode="numeric"
     value={item.quantity}
-    onChange={(e) => updateQty(item.id, Number(e.target.value))}
-    className="w-16 rounded border text-center"
+    onChange={(e) => {
+      if (!/^\d*$/.test(e.target.value)) return;
+
+      const maxStock = item.variant?.stock ?? item.stock ?? 99;
+      const val = Number(e.target.value || "0");
+
+      if (val > maxStock) {
+        updateQty(item.id, maxStock);
+        return;
+      }
+
+      if (val < 1) {
+        updateQty(item.id, 1);
+        return;
+      }
+
+      updateQty(item.id, val);
+    }}
+    className="w-12 text-center border rounded py-1 text-sm"
   />
 
+  {/* + */}
+  <button
+    onClick={() => {
+      const maxStock = item.variant?.stock ?? item.stock ?? 99;
+      const val = Math.min(maxStock, item.quantity + 1);
+      updateQty(item.id, val);
+    }}
+    disabled={
+      item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
+    }
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    +
+  </button>
+
+</div>
   <div className="flex flex-col text-xs">
 
     {/* SALE */}
