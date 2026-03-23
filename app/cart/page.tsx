@@ -100,31 +100,70 @@ export default function CartPage() {
       void loadAddress();
     }
   }, [user]);
+
+  useEffect(() => {
+  cart.forEach((item) => {
+    const maxStock =
+      item.variant?.stock ?? item.stock ?? 99;
+
+    if (item.quantity > maxStock) {
+      updateQty(item.id, maxStock);
+    }
+
+    if (item.quantity < 1) {
+      updateQty(item.id, 1);
+    }
+  });
+}, [cart, updateQty]);
   useEffect(() => {
   async function syncCartPrice() {
     try {
       const res = await fetch("/api/products");
-      const data = await res.json();
+      if (!res.ok) return;
 
+      const data: unknown = await res.json();
       if (!Array.isArray(data)) return;
 
-      cart.forEach((item) => {
-        const baseId = item.id.split("-")[0];
+      type ProductLite = {
+        id: string;
+        price: number;
+        finalPrice?: number;
+      };
 
-        const latest = data.find((p: any) => p.id === baseId);
+      const list = data as ProductLite[];
+
+      cart.forEach((item) => {
+        const baseId =
+          "product_id" in item && typeof item.product_id === "string"
+            ? item.product_id
+            : item.id.includes("-")
+            ? item.id.split("-")[0]
+            : item.id;
+
+        const latest = list.find((p) => p.id === baseId);
         if (!latest) return;
 
-        const newPrice = latest.finalPrice ?? latest.price;
+        const newPrice =
+          typeof latest.finalPrice === "number"
+            ? latest.finalPrice
+            : latest.price;
 
-        if (newPrice !== item.sale_price) {
-          updateQty(item.id, item.quantity); // trigger re-render
+        const oldPrice =
+          typeof item.sale_price === "number"
+            ? item.sale_price
+            : item.price;
+
+        if (newPrice !== oldPrice) {
+          updateQty(item.id, item.quantity);
         }
       });
     } catch {}
   }
 
-  if (cart.length > 0) syncCartPrice();
-}, [cart]);
+  if (cart.length > 0) {
+    void syncCartPrice();
+  }
+}, [cart, updateQty]);
 
   useEffect(() => {
   if (!user) return;
@@ -402,9 +441,15 @@ export default function CartPage() {
   alt={item.name}
   className="h-20 w-20 rounded object-cover cursor-pointer"
   onClick={() => {
-    const productId = item.id.split("-")[0]; // bỏ variant
-    router.push(`/product/${productId}`);
-  }}
+  const productId =
+    "product_id" in item && typeof item.product_id === "string"
+      ? item.product_id
+      : item.id.includes("-")
+      ? item.id.split("-")[0]
+      : item.id;
+
+  router.push(`/product/${productId}`);
+}}
 />
       </div>
 
@@ -413,8 +458,16 @@ export default function CartPage() {
 
         <button
           onClick={() => {
-            const val = Math.max(1, item.quantity - 1);
-            updateQty(item.id, val);
+            onClick={() => {
+  const maxStock = item.variant?.stock ?? item.stock ?? 99;
+
+  if (item.quantity >= maxStock) {
+    showMessage(t.out_of_stock || "Out of stock");
+    return;
+  }
+
+  updateQty(item.id, item.quantity + 1);
+
           }}
           disabled={item.quantity <= 1}
           className="w-7 h-7 border rounded"
