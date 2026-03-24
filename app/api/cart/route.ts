@@ -19,11 +19,11 @@ type CartRow = {
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req);
 
     console.log("USER:", user);
 
-    if (!user) {
+    if (!user?.pi_uid) {
       return NextResponse.json([]);
     }
 
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       from cart_items c
       left join products p on p.id = c.product_id
 
-      where c.buyer_id = $1
+      where c.buyer_id = $1::uuid
       order by c.created_at desc
       `,
       [user.pi_uid]
@@ -54,9 +54,8 @@ export async function GET(req: NextRequest) {
 
     console.log("ROWS:", rows);
 
-    // ✅ normalize trả về đúng format FE đang dùng
     const items = rows
-      .filter((r) => r.product_id) // tránh null product
+      .filter((r) => r.product_id)
       .map((r) => ({
         id: r.variant_id
           ? `${r.product_id}-${r.variant_id}`
