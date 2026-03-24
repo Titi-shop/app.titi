@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-
+import { getPiAccessToken } from "@/lib/piAuth";
 /* =========================
    TYPES
 ========================= */
@@ -78,6 +78,47 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+
+   const syncWithServer = async () => {
+  try {
+    const token = await getPiAccessToken();
+
+    // 🔥 gửi local cart lên server
+    await fetch("/api/cart/sync", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items: cart }),
+    });
+
+    // 🔥 lấy cart mới từ server
+    const res = await fetch("/api/cart", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return;
+
+    const data: unknown = await res.json();
+
+    if (!Array.isArray(data)) return;
+
+    setCart(data as CartItem[]);
+  } catch {}
+};
+
+   useEffect(() => {
+  if (cart.length === 0) return;
+
+  // chỉ sync khi có Pi
+  if (typeof window === "undefined") return;
+  if (!(window as any).Pi) return;
+
+  void syncWithServer();
+}, []);
   /* =========================
      SAVE LOCAL STORAGE
   ========================= */
@@ -90,52 +131,51 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      ADD TO CART (CHECK STOCK)
   ========================= */
 
-  const addToCart = (item: CartItem) => {
-    setCart((prev) => {
-      const found = prev.find((p) => p.id === item.id);
+  const addToCart = async (item: CartItem) => {
+  setCart((prev) => {
+    const found = prev.find((p) => p.id === item.id);
 
-      const maxStock =
-        item.variant?.stock ?? item.stock ?? 99;
+    const maxStock =
+      item.variant?.stock ?? item.stock ?? 99;
 
-      if (found) {
-        const newQty =
-          (found.quantity ?? 1) + (item.quantity ?? 1);
+    if (found) {
+      const newQty =
+        (found.quantity ?? 1) + (item.quantity ?? 1);
 
-        return prev.map((p) =>
-          p.id === item.id
-            ? {
-                ...p,
-                quantity: Math.min(maxStock, newQty),
-              }
-            : p
-        );
-      }
+      return prev.map((p) =>
+        p.id === item.id
+          ? {
+              ...p,
+              quantity: Math.min(maxStock, newQty),
+            }
+          : p
+      );
+    }
 
-      return [
-        ...prev,
-        {
-          ...item,
-          product_id: item.product_id ?? item.id,
+    return [
+      ...prev,
+      {
+        ...item,
+        product_id: item.product_id ?? item.id,
+        quantity: Math.min(maxStock, item.quantity ?? 1),
+      },
+    ];
+  });
 
-          quantity: Math.min(maxStock, item.quantity ?? 1),
+  // 🔥 gọi API (nếu login)
+  try {
+    const token = await getPiAccessToken();
 
-          thumbnail:
-            item.thumbnail ||
-            item.image ||
-            item.images?.[0] ||
-            "",
-
-          image:
-            item.image ||
-            item.thumbnail ||
-            item.images?.[0] ||
-            "",
-
-          images: item.images || [],
-        },
-      ];
+    await fetch("/api/cart/add", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(item),
     });
-  };
+  } catch {}
+};
 
   /* =========================
      REMOVE
@@ -155,26 +195,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      UPDATE QUANTITY (CLAMP STOCK)
   ========================= */
 
-  const updateQty = (id: string, qty: number) => {
-    setCart((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
+  const updateQty = async (id: string, qty: number) => {
+  setCart((prev) =>
+    prev.map((p) => {
+      if (p.id !== id) return p;
 
-        const maxStock =
-          p.variant?.stock ?? p.stock ?? 99;
+      const maxStock =
+        p.variant?.stock ?? p.stock ?? 99;
 
-        const safeQty = Math.max(
-          1,
-          Math.min(maxStock, qty || 1)
-        );
+      const safeQty = Math.max(
+        1,
+        Math.min(maxStock, qty || 1)
+      );
 
-        return {
-          ...p,
-          quantity: safeQty,
-        };
-      })
-    );
-  };
+      return {
+        ...p,
+        quantity: safeQty,
+      };
+    })
+  );
+
+  try {
+    const token = await getPiAccessToken();
+
+    await fetch("/api/cart/add", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, quantity: qty }),
+    });
+  } catch {}
+};
 
   /* =========================
      UPDATE ITEM (SYNC PRICE / DATA)
