@@ -115,6 +115,35 @@ export default function CartPage() {
   }, 300);
 }, [user, shipping, processing]);
 
+  useEffect(() => {
+  async function loadCart() {
+    try {
+      const token = await getPiAccessToken();
+
+      const res = await fetch("/api/cart", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data: unknown = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      // 🔥 update local cart
+      data.forEach((item: any) => {
+        updateQty(item.id, item.quantity);
+      });
+    } catch {}
+  }
+
+  if (user) {
+    void loadCart();
+  }
+}, [user]);
+
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
