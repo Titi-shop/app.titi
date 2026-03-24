@@ -7,21 +7,22 @@ export async function GET(req: NextRequest) {
     const user = await getUserFromBearer();
 
     if (!user) {
-      return NextResponse.json({ items: [] });
+      return NextResponse.json([]);
     }
 
     const rows = await query(
       `
       select *
       from cart_items
-      where user_id = $1
+      where buyer_id = $1
       order by created_at desc
       `,
       [user.pi_uid]
     );
 
-    return NextResponse.json({ items: rows });
-  } catch {
-    return NextResponse.json({ items: [] }, { status: 500 });
+    return NextResponse.json(rows);
+  } catch (err) {
+    console.error("CART GET ERROR:", err);
+    return NextResponse.json([], { status: 500 });
   }
 }
