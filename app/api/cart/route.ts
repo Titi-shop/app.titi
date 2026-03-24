@@ -1,5 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/db";
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 export async function GET(req: NextRequest) {
   try {
