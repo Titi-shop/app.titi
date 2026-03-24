@@ -42,7 +42,7 @@ export default function CartPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const { cart, updateQty, removeFromCart, clearCart } = useCart();
+  const { cart, updateQty, updateItem, removeFromCart, clearCart } = useCart();
   const { user, piReady, pilogin } = useAuth();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -154,7 +154,11 @@ export default function CartPage() {
             : item.price;
 
         if (newPrice !== oldPrice) {
-          updateQty(item.id, item.quantity);
+  updateItem(item.id, {
+    price: latest.price,
+    sale_price: latest.finalPrice,
+  });
+}
         }
       });
     } catch {}
@@ -167,7 +171,7 @@ export default function CartPage() {
 
   useEffect(() => {
   if (!user) return;
-  if (!shipping) return; // ✅ QUAN TRỌNG
+  if (!shipping) return; 
   if (processing) return;
 
   if (typeof window === "undefined") return;
@@ -255,11 +259,12 @@ export default function CartPage() {
     return false;
   }
 
-  // ✅ check quantity
-  if (item.quantity < 1 || item.quantity > 100) {
-    showMessage(t.invalid_quantity || "Invalid quantity");
-    return false;
-  }
+  const maxStock = item.variant?.stock ?? item.stock ?? 99;
+
+if (item.quantity < 1 || item.quantity > maxStock) {
+  showMessage(t.invalid_quantity || "Invalid quantity");
+  return false;
+}
 
   return true;
 };
@@ -267,7 +272,7 @@ export default function CartPage() {
   const handlePay = async () => {
   if (!validateBeforePay()) return;
 
-  const item = selectedItems[0]; // ✅ FIX QUAN TRỌNG
+  const item = selectedItems[0]; /
 
   const unit =
     typeof item.sale_price === "number" ? item.sale_price : item.price;
@@ -442,11 +447,8 @@ export default function CartPage() {
   className="h-20 w-20 rounded object-cover cursor-pointer"
   onClick={() => {
   const productId =
-    "product_id" in item && typeof item.product_id === "string"
-      ? item.product_id
-      : item.id.includes("-")
-      ? item.id.split("-")[0]
-      : item.id;
+    item.product_id ??
+    (item.id.includes("-") ? item.id.split("-")[0] : item.id);
 
   router.push(`/product/${productId}`);
 }}
@@ -480,24 +482,24 @@ export default function CartPage() {
           inputMode="numeric"
           value={item.quantity}
           onChange={(e) => {
-            if (!/^\d*$/.test(e.target.value)) return;
+  if (!/^\d*$/.test(e.target.value)) return;
 
-            const maxStock = item.variant?.stock ?? item.stock ?? 99;
+  const maxStock = item.variant?.stock ?? item.stock ?? 99;
+  const val = Number(e.target.value || "0");
 
-const val = Number(e.target.value || "0");
+  if (val > maxStock) {
+    showMessage(t.out_of_stock || "Out of stock");
+    updateQty(item.id, maxStock);
+    return;
+  }
 
-if (val > maxStock) {
-  updateQty(item.id, maxStock);
-  return;
-}
+  if (val < 1) {
+    updateQty(item.id, 1);
+    return;
+  }
 
-if (val < 1) {
-  updateQty(item.id, 1);
-  return;
-}
-
-            updateQty(item.id, val);
-          }}
+  updateQty(item.id, val);
+}}
           onBlur={(e) => {
             const maxStock = item.variant?.stock ?? item.stock ?? 99;
             const val = Number(e.target.value || "0");
@@ -509,18 +511,21 @@ if (val < 1) {
         />
 
         <button
-          onClick={() => {
-            const maxStock = item.variant?.stock ?? item.stock ?? 99;
-            const val = Math.min(maxStock, item.quantity + 1);
-            updateQty(item.id, val);
-          }}
-          disabled={
-            item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
-          }
-          className="w-7 h-7 border rounded"
-        >
-          +
-        </button>
+  onClick={() => {
+    const maxStock = item.variant?.stock ?? item.stock ?? 99;
+
+    if (item.quantity >= maxStock) {
+      showMessage(t.out_of_stock || "Out of stock");
+      return;
+    }
+
+    updateQty(item.id, item.quantity + 1);
+  }}
+  disabled={item.quantity >= (item.variant?.stock ?? item.stock ?? 99)}
+  className="w-7 h-7 border rounded"
+>
+  +
+</button>
 
       </div>
     </div>
@@ -528,7 +533,7 @@ if (val < 1) {
     {/* INFO */}
     <div className="flex-1">
 
-      <p className="text-sm font-medium break-words">
+      <p className="text-sm font-medium whitespace-normal break-words leading-snug">
   {item.name}
 </p>
 
