@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -93,8 +92,7 @@ interface Product {
 export default function ProductDetail() {
   const { t } = useTranslation();
   const params = useParams();
-  const rawId = String(params?.id ?? "");
-  const id = rawId.split("-")[0];
+  const id = String(params?.id ?? "");
   const router = useRouter();
   const { addToCart } = useCart();
 
@@ -192,7 +190,7 @@ export default function ProductDetail() {
 });
         setProducts(normalized);
 
-       const found = normalized.find((p) => String(p.id) === String(id));
+        const found = normalized.find((p) => p.id === id);
 
 if (found) {
   setProduct(found);
