@@ -52,6 +52,20 @@ export async function GET() {
   }
 
   try {
+
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({
+    success: true,
+    profile: emptyProfile(),
+  });
+}
+
+const userId = userRes.rows[0].id;
     const { rows } = await query(
       `
       SELECT *
@@ -59,7 +73,7 @@ export async function GET() {
       WHERE user_id = $1
       LIMIT 1
       `,
-      [user.pi_uid]
+      [userId]
     );
 
     return NextResponse.json({
@@ -119,6 +133,20 @@ const shop_banner =
   }
 
   try {
+
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "User not found" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
     await query(
 `
 INSERT INTO user_profiles (
@@ -171,7 +199,7 @@ DO UPDATE SET
   updated_at = NOW()
 `,
 [
-  user.pi_uid,
+  userId,
   full_name,
   email,
   phone,
