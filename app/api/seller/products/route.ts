@@ -32,12 +32,24 @@ export async function GET() {
     }
 
     const role = await resolveRole(user);
+    import { query } from "@/lib/db"; // 🔥 thêm ở đầu file nếu chưa có
+
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json([], { status: 200 });
+}
+
+const userId = userRes.rows[0].id;
 
     if (role !== "seller" && role !== "admin") {
       return NextResponse.json([], { status: 200 });
     }
 
-    const products = (await getSellerProducts(user.pi_uid)) as SellerProduct[];
+    const products = (await getSellerProducts(userId)) as SellerProduct[];
 
     return NextResponse.json(products);
   } catch (err) {
