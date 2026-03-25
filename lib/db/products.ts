@@ -165,11 +165,12 @@ export async function getAllProducts(): Promise<ProductRecord[]> {
 ========================================================= */
 
 export async function getSellerProducts(
-  sellerPiUid: string
+  sellerId: string
+)
 ): Promise<ProductRecord[]> {
   const url =
     `${SUPABASE_URL}/rest/v1/products` +
-    `?seller_id=eq.${encodeURIComponent(sellerPiUid)}` +
+    `?seller_id=eq.${encodeURIComponent(sellerId)}` +
     `&deleted_at=is.null&select=*`;
 
   const res = await fetch(url, {
@@ -192,7 +193,7 @@ export async function getSellerProducts(
 ========================================================= */
 
 export async function createProduct(
-  sellerPiUid: string,
+  sellerId: string,
   product: CreateProductInput
 ): Promise<ProductRecord> {
   if (Number.isNaN(product.price)) {
@@ -245,7 +246,7 @@ export async function createProduct(
         ? product.sold
         : 0,
 
-    seller_id: sellerPiUid,
+    seller_id: sellerId,
   };
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
@@ -277,7 +278,7 @@ export async function createProduct(
 ========================================================= */
 
 export async function updateProductBySeller(
-  sellerPiUid: string,
+  sellerId: string,
   productId: string,
   data: UpdateProductInput
 ): Promise<boolean> {
@@ -363,7 +364,7 @@ export async function updateProductBySeller(
   const url =
     `${SUPABASE_URL}/rest/v1/products` +
     `?id=eq.${encodeURIComponent(productId)}` +
-    `&seller_id=eq.${encodeURIComponent(sellerPiUid)}`;
+    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
 
   const res = await fetch(url, {
     method: "PATCH",
@@ -388,13 +389,13 @@ export async function updateProductBySeller(
 ========================================================= */
 
 export async function deleteProductBySeller(
-  sellerPiUid: string,
+  sellerId: string,
   productId: string
 ): Promise<boolean> {
   const url =
     `${SUPABASE_URL}/rest/v1/products` +
     `?id=eq.${encodeURIComponent(productId)}` +
-    `&seller_id=eq.${encodeURIComponent(sellerPiUid)}`;
+    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
 
   const res = await fetch(url, {
     method: "PATCH",
