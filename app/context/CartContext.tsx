@@ -1,5 +1,5 @@
 "use client";
-
+import { useAuth } from "@/context/AuthContext";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
 /* =========================
@@ -51,7 +51,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
-
+const { user } = useAuth();
   /* =========================
      LOAD LOCAL STORAGE
   ========================= */
@@ -82,8 +82,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
    const syncWithServer = async () => {
   try {
     const token = await getPiAccessToken();
+    if (!token) return;
 
-    // 🔥 gửi toàn bộ cart
     await fetch("/api/cart", {
       method: "POST",
       headers: {
@@ -93,7 +93,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify(cart),
     });
 
-    // 🔥 lấy lại cart
     const res = await fetch("/api/cart", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -102,22 +101,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     if (!res.ok) return;
 
-    const data: unknown = await res.json();
+    const data = await res.json();
     if (!Array.isArray(data)) return;
 
-    setCart(data as CartItem[]);
+    setCart(data);
   } catch {}
 };
 
    useEffect(() => {
+  if (!user) return; // 🔥 chỉ sync khi login
   if (cart.length === 0) return;
 
-  // chỉ sync khi có Pi
   if (typeof window === "undefined") return;
   if (!("Pi" in window)) return;
 
   void syncWithServer();
-}, []);
+}, [user]); // 🔥 CHỈ KHI LOGIN
   /* =========================
      SAVE LOCAL STORAGE
   ========================= */
@@ -130,7 +129,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      ADD TO CART (CHECK STOCK)
   ========================= */
 
-  const addToCart = async (item: CartItem) => {
+  const addToCart = (item: CartItem) => {
   setCart((prev) => {
     const found = prev.find((p) => p.id === item.id);
 
@@ -160,6 +159,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
     ];
   });
+};
+
 
   // 🔥 gọi API (nếu login)
   try {
@@ -197,7 +198,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      UPDATE QUANTITY (CLAMP STOCK)
   ========================= */
 
-  const updateQty = async (id: string, qty: number) => {
+  const updateQty = (id: string, qty: number) => {
   setCart((prev) =>
     prev.map((p) => {
       if (p.id !== id) return p;
@@ -216,6 +217,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       };
     })
   );
+};
 
   try {
     const token = await getPiAccessToken();
