@@ -56,23 +56,11 @@ export async function GET(req: NextRequest) {
     const user = await getPiUserFromToken(req);
 
 if (!user) {
-
-  const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
-
-if (userRes.rowCount === 0) {
-  return NextResponse.json({ orders: [] });
-}
-
-const userId = userRes.rows[0].id;
   return NextResponse.json(
     { error: "UNAUTHENTICATED" },
     { status: 401 }
   );
 }
-
     /* =========================
        LOAD ORDERS
     ========================= */
