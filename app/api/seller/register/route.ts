@@ -28,6 +28,20 @@ export async function POST(req: Request) {
 
     /* 2️⃣ RBAC CHECK */
     const role = await resolveRole(user);
+
+    const { rows } = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (!rows.length) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = rows[0].id;
     if (role === "seller" || role === "admin") {
       return NextResponse.json({
         success: true,
@@ -38,7 +52,7 @@ export async function POST(req: Request) {
 
     /* 3️⃣ CHECK PENDING REQUEST */
     const checkRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/seller_requests?user_id=eq.${user.pi_uid}&status=eq.pending&select=id`,
+      `${SUPABASE_URL}/rest/v1/seller_requests?user_id=eq.${userId}&status=eq.pending&select=id`,
       {
         method: "GET",
         headers: {
@@ -82,7 +96,7 @@ export async function POST(req: Request) {
           Prefer: "return=minimal",
         },
         body: JSON.stringify({
-          user_id: user.pi_uid,
+          user_id: userId,
           username: user.username ?? generatedShopName,
           shop_name: generatedShopName,
           shop_description: null,
