@@ -61,6 +61,18 @@ if (!user) {
     { status: 401 }
   );
 }
+
+// ✅ THÊM Ở ĐÂY
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({ orders: [] });
+}
+
+const userId = userRes.rows[0].id;
     /* =========================
        LOAD ORDERS
     ========================= */
