@@ -166,7 +166,6 @@ export async function getAllProducts(): Promise<ProductRecord[]> {
 
 export async function getSellerProducts(
   sellerId: string
-)
 ): Promise<ProductRecord[]> {
   const url =
     `${SUPABASE_URL}/rest/v1/products` +
