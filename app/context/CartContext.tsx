@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // chỉ sync khi có Pi
   if (typeof window === "undefined") return;
-  if (!(window as any).Pi) return;
+  if (!("Pi" in window)) return;
 
   void syncWithServer();
 }, []);
@@ -165,17 +165,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   try {
     const token = await getPiAccessToken();
 
-    await fetch("/api/cart/add", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-  product_id: item.product_id ?? item.id,
-  quantity: item.quantity ?? 1,
-})
-    });
+    await fetch("/api/cart", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: item.product_id ?? item.id,
+    quantity: item.quantity ?? 1,
+  }),
+});
   } catch {}
 };
 
@@ -223,7 +223,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const found = cart.find((p) => p.id === id);
 if (!found) return;
 
-await fetch("/api/cart/add", {
+await fetch("/api/cart", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${token}`,
