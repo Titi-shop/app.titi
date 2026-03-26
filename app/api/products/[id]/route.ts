@@ -165,7 +165,7 @@ const hasVariants = normalizedVariants.length > 0;
 
 const finalStock = hasVariants
   ? getTotalVariantStock(normalizedVariants)
-  stock: finalStock,
+  : typeof body.stock === "number" && body.stock >= 0
   ? body.stock
   : 0;
 
@@ -194,8 +194,7 @@ const updatePayload = {
         typeof body.saleEnd === "string" && body.saleEnd.trim() !== ""
           ? body.saleEnd
           : null,
-      stock:
-        typeof body.stock === "number" && body.stock >= 0 ? body.stock : 0,
+      stock: finalStock,
       is_active:
         typeof body.is_active === "boolean" ? body.is_active : true,
       thumbnail:
