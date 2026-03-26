@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-
+import { query } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,16 @@ interface AddressInsert {
 ===================================================== */
 export async function GET() {
   const user = await getUserFromBearer();
+   const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
+}
+
+const userId = userRes.rows[0].id;
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
@@ -32,7 +42,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("addresses")
     .select("*")
-    .eq("user_id", user.pi_uid)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -89,7 +99,16 @@ export async function POST(req: Request) {
   const { error: clearError } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
-    .eq("user_id", user.pi_uid);
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({ success: true, items: [] });
+}
+
+const userId = userRes.rows[0].id;
 
   if (clearError) {
     return NextResponse.json({ error: clearError.message }, { status: 500 });
@@ -98,7 +117,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin
   .from("addresses")
   .insert({
-    user_id: user.pi_uid,
+    user_id: userId,
     full_name: full_name.trim(),
     phone: phone.trim(),
     country: country.trim(),
@@ -166,7 +185,7 @@ export async function PUT(req: Request) {
   const { error: clearError } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
-    .eq("user_id", user.pi_uid);
+    .eq("user_id", userId)
 
   if (clearError) {
     return NextResponse.json({ error: clearError.message }, { status: 500 });
@@ -177,7 +196,7 @@ export async function PUT(req: Request) {
     .from("addresses")
     .update({ is_default: true })
     .eq("id", id)
-    .eq("user_id", user.pi_uid);
+    .eq("user_id", userId)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -206,7 +225,7 @@ export async function DELETE(req: Request) {
     .from("addresses")
     .delete()
     .eq("id", id)
-    .eq("user_id", user.pi_uid);
+   .eq("user_id", userId)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
