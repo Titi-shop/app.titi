@@ -478,8 +478,6 @@ if (userRes.rowCount === 0) {
 
 const userId = userRes.rows[0].id;
 
-  if (!auth.ok) return auth.response;
-
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
