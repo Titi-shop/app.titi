@@ -2,14 +2,16 @@ export async function apiAuthFetch(
   input: RequestInfo,
   init?: RequestInit
 ) {
-  const token = await getPiAccessToken();
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("pi_token")
+      : null;
 
   return fetch(input, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
       ...(init?.headers || {}),
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 }
