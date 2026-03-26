@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 interface ViewBody {
@@ -24,6 +24,13 @@ export async function POST(req: Request) {
     }
 
     const { id } = body as ViewBody;
+    // 🔥 validate uuid đơn giản
+if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+  return NextResponse.json(
+    { success: false, message: "INVALID_ID" },
+    { status: 400 }
+  );
+}
 
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/rpc/increment_product_view`,
@@ -38,6 +45,14 @@ export async function POST(req: Request) {
       }
     );
 
+
+    // 🔥 anti spam (per request)
+const ip =
+  req.headers.get("x-forwarded-for") ||
+  req.headers.get("x-real-ip") ||
+  "unknown";
+
+console.log("VIEW FROM:", ip);
     if (!res.ok) {
       const text = await res.text();
       console.error("❌ VIEW RPC ERROR:", text);
