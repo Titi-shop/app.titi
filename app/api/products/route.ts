@@ -228,7 +228,19 @@ rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
 export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [auth.user.pi_uid]
+);
 
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
   const userRes = await query(
   `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
   [auth.user.pi_uid]
@@ -345,7 +357,19 @@ const userId = userRes.rows[0].id;
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [auth.user.pi_uid]
+);
 
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
   try {
     const body: unknown = await req.json();
 
@@ -398,7 +422,7 @@ export async function PUT(req: Request) {
       : 0;
 
     const updated = await updateProductBySeller(
-      auth.user.pi_uid,
+  userId,
       productId,
       {
         name: name.trim(),
@@ -452,6 +476,20 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
+if (!auth.ok) return auth.response;
+  const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [auth.user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
 
   const userRes = await query(
   `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
