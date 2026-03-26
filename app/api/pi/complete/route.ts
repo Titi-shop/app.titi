@@ -159,25 +159,32 @@ export async function POST(req: Request) {
     }
 
     /* ================= COMPLETE PI ================= */
+const completeRes = await fetch(
+  `${PI_API}/payments/${paymentId}/complete`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ txid }),
+  }
+);
 
-    const completeRes = await fetch(
-      `${PI_API}/payments/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${PI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
+if (!completeRes.ok) {
+  return NextResponse.json(
+    { error: "PI_COMPLETE_FAILED" },
+    { status: 400 }
+  );
+}
 
-    if (!completeRes.ok) {
-      return NextResponse.json(
-        { error: "PI_COMPLETE_FAILED" },
-        { status: 400 }
-      );
-    }
+/* ================= SAU ĐÓ MỚI XỬ LÝ DB ================= */
+
+await client.query("BEGIN");
+
+// update stock
+// create order
+// commit
 
     /* ================= ADDRESS ================= */
 
