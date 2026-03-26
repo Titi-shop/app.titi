@@ -151,6 +151,19 @@ if (userRes.rowCount === 0) {
 }
 
 const userId = userRes.rows[0].id;
+    const roleRes = await query(
+  `SELECT role FROM users WHERE id = $1 LIMIT 1`,
+  [userId]
+);
+
+const role = roleRes.rows[0]?.role;
+
+if (role !== "seller" && role !== "admin") {
+  return NextResponse.json(
+    { error: "FORBIDDEN" },
+    { status: 403 }
+  );
+}
 
     if (!id) {
       return NextResponse.json(
