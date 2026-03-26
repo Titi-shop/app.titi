@@ -1,5 +1,3 @@
-import { getPiAccessToken } from "@/lib/piAuth";
-
 export async function apiAuthFetch(
   input: RequestInfo,
   init?: RequestInit
@@ -9,6 +7,7 @@ export async function apiAuthFetch(
   return fetch(input, {
     ...init,
     headers: {
+      "Content-Type": "application/json",
       ...(init?.headers || {}),
       Authorization: `Bearer ${token}`,
     },
