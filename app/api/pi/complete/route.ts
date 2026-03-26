@@ -177,15 +177,6 @@ if (!completeRes.ok) {
     { status: 400 }
   );
 }
-
-/* ================= SAU ĐÓ MỚI XỬ LÝ DB ================= */
-
-await client.query("BEGIN");
-
-// update stock
-// create order
-// commit
-
     /* ================= ADDRESS ================= */
 
     const addrRes = await client.query(
