@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { query } from "@/lib/db";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -21,22 +22,33 @@ interface AddressInsert {
 }
 
 /* =====================================================
+   HELPER: GET USER ID (UUID)
+===================================================== */
+async function getUserId(pi_uid: string) {
+  const res = await query(
+    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+    [pi_uid]
+  );
+
+  if (res.rowCount === 0) return null;
+
+  return res.rows[0].id as string;
+}
+
+/* =====================================================
    GET – LIST
 ===================================================== */
 export async function GET() {
   const user = await getUserFromBearer();
-   const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
 
-if (userRes.rowCount === 0) {
-  return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-}
-
-const userId = userRes.rows[0].id;
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const userId = await getUserId(user.pi_uid);
+
+  if (!userId) {
+    return NextResponse.json({ success: true, items: [] });
   }
 
   const { data, error } = await supabaseAdmin
@@ -49,7 +61,10 @@ const userId = userRes.rows[0].id;
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, items: data ?? [] });
+  return NextResponse.json({
+    success: true,
+    items: data ?? [],
+  });
 }
 
 /* =====================================================
@@ -57,8 +72,15 @@ const userId = userRes.rows[0].id;
 ===================================================== */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
+
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const userId = await getUserId(user.pi_uid);
+
+  if (!userId) {
+    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
   }
 
   let body: unknown;
@@ -95,63 +117,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
   }
 
-  /* Clear previous default (safe even if none exists) */
+  /* clear default */
   const { error: clearError } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
-    const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
-
-if (userRes.rowCount === 0) {
-  return NextResponse.json({ success: true, items: [] });
-}
-
-const userId = userRes.rows[0].id;
+    .eq("user_id", userId);
 
   if (clearError) {
     return NextResponse.json({ error: clearError.message }, { status: 500 });
   }
 
   const { data, error } = await supabaseAdmin
-  .from("addresses")
-  .insert({
-    user_id: userId,
-    full_name: full_name.trim(),
-    phone: phone.trim(),
-    country: country.trim(),
-    province: province.trim(),
-    district:
-      typeof district === "string" && district.trim()
-        ? district.trim()
-        : null,
-    ward:
-      typeof ward === "string" && ward.trim()
-        ? ward.trim()
-        : null,
-    address_line: address_line.trim(),
+    .from("addresses")
+    .insert({
+      user_id: userId,
+      full_name: full_name.trim(),
+      phone: phone.trim(),
+      country: country.trim(),
+      province: province.trim(),
+      district:
+        typeof district === "string" && district.trim()
+          ? district.trim()
+          : null,
+      ward:
+        typeof ward === "string" && ward.trim()
+          ? ward.trim()
+          : null,
+      address_line: address_line.trim(),
+      postal_code:
+        typeof postal_code === "string" && postal_code.trim()
+          ? postal_code.trim()
+          : null,
+      label:
+        label === "office" || label === "other"
+          ? label
+          : "home",
+      is_default: true,
+    })
+    .select()
+    .single();
 
-    // ✅ FIX quan trọng ở đây
-    postal_code:
-      typeof postal_code === "string" && postal_code.trim()
-        ? postal_code.trim()
-        : null,
-
-    label:
-      label === "office" || label === "other"
-        ? label
-        : "home",
-
-    is_default: true,
-  })
-  .select()
-  .single();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, address: data });
+  return NextResponse.json({
+    success: true,
+    address: data,
+  });
 }
 
 /* =====================================================
@@ -159,8 +172,15 @@ const userId = userRes.rows[0].id;
 ===================================================== */
 export async function PUT(req: Request) {
   const user = await getUserFromBearer();
+
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const userId = await getUserId(user.pi_uid);
+
+  if (!userId) {
+    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
   }
 
   let body: unknown;
@@ -181,22 +201,18 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
   }
 
-  /* Clear old default */
-  const { error: clearError } = await supabaseAdmin
+  /* clear old */
+  await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
-    .eq("user_id", userId)
+    .eq("user_id", userId);
 
-  if (clearError) {
-    return NextResponse.json({ error: clearError.message }, { status: 500 });
-  }
-
-  /* Set new default */
+  /* set new */
   const { error } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: true })
     .eq("id", id)
-    .eq("user_id", userId)
+    .eq("user_id", userId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -210,8 +226,15 @@ export async function PUT(req: Request) {
 ===================================================== */
 export async function DELETE(req: Request) {
   const user = await getUserFromBearer();
+
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const userId = await getUserId(user.pi_uid);
+
+  if (!userId) {
+    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
   }
 
   const { searchParams } = new URL(req.url);
@@ -225,7 +248,7 @@ export async function DELETE(req: Request) {
     .from("addresses")
     .delete()
     .eq("id", id)
-   .eq("user_id", userId)
+    .eq("user_id", userId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
