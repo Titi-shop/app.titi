@@ -104,14 +104,25 @@ const accessToken = authHeader.slice(7).trim();
        - Bootstrap default = customer
     ===================================================== */
     const { rows } = await query(
-      `
-      SELECT role
-      FROM public.users
-      WHERE pi_uid = $1
-      LIMIT 1
-      `,
-      [pi_uid]
-    );
+  `
+  SELECT id, role
+  FROM public.users
+  WHERE pi_uid = $1
+  LIMIT 1
+  `,
+  [pi_uid]
+);
+
+const dbUser = rows?.[0];
+
+const role =
+  dbUser?.role === "seller" ||
+  dbUser?.role === "admin" ||
+  dbUser?.role === "customer"
+    ? dbUser.role
+    : "customer";
+
+const userId = dbUser?.id;
 
     const dbRole = rows?.[0]?.role;
     const role =
@@ -125,11 +136,12 @@ const accessToken = authHeader.slice(7).trim();
     return NextResponse.json({
       success: true,
       user: {
-        pi_uid,
-        username,
-        wallet_address,
-        role,
-      },
+  id: userId, 
+  pi_uid,
+  username,
+  wallet_address,
+  role,
+}
     });
   } catch (err) {
     console.error("❌ PI VERIFY ERROR:", err);
