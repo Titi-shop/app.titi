@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { query } from "@/lib/db";
 import {
   getVariantsByProductId,
   replaceVariantsByProductId,
@@ -125,6 +128,29 @@ export async function PATCH(
 ) {
   try {
     const { id } = params;
+    const user = await getUserFromBearer();
+
+if (!user) {
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401 }
+  );
+}
+
+// map → UUID
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
 
     if (!id) {
       return NextResponse.json(
@@ -139,7 +165,7 @@ const hasVariants = normalizedVariants.length > 0;
 
 const finalStock = hasVariants
   ? getTotalVariantStock(normalizedVariants)
-  : typeof body.stock === "number" && body.stock >= 0
+  stock: finalStock,
   ? body.stock
   : 0;
 
@@ -173,15 +199,15 @@ const updatePayload = {
       is_active:
         typeof body.is_active === "boolean" ? body.is_active : true,
       thumbnail:
-        typeof body.thumbnail === "string" && body.thumbnail.trim() !== ""
-          ? body.thumbnail
-          : Array.isArray(body.images) && body.images.length > 0
-          ? body.images[0]
-          : null,
+  typeof body.thumbnail === "string" && body.thumbnail.trim() !== ""
+    ? body.thumbnail
+    : Array.isArray(body.images) && body.images.length > 0
+    ? body.images[0]
+    : null,
     };
 
     const updateRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}`,
+`${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&seller_id=eq.${userId}`,
       {
         method: "PATCH",
         headers: {
