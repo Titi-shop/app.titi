@@ -1,4 +1,3 @@
-// app/api/pi/verify/route.ts
 /* =========================================================
    PI TOKEN VERIFY API
    - Identity Provider: Pi Network
