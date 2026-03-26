@@ -43,7 +43,18 @@ function isValidEmail(email: string | null) {
 
   return true;
 }
+async function getUserIdOrThrow(pi_uid: string): Promise<string> {
+  const res = await query(
+    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+    [pi_uid]
+  );
 
+  if (res.rowCount === 0) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  return res.rows[0].id;
+}
 /* ================= GET ================= */
 
 export async function GET() {
@@ -53,20 +64,16 @@ export async function GET() {
   }
 
   try {
-    // 🔥 map pi_uid → uuid
-    const userRes = await query(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
+    let userId: string;
 
-    if (userRes.rowCount === 0) {
-      return NextResponse.json({
-        success: true,
-        profile: emptyProfile(),
-      });
-    }
-
-    const userId = userRes.rows[0].id;
+try {
+  userId = await getUserIdOrThrow(user.pi_uid);
+} catch {
+  return NextResponse.json({
+    success: true,
+    profile: emptyProfile(),
+  });
+}
 
     const { rows } = await query(
       `
@@ -139,20 +146,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 🔥 map pi_uid → uuid
-    const userRes = await query(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
+let userId: string;
 
-    if (userRes.rowCount === 0) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    const userId = userRes.rows[0].id;
+try {
+  userId = await getUserIdOrThrow(user.pi_uid);
+} catch {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
     await query(
       `
