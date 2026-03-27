@@ -128,43 +128,46 @@ export async function PATCH(
 ) {
   try {
     const { id } = params;
+
+    /* =========================
+       1️⃣ AUTH
+    ========================= */
     const user = await getUserFromBearer();
 
-if (!user) {
-  return NextResponse.json(
-    { error: "UNAUTHENTICATED" },
-    { status: 401 }
-  );
-}
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
 
-// map → UUID
-const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
+    /* =========================
+       2️⃣ MAP pi_uid → UUID + ROLE
+    ========================= */
+    const userRes = await query(
+      `SELECT id, role FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
 
-if (userRes.rowCount === 0) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+    if (userRes.rowCount === 0) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-const userId = userRes.rows[0].id;
-    const roleRes = await query(
-  `SELECT role FROM users WHERE id = $1 LIMIT 1`,
-  [userId]
-);
+    const { id: userId, role } = userRes.rows[0];
 
-const role = roleRes.rows[0]?.role;
+    if (role !== "seller" && role !== "admin") {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
 
-if (role !== "seller" && role !== "admin") {
-  return NextResponse.json(
-    { error: "FORBIDDEN" },
-    { status: 403 }
-  );
-}
-
+    /* =========================
+       3️⃣ VALIDATE ID
+    ========================= */
     if (!id) {
       return NextResponse.json(
         { error: "MISSING_PRODUCT_ID" },
@@ -172,67 +175,147 @@ if (role !== "seller" && role !== "admin") {
       );
     }
 
+    /* =========================
+       4️⃣ CHECK OWNERSHIP
+    ========================= */
+    const ownerCheck = await query(
+      `SELECT seller_id FROM products WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+
+    if (ownerCheck.rowCount === 0) {
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const sellerId = ownerCheck.rows[0].seller_id;
+
+    if (sellerId !== userId && role !== "admin") {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* =========================
+       5️⃣ BODY
+    ========================= */
     const body = (await req.json()) as PatchBody;
-const normalizedVariants = normalizeVariants(body.variants);
-const hasVariants = normalizedVariants.length > 0;
 
-const finalStock = hasVariants
-  ? getTotalVariantStock(normalizedVariants)
-  : typeof body.stock === "number" && body.stock >= 0
-  ? body.stock
-  : 0;
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
+    }
 
-const updatePayload = {
-      name: typeof body.name === "string" ? body.name.trim() : "",
+    const normalizedVariants = normalizeVariants(body.variants);
+    const hasVariants = normalizedVariants.length > 0;
+
+    const finalStock = hasVariants
+      ? getTotalVariantStock(normalizedVariants)
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
+      : 0;
+
+    /* =========================
+       6️⃣ BUILD PAYLOAD (SAFE)
+    ========================= */
+    const updatePayload: Record<string, unknown> = {
+      name:
+        body.name !== undefined && typeof body.name === "string"
+          ? body.name.trim()
+          : undefined,
+
       description:
-        typeof body.description === "string" ? body.description : "",
-      detail: typeof body.detail === "string" ? body.detail : "",
-      images: Array.isArray(body.images)
-        ? body.images.filter((item): item is string => typeof item === "string")
-        : [],
+        body.description !== undefined
+          ? body.description
+          : undefined,
+
+      detail:
+        body.detail !== undefined
+          ? body.detail
+          : undefined,
+
+      images:
+        body.images !== undefined
+          ? Array.isArray(body.images)
+            ? body.images.filter((i): i is string => typeof i === "string")
+            : []
+          : undefined,
+
       category_id:
-        typeof body.categoryId === "string" && body.categoryId.trim() !== ""
-          ? body.categoryId
-          : null,
-      price: typeof body.price === "number" && !Number.isNaN(body.price) ? body.price : 0,
+        body.categoryId !== undefined
+          ? typeof body.categoryId === "string" &&
+            body.categoryId.trim() !== ""
+            ? body.categoryId
+            : null
+          : undefined,
+
+      price:
+        body.price !== undefined &&
+        typeof body.price === "number" &&
+        !Number.isNaN(body.price)
+          ? body.price
+          : undefined,
+
       sale_price:
-        typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
+        body.salePrice !== undefined &&
+        typeof body.salePrice === "number"
           ? body.salePrice
           : null,
+
       sale_start:
-        typeof body.saleStart === "string" && body.saleStart.trim() !== ""
+        body.saleStart !== undefined
           ? body.saleStart
-          : null,
+          : undefined,
+
       sale_end:
-        typeof body.saleEnd === "string" && body.saleEnd.trim() !== ""
+        body.saleEnd !== undefined
           ? body.saleEnd
-          : null,
+          : undefined,
+
       stock: finalStock,
+
       is_active:
-        typeof body.is_active === "boolean" ? body.is_active : true,
+        body.is_active !== undefined
+          ? body.is_active
+          : undefined,
+
       thumbnail:
-  typeof body.thumbnail === "string" && body.thumbnail.trim() !== ""
-    ? body.thumbnail
-    : Array.isArray(body.images) && body.images.length > 0
-    ? body.images[0]
-    : null,
+        body.thumbnail !== undefined
+          ? body.thumbnail
+          : undefined,
     };
 
+    /* =========================
+       7️⃣ REMOVE UNDEFINED
+    ========================= */
+    const cleanPayload = Object.fromEntries(
+      Object.entries(updatePayload).filter(([_, v]) => v !== undefined)
+    );
+
+    /* =========================
+       8️⃣ UPDATE SUPABASE
+    ========================= */
     const updateRes = await fetch(
-`${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&seller_id=eq.${userId}`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${userId}`,
       {
         method: "PATCH",
         headers: {
           ...supabaseHeaders(),
           Prefer: "return=representation",
         },
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify(cleanPayload),
       }
     );
 
     if (!updateRes.ok) {
       const text = await updateRes.text();
       console.error("❌ PATCH PRODUCT ERROR:", text);
+
       return NextResponse.json(
         { error: "FAILED_TO_UPDATE_PRODUCT" },
         { status: 500 }
@@ -248,12 +331,18 @@ const updatePayload = {
       );
     }
 
+    /* =========================
+       9️⃣ VARIANTS
+    ========================= */
     if (Array.isArray(body.variants)) {
-  await replaceVariantsByProductId(id, normalizedVariants);
-}
+      await replaceVariantsByProductId(id, normalizedVariants);
+    }
 
     const updatedVariants = await getVariantsByProductId(id);
 
+    /* =========================
+       🔟 RESPONSE
+    ========================= */
     return NextResponse.json({
       id: data[0].id,
       name: data[0].name,
@@ -274,98 +363,16 @@ const updatePayload = {
       is_active: data[0].is_active ?? true,
 
       views: data[0].views ?? 0,
-     sold: data[0].sold ?? 0,
-     rating_avg: data[0].rating_avg ?? 0,
-     rating_count: data[0].rating_count ?? 0,
+      sold: data[0].sold ?? 0,
+      rating_avg: data[0].rating_avg ?? 0,
+      rating_count: data[0].rating_count ?? 0,
 
       variants: updatedVariants,
     });
+
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
-    return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
-      { status: 500 }
-    );
-  }
-}
 
-/* =========================
-   GET /api/products/[id]
-========================= */
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "MISSING_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
-
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&select=*`,
-      {
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ FETCH PRODUCT ERROR:", text);
-      return NextResponse.json(
-        { error: "FAILED_TO_FETCH_PRODUCT" },
-        { status: 500 }
-      );
-    }
-
-    const data: ProductRow[] = await res.json();
-
-    if (data.length === 0) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const p = data[0];
-    const variants = await getVariantsByProductId(id);
-
-    return NextResponse.json({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-
-      salePrice: p.sale_price ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-
-      images: p.images ?? [],
-      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-
-      categoryId: p.category_id ?? "",
-      stock: p.stock ?? 0,
-      is_active: p.is_active ?? true,
-
-      views: p.views ?? 0,
-sold: p.sold ?? 0,
-rating_avg: p.rating_avg ?? 0,
-rating_count: p.rating_count ?? 0,
-
-      variants,
-    });
-  } catch (err) {
-    console.error("❌ PRODUCT [ID] ERROR:", err);
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
       { status: 500 }
