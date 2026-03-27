@@ -1,4 +1,4 @@
-// app/api/products/[id]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { updateProductBySeller } from "@/lib/db/products";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -212,6 +212,45 @@ export async function PATCH(
 
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
+
+    return NextResponse.json(
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
+
+
+export async function GET(
+  req: NextRequest,
+  context: { params: { id: string } }
+): Promise<NextResponse> {
+  try {
+    const id = context?.params?.id;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "MISSING_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    const result = await query(
+      `SELECT * FROM products WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(result.rows[0]);
+
+  } catch (err) {
+    console.error("❌ GET PRODUCT ERROR:", err);
 
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
