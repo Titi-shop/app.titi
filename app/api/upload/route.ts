@@ -1,5 +1,4 @@
-// app/api/upload/route.ts
-import { query } from "@/lib/db";
+import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -10,11 +9,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-type UserRow = {
-  id: string;
-  role: "seller" | "admin" | "customer";
-};
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
@@ -33,19 +27,16 @@ export async function POST(req: Request): Promise<NextResponse> {
     /* =========================
        2️⃣ MAP USER + ROLE (1 QUERY)
     ========================= */
-    const userRes = await query<UserRow>(
-      `SELECT id, role FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
+    const userId = await getUserIdByPiUid(user.pi_uid);
 
-    if (userRes.rows.length === 0) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
-    const { id: userId, role } = userRes.rows[0];
+const role = await getUserRoleByPiUid(user.pi_uid);
 
     /* =========================
        3️⃣ RBAC
