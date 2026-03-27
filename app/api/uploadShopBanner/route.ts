@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
-import { query } from "@/lib/db";
+import { getUserIdByPiUid } from "@/lib/db/users";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 import {
@@ -10,10 +10,6 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type UserRow = {
-  id: string;
-};
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
@@ -27,20 +23,16 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    
     /* ================= MAP USER ================= */
-    const userRes = await query<UserRow>(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
+const userId = await getUserIdByPiUid(user.pi_uid);
 
-    if (userRes.rows.length === 0) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const userId = userRes.rows[0].id;
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
     /* ================= FILE ================= */
     const formData = await req.formData();
