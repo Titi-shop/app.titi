@@ -444,3 +444,35 @@ export async function getSoldByProduct(
 
   return rows[0]?.sold ?? 0;
 }
+
+
+/* =========================================================
+   RPC — INCREMENT PRODUCT VIEW
+========================================================= */
+
+export async function incrementProductView(
+  productId: string
+): Promise<number> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/rpc/increment_product_view`,
+    {
+      method: "POST",
+      headers: supabaseHeaders(),
+      body: JSON.stringify({ pid: productId }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ VIEW RPC ERROR:", text);
+    throw new Error("FAILED_TO_INCREMENT_VIEW");
+  }
+
+  const data: { views: number }[] = await res.json();
+
+  return data[0]?.views ?? 0;
+}
