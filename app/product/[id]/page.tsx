@@ -476,12 +476,10 @@ const canBuy = hasVariants
           {t.product_description ?? "Mô tả sản phẩm"}
         </h3>
 
-        {product.description ? (
-  <ul className="text-sm text-gray-700 space-y-1">
-    {formatShortDescription(product.description).map((line, i) => (
-      <li key={i}>• {line}</li>
-    ))}
-  </ul>
+      {product.description ? (
+  <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+    {product.description}
+  </div>
 ) : (
   <p className="text-sm text-gray-400">
     {t.no_description}
