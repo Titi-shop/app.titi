@@ -496,9 +496,12 @@ const canBuy = hasVariants
   </h3>
 
   {product.detail ? (
-    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-      {formatDetail(product.detail)}
-    </div>
+    <div
+      className="text-sm text-gray-700 leading-relaxed [&_img]:rounded-lg [&_img]:my-2 [&_img]:w-full"
+      dangerouslySetInnerHTML={{
+        __html: formatDetail(product.detail),
+      }}
+    />
   ) : (
     <p className="text-sm text-gray-400">
       {t.no_description}
