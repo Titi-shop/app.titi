@@ -96,16 +96,6 @@ function normalizeVariants(input: unknown): ProductVariant[] {
 function getTotalVariantStock(variants: ProductVariant[]) {
   return variants.reduce((sum, item) => sum + (item.stock || 0), 0);
 }
-/* =========================
-   HELPERS
-========================= */
-function supabaseHeaders() {
-  return {
-    apikey: SERVICE_KEY,
-    Authorization: `Bearer ${SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
-}
 
 /* =========================
    PATCH /api/products/[id]
@@ -286,39 +276,37 @@ export async function PATCH(
     );
 
     /* =========================
-       8️⃣ UPDATE SUPABASE
-    ========================= */
-    const updateRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${userId}`,
-      {
-        method: "PATCH",
-        headers: {
-          ...supabaseHeaders(),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify(cleanPayload),
-      }
-    );
+   8️⃣ UPDATE DB (CHUẨN)
+========================= */
+const updated = await updateProductBySeller(
+  userId,
+  id,
+  cleanPayload
+);
 
-    if (!updateRes.ok) {
-      const text = await updateRes.text();
-      console.error("❌ PATCH PRODUCT ERROR:", text);
+if (!updated) {
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
+    { status: 404 }
+  );
+}
 
-      return NextResponse.json(
-        { error: "FAILED_TO_UPDATE_PRODUCT" },
-        { status: 500 }
-      );
-    }
+    /* =========================
+   9️⃣ FETCH UPDATED PRODUCT
+========================= */
+const result = await query(
+  `SELECT * FROM products WHERE id = $1 LIMIT 1`,
+  [id]
+);
 
-    const data: ProductRow[] = await updateRes.json();
+if (result.rowCount === 0) {
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
-    if (!data.length) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
+const p = result.rows[0];
     /* =========================
        9️⃣ VARIANTS
     ========================= */
