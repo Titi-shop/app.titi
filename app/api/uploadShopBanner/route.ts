@@ -1,8 +1,12 @@
-// app/api/uploadShopBanner/route.ts
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+
+import {
+  getUserShopBanner,
+  updateShopBanner,
+} from "@/lib/db/userProfiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,9 +17,7 @@ type UserRow = {
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    // ==============================
-    // 🔐 AUTH
-    // ==============================
+    /* ================= AUTH ================= */
     const user = await getUserFromBearer(req);
 
     if (!user?.pi_uid) {
@@ -25,9 +27,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ==============================
-    // 🔥 MAP pi_uid → userId (UUID)
-    // ==============================
+    /* ================= MAP USER ================= */
     const userRes = await query<UserRow>(
       `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
       [user.pi_uid]
@@ -42,9 +42,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const userId = userRes.rows[0].id;
 
-    // ==============================
-    // 📥 READ FILE
-    // ==============================
+    /* ================= FILE ================= */
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -55,7 +53,6 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // (optional nhưng nên có)
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "INVALID_FILE_TYPE" },
@@ -63,20 +60,10 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ==============================
-    // 📄 LOAD CURRENT BANNER
-    // ==============================
-    const result = await query<{ shop_banner: string | null }>(
-      `SELECT shop_banner FROM user_profiles WHERE user_id = $1`,
-      [userId] // ✅ FIX
-    );
+    /* ================= LOAD OLD ================= */
+    const oldBanner = await getUserShopBanner(userId);
 
-    const oldBanner =
-      result.rows.length > 0 ? result.rows[0].shop_banner : null;
-
-    // ==============================
-    // 🗑 DELETE OLD
-    // ==============================
+    /* ================= DELETE OLD ================= */
     if (oldBanner) {
       try {
         const url = new URL(oldBanner);
@@ -86,11 +73,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       }
     }
 
-    // ==============================
-    // ☁️ UPLOAD
-    // ==============================
+    /* ================= UPLOAD ================= */
     const blob = await put(
-      `shop-banners/${userId}-${Date.now()}`, // ✅ dùng UUID
+      `shop-banners/${userId}-${Date.now()}`,
       file,
       {
         access: "public",
@@ -98,24 +83,10 @@ export async function POST(req: Request): Promise<NextResponse> {
       }
     );
 
-    // ==============================
-    // 💾 UPSERT PROFILE
-    // ==============================
-    await query(
-      `
-      INSERT INTO user_profiles (user_id, shop_banner, updated_at)
-      VALUES ($1, $2, NOW())
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        shop_banner = EXCLUDED.shop_banner,
-        updated_at = NOW()
-      `,
-      [userId, blob.url] // ✅ FIX
-    );
+    /* ================= SAVE ================= */
+    await updateShopBanner(userId, blob.url);
 
-    // ==============================
-    // ✅ RESPONSE
-    // ==============================
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       banner: `${blob.url}?t=${Date.now()}`,
