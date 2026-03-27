@@ -361,10 +361,10 @@ const p = result.rows[0];
 ========================= */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  context: { params: { id: string } }
+): Promise<NextResponse> {
   try {
-    const { id } = params;
+    const id = context?.params?.id;
 
     if (!id) {
       return NextResponse.json(
@@ -373,72 +373,22 @@ export async function GET(
       );
     }
 
-    /* =========================
-       🔐 AUTH (NÊN CÓ)
-    ========================= */
-    const user = await getUserFromBearer(req);
-
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    /* =========================
-       🔁 MAP USER
-    ========================= */
-    const userRes = await query<{ id: string }>(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
+    const result = await query(
+      `SELECT * FROM products WHERE id = $1 LIMIT 1`,
+      [id]
     );
 
-    if (userRes.rows.length === 0) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const userId = userRes.rows[0].id;
-
-    /* =========================
-       📦 GET PRODUCT (DB LAYER)
-    ========================= */
-    const product = await getProductById(id);
-
-    if (!product) {
+    if (result.rows.length === 0) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    /* =========================
-       🔐 OPTIONAL: OWNERSHIP CHECK
-    ========================= */
-    if (product.seller_id !== userId) {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    /* =========================
-       📦 VARIANTS
-    ========================= */
-    const variants = await getVariantsByProductId(id);
-
-    /* =========================
-       ✅ RESPONSE
-    ========================= */
-    return NextResponse.json({
-      ...product,
-      variants,
-    });
+    return NextResponse.json(result.rows[0]);
 
   } catch (err) {
-    console.error("❌ PRODUCT [ID] ERROR:", err);
+    console.error("❌ GET PRODUCT ERROR:", err);
 
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
