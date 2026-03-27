@@ -34,7 +34,7 @@ if (!userId) {
   );
 }
 
-    const userId = userRes.rows[0].id;
+    
 
     /* ================= FILE ================= */
     const formData = await req.formData();
