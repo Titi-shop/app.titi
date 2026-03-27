@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import { updateProductBySeller } from "@/lib/db/products";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { query } from "@/lib/db";
 import {
@@ -7,18 +7,6 @@ import {
   replaceVariantsByProductId,
   type ProductVariant,
 } from "@/lib/db/variants";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!SUPABASE_URL) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL is missing");
-}
-
-if (!SERVICE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
-}
-
 /* =========================
    TYPES
 ========================= */
@@ -344,32 +332,31 @@ export async function PATCH(
        🔟 RESPONSE
     ========================= */
     return NextResponse.json({
-      id: data[0].id,
-      name: data[0].name,
-      price: data[0].price,
+  id: p.id,
+  name: p.name,
+  price: p.price,
 
-      salePrice: data[0].sale_price ?? null,
-      saleStart: data[0].sale_start ?? null,
-      saleEnd: data[0].sale_end ?? null,
+  salePrice: p.sale_price ?? null,
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
 
-      description: data[0].description ?? "",
-      detail: data[0].detail ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
 
-      images: data[0].images ?? [],
-      thumbnail: data[0].thumbnail ?? (data[0].images?.[0] ?? ""),
+  images: p.images ?? [],
+  thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
 
-      categoryId: data[0].category_id ?? "",
-      stock: data[0].stock ?? 0,
-      is_active: data[0].is_active ?? true,
+  categoryId: p.category_id ?? "",
+  stock: p.stock ?? 0,
+  is_active: p.is_active ?? true,
 
-      views: data[0].views ?? 0,
-      sold: data[0].sold ?? 0,
-      rating_avg: data[0].rating_avg ?? 0,
-      rating_count: data[0].rating_count ?? 0,
+  views: p.views ?? 0,
+  sold: p.sold ?? 0,
+  rating_avg: p.rating_avg ?? 0,
+  rating_count: p.rating_count ?? 0,
 
-      variants: updatedVariants,
-    });
-
+  variants: updatedVariants,
+});
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
 
