@@ -10,11 +10,15 @@ export async function GET() {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
-  // 🔥 map pi_uid → userId (uuid)
-  const userRes = await query(
+  // lib/db (file đang có query)
+export async function getUserIdByPiUid(pi_uid: string) {
+  const res = await query(
     `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [auth.user.pi_uid]
+    [pi_uid]
   );
+
+  return res.rowCount > 0 ? res.rows[0].id : null;
+}
 
   if (userRes.rowCount === 0) {
     return NextResponse.json(
