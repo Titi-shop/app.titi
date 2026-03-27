@@ -53,7 +53,10 @@ function toAppVariant(row: VariantRow): ProductVariant {
     id: row.id,
     optionName: row.option_name || "size",
     optionValue: row.option_value || "",
-    stock: typeof row.stock === "number" && !Number.isNaN(row.stock) ? row.stock : 0,
+    stock:
+      typeof row.stock === "number" && !Number.isNaN(row.stock)
+        ? row.stock
+        : 0,
     sku: row.sku ?? null,
     sortOrder:
       typeof row.sort_order === "number" && !Number.isNaN(row.sort_order)
@@ -66,31 +69,40 @@ function toAppVariant(row: VariantRow): ProductVariant {
 function normalizeVariant(
   variant: ProductVariant,
   index = 0
-): Omit<VariantRow, "id" | "created_at" | "updated_at"> {
+) {
   return {
-    product_id: "",
     option_name:
       typeof variant.optionName === "string" && variant.optionName.trim() !== ""
         ? variant.optionName.trim()
         : "size",
+
     option_value:
-      typeof variant.optionValue === "string" ? variant.optionValue.trim() : "",
+      typeof variant.optionValue === "string"
+        ? variant.optionValue.trim()
+        : "",
+
     stock:
       typeof variant.stock === "number" &&
       !Number.isNaN(variant.stock) &&
       variant.stock >= 0
         ? variant.stock
         : 0,
+
     sku:
       typeof variant.sku === "string" && variant.sku.trim() !== ""
         ? variant.sku.trim()
         : null,
+
     sort_order:
-      typeof variant.sortOrder === "number" && !Number.isNaN(variant.sortOrder)
+      typeof variant.sortOrder === "number" &&
+      !Number.isNaN(variant.sortOrder)
         ? variant.sortOrder
         : index,
+
     is_active:
-      typeof variant.isActive === "boolean" ? variant.isActive : true,
+      typeof variant.isActive === "boolean"
+        ? variant.isActive
+        : true,
   };
 }
 
@@ -101,11 +113,15 @@ function normalizeVariant(
 export async function getVariantsByProductId(
   productId: string
 ): Promise<ProductVariant[]> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
   const url =
     `${SUPABASE_URL}/rest/v1/product_variants` +
     `?product_id=eq.${encodeURIComponent(productId)}` +
     `&is_active=eq.true` +
-    `&order=sort_order.asc&order=created_at.asc`;
+    `&order=sort_order.asc`;
 
   const res = await fetch(url, {
     headers: supabaseHeaders(),
@@ -114,22 +130,27 @@ export async function getVariantsByProductId(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE GET PRODUCT VARIANTS ERROR:", text);
+    console.error("❌ SUPABASE GET VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_FETCH_VARIANTS");
   }
 
   const rows: VariantRow[] = await res.json();
+
   return rows.map(toAppVariant);
 }
 
 /* =========================================================
-   POST — CREATE VARIANTS FOR PRODUCT
+   POST — CREATE VARIANTS
 ========================================================= */
 
 export async function createVariantsForProduct(
   productId: string,
   variants: ProductVariant[]
 ): Promise<ProductVariant[]> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
   if (!Array.isArray(variants) || variants.length === 0) {
     return [];
   }
@@ -143,7 +164,11 @@ export async function createVariantsForProduct(
         product_id: productId,
       };
     })
-    .filter((variant) => variant.option_value !== "");
+    .filter(
+      (v) =>
+        typeof v.option_value === "string" &&
+        v.option_value.trim() !== ""
+    );
 
   if (payload.length === 0) {
     return [];
@@ -160,21 +185,26 @@ export async function createVariantsForProduct(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE CREATE PRODUCT VARIANTS ERROR:", text);
+    console.error("❌ CREATE VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_CREATE_VARIANTS");
   }
 
   const rows: VariantRow[] = await res.json();
+
   return rows.map(toAppVariant);
 }
 
 /* =========================================================
-   DELETE — ALL VARIANTS BY PRODUCT ID
+   DELETE — ALL VARIANTS
 ========================================================= */
 
 export async function deleteVariantsByProductId(
   productId: string
 ): Promise<boolean> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
   const url =
     `${SUPABASE_URL}/rest/v1/product_variants` +
     `?product_id=eq.${encodeURIComponent(productId)}`;
@@ -189,7 +219,7 @@ export async function deleteVariantsByProductId(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE DELETE PRODUCT VARIANTS ERROR:", text);
+    console.error("❌ DELETE VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_DELETE_VARIANTS");
   }
 
@@ -197,7 +227,7 @@ export async function deleteVariantsByProductId(
 }
 
 /* =========================================================
-   REPLACE — DELETE ALL THEN CREATE AGAIN
+   REPLACE — DELETE + CREATE
 ========================================================= */
 
 export async function replaceVariantsByProductId(
