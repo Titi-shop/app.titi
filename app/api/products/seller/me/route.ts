@@ -7,30 +7,46 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+  try {
+    /* =========================
+       1️⃣ AUTH
+    ========================= */
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-  // lib/db (file đang có query)
-export async function getUserIdByPiUid(pi_uid: string) {
-  const res = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [pi_uid]
-  );
+    /* =========================
+       2️⃣ MAP pi_uid → userId (uuid)
+    ========================= */
+    const userRes = await query(
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [auth.user.pi_uid]
+    );
 
-  return res.rowCount > 0 ? res.rows[0].id : null;
-}
+    if (userRes.rowCount === 0) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-  if (userRes.rowCount === 0) {
+    const userId = userRes.rows[0].id;
+
+    /* =========================
+       3️⃣ GET PRODUCTS (DB LAYER)
+    ========================= */
+    const products = await getSellerProducts(userId);
+
+    /* =========================
+       4️⃣ RESPONSE
+    ========================= */
+    return NextResponse.json(products);
+
+  } catch (err) {
+    console.error("❌ SELLER PRODUCTS ERROR:", err);
+
     return NextResponse.json(
-      { error: "USER_NOT_FOUND" },
-      { status: 404 }
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
     );
   }
-
-  const userId = userRes.rows[0].id;
-
-  // ✅ dùng UUID
-  const products = await getSellerProducts(userId);
-
-  return NextResponse.json(products);
 }
