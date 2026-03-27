@@ -140,3 +140,32 @@ export async function updateShopBanner(
 
 
 
+
+/* ================= GET AVATAR ================= */
+export async function getUserAvatar(userId: string) {
+  const res = await query(
+    `SELECT avatar_url FROM user_profiles WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+
+  return res.rows[0]?.avatar_url ?? null;
+}
+
+/* ================= UPDATE AVATAR ================= */
+export async function updateAvatar(
+  userId: string,
+  url: string
+) {
+  await query(
+    `
+    INSERT INTO user_profiles (user_id, avatar_url, updated_at)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      avatar_url = EXCLUDED.avatar_url,
+      updated_at = NOW()
+    `,
+    [userId, url]
+  );
+}
+
