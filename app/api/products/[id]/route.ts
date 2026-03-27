@@ -356,12 +356,15 @@ const p = result.rows[0];
   }
 }
 
+/* =========================
+   GET /api/products/[id]
+========================= */
 export async function GET(
-  req: NextRequest,
-  context: { params: { id: string } }
-): Promise<NextResponse> {
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const id = context?.params?.id;
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -370,66 +373,66 @@ export async function GET(
       );
     }
 
-    /* =========================
-       1️⃣ PRODUCT
-    ========================= */
-    const productRes = await query(
-      `SELECT * FROM products WHERE id = $1 LIMIT 1`,
-      [id]
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&select=*`,
+      {
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+        cache: "no-store",
+      }
     );
 
-    if (productRes.rows.length === 0) {
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("❌ FETCH PRODUCT ERROR:", text);
+      return NextResponse.json(
+        { error: "FAILED_TO_FETCH_PRODUCT" },
+        { status: 500 }
+      );
+    }
+
+    const data: ProductRow[] = await res.json();
+
+    if (data.length === 0) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const product = productRes.rows[0];
+    const p = data[0];
+    const variants = await getVariantsByProductId(id);
 
-    /* =========================
-       2️⃣ VARIANTS
-    ========================= */
-    const variantsRes = await query(
-      `
-      SELECT 
-        id,
-        option_name AS "optionName",
-        option_value AS "optionValue",
-        stock,
-        sku,
-        sort_order AS "sortOrder",
-        is_active AS "isActive"
-      FROM product_variants
-      WHERE product_id = $1
-      ORDER BY sort_order ASC
-      `,
-      [id]
-    );
-
-    const variants = variantsRes.rows;
-
-    /* =========================
-       3️⃣ CATEGORIES
-    ========================= */
-    const categoryRes = await query(
-      `SELECT id, name FROM categories ORDER BY name ASC`
-    );
-
-    /* =========================
-       4️⃣ RESPONSE (GIỐNG POST)
-    ========================= */
     return NextResponse.json({
-      product: {
-        ...product,
-        variants,
-      },
-      categories: categoryRes.rows,
+      id: p.id,
+      name: p.name,
+      price: p.price,
+
+      salePrice: p.sale_price ?? null,
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+
+      images: p.images ?? [],
+      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
+
+      categoryId: p.category_id ?? "",
+      stock: p.stock ?? 0,
+      is_active: p.is_active ?? true,
+
+      views: p.views ?? 0,
+sold: p.sold ?? 0,
+rating_avg: p.rating_avg ?? 0,
+rating_count: p.rating_count ?? 0,
+
+      variants,
     });
-
   } catch (err) {
-    console.error("❌ GET PRODUCT ERROR:", err);
-
+    console.error("❌ PRODUCT [ID] ERROR:", err);
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
       { status: 500 }
