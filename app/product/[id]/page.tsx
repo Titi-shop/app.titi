@@ -496,22 +496,15 @@ const canBuy = hasVariants
   </h3>
 
   {product.detail ? (
-  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-    {formatDetail(product.detail)}
-  </div>
-) : (
-  <p className="text-sm text-gray-400">
-    {t.no_description}
-  </p>
-)}
-    />
+    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+      {formatDetail(product.detail)}
+    </div>
   ) : (
     <p className="text-sm text-gray-400">
       {t.no_description}
     </p>
   )}
 </div>
-    
 
       {/* RELATED */}
       {relatedProducts.length > 0 && (
