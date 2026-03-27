@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { query } from "@/lib/db";
+import { getUserIdByPiUid } from "@/lib/db/users";
 import { blockedEmailDomains } from "@/data/validEmailDomains";
 
 import {
@@ -49,19 +49,16 @@ function isValidEmail(email: string | null) {
   return true;
 }
 
-/* ================= GET USER ID ================= */
 
-async function getUserId(pi_uid: string): Promise<string | null> {
-  const res = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [pi_uid]
+/* ================= MAP USER ================= */
+const userId = await getUserIdByPiUid(user.pi_uid);
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
   );
-
-  if (res.rowCount === 0) return null;
-
-  return res.rows[0].id;
 }
-
 /* ================= GET ================= */
 
 export async function GET(req: Request) {
