@@ -84,7 +84,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
 
-    let products: any[] = [];
+    import type { ProductRecord } from "@/lib/db/products";
+
+let products: ProductRecord[] = [];
 
     /* ================= DB LAYER ================= */
     if (ids) {
@@ -106,7 +108,7 @@ export async function GET(req: Request) {
     const now = Date.now();
 
     const enriched = await Promise.all(
-      products.map(async (p: any) => {
+      products.map(async (p: ProductRecord) => {
         const start =
           typeof p.sale_start === "string"
             ? new Date(p.sale_start).getTime()
