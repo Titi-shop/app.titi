@@ -1,8 +1,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { updateProductBySeller } from "@/lib/db/products";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { query } from "@/lib/db";
+import { requireSeller } from "@/lib/auth/guard";
+import { getProductById } from "@/lib/db/products";
 import {
   getVariantsByProductId,
   replaceVariantsByProductId,
@@ -111,72 +111,10 @@ export async function PATCH(
     /* =========================
        1️⃣ AUTH
     ========================= */
-    const user = await getUserFromBearer();
+    const auth = await requireSeller();
+if (!auth.ok) return auth.response;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    /* =========================
-       2️⃣ MAP pi_uid → UUID + ROLE
-    ========================= */
-    const userRes = await query(
-      `SELECT id, role FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
-
-    if (userRes.rowCount === 0) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const { id: userId, role } = userRes.rows[0];
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    /* =========================
-       3️⃣ VALIDATE ID
-    ========================= */
-    if (!id) {
-      return NextResponse.json(
-        { error: "MISSING_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
-
-    /* =========================
-       4️⃣ CHECK OWNERSHIP
-    ========================= */
-    const ownerCheck = await query(
-      `SELECT seller_id FROM products WHERE id = $1 LIMIT 1`,
-      [id]
-    );
-
-    if (ownerCheck.rowCount === 0) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const sellerId = ownerCheck.rows[0].seller_id;
-
-    if (sellerId !== userId && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
+const userId = auth.userId;
 
     /* =========================
        5️⃣ BODY
