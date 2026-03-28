@@ -54,7 +54,10 @@ export default function ProductForm({
 }: ProductFormProps) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
-
+const [name, setName] = useState("");
+const [price, setPrice] = useState<number | "">("");
+const [categoryId, setCategoryId] = useState("");
+const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [salePrice, setSalePrice] = useState<number | "">("");
   const [saleStart, setSaleStart] = useState("");
@@ -74,17 +77,23 @@ export default function ProductForm({
   });
 
   useEffect(() => {
-    if (!initialData) return;
+  if (!initialData) return;
 
-    setImages(initialData.images || []);
-    setSalePrice(initialData.salePrice ?? "");
-    setSaleStart(initialData.saleStart ? toLocalDateTime(initialData.saleStart) : "");
-    setSaleEnd(initialData.saleEnd ? toLocalDateTime(initialData.saleEnd) : "");
-    setStock(initialData.stock ?? 1);
-    setIsActive(initialData.is_active ?? true);
-    setDetail(initialData.detail || "");
-    setVariants(Array.isArray(initialData.variants) ? initialData.variants : []);
-  }, [initialData]);
+  // 🔥 THÊM 4 dòng này
+  setName(initialData.name || "");
+  setPrice(initialData.price ?? "");
+  setCategoryId(initialData.categoryId || "");
+  setDescription(initialData.description || "");
+
+  setImages(initialData.images || []);
+  setSalePrice(initialData.salePrice ?? "");
+  setSaleStart(initialData.saleStart ? toLocalDateTime(initialData.saleStart) : "");
+  setSaleEnd(initialData.saleEnd ? toLocalDateTime(initialData.saleEnd) : "");
+  setStock(initialData.stock ?? 1);
+  setIsActive(initialData.is_active ?? true);
+  setDetail(initialData.detail || "");
+  setVariants(Array.isArray(initialData.variants) ? initialData.variants : []);
+}, [initialData]);
 
   if (loading || !user) {
     return <div className="text-center p-8">{t.loading}</div>;
@@ -206,23 +215,14 @@ export default function ProductForm({
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const form = e.currentTarget;
-
-    const name = (
-      form.elements.namedItem("name") as HTMLInputElement
-    ).value.trim();
-
-    const price = Number(
-      (form.elements.namedItem("price") as HTMLInputElement).value
-    );
-
-    const categoryId = (
-      form.elements.namedItem("categoryId") as HTMLSelectElement
-    ).value;
-
-    const description = (
-      form.elements.namedItem("description") as HTMLTextAreaElement
-    ).value;
+    // 🔥 dùng state luôn
+if (!name || Number(price) <= 0 || !categoryId) {
+  setMessage({
+    text: t.enter_valid_name_price,
+    type: "error",
+  });
+  return;
+}
 
     if (!images.length) {
       setMessage({
@@ -269,8 +269,11 @@ export default function ProductForm({
 }
 
     const payload: ProductPayload = {
-      id: initialData?.id,
-      name,
+  id: initialData?.id,
+  name,
+  price: Number(price),
+  categoryId,
+  description,
       price,
       salePrice: salePrice === "" ? null : salePrice,
       saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
@@ -324,11 +327,12 @@ export default function ProductForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <select
-        name="categoryId"
-        className="w-full border p-2 rounded"
-        required
-        defaultValue={initialData?.categoryId || ""}
-      >
+  name="categoryId"
+  value={categoryId}
+  onChange={(e) => setCategoryId(e.target.value)}
+  className="w-full border p-2 rounded"
+  required
+>
         <option value="">{t.select_category}</option>
         {categories.map((c) => {
           const key = c.key as keyof typeof t;
@@ -341,8 +345,9 @@ export default function ProductForm({
       </select>
 
       <input
-        name="name"
-        defaultValue={initialData?.name || ""}
+  name="name"
+  value={name}
+  onChange={(e) => setName(e.target.value)}
         placeholder={t.product_name}
         className="w-full border p-2 rounded"
         required
@@ -502,8 +507,9 @@ export default function ProductForm({
 </div>
 
       <textarea
-        name="description"
-        defaultValue={initialData?.description || ""}
+  name="description"
+  value={description}
+  onChange={(e) => setDescription(e.target.value)}
         placeholder={t.description}
         required
         className="w-full border p-2 rounded min-h-[70px]"
