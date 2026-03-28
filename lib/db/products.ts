@@ -537,7 +537,7 @@ export async function incrementProductView(
 /* =========================================================
               SOLD
 ========================================================= */
-
+import { query } from "@/lib/db";
 
 export async function getSoldByProduct(
   productId: string
@@ -559,3 +559,4 @@ export async function getSoldByProduct(
 
   return result.rows[0]?.sold ?? 0;
 }
+
