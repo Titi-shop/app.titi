@@ -230,22 +230,7 @@ if (!updated) {
   );
 }
 
-    /* =========================
-   9️⃣ FETCH UPDATED PRODUCT
-========================= */
-const result = await query(
-  `SELECT * FROM products WHERE id = $1 LIMIT 1`,
-  [id]
-);
-
-if (result.rowCount === 0) {
-  return NextResponse.json(
-    { error: "PRODUCT_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-
-const p = result.rows[0];
+const p = await getProductById(id);
     /* =========================
        9️⃣ VARIANTS
     ========================= */
