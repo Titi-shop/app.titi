@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
   updateProductBySeller,
@@ -83,8 +84,6 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
-
-    import type { ProductRecord } from "@/lib/db/products";
 
 let products: ProductRecord[] = [];
 
