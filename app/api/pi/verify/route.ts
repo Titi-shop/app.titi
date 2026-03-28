@@ -40,16 +40,16 @@ export async function POST(req: Request) {
 
     /* ================= 2️⃣ VERIFY PI ================= */
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 5000); // tránh treo
+const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const piRes = await fetch("https://api.minepi.com/v2/me", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: controller.signal,
-    });
+const piRes = await fetch("https://api.minepi.com/v2/me", {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
+  },
+  cache: "no-store",
+  signal: controller.signal,
+}).finally(() => clearTimeout(timeout));
 
     if (!piRes.ok) {
       return NextResponse.json(
@@ -90,16 +90,15 @@ export async function POST(req: Request) {
         : "customer";
 
     /* ================= 5️⃣ RESPONSE ================= */
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: dbUser.id, // ✅ UUID chuẩn
-        pi_uid,
-        username,
-        wallet_address,
-        role,
-      },
-    });
+   return NextResponse.json({
+  success: true,
+  user: {
+    id: dbUser.id,
+    username,
+    wallet_address,
+    role,
+  },
+});
 
   } catch (err) {
     console.error("❌ PI VERIFY ERROR:", err);
