@@ -539,35 +539,24 @@ export async function incrementProductView(
 ========================================================= */
 export async function incrementProductSold(
   productId: string,
-  quantity: number,
-  sellerId: string
+  quantity: number
 ): Promise<number> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=eq.${encodeURIComponent(productId)}` +
-    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
-
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify({
-      sold: quantity, // ❗ nếu muốn cộng dồn → cần RPC
-    }),
-  });
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/rpc/increment_product_sold`,
+    {
+      method: "POST",
+      headers: supabaseHeaders(),
+      body: JSON.stringify({
+        pid: productId,
+        qty: quantity,
+      }),
+    }
+  );
 
   if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SOLD UPDATE ERROR:", text);
-    throw new Error("FAILED_TO_UPDATE_SOLD");
+    throw new Error("FAILED_TO_INCREMENT_SOLD");
   }
 
-  const rows = await res.json();
-
-  return rows[0]?.sold ?? 0;
+  const data = await res.json();
+  return data[0]?.sold ?? 0;
 }
-
-
-
