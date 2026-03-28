@@ -1,25 +1,10 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
-/* =========================
-   Types
-========================= */
-
-type ReviewRow = {
-  id: string;
-  order_id: string;
-  product_id: string;
-  user_id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-};
-
-type OrderCheckRow = {
-  buyer_id: string;
-  status: string;
-};
+import {
+  createReview,
+  getReviewsByUser,
+} from "@/lib/db/reviews";
 
 /* =========================================================
    POST /api/reviews
@@ -27,18 +12,22 @@ type OrderCheckRow = {
 ========================================================= */
 export async function POST(req: Request) {
   try {
-    /* 🔐 AUTH */
-    const user = await getUserFromBearer();
-    if (!user) {
+    /* ================= AUTH ================= */
+    const auth = await getUserFromBearer();
+
+    if (!auth) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    /* 📦 BODY */
+    const userId = auth.userId;
+
+    /* ================= BODY ================= */
     const body: unknown = await req.json().catch(() => null);
-    if (typeof body !== "object" || body === null) {
+
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -82,149 +71,13 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =========================
-       CHECK ORDER + PRODUCT
-    ========================== */
-
-    const orderCheck = await query<OrderCheckRow>(
-      `
-      select o.buyer_id, o.status
-      from orders o
-      join order_items oi on oi.order_id = o.id
-      where o.id = $1
-      and oi.product_id = $2
-      limit 1
-      `,
-      [orderId, productId]
-    );
-
-    if (orderCheck.rows.length === 0) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_IN_ORDER" },
-        { status: 404 }
-      );
-    }
-
-    const order = orderCheck.rows[0];
-
-    if (order.buyer_id !== user.pi_uid) {
-      return NextResponse.json(
-        { error: "FORBIDDEN_ORDER" },
-        { status: 403 }
-      );
-    }
-
-    const status = order.status.toLowerCase();
-
-    if (status !== "completed" && status !== "received") {
-      return NextResponse.json(
-        { error: "ORDER_NOT_REVIEWABLE" },
-        { status: 400 }
-      );
-    }
-
-
-     const itemResult = await query<{
-  id: string
-  seller_id: string
-  product_name: string
-  thumbnail: string | null
-}>(
-  `
-  select
-    id,
-    seller_id,
-    product_name,
-    thumbnail
-  from order_items
-  where order_id = $1
-  and product_id = $2
-  limit 1
-  `,
-  [orderId, productId]
-);
-
-if (itemResult.rows.length === 0) {
-  return NextResponse.json(
-    { error: "ORDER_ITEM_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-
-const item = itemResult.rows[0];
-    /* =========================
-       CHECK REVIEW EXISTS
-    ========================== */
-
-    const existing = await query(
-      `
-      select 1
-      from reviews
-      where order_id = $1
-      and product_id = $2
-      and user_id = $3
-      limit 1
-      `,
-      [orderId, productId, user.pi_uid]
-    );
-
-    if (existing.rows.length > 0) {
-      return NextResponse.json(
-        { error: "ALREADY_REVIEWED" },
-        { status: 400 }
-      );
-    }
-
-    /* =========================
-       INSERT REVIEW
-    ========================== */
-
-    const insertResult = await query<ReviewRow>(
-      `
-      insert into reviews (
-  order_id,
-  order_item_id,
-  product_id,
-  seller_id,
-  user_id,
-  product_name,
-  product_thumbnail,
-  rating,
-  comment
-)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      returning *
-      `,
-     [
-  orderId,
-  item.id,
-  productId,
-  item.seller_id,
-  user.pi_uid,
-  item.product_name,
-  item.thumbnail,
-  rating,
-  comment,
-]
-    );
-
-    const review = insertResult.rows[0];
-
-    /* =========================
-       UPDATE PRODUCT AVG RATING
-    ========================== */
-
-    await query(
-      `
-      update products
-      set rating_avg = (
-        select avg(rating)
-        from reviews
-        where product_id = $1
-      )
-      where id = $1
-      `,
-      [productId]
+    /* ================= CREATE ================= */
+    const review = await createReview(
+      userId,
+      orderId,
+      productId,
+      rating,
+      comment
     );
 
     return NextResponse.json({
@@ -235,6 +88,37 @@ values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
   } catch (error) {
     console.error("REVIEW ERROR:", error);
 
+    const message =
+      error instanceof Error ? error.message : "INTERNAL_ERROR";
+
+    /* map lỗi từ DB layer */
+    if (
+      message === "PRODUCT_NOT_IN_ORDER" ||
+      message === "ORDER_ITEM_NOT_FOUND"
+    ) {
+      return NextResponse.json(
+        { error: message },
+        { status: 404 }
+      );
+    }
+
+    if (message === "FORBIDDEN_ORDER") {
+      return NextResponse.json(
+        { error: message },
+        { status: 403 }
+      );
+    }
+
+    if (
+      message === "ORDER_NOT_REVIEWABLE" ||
+      message === "ALREADY_REVIEWED"
+    ) {
+      return NextResponse.json(
+        { error: message },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "INTERNAL_ERROR" },
       { status: 500 }
@@ -244,36 +128,25 @@ values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 
 /* =========================================================
    GET /api/reviews
-   - Lấy danh sách review của user hiện tại
+   - Lấy review của user hiện tại
 ========================================================= */
 export async function GET() {
   try {
-    const user = await getUserFromBearer();
-    if (!user) {
+    const auth = await getUserFromBearer();
+
+    if (!auth) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const result = await query<{
-      order_id: string;
-      product_id: string;
-      rating: number;
-      comment: string | null;
-      created_at: string;
-    }>(
-      `
-      select order_id, product_id, rating, comment, created_at
-      from reviews
-      where user_id = $1
-      order by created_at desc
-      `,
-      [user.pi_uid]
-    );
+    const userId = auth.userId;
+
+    const reviews = await getReviewsByUser(userId);
 
     return NextResponse.json({
-      reviews: result.rows,
+      reviews,
     });
 
   } catch (error) {
