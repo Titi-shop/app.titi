@@ -33,3 +33,21 @@ export async function getUserRoleByUserId(
 
   return res.rows[0]?.role ?? null;
 }
+
+export async function upsertUserFromPi(
+  pi_uid: string,
+  username: string
+): Promise<{ id: string; role: string | null }> {
+  const res = await query(
+    `
+    INSERT INTO users (pi_uid, username)
+    VALUES ($1, $2)
+    ON CONFLICT (pi_uid)
+    DO UPDATE SET username = EXCLUDED.username
+    RETURNING id, role
+    `,
+    [pi_uid, username]
+  );
+
+  return res.rows[0];
+}
