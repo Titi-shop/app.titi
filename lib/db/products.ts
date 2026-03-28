@@ -533,3 +533,41 @@ export async function incrementProductView(
 
   return data[0]?.views ?? 0;
 }
+
+/* =========================================================
+              SOLD
+========================================================= */
+export async function incrementProductSold(
+  productId: string,
+  quantity: number,
+  sellerId: string
+): Promise<number> {
+  const url =
+    `${SUPABASE_URL}/rest/v1/products` +
+    `?id=eq.${encodeURIComponent(productId)}` +
+    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      sold: quantity, // ❗ nếu muốn cộng dồn → cần RPC
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ SOLD UPDATE ERROR:", text);
+    throw new Error("FAILED_TO_UPDATE_SOLD");
+  }
+
+  const rows = await res.json();
+
+  return rows[0]?.sold ?? 0;
+}
+
+
+
