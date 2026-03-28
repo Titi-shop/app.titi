@@ -6,7 +6,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get("product_id");
 
-    if (!productId) {
+    /* ================= VALIDATE ================= */
+    if (!productId || !productId.trim()) {
       return NextResponse.json(
         { error: "MISSING_PRODUCT_ID" },
         { status: 400 }
@@ -20,9 +21,10 @@ export async function GET(req: Request) {
       );
     }
 
-    // 🔥 dùng DB layer
+    /* ================= DB ================= */
     const sold = await getSoldByProduct(productId);
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       sold,
@@ -32,8 +34,8 @@ export async function GET(req: Request) {
     console.error("❌ PRODUCT SOLD ERROR:", error);
 
     return NextResponse.json(
-      { success: false, sold: 0 },
-      { status: 200 }
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }
