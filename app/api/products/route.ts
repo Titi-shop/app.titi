@@ -237,7 +237,6 @@ if (!userId) {
   );
 }
 
-const role = await getUserRoleByPiUid(user.pi_uid);
 
   try {
     const body: unknown = await req.json();
@@ -350,7 +349,7 @@ if (!userId) {
   );
 }
 
-const role = await getUserRoleByPiUid(user.pi_uid);
+
   try {
     const body: unknown = await req.json();
 
@@ -467,7 +466,6 @@ if (!userId) {
   );
 }
 
-const role = await getUserRoleByPiUid(user.pi_uid);
 
   try {
     const { searchParams } = new URL(req.url);
