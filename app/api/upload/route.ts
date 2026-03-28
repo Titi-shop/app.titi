@@ -56,6 +56,10 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+
+    console.log("FILE SIZE:", file.size);
+console.log("FILE TYPE:", file.type);
+console.log("FILE NAME:", file.name);
     /* =========================
        3️⃣ PATH
     ========================= */
