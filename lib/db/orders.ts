@@ -614,3 +614,54 @@ export async function completeOrderByBuyer(
 
   return result.rowCount > 0;
 }
+
+export async function cancelOrderByBuyer(
+  orderId: string,
+  userId: string,
+  reason: string
+): Promise<"OK" | "NOT_FOUND" | "FORBIDDEN" | "INVALID_STATUS"> {
+  const { rows } = await query(
+    `
+    select buyer_id, status
+    from orders
+    where id=$1
+    `,
+    [orderId]
+  );
+
+  const order = rows[0];
+
+  if (!order) return "NOT_FOUND";
+
+  if (order.buyer_id !== userId) return "FORBIDDEN";
+
+  if (order.status !== "pending") return "INVALID_STATUS";
+
+  // update items
+  await query(
+    `
+    update order_items
+    set
+      status='cancelled',
+      seller_cancel_reason=$2
+    where order_id=$1
+    and status='pending'
+    `,
+    [orderId, reason]
+  );
+
+  // update order
+  await query(
+    `
+    update orders
+    set
+      status='cancelled',
+      cancel_reason=$2,
+      cancelled_at=now()
+    where id=$1
+    `,
+    [orderId, reason]
+  );
+
+  return "OK";
+}
