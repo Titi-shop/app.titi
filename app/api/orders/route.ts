@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { getOrdersByBuyer } from "@/lib/db/orders";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     /* ================= AUTH ================= */
     const auth = await requireAuth();
@@ -15,10 +15,7 @@ export async function GET() {
     /* ================= DB ================= */
     const orders = await getOrdersByBuyer(userId);
 
-    /* ================= RESPONSE ================= */
-    return NextResponse.json({
-      orders,
-    });
+    return NextResponse.json({ orders });
 
   } catch (err) {
     console.error("ORDERS API ERROR:", err);
