@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import { getSellerOrders } from "@/lib/db/orders";
-import { resolveRole } from "@/lib/auth/resolveRole";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +14,6 @@ type OrderStatus =
   | "returned";
 
 function parseOrderStatus(v: string | null): OrderStatus | undefined {
-
   if (!v) return;
 
   const allowed: OrderStatus[] = [
@@ -32,19 +30,6 @@ function parseOrderStatus(v: string | null): OrderStatus | undefined {
     : undefined;
 }
 
-export async function GET(req: Request) {
-
-  try {
-
-    const user = await getUserFromBearer(req);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-    
 export async function GET(req: Request) {
   try {
     /* ================= AUTH ================= */
