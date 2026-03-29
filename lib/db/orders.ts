@@ -577,3 +577,40 @@ export async function getOrdersByBuyer(
     order_items: map.get(order.id) ?? [],
   }));
 }
+
+
+export async function completeOrderByBuyer(
+  orderId: string,
+  userId: string
+): Promise<boolean> {
+  // check order
+  const { rows } = await query(
+    `
+    select status
+    from orders
+    where id=$1 and buyer_id=$2
+    `,
+    [orderId, userId]
+  );
+
+  const order = rows[0];
+
+  if (!order || order.status !== "shipping") {
+    return false;
+  }
+
+  // update items
+  const result = await query(
+    `
+    update order_items
+    set
+      status='completed',
+      delivered_at=now()
+    where order_id=$1
+    and status='shipping'
+    `,
+    [orderId]
+  );
+
+  return result.rowCount > 0;
+}
