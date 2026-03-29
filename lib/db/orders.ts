@@ -886,3 +886,22 @@ export async function upsertCartItems(
     );
   }
 }
+
+export async function deleteCartItem(
+  userId: string,
+  productId: string,
+  variantId?: string | null
+): Promise<void> {
+  await query(
+    `
+    delete from cart_items
+    where buyer_id = $1
+      and product_id = $2
+      and (
+        (variant_id is null and $3 is null)
+        or variant_id = $3
+      )
+    `,
+    [userId, productId, variantId ?? null]
+  );
+}
