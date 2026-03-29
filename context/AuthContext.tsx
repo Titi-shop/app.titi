@@ -7,7 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { clearPiToken } from "@/lib/piAuth";
 
 /* =========================
    TYPES
@@ -135,12 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
   console.log("🔴 LOGOUT");
-
-  localStorage.removeItem(USER_KEY);
-
-  // 🔥 QUAN TRỌNG NHẤT
-  localStorage.removeItem("pi_access_token");
-
+  localStorage.removeItem("pi_user");
+  clearPiToken();
   setUser(null);
 };
 
