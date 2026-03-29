@@ -3,16 +3,13 @@ import { requireSeller } from "@/lib/auth/guard";
 import { getSellerOrderById } from "@/lib/db/orders";
 
 export async function GET(
-  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    /* ================= AUTH ================= */
     const auth = await requireSeller();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-
     const orderId = params.id;
 
     if (!orderId) {
@@ -22,7 +19,6 @@ export async function GET(
       );
     }
 
-    /* ================= DB ================= */
     const order = await getSellerOrderById(
       orderId,
       userId
