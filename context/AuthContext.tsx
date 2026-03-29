@@ -57,15 +57,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+  async function init() {
     try {
-      const rawUser = localStorage.getItem(USER_KEY);
-      if (rawUser) {
-        setUser(JSON.parse(rawUser));
+      console.log("🟡 AUTH INIT START");
+
+      const token = await getPiAccessToken();
+
+      console.log("🟢 TOKEN:", token);
+
+      if (!token) {
+        console.log("🔴 NO TOKEN → LOGOUT STATE");
+        setUser(null);
+        return;
       }
+
+      const res = await fetch("/api/pi/verify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      console.log("🟢 VERIFY RESPONSE:", data);
+
+      if (res.ok && data?.user) {
+        console.log("🟢 LOGIN SUCCESS");
+        setUser(data.user);
+      } else {
+        console.log("🔴 VERIFY FAIL");
+        setUser(null);
+      }
+    } catch (err) {
+      console.error("❌ AUTH INIT ERROR:", err);
+      setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
+
+  void init();
+}, []);
 
   const pilogin = async () => {
   const token = await getPiAccessToken();
@@ -101,9 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+  console.log("🔴 LOGOUT");
+
   localStorage.removeItem(USER_KEY);
 
-  // 🔥 bắt buộc
+  // 🔥 QUAN TRỌNG NHẤT
   localStorage.removeItem("pi_access_token");
 
   setUser(null);
