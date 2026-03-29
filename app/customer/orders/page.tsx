@@ -271,7 +271,7 @@ export default function CustomerOrdersPage() {
             ["pending", t.order_pending],
             ["pickup", t.order_pickup],
             ["shipping", t.order_shipping],
-            ["received", t.order_received],
+            ["completed", t.order_completed],
             ["returned", t.order_returned],
             ["cancelled", t.order_cancelled],
           ] as [OrderTab, string][]).map(([key, label]) => (
