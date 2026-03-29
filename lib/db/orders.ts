@@ -812,3 +812,76 @@ export async function createReturn(
     ]
   );
 }
+
+
+export async function getCartByBuyer(userId: string) {
+  const { rows } = await query(
+    `
+    select 
+      c.id,
+      c.product_id,
+      c.variant_id,
+      c.quantity,
+
+      p.name,
+      p.price,
+      p.thumbnail,
+      p.stock
+
+    from cart_items c
+    left join products p on p.id = c.product_id
+
+    where c.buyer_id = $1
+    order by c.created_at desc
+    `,
+    [userId]
+  );
+
+  return rows.map((r) => ({
+    id: r.variant_id
+      ? `${r.product_id}-${r.variant_id}`
+      : r.product_id,
+
+    product_id: r.product_id,
+    variant_id: r.variant_id,
+
+    name: r.name ?? "Unknown product",
+
+    price: Number(r.price ?? 0),
+    sale_price: null,
+
+    thumbnail: r.thumbnail ?? "",
+    stock: r.stock ?? 0,
+    quantity: r.quantity ?? 1,
+  }));
+}
+
+export async function upsertCartItems(
+  userId: string,
+  items: {
+    product_id: string;
+    variant_id?: string | null;
+    quantity?: number;
+  }[]
+): Promise<void> {
+  for (const item of items) {
+    if (!item.product_id) continue;
+
+    await query(
+      `
+      insert into cart_items (buyer_id, product_id, variant_id, quantity)
+      values ($1, $2, $3, $4)
+      on conflict (buyer_id, product_id, variant_id)
+      do update set
+        quantity = cart_items.quantity + excluded.quantity,
+        updated_at = now()
+      `,
+      [
+        userId,
+        item.product_id,
+        item.variant_id ?? null,
+        item.quantity ?? 1,
+      ]
+    );
+  }
+}
