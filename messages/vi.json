@@ -1,4 +1,6 @@
 {
+  
+  "order_completed": "hoàn thành",
   "order_pending": "Chờ xác nhận",
   "order_pickup": "Chờ lấy hàng",
   "order_shipping": "Đang vận chuyển",
