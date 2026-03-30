@@ -115,31 +115,7 @@ export default function CartPage() {
   }, 300);
 }, [user, shipping, processing]);
 
-  useEffect(() => {
-  async function loadCart() {
-    try {
-      const token = await getPiAccessToken();
-
-      const res = await fetch("/api/cart", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) return;
-
-      const data: unknown = await res.json();
-
-      if (!Array.isArray(data)) return;
-
-      setCart(data);
-    } catch {}
-  }
-
-  if (user) {
-    void loadCart();
-  }
-}, [user]);
+  
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
@@ -387,34 +363,54 @@ export default function CartPage() {
               <div className="flex-1">
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-                <div className="mt-1 flex items-center gap-2">
-                  <div className="flex items-center gap-2 mt-1">
-  {/* - */}
-  <button
-    onClick={() => updateQty(item.id, item.quantity - 1)}
-    disabled={item.quantity <= 1}
-    className="w-8 h-8 border rounded"
-  >
-    -
-  </button>
+               <div className="mt-2 flex items-center justify-between">
+  
+  {/* LEFT: QUANTITY */}
+  <div className="flex items-center border rounded-lg overflow-hidden">
 
-  {/* qty */}
-  <span className="w-8 text-center">{item.quantity}</span>
+    {/* - */}
+    <button
+      onClick={() => updateQty(item.id, item.quantity - 1)}
+      disabled={item.quantity <= 1}
+      className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+    >
+      −
+    </button>
 
-  {/* + */}
-  <button
-    onClick={() => updateQty(item.id, item.quantity + 1)}
-    disabled={
-      item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
-    }
-    className="w-8 h-8 border rounded"
-  >
-    +
-  </button>
+    {/* QTY */}
+    <div className="px-4 text-sm font-medium">
+      {item.quantity}
+    </div>
 
-  <span className="text-xs text-gray-500">
-    × {formatPi(unit)} π
-  </span>
+    {/* + */}
+    <button
+      onClick={() =>
+        updateQty(
+          item.id,
+          Math.min(
+            item.quantity + 1,
+            item.variant?.stock ?? item.stock ?? 99
+          )
+        )
+      }
+      disabled={
+        item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
+      }
+      className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+    >
+      +
+    </button>
+  </div>
+
+  {/* RIGHT: PRICE */}
+  <div className="text-right">
+    <p className="text-sm text-gray-500">
+      {formatPi(unit)} π
+    </p>
+    <p className="font-semibold text-orange-600">
+      {formatPi(unit * item.quantity)} π
+    </p>
+  </div>
 </div>
 
                 <button
