@@ -869,21 +869,21 @@ export async function upsertCartItems(
     if (!item.product_id) continue;
 
     await query(
-      `
-      insert into cart_items (buyer_id, product_id, variant_id, quantity)
-      values ($1, $2, $3, $4)
-      on conflict (buyer_id, product_id, variant_id)
-do update set
-  quantity = cart_items.quantity + excluded.quantity,
-  updated_at = now()
-      `,
-      [
-        userId,
-        item.product_id,
-        item.variant_id ?? null,
-        item.quantity ?? 1,
-      ]
-    );
+  `
+  insert into cart_items (buyer_id, product_id, variant_id, quantity)
+  values ($1, $2, $3, $4)
+  on conflict (buyer_id, product_id, variant_id)
+  do update set
+    quantity = excluded.quantity,
+    updated_at = now()
+  `,
+  [
+    userId,
+    item.product_id,
+    item.variant_id ?? null,
+    item.quantity ?? 1,
+  ]
+);
   }
 }
 
