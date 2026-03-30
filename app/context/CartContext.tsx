@@ -213,9 +213,36 @@ useEffect(() => {
 
   /* ================= REMOVE ================= */
 
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((p) => p.id !== id));
-  };
+  const removeFromCart = async (id: string) => {
+  const item = cart.find((p) => p.id === id);
+
+  // ✅ xoá local trước
+  setCart((prev) => prev.filter((p) => p.id !== id));
+
+  if (!user || !item) return;
+
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
+
+    await fetch("/api/cart", {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item.product_id ?? item.id,
+        variant_id: item.variant?.optionValue ?? null, // ⚠️ nếu bạn có variant_id riêng thì dùng cái đó
+      }),
+    });
+
+    console.log("🟢 DELETE CART SUCCESS");
+
+  } catch (err) {
+    console.error("❌ DELETE CART ERROR:", err);
+  }
+};
 
   /* ================= CLEAR ================= */
 
