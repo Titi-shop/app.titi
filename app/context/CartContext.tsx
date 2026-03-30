@@ -53,62 +53,59 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const { user } = useAuth();
 const mergeCartOnLogin = async () => {
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
 
-      const localRaw = localStorage.getItem("cart");
-      const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
+    const localRaw = localStorage.getItem("cart");
+    const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
 
+    // 👉 nếu không có local → chỉ load server
+    if (localCart.length === 0) {
       const res = await fetch("/api/cart", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) return;
 
-      const serverCart: CartItem[] = await res.json();
-
-      const map = new Map<string, CartItem>();
-
-      const variantId =
-  item.variant_id ?? item.variant?.optionValue ?? null;
-
-const key = `${item.product_id}_${variantId ?? "default"}`;
-        if (map.has(key)) {
-          const existing = map.get(key)!;
-          existing.quantity =
-            (existing.quantity ?? 1) + (item.quantity ?? 1);
-        } else {
-          map.set(key, item);
-        }
-      }
-
-      const merged = Array.from(map.values());
-
-      await fetch("/api/cart", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify(merged),
-});
-
-      const finalRes = await fetch("/api/cart", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!finalRes.ok) return;
-
-      const finalCart = await finalRes.json();
-
-      setCart(finalCart);
-      localStorage.removeItem("cart");
-
-    } catch (err) {
-      console.error("❌ MERGE CART ERROR:", err);
+      const data = await res.json();
+      setCart(data);
+      return;
     }
-  };
+
+    // 👉 gửi local cart lên server (KHÔNG merge ở FE)
+    await fetch("/api/cart", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        localCart.map((item) => ({
+          product_id: item.product_id ?? item.id,
+          variant_id:
+            item.variant_id ?? item.variant?.optionValue ?? null,
+          quantity: item.quantity ?? 1,
+        }))
+      ),
+    });
+
+    // 👉 lấy lại cart chuẩn từ server
+    const finalRes = await fetch("/api/cart", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!finalRes.ok) return;
+
+    const finalCart = await finalRes.json();
+
+    setCart(finalCart);
+    localStorage.removeItem("cart");
+
+  } catch (err) {
+    console.error("❌ MERGE CART ERROR:", err);
+  }
+};
   /* ================= LOAD LOCAL ================= */
 
   useEffect(() => {
