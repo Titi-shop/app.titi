@@ -874,7 +874,7 @@ export async function upsertCartItems(
       values ($1, $2, $3, $4)
       on conflict (buyer_id, product_id, variant_id)
       do update set
-        quantity = cart_items.quantity + excluded.quantity,
+        quantity = excluded.quantity,
         updated_at = now()
       `,
       [
