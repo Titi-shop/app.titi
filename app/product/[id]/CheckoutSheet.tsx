@@ -179,11 +179,10 @@ const quantity = useMemo(() => {
      AUTO PAY AFTER LOGIN
   ========================= */
 
-  useEffect(() => {
-console.log(“🟡 AUTO PAY CHECK”, {
-user,
-shipping,
-processing,
+  console.log("🟡 AUTO PAY CHECK", {
+  user,
+  shipping,
+  processing,
 });
     if (!user || !shipping || processing) return;
 
