@@ -391,14 +391,34 @@ export default function CartPage() {
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
                 <div className="mt-1 flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={item.quantity}
-                    onChange={(e) => updateQty(item.id, Number(e.target.value))}
-                    className="w-16 rounded border text-center"
-                  />
+                  <div className="flex items-center gap-2 mt-1">
+  {/* - */}
+  <button
+    onClick={() => updateQty(item.id, item.quantity - 1)}
+    disabled={item.quantity <= 1}
+    className="w-8 h-8 border rounded"
+  >
+    -
+  </button>
+
+  {/* qty */}
+  <span className="w-8 text-center">{item.quantity}</span>
+
+  {/* + */}
+  <button
+    onClick={() => updateQty(item.id, item.quantity + 1)}
+    disabled={
+      item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
+    }
+    className="w-8 h-8 border rounded"
+  >
+    +
+  </button>
+
+  <span className="text-xs text-gray-500">
+    × {formatPi(unit)} π
+  </span>
+</div>
                   <span className="text-xs text-gray-500">
                     × {formatPi(unit)} π
                   </span>
