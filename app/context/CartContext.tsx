@@ -60,8 +60,10 @@ const mergeCartOnLogin = async () => {
     const localRaw = localStorage.getItem("cart");
     const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
 
-    // ✅ CASE 1: có local → POST lên DB
-    if (localCart.length > 0) {
+    // 👉 CHỈ LẤY ITEM CHƯA SYNC
+    const newItems = localCart.filter((i) => !i.synced);
+
+    if (newItems.length > 0) {
       await fetch("/api/cart", {
         method: "POST",
         headers: {
@@ -69,33 +71,35 @@ const mergeCartOnLogin = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
-          localCart.map((item) => ({
+          newItems.map((item) => ({
             product_id: item.product_id ?? item.id,
             variant_id: item.variant_id ?? null,
-            quantity: Math.min(
-              item.quantity ?? 1,
-              item.variant?.stock ?? item.stock ?? 99
-            ),
+            quantity: item.quantity ?? 1,
           }))
         ),
       });
-
-      // 🔥 QUAN TRỌNG NHẤT
-      localStorage.removeItem("cart"); // clear local sau khi post
     }
 
-    // ✅ luôn load lại DB (nguồn chuẩn)
+    // 👉 load server cart (nguồn chuẩn)
     const res = await fetch("/api/cart", {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!res.ok) return;
 
-    const data = await res.json();
-    setCart(data);
+    const serverCart = await res.json();
+
+    // 👉 set tất cả là synced
+    const finalCart = serverCart.map((item: CartItem) => ({
+      ...item,
+      synced: true,
+    }));
+
+    setCart(finalCart);
+    localStorage.removeItem("cart"); // 🔥 QUAN TRỌNG
 
   } catch (err) {
-    console.error("❌ MERGE CART ERROR:", err);
+    console.error("❌ MERGE ERROR:", err);
   }
 };
   /* ================= LOAD LOCAL ================= */
@@ -137,22 +141,19 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
-  // ✅ update local trước
+  const maxStock = item.variant?.stock ?? item.stock ?? 99;
+  const safeQty = Math.min(maxStock, item.quantity ?? 1);
+
   setCart((prev) => {
     const found = prev.find((p) => p.id === item.id);
 
-    const maxStock =
-      item.variant?.stock ?? item.stock ?? 99;
-
     if (found) {
-      const newQty =
-        (found.quantity ?? 1) + (item.quantity ?? 1);
-
       return prev.map((p) =>
         p.id === item.id
           ? {
               ...p,
-              quantity: Math.min(maxStock, newQty),
+              quantity: Math.min(maxStock, (p.quantity ?? 1) + safeQty),
+              synced: false, // 🔥 quan trọng
             }
           : p
       );
@@ -162,34 +163,34 @@ useEffect(() => {
       ...prev,
       {
         ...item,
+        quantity: safeQty,
         product_id: item.product_id ?? item.id,
-        quantity: Math.min(maxStock, item.quantity ?? 1),
+        synced: false, // 🔥 quan trọng
       },
     ];
   });
 
-  // 🔥🔥🔥 THÊM API CALL (ĐÂY LÀ PHẦN BỊ THIẾU)
+  // 👉 nếu đã login thì sync ngay
   try {
-    const token = await getPiAccessToken();
-    if (!token || !user) return;
+    if (!user) return;
 
-    // 🔥 thêm dòng này
-const maxStock = item.variant?.stock ?? item.stock ?? 99;
-const safeQty = Math.min(maxStock, item.quantity ?? 1);
+    const token = await getPiAccessToken();
+    if (!token) return;
+
     await fetch("/api/cart", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    product_id: item.product_id ?? item.id,
-    variant_id: item.variant_id ?? null,
-    quantity: safeQty, // ✅ FIX
-  }),
-});
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item.product_id ?? item.id,
+        variant_id: item.variant_id ?? null,
+        quantity: safeQty,
+      }),
+    });
   } catch (err) {
-    console.error("❌ ADD CART API ERROR:", err);
+    console.error(err);
   }
 };
 
