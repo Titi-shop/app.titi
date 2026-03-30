@@ -83,51 +83,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  /* ================= SYNC WITH SERVER ================= */
-
-  const syncWithServer = async () => {
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      // 🔥 gửi local cart lên server
-      await fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cart),
-      });
-
-      // 🔥 lấy lại cart từ server (nguồn chính)
-      const res = await fetch("/api/cart", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      if (!Array.isArray(data)) return;
-
-      // 🔥 replace local cart
-      setCart(data);
-    } catch {
-      // silent
-    }
-  };
-
-  /* ================= SYNC WHEN LOGIN ================= */
-
-  useEffect(() => {
-    if (!user) return;
-    if (typeof window === "undefined") return;
-    if (!("Pi" in window)) return;
-    void syncWithServer();
-  }, [user]); 
-
   /* ================= LOAD CART FROM SERVER ================= */
 
 useEffect(() => {
