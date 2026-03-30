@@ -277,3 +277,80 @@ export function useCart() {
 
   return ctx;
 }
+
+const mergeCartOnLogin = async () => {
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
+
+    // 1. lấy local cart
+    const localRaw = localStorage.getItem("cart");
+    const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
+
+    // 2. lấy server cart
+    const res = await fetch("/api/cart", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return;
+
+    const serverCart: CartItem[] = await res.json();
+
+    // 3. map server cart
+    const map = new Map<string, CartItem>();
+
+    for (const item of serverCart) {
+      const key = `${item.product_id}_${item.variant_id ?? "default"}`;
+      map.set(key, item);
+    }
+
+    // 4. merge local → server
+    for (const item of localCart) {
+      const key = `${item.product_id}_${item.variant_id ?? "default"}`;
+
+      if (map.has(key)) {
+        // ✅ đã có → cộng quantity
+        const existing = map.get(key)!;
+        existing.quantity =
+          (existing.quantity ?? 1) + (item.quantity ?? 1);
+
+        map.set(key, existing);
+      } else {
+        // ✅ chưa có → thêm mới
+        map.set(key, item);
+      }
+    }
+
+    // 5. gửi lên server (UPSERT)
+    const merged = Array.from(map.values());
+
+    await fetch("/api/cart/bulk", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(merged),
+    });
+
+    // 6. lấy lại cart chuẩn từ server
+    const finalRes = await fetch("/api/cart", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!finalRes.ok) return;
+
+    const finalCart = await finalRes.json();
+
+    // 7. set state + clear local
+    setCart(finalCart);
+    localStorage.removeItem("cart");
+
+  } catch (err) {
+    console.error("❌ MERGE CART ERROR:", err);
+  }
+};
