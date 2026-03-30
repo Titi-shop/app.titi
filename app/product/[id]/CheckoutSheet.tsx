@@ -179,25 +179,25 @@ const quantity = useMemo(() => {
      AUTO PAY AFTER LOGIN
   ========================= */
 
+  useEffect(() => {
   console.log("🟡 AUTO PAY CHECK", {
-  user,
-  shipping,
-  processing,
-});
-    if (!user || !shipping || processing) return;
+    user,
+    shipping,
+    processing,
+  });
 
-    const pending = localStorage.getItem("pending_checkout");
-    if (!pending) return;
+  if (!user || !shipping || processing) return;
 
-    localStorage.removeItem("pending_checkout");
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
 
-    setTimeout(() => {
-       console.log("🟢 AUTO PAY TRIGGER");
-      handlePay();
-    }, 300);
-  }, [user, shipping, processing]);
+  localStorage.removeItem("pending_checkout");
 
-  
+  setTimeout(() => {
+    console.log("🟢 AUTO PAY TRIGGER");
+    handlePay();
+  }, 300);
+}, [user, shipping, processing]);
 
   /* ========================= */
 
