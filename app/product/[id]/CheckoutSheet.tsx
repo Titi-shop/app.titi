@@ -222,26 +222,19 @@ processing,
 console.log(“🟡 VALIDATE START”);
      
      if (!window.Pi || !piReady) {
+  console.log("🔴 PI NOT READY");
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
 }
-    if (!window.Pi || !piReady) {
-      showMessage(t.pi_not_ready || "Pi is not ready");
-      return false;
-    }
+
 
       if (!user) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("pending_checkout", "1");
-  }
+  console.log("🔴 USER NOT LOGIN");
 
-  pilogin?.(); // ✅ mở login Pi
+  localStorage.setItem("pending_checkout", "1");
+  pilogin?.();
 
-  showMessage(
-    t.please_login || "Please login first",
-    "error"
-  );
-
+  showMessage(t.please_login);
   return false;
 }
 
