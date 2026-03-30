@@ -68,6 +68,7 @@ const mergeCartOnLogin = async () => {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          cache: "no-store",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
@@ -181,6 +182,7 @@ useEffect(() => {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        cache: "no-store",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
