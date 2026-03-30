@@ -186,6 +186,9 @@ useEffect(() => {
     const token = await getPiAccessToken();
     if (!token || !user) return;
 
+    // 🔥 thêm dòng này
+const maxStock = item.variant?.stock ?? item.stock ?? 99;
+const safeQty = Math.min(maxStock, item.quantity ?? 1);
     await fetch("/api/cart", {
   method: "POST",
   headers: {
