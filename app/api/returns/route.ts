@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
-import {
-  createReturn,
-  getReturnsByBuyer,
-} from "@/lib/db/orders"
+import { createReturn, getReturnsByBuyer } from "@/lib/db/orders";
+
+// ✅ THÊM Ở ĐÂY
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+
+// ✅ THÊM Ở ĐÂY
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /* =========================================================
    POST — CREATE RETURN
