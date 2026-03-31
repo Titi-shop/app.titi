@@ -948,40 +948,119 @@ export async function deleteCartItem(
   );
 }
 
-import { Pool, PoolClient, QueryResult } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
-
-/* ================= QUERY ================= */
-
-export async function query<T = unknown>(
-  text: string,
-  params?: unknown[]
-): Promise<QueryResult<T>> {
-  const client = await pool.connect();
-
-  try {
-    return await client.query<T>(text, params);
-  } finally {
-    client.release();
-  }
-}
-
-/* ================= TRANSACTION ================= */
-
-export async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
+export async function createOrderFromPiPayment(params: {
+  userId: string;
+  productId: string;
+  quantity: number;
+  paymentId: string;
+  txid: string;
+  shipping: {
+    name: string;
+    phone: string;
+    address: string;
+  };
+}) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-    const result = await fn(client);
+
+    /* ================= PRODUCT ================= */
+    const productRes = await client.query(
+      `select * from products where id=$1 limit 1`,
+      [params.productId]
+    );
+
+    const product = productRes.rows[0];
+
+    if (!product || product.is_active === false || product.deleted_at) {
+      throw new Error("PRODUCT_NOT_AVAILABLE");
+    }
+
+    /* ================= STOCK ================= */
+    const stock = await client.query(
+      `
+      update products
+      set stock = stock - $1,
+          sold = sold + $1
+      where id = $2
+      and stock >= $1
+      returning id
+      `,
+      [params.quantity, params.productId]
+    );
+
+    if (!stock.rowCount) {
+      throw new Error("OUT_OF_STOCK");
+    }
+
+    /* ================= ORDER ================= */
+    const total = Number(
+      (Number(product.price) * params.quantity).toFixed(6)
+    );
+
+    const orderRes = await client.query(
+      `
+      insert into orders (
+        order_number,
+        buyer_id,
+        pi_payment_id,
+        pi_txid,
+        total,
+        shipping_name,
+        shipping_phone,
+        shipping_address
+      )
+      values (
+        gen_random_uuid()::text,
+        $1,$2,$3,$4,$5,$6,$7
+      )
+      returning id
+      `,
+      [
+        params.userId,
+        params.paymentId,
+        params.txid,
+        total,
+        params.shipping.name,
+        params.shipping.phone,
+        params.shipping.address,
+      ]
+    );
+
+    const orderId = orderRes.rows[0].id;
+
+    /* ================= ORDER ITEM ================= */
+    await client.query(
+      `
+      insert into order_items (
+        order_id,
+        product_id,
+        seller_id,
+        product_name,
+        thumbnail,
+        unit_price,
+        quantity,
+        total_price
+      )
+      values ($1,$2,$3,$4,$5,$6,$7,$8)
+      `,
+      [
+        orderId,
+        product.id,
+        product.seller_id,
+        product.name,
+        product.thumbnail ?? "",
+        product.price,
+        params.quantity,
+        total,
+      ]
+    );
+
     await client.query("COMMIT");
-    return result;
+
+    return { orderId, total };
+
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
