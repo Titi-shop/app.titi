@@ -1,4 +1,4 @@
-import { pool } from "@/lib/db";
+
 import { PoolClient } from "pg";
 
 async function withTransaction<T>(
