@@ -1,19 +1,11 @@
-import { Pool, QueryResult } from "pg";
+import { Pool, PoolClient, QueryResult } from "pg";
 
-/* =========================================================
-   POOL
-========================================================= */
-
-export const pool = new Pool({
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
 });
 
-/* =========================================================
-   QUERY
-========================================================= */
+/* ================= QUERY ================= */
 
 export async function query<T = unknown>(
   text: string,
@@ -23,8 +15,25 @@ export async function query<T = unknown>(
 
   try {
     return await client.query<T>(text, params);
+  } finally {
+    client.release();
+  }
+}
+
+/* ================= TRANSACTION ================= */
+
+export async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
   } catch (err) {
-    console.error("❌ DB QUERY ERROR:", err);
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
