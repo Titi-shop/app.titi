@@ -36,7 +36,10 @@ interface ProductPayload {
   stock: number;
   is_active: boolean;
   variants?: ProductVariant[];
-}
+   domestic_shipping_fee?: number | null;
+  asia_shipping_fee?: number | null;
+   international_shipping_fee?: number | null;
+   }
 
 interface ProductFormProps {
   categories: Category[];
@@ -54,6 +57,10 @@ export default function ProductForm({
 }: ProductFormProps) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
+
+   const [domesticShipping, setDomesticShipping] = useState<number | "">("");
+const [asiaShipping, setAsiaShipping] = useState<number | "">("");
+const [internationalShipping, setInternationalShipping] = useState<number | "">("");
 const [name, setName] = useState("");
 const [price, setPrice] = useState<number | "">("");
 const [categoryId, setCategoryId] = useState("");
