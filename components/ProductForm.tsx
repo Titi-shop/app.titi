@@ -100,6 +100,9 @@ const [description, setDescription] = useState("");
   setIsActive(initialData.is_active ?? true);
   setDetail(initialData.detail || "");
   setVariants(Array.isArray(initialData.variants) ? initialData.variants : []);
+     setDomesticShipping(initialData.domestic_shipping_fee ?? "");
+setAsiaShipping(initialData.asia_shipping_fee ?? "");
+setInternationalShipping(initialData.international_shipping_fee ?? "");
 }, [initialData]);
 
   if (loading || !user) {
@@ -281,7 +284,6 @@ if (!name || Number(price) <= 0 || !categoryId) {
   price: Number(price),
   categoryId,
   description,
-      price,
       salePrice: salePrice === "" ? null : salePrice,
       saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
       saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
@@ -293,6 +295,14 @@ if (!name || Number(price) <= 0 || !categoryId) {
       stock: stock === "" ? 0 : Number(stock),
       is_active: isActive,
       variants,
+       domestic_shipping_fee:
+  domesticShipping === "" ? null : domesticShipping,
+
+asia_shipping_fee:
+  asiaShipping === "" ? null : asiaShipping,
+
+international_shipping_fee:
+  internationalShipping === "" ? null : internationalShipping,
     };
 
     setSaving(true);
@@ -413,6 +423,45 @@ if (!name || Number(price) <= 0 || !categoryId) {
         }
         className="w-full border p-2 rounded"
       />
+
+       <div className="space-y-2">
+  <p className="font-medium">🚚 Shipping Fee</p>
+
+  <input
+    type="number"
+    step="0.00001"
+    placeholder="Domestic (same country)"
+    value={domesticShipping}
+    onChange={(e) =>
+      setDomesticShipping(e.target.value ? Number(e.target.value) : "")
+    }
+    className="w-full border p-2 rounded"
+  />
+
+  <input
+    type="number"
+    step="0.00001"
+    placeholder="Asia"
+    value={asiaShipping}
+    onChange={(e) =>
+      setAsiaShipping(e.target.value ? Number(e.target.value) : "")
+    }
+    className="w-full border p-2 rounded"
+  />
+
+  <input
+    type="number"
+    step="0.00001"
+    placeholder="International"
+    value={internationalShipping}
+    onChange={(e) =>
+      setInternationalShipping(
+        e.target.value ? Number(e.target.value) : ""
+      )
+    }
+    className="w-full border p-2 rounded"
+  />
+</div>
 
       <label className="flex items-center gap-2">
         <input
