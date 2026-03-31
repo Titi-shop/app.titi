@@ -681,14 +681,15 @@ export async function getOrderByBuyerId(
       coalesce(
         json_agg(
           json_build_object(
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'thumbnail', oi.thumbnail,
-            'quantity', oi.quantity,
-            'unit_price', oi.unit_price,
-            'total_price', oi.total_price,
-            'status', oi.status
-          )
+  'id', oi.id, 
+  'product_id', oi.product_id,
+  'product_name', oi.product_name,
+  'thumbnail', oi.thumbnail,
+  'quantity', oi.quantity,
+  'unit_price', oi.unit_price,
+  'total_price', oi.total_price,
+  'status', oi.status
+)
           order by oi.created_at asc
         ) filter (where oi.id is not null),
         '[]'
