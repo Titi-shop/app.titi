@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/guard";
+import { requireSeller } from "@/lib/auth/guard";
+
+import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
   updateProductBySeller,
-  deleteProductBySeller,
-  getProductsBySeller,
+  getAllProducts,
   getProductsByIds,
+  deleteProductBySeller,
 } from "@/lib/db/products";
+
+import {
+  getVariantsByProductId,
+  createVariantsForProduct,
+  replaceVariantsByProductId,
+} from "@/lib/db/variants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,51 +23,167 @@ export const dynamic = "force-dynamic";
    TYPES
 ========================================================= */
 
-type OrderStatus = never; // tránh unused (file này không dùng)
+type ProductVariantInput = {
+  id?: string;
+  optionName?: string;
+  optionValue: string;
+  stock: number;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+};
 
 /* =========================================================
-   GET — SELLER PRODUCTS
+   NORMALIZE VARIANTS
+========================================================= */
+
+function normalizeVariants(input: unknown): ProductVariantInput[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item, index) => {
+      if (typeof item !== "object" || item === null) return null;
+
+      const row = item as Record<string, unknown>;
+
+      const optionValue =
+        typeof row.optionValue === "string"
+          ? row.optionValue.trim()
+          : "";
+
+      if (!optionValue) return null;
+
+      return {
+        id: typeof row.id === "string" ? row.id : undefined,
+        optionName:
+          typeof row.optionName === "string" && row.optionName.trim()
+            ? row.optionName.trim()
+            : "size",
+        optionValue,
+        stock:
+          typeof row.stock === "number" &&
+          !Number.isNaN(row.stock) &&
+          row.stock >= 0
+            ? row.stock
+            : 0,
+        sku:
+          typeof row.sku === "string" && row.sku.trim()
+            ? row.sku.trim()
+            : null,
+        sortOrder:
+          typeof row.sortOrder === "number" &&
+          !Number.isNaN(row.sortOrder)
+            ? row.sortOrder
+            : index,
+        isActive:
+          typeof row.isActive === "boolean"
+            ? row.isActive
+            : true,
+      };
+    })
+    .filter((i): i is ProductVariantInput => i !== null);
+}
+
+/* =========================================================
+   GET — PUBLIC PRODUCTS
 ========================================================= */
 
 export async function GET(req: Request) {
   try {
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
-
-    const { userId, role } = auth;
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
     const { searchParams } = new URL(req.url);
-    const idsParam = searchParams.get("ids");
+    const ids = searchParams.get("ids");
 
-    let products;
+    let products: ProductRecord[] = [];
 
-    if (idsParam) {
-      const ids = idsParam
+    /* ================= DB ================= */
+    if (ids) {
+      const idArray = ids
         .split(",")
         .map((id) => id.trim())
-        .filter((id) => id.length > 0);
+        .filter(Boolean);
 
-      if (ids.length === 0) {
-        return NextResponse.json([]);
-      }
+      if (!idArray.length) return NextResponse.json([]);
 
-      products = await getProductsByIds(ids);
+      products = await getProductsByIds(idArray);
     } else {
-      products = await getProductsBySeller(userId);
+      products = await getAllProducts();
     }
 
-    return NextResponse.json(products);
+    const now = Date.now();
 
-  } catch (err) {
-    console.error("GET_PRODUCTS_ERROR:", err);
+    /* ================= ENRICH ================= */
+    const enriched = await Promise.all(
+      products.map(async (p) => {
+        let variants: ProductVariantInput[] = [];
 
+        try {
+          variants = await getVariantsByProductId(p.id);
+        } catch {
+          // không log verbose production
+        }
+
+        const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+        const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
+
+        const isSale =
+          typeof p.sale_price === "number" &&
+          start !== null &&
+          end !== null &&
+          now >= start &&
+          now <= end;
+
+        const baseStock =
+          typeof p.stock === "number" ? p.stock : 0;
+
+        const hasVariants = variants.length > 0;
+
+        const totalVariantStock = hasVariants
+          ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+          : 0;
+
+        const finalStock = hasVariants ? totalVariantStock : baseStock;
+
+        const isActive = p.is_active !== false;
+
+        return {
+          id: p.id,
+          name: p.name,
+
+          description: p.description ?? "",
+          detail: p.detail ?? "",
+
+          images: Array.isArray(p.images) ? p.images : [],
+          thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+
+          categoryId: p.category_id ?? null,
+
+          price: typeof p.price === "number" ? p.price : 0,
+          salePrice:
+            typeof p.sale_price === "number" ? p.sale_price : null,
+
+          isSale,
+          finalPrice:
+            isSale && typeof p.sale_price === "number"
+              ? p.sale_price
+              : p.price,
+
+          stock: finalStock,
+          isActive,
+          isOutOfStock: finalStock <= 0 || !isActive,
+
+          views: p.views ?? 0,
+          sold: p.sold ?? 0,
+
+          rating_avg: p.rating_avg ?? 0,
+          rating_count: p.rating_count ?? 0,
+
+          variants,
+        };
+      })
+    );
+
+    return NextResponse.json(enriched);
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -72,104 +196,71 @@ export async function GET(req: Request) {
 ========================================================= */
 
 export async function POST(req: Request) {
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
+
   try {
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+    const body = await req.json();
 
-    const { userId, role } = auth;
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    const body: unknown = await req.json();
-
-    if (typeof body !== "object" || body === null) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
-    const {
-      name,
-      description,
-      detail,
-      images,
-      thumbnail,
-      category_id,
-      price,
-      sale_price,
-      sale_start,
-      sale_end,
-      stock,
-      is_active,
-    } = body as Record<string, unknown>;
+    const normalizedVariants = normalizeVariants(body.variants);
 
-    if (typeof name !== "string" || name.trim() === "") {
-      return NextResponse.json(
-        { error: "INVALID_NAME" },
-        { status: 400 }
-      );
-    }
+    const hasVariants = normalizedVariants.length > 0;
 
-    if (typeof price !== "number" || Number.isNaN(price)) {
-      return NextResponse.json(
-        { error: "INVALID_PRICE" },
-        { status: 400 }
-      );
-    }
-
-    if (!Array.isArray(images)) {
-      return NextResponse.json(
-        { error: "INVALID_IMAGES" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      sale_price !== undefined &&
-      sale_price !== null &&
-      (typeof sale_price !== "number" || Number.isNaN(sale_price))
-    ) {
-      return NextResponse.json(
-        { error: "INVALID_SALE_PRICE" },
-        { status: 400 }
-      );
-    }
+    const finalStock = hasVariants
+      ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
+      : 0;
 
     const product = await createProduct(userId, {
-      name: name.trim(),
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
-      images: images.filter((i): i is string => typeof i === "string"),
-      thumbnail: typeof thumbnail === "string" ? thumbnail : null,
+      name: String(body.name).trim(),
+      price: Number(body.price),
+
+      description: body.description ?? "",
+      detail: body.detail ?? "",
+
+      images: Array.isArray(body.images)
+        ? body.images.filter((i: unknown): i is string => typeof i === "string")
+        : [],
+
+      thumbnail:
+        typeof body.thumbnail === "string" ? body.thumbnail : null,
+
       category_id:
-        typeof category_id === "string" ? category_id : null,
-      price,
+        typeof body.categoryId === "string" ? body.categoryId : null,
+
       sale_price:
-        typeof sale_price === "number" ? sale_price : null,
+        typeof body.salePrice === "number" ? body.salePrice : null,
+
       sale_start:
-        typeof sale_start === "string" ? sale_start : null,
+        typeof body.saleStart === "string" ? body.saleStart : null,
+
       sale_end:
-        typeof sale_end === "string" ? sale_end : null,
-      stock:
-        typeof stock === "number" && stock >= 0 ? stock : 0,
+        typeof body.saleEnd === "string" ? body.saleEnd : null,
+
+      stock: finalStock,
       is_active:
-        typeof is_active === "boolean" ? is_active : true,
+        typeof body.is_active === "boolean" ? body.is_active : true,
+
+      views: 0,
+      sold: 0,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: product,
-    });
+    if (hasVariants) {
+      await createVariantsForProduct(product.id, normalizedVariants);
+    }
 
-  } catch (err) {
-    console.error("CREATE_PRODUCT_ERROR:", err);
-
+    return NextResponse.json({ success: true, data: product });
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
@@ -182,92 +273,67 @@ export async function POST(req: Request) {
 ========================================================= */
 
 export async function PUT(req: Request) {
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
+
   try {
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+    const body = await req.json();
 
-    const { userId, role } = auth;
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    const body: unknown = await req.json();
-
-    if (typeof body !== "object" || body === null) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
-    const {
-      id,
-      name,
-      description,
-      detail,
-      images,
-      thumbnail,
-      category_id,
-      price,
-      sale_price,
-      sale_start,
-      sale_end,
-      stock,
-      is_active,
-    } = body as Record<string, unknown>;
+    const productId = String(body.id);
 
-    if (typeof id !== "string") {
-      return NextResponse.json(
-        { error: "INVALID_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
+    const normalizedVariants = normalizeVariants(body.variants);
 
-    if (typeof name !== "string" || name.trim() === "") {
-      return NextResponse.json(
-        { error: "INVALID_NAME" },
-        { status: 400 }
-      );
-    }
+    const hasVariants = normalizedVariants.length > 0;
 
-    if (typeof price !== "number" || Number.isNaN(price)) {
-      return NextResponse.json(
-        { error: "INVALID_PRICE" },
-        { status: 400 }
-      );
-    }
+    const finalStock = hasVariants
+      ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
+      : 0;
 
-    if (!Array.isArray(images)) {
-      return NextResponse.json(
-        { error: "INVALID_IMAGES" },
-        { status: 400 }
-      );
-    }
+    const updated = await updateProductBySeller(
+      userId,
+      productId,
+      {
+        name: String(body.name).trim(),
+        price: Number(body.price),
 
-    const updated = await updateProductBySeller(userId, id, {
-      name: name.trim(),
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
-      images: images.filter((i): i is string => typeof i === "string"),
-      thumbnail: typeof thumbnail === "string" ? thumbnail : null,
-      category_id:
-        typeof category_id === "string" ? category_id : null,
-      price,
-      sale_price:
-        typeof sale_price === "number" ? sale_price : null,
-      sale_start:
-        typeof sale_start === "string" ? sale_start : null,
-      sale_end:
-        typeof sale_end === "string" ? sale_end : null,
-      stock:
-        typeof stock === "number" && stock >= 0 ? stock : 0,
-      is_active:
-        typeof is_active === "boolean" ? is_active : true,
-    });
+        description: body.description ?? "",
+        detail: body.detail ?? "",
+
+        images: Array.isArray(body.images)
+          ? body.images.filter((i: unknown): i is string => typeof i === "string")
+          : [],
+
+        thumbnail:
+          typeof body.thumbnail === "string" ? body.thumbnail : null,
+
+        category_id:
+          typeof body.categoryId === "string" ? body.categoryId : null,
+
+        sale_price:
+          typeof body.salePrice === "number" ? body.salePrice : null,
+
+        sale_start:
+          typeof body.saleStart === "string" ? body.saleStart : null,
+
+        sale_end:
+          typeof body.saleEnd === "string" ? body.saleEnd : null,
+
+        stock: finalStock,
+        is_active:
+          typeof body.is_active === "boolean" ? body.is_active : true,
+      }
+    );
 
     if (!updated) {
       return NextResponse.json(
@@ -276,11 +342,10 @@ export async function PUT(req: Request) {
       );
     }
 
+    await replaceVariantsByProductId(productId, normalizedVariants);
+
     return NextResponse.json({ success: true });
-
-  } catch (err) {
-    console.error("UPDATE_PRODUCT_ERROR:", err);
-
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
@@ -293,25 +358,18 @@ export async function PUT(req: Request) {
 ========================================================= */
 
 export async function DELETE(req: Request) {
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
+
   try {
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
-
-    const { userId, role } = auth;
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
-        { error: "INVALID_PRODUCT_ID" },
+        { error: "MISSING_PRODUCT_ID" },
         { status: 400 }
       );
     }
@@ -326,10 +384,7 @@ export async function DELETE(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-
-  } catch (err) {
-    console.error("DELETE_PRODUCT_ERROR:", err);
-
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
