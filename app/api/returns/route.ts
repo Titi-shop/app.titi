@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     let images: string[] = [];
 
     /* ================= MULTIPART ================= */
-    if (contentType.startsWith("multipart/form-data")) {
+    if (contentType.includes("multipart/form-data")) {
       console.log("🟡 [RETURN POST] PARSE FORM DATA");
 
       const form = await req.formData();
