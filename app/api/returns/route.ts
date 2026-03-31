@@ -3,8 +3,7 @@ import { requireAuth } from "@/lib/auth/guard";
 import {
   createReturn,
   getReturnsByBuyer,
-} from "@/lib/db/orders";
-import { supabase } from "@/lib/db/supabase"; // ⚠️ dùng nếu bạn đã có sẵn
+} from "@/lib/db/orders"
 
 export const dynamic = "force-dynamic";
 
