@@ -476,7 +476,18 @@
    "out_of_stock":  "Hết hàng",
   "inactive": "Ngưng",
   "upcoming": "Sắp diễn ra",
-  "ended":  "Đã kết thúc"
+  "ended":  "Đã kết thúc",
+  "shipping_by_region": "Giá vận chuyển theo khu vực",
+  "add_shipping_region": "Thêm khu vực",
+  "region": "Khu vực",
+  "shipping_price": "Giá vận chuyển",
+  "no_shipping_available": "Không hỗ trợ vận chuyển đến khu vực này",
+  "shipping_fee": "Phí vận chuyển",
+  "total_payment": "Tổng thanh toán",
+  "select_region": "Chọn khu vực",
+  "invalid_shipping": "Thiếu giá vận chuyển",
+  "shipping_required": "Vui lòng thiết lập phí vận chuyển"
+
 
 
 
