@@ -522,3 +522,185 @@ export async function processPiPayment(params: {
     return { orderId, duplicated: false };
   });
 }
+
+export async function upsertCartItems(
+  userId: string,
+  items: {
+    product_id: string;
+    variant_id?: string | null;
+    quantity?: number;
+  }[]
+): Promise<void> {
+  if (!userId) {
+    throw new Error("INVALID_USER_ID");
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return;
+  }
+
+  const productIds: string[] = [];
+  const variantIds: (string | null)[] = [];
+  const quantities: number[] = [];
+
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+
+    if (typeof item.product_id !== "string") continue;
+
+    const qty =
+      typeof item.quantity === "number" &&
+      !Number.isNaN(item.quantity) &&
+      item.quantity > 0
+        ? Math.min(item.quantity, 99)
+        : 1;
+
+    productIds.push(item.product_id);
+    variantIds.push(
+      typeof item.variant_id === "string" ? item.variant_id : null
+    );
+    quantities.push(qty);
+  }
+
+  if (productIds.length === 0) return;
+
+  await query(
+    `
+    INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
+    SELECT 
+      $1,
+      x.product_id,
+      x.variant_id,
+      x.quantity
+    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+      AS x(product_id, variant_id, quantity)
+    ON CONFLICT (buyer_id, product_id, variant_id)
+    DO UPDATE SET
+      quantity = EXCLUDED.quantity,
+      updated_at = NOW()
+    `,
+    [userId, productIds, variantIds, quantities]
+  );
+}
+
+export async function cancelOrderByBuyer(
+  orderId: string,
+  userId: string,
+  reason: string
+): Promise<"OK" | "NOT_FOUND" | "FORBIDDEN" | "INVALID_STATUS"> {
+  if (!orderId || !userId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  try {
+    return await withTransaction(async (client) => {
+      /* 1️⃣ CHECK ORDER */
+      const { rows } = await client.query<{
+        buyer_id: string;
+        status: string;
+      }>(
+        `
+        SELECT buyer_id, status
+        FROM orders
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [orderId]
+      );
+
+      const order = rows[0];
+
+      if (!order) return "NOT_FOUND";
+      if (order.buyer_id !== userId) return "FORBIDDEN";
+      if (order.status !== "pending") return "INVALID_STATUS";
+
+      /* 2️⃣ UPDATE ITEMS */
+      await client.query(
+        `
+        UPDATE order_items
+        SET
+          status = 'cancelled',
+          seller_cancel_reason = $2
+        WHERE order_id = $1
+        AND status = 'pending'
+        `,
+        [orderId, reason ?? null]
+      );
+
+      /* 3️⃣ UPDATE ORDER */
+      await client.query(
+        `
+        UPDATE orders
+        SET
+          status = 'cancelled',
+          cancel_reason = $2,
+          cancelled_at = NOW()
+        WHERE id = $1
+        `,
+        [orderId, reason ?? null]
+      );
+
+      return "OK";
+    });
+  } catch {
+    throw new Error("FAILED_TO_CANCEL_ORDER");
+  }
+}
+
+export async function completeOrderByBuyer(
+  orderId: string,
+  userId: string
+): Promise<boolean> {
+  if (!orderId || !userId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  try {
+    return await withTransaction(async (client) => {
+      /* 1️⃣ CHECK ORDER */
+      const { rows } = await client.query<{ status: string }>(
+        `
+        SELECT status
+        FROM orders
+        WHERE id = $1
+        AND buyer_id = $2
+        LIMIT 1
+        `,
+        [orderId, userId]
+      );
+
+      const order = rows[0];
+
+      if (!order || order.status !== "shipping") {
+        return false;
+      }
+
+      /* 2️⃣ UPDATE ITEMS */
+      await client.query(
+        `
+        UPDATE order_items
+        SET
+          status = 'completed',
+          delivered_at = NOW()
+        WHERE order_id = $1
+        AND status = 'shipping'
+        `,
+        [orderId]
+      );
+
+      /* 3️⃣ UPDATE ORDER */
+      await client.query(
+        `
+        UPDATE orders
+        SET status = 'completed'
+        WHERE id = $1
+        `,
+        [orderId]
+      );
+
+      return true;
+    });
+  } catch {
+    throw new Error("FAILED_TO_COMPLETE_ORDER");
+  }
+}
