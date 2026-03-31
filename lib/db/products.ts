@@ -1,13 +1,4 @@
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!SUPABASE_URL) {
-  throw new Error("SUPABASE_URL is missing");
-}
-
-if (!SERVICE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
-}
+import { query } from "@/lib/db";
 
 /* =========================================================
    TYPES
@@ -113,16 +104,8 @@ export type UpdateProductInput = Partial<
 >;
 
 /* =========================================================
-   INTERNAL HELPERS
+   HELPERS
 ========================================================= */
-
-function supabaseHeaders() {
-  return {
-    apikey: SERVICE_KEY,
-    Authorization: `Bearer ${SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
-}
 
 function toAppProduct(row: ProductRow): ProductRecord {
   return {
@@ -132,120 +115,91 @@ function toAppProduct(row: ProductRow): ProductRecord {
   };
 }
 
-function toDbPrice(value: number): number {
-  return Number(value);
-}
-
 /* =========================================================
-   GET — ALL ACTIVE PRODUCTS (PUBLIC)
+   GET — ALL PRODUCTS
 ========================================================= */
 
 export async function getAllProducts(): Promise<ProductRecord[]> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?deleted_at=is.null&select=*`;
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM products
+    WHERE deleted_at IS NULL
+    ORDER BY created_at DESC
+    `
+  );
 
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE GET PRODUCTS ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_PRODUCTS");
-  }
-
-  const rows: ProductRow[] = await res.json();
   return rows.map(toAppProduct);
 }
 
 /* =========================================================
-   GET — PRODUCTS BY SELLER
+   GET — SELLER PRODUCTS
 ========================================================= */
 
 export async function getSellerProducts(
   sellerId: string
 ): Promise<ProductRecord[]> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?seller_id=eq.${encodeURIComponent(sellerId)}` +
-    `&deleted_at=is.null&select=*`;
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM products
+    WHERE seller_id = $1
+      AND deleted_at IS NULL
+    ORDER BY created_at DESC
+    `,
+    [sellerId]
+  );
 
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE SELLER PRODUCTS ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_SELLER_PRODUCTS");
-  }
-
-  const rows: ProductRow[] = await res.json();
   return rows.map(toAppProduct);
 }
 
 /* =========================================================
-   GET — PRODUCTS BY IDS
+   GET — BY IDS
 ========================================================= */
+
 export async function getProductsByIds(
   ids: string[]
 ): Promise<ProductRecord[]> {
   if (!ids.length) return [];
 
-  const filter = ids.map((id) => `"${id}"`).join(",");
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM products
+    WHERE id = ANY($1::uuid[])
+      AND deleted_at IS NULL
+    `,
+    [ids]
+  );
 
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=in.(${filter})&deleted_at=is.null&select=*`;
-
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ GET PRODUCTS BY IDS ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_PRODUCTS");
-  }
-
-  const rows: ProductRow[] = await res.json();
   return rows.map(toAppProduct);
 }
 
+/* =========================================================
+   GET — BY ID
+========================================================= */
 
 export async function getProductById(
   id: string
 ): Promise<ProductRecord | null> {
-  if (!id) return null;
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=eq.${encodeURIComponent(id)}` +
-    `&deleted_at=is.null&select=*`;
-
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ GET PRODUCT BY ID ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM products
+    WHERE id = $1
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [id]
+  );
 
   if (!rows.length) return null;
 
   return toAppProduct(rows[0]);
 }
+
 /* =========================================================
-   POST — CREATE PRODUCT
+   CREATE
 ========================================================= */
 
 export async function createProduct(
@@ -267,18 +221,20 @@ export async function createProduct(
       sale_end,
       stock,
       is_active,
+      views,
+      sold,
       seller_id
     )
     VALUES (
       $1,$2,$3,$4,$5,$6,
-      $7,$8,$9,$10,$11,$12,$13
+      $7,$8,$9,$10,$11,$12,$13,$14,$15
     )
     RETURNING *
     `,
     [
-      product.name,
-      product.description,
-      product.detail,
+      product.name.trim(),
+      product.description ?? "",
+      product.detail ?? "",
       product.images,
       product.thumbnail,
       product.category_id,
@@ -288,6 +244,8 @@ export async function createProduct(
       product.sale_end,
       product.stock,
       product.is_active,
+      product.views ?? 0,
+      product.sold ?? 0,
       sellerId,
     ]
   );
@@ -300,7 +258,7 @@ export async function createProduct(
 }
 
 /* =========================================================
-   PATCH — UPDATE PRODUCT BY SELLER
+   UPDATE
 ========================================================= */
 
 export async function updateProductBySeller(
@@ -308,163 +266,66 @@ export async function updateProductBySeller(
   productId: string,
   data: UpdateProductInput
 ): Promise<boolean> {
-  const payload: Record<string, unknown> = {};
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let idx = 1;
 
-  if (data.name !== undefined) {
-    payload.name =
-      typeof data.name === "string" ? data.name.trim() : "";
+  for (const [key, value] of Object.entries(data)) {
+    fields.push(`${key} = $${idx++}`);
+    values.push(value);
   }
 
-  if (data.description !== undefined) {
-    payload.description =
-      typeof data.description === "string" ? data.description : "";
-  }
+  if (!fields.length) return false;
 
-  if (data.detail !== undefined) {
-    payload.detail =
-      typeof data.detail === "string" ? data.detail : "";
-  }
+  const { rowCount } = await query(
+    `
+    UPDATE products
+    SET ${fields.join(", ")},
+        updated_at = NOW()
+    WHERE id = $${idx}
+      AND seller_id = $${idx + 1}
+    `,
+    [...values, productId, sellerId]
+  );
 
-  if (data.images !== undefined) {
-    payload.images = Array.isArray(data.images)
-      ? data.images.filter((i): i is string => typeof i === "string")
-      : [];
-  }
-
-  if (data.thumbnail !== undefined) {
-    payload.thumbnail =
-      typeof data.thumbnail === "string" ? data.thumbnail : null;
-  }
-
-  if (data.category_id !== undefined) {
-    payload.category_id =
-      typeof data.category_id === "string" && data.category_id.trim() !== ""
-        ? data.category_id
-        : null;
-  }
-
-  if (data.price !== undefined) {
-    if (Number.isNaN(data.price)) {
-      throw new Error("INVALID_PRICE");
-    }
-    payload.price = toDbPrice(data.price);
-  }
-
-  if (data.sale_price !== undefined) {
-    if (data.sale_price !== null && Number.isNaN(data.sale_price)) {
-      throw new Error("INVALID_SALE_PRICE");
-    }
-
-    payload.sale_price =
-      data.sale_price !== null ? toDbPrice(data.sale_price) : null;
-  }
-
-  if (data.sale_start !== undefined) {
-    payload.sale_start =
-      typeof data.sale_start === "string" ? data.sale_start : null;
-  }
-
-  if (data.sale_end !== undefined) {
-    payload.sale_end =
-      typeof data.sale_end === "string" ? data.sale_end : null;
-  }
-
-  if (data.stock !== undefined) {
-    payload.stock =
-      typeof data.stock === "number" &&
-      !Number.isNaN(data.stock) &&
-      data.stock >= 0
-        ? data.stock
-        : 0;
-  }
-
-  if (data.is_active !== undefined) {
-    payload.is_active =
-      typeof data.is_active === "boolean" ? data.is_active : true;
-  }
-
-  if (data.status !== undefined) {
-    payload.status = data.status;
-  }
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=eq.${encodeURIComponent(productId)}` +
-    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
-
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE UPDATE PRODUCT ERROR:", text);
-    throw new Error("FAILED_TO_UPDATE_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
-
-return rows.length > 0;
+  return (rowCount ?? 0) > 0;
 }
 
 /* =========================================================
-   PATCH — SOFT DELETE
+   SOFT DELETE
 ========================================================= */
 
 export async function deleteProductBySeller(
   sellerId: string,
   productId: string
 ): Promise<boolean> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=eq.${encodeURIComponent(productId)}` +
-    `&seller_id=eq.${encodeURIComponent(sellerId)}`;
+  const { rowCount } = await query(
+    `
+    UPDATE products
+    SET deleted_at = NOW()
+    WHERE id = $1
+      AND seller_id = $2
+    `,
+    [productId, sellerId]
+  );
 
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify({
-      deleted_at: new Date().toISOString(),
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ DELETE PRODUCT ERROR:", text);
-    throw new Error("FAILED_TO_DELETE_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
-  return rows.length > 0;
+  return (rowCount ?? 0) > 0;
 }
 
-
 /* =========================================================
-   GET — SOLD BY PRODUCT (ORDER-BASED)
+   SOLD COUNT
 ========================================================= */
 
 export async function getSoldByProduct(
   productId: string
 ): Promise<number> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
   const { rows } = await query(
     `
     SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
     WHERE oi.product_id = $1
-    AND o.status != 'cancelled'
+      AND o.status != 'cancelled'
     `,
     [productId]
   );
@@ -472,76 +333,22 @@ export async function getSoldByProduct(
   return rows[0]?.sold ?? 0;
 }
 
-
 /* =========================================================
-   RPC — INCREMENT PRODUCT VIEW
+   INCREMENT VIEW
 ========================================================= */
 
 export async function incrementProductView(
   productId: string
 ): Promise<number> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/rpc/increment_product_view`,
-    {
-      method: "POST",
-      headers: supabaseHeaders(),
-      body: JSON.stringify({ pid: productId }),
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ VIEW RPC ERROR:", text);
-    throw new Error("FAILED_TO_INCREMENT_VIEW");
-  }
-
-  const data: { views: number }[] = await res.json();
-
-  return data[0]?.views ?? 0;
-}
-
-export async function getOrderByBuyerId(
-  orderId: string,
-  userId: string
-) {
   const { rows } = await query(
     `
-    select
-      o.id,
-      o.total,
-      o.status,
-      o.created_at,
-
-      coalesce(
-        json_agg(
-          json_build_object(
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'thumbnail', oi.thumbnail,
-            'quantity', oi.quantity,
-            'unit_price', oi.unit_price,
-            'total_price', oi.total_price,
-            'status', oi.status
-          )
-          order by oi.created_at asc
-        ) filter (where oi.id is not null),
-        '[]'
-      ) as order_items
-
-    from orders o
-    join order_items oi on oi.order_id = o.id
-
-    where o.id = $1
-    and o.buyer_id = $2
-
-    group by o.id
+    UPDATE products
+    SET views = COALESCE(views, 0) + 1
+    WHERE id = $1
+    RETURNING views
     `,
-    [orderId, userId]
+    [productId]
   );
 
-  return rows[0] ?? null;
+  return rows[0]?.views ?? 0;
 }
