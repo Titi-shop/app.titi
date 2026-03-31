@@ -948,26 +948,40 @@ export async function deleteCartItem(
   );
 }
 
-export async function createOrderFromPiPayment(params: {
-  userId: string;
+export async function processPiPayment(params: {
+  piUid: string;
   productId: string;
   quantity: number;
   paymentId: string;
   txid: string;
-  shipping: {
-    name: string;
-    phone: string;
-    address: string;
-  };
 }) {
-  const client = await pool.connect();
+  return withTransaction(async (client) => {
 
-  try {
-    await client.query("BEGIN");
+    /* ================= USER ================= */
+    const userRes = await client.query(
+      `SELECT id FROM users WHERE pi_uid=$1 LIMIT 1`,
+      [params.piUid]
+    );
+
+    if (!userRes.rows.length) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const userId = userRes.rows[0].id;
+
+    /* ================= IDEMPOTENCY ================= */
+    const existing = await client.query(
+      `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
+      [params.paymentId]
+    );
+
+    if (existing.rows.length > 0) {
+      return { orderId: existing.rows[0].id, duplicated: true };
+    }
 
     /* ================= PRODUCT ================= */
     const productRes = await client.query(
-      `select * from products where id=$1 limit 1`,
+      `SELECT * FROM products WHERE id=$1 LIMIT 1`,
       [params.productId]
     );
 
@@ -977,15 +991,29 @@ export async function createOrderFromPiPayment(params: {
       throw new Error("PRODUCT_NOT_AVAILABLE");
     }
 
+    /* ================= ADDRESS ================= */
+    const addrRes = await client.query(
+      `
+      SELECT full_name, phone, address_line
+      FROM addresses
+      WHERE user_id=$1 AND is_default=true
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    const addr = addrRes.rows[0];
+    if (!addr) throw new Error("NO_ADDRESS");
+
     /* ================= STOCK ================= */
     const stock = await client.query(
       `
-      update products
-      set stock = stock - $1,
+      UPDATE products
+      SET stock = stock - $1,
           sold = sold + $1
-      where id = $2
-      and stock >= $1
-      returning id
+      WHERE id = $2
+      AND stock >= $1
+      RETURNING id
       `,
       [params.quantity, params.productId]
     );
@@ -995,13 +1023,12 @@ export async function createOrderFromPiPayment(params: {
     }
 
     /* ================= ORDER ================= */
-    const total = Number(
-      (Number(product.price) * params.quantity).toFixed(6)
-    );
+    const total =
+      Number(product.price) * params.quantity;
 
     const orderRes = await client.query(
       `
-      insert into orders (
+      INSERT INTO orders (
         order_number,
         buyer_id,
         pi_payment_id,
@@ -1011,29 +1038,29 @@ export async function createOrderFromPiPayment(params: {
         shipping_phone,
         shipping_address
       )
-      values (
+      VALUES (
         gen_random_uuid()::text,
         $1,$2,$3,$4,$5,$6,$7
       )
-      returning id
+      RETURNING id
       `,
       [
-        params.userId,
+        userId,
         params.paymentId,
         params.txid,
         total,
-        params.shipping.name,
-        params.shipping.phone,
-        params.shipping.address,
+        addr.full_name,
+        addr.phone,
+        addr.address_line,
       ]
     );
 
     const orderId = orderRes.rows[0].id;
 
-    /* ================= ORDER ITEM ================= */
+    /* ================= ITEM ================= */
     await client.query(
       `
-      insert into order_items (
+      INSERT INTO order_items (
         order_id,
         product_id,
         seller_id,
@@ -1043,7 +1070,7 @@ export async function createOrderFromPiPayment(params: {
         quantity,
         total_price
       )
-      values ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       `,
       [
         orderId,
@@ -1057,14 +1084,6 @@ export async function createOrderFromPiPayment(params: {
       ]
     );
 
-    await client.query("COMMIT");
-
-    return { orderId, total };
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+    return { orderId, duplicated: false };
+  });
 }
