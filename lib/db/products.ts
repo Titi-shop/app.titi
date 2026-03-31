@@ -13,51 +13,35 @@ type ProductStatus =
 
 type ProductRow = {
   id: string;
-
   name: string;
   slug?: string | null;
-
   short_description?: string | null;
   description: string;
   detail: string;
-
   thumbnail: string | null;
   images: string[];
   detail_images?: string[] | null;
-
   video_url?: string | null;
-
   price: number;
   sale_price: number | null;
   currency?: string | null;
-
   stock: number;
   is_unlimited?: boolean | null;
   is_active?: boolean | null;
-
   category_id: string | null;
-
   seller_id: string;
-
   views?: number | null;
   sold?: number | null;
-
   rating_avg?: number | null;
   rating_count?: number | null;
-
   status?: ProductStatus | null;
-
   is_featured?: boolean | null;
   is_digital?: boolean | null;
-
   sale_start: string | null;
   sale_end: string | null;
-
   meta_title?: string | null;
   meta_description?: string | null;
-
   deleted_at?: string | null;
-
   created_at: string;
   updated_at: string | null;
 };
@@ -82,6 +66,9 @@ export type CreateProductInput = {
   is_active: boolean;
   views?: number;
   sold?: number;
+domestic_shipping_fee: number | null;
+asia_shipping_fee: number | null;
+international_shipping_fee: number | null;
 };
 
 export type UpdateProductInput = Partial<
@@ -100,6 +87,9 @@ export type UpdateProductInput = Partial<
     | "stock"
     | "is_active"
     | "status"
+   | "domestic_shipping_fee"
+   | "asia_shipping_fee"
+ | "international_shipping_fee"
   >
 >;
 
@@ -223,12 +213,16 @@ export async function createProduct(
       is_active,
       views,
       sold,
-      seller_id
+      seller_id,
+      domestic_shipping_fee,
+     asia_shipping_fee,
+     international_shipping_fee
     )
-    VALUES (
-      $1,$2,$3,$4,$5,$6,
-      $7,$8,$9,$10,$11,$12,$13,$14,$15
-    )
+   VALUES (
+  $1,$2,$3,$4,$5,$6,
+  $7,$8,$9,$10,$11,$12,$13,$14,$15,
+  $16,$17,$18
+)
     RETURNING *
     `,
     [
@@ -247,6 +241,9 @@ export async function createProduct(
       product.views ?? 0,
       product.sold ?? 0,
       sellerId,
+     product.domestic_shipping_fee,
+    product.asia_shipping_fee,
+     product.international_shipping_fee,
     ]
   );
 
