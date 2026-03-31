@@ -48,8 +48,25 @@ export async function POST(req: NextRequest) {
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-        const base64 = buffer.toString("base64");
-        const mime = file.type || "image/jpeg";
+
+const fileName = `returns/${userId}/${Date.now()}-${file.name}`;
+
+// ⚠️ giả sử bạn đã có supabase client trong lib/db hoặc config
+const { data, error } = await supabase.storage
+  .from("returns")
+  .upload(fileName, buffer, {
+    contentType: file.type,
+  });
+
+if (error) {
+  throw new Error("UPLOAD_FAILED");
+}
+
+const { data: publicUrl } = supabase.storage
+  .from("returns")
+  .getPublicUrl(fileName);
+
+images.push(publicUrl.publicUrl);
 
         images.push(`data:${mime};base64,${base64}`);
       }
