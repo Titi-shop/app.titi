@@ -252,78 +252,48 @@ export async function createProduct(
   sellerId: string,
   product: CreateProductInput
 ): Promise<ProductRecord> {
-  if (Number.isNaN(product.price)) {
-    throw new Error("INVALID_PRICE");
-  }
-
-  if (
-    product.sale_price !== null &&
-    Number.isNaN(product.sale_price)
-  ) {
-    throw new Error("INVALID_SALE_PRICE");
-  }
-
-  const payload = {
-    name: product.name.trim(),
-    description: product.description ?? "",
-    detail: product.detail ?? "",
-    images: Array.isArray(product.images) ? product.images : [],
-    thumbnail: product.thumbnail ?? null,
-    category_id: product.category_id ?? null,
-
-    price: toDbPrice(product.price),
-    sale_price:
-      product.sale_price !== null
-        ? toDbPrice(product.sale_price)
-        : null,
-
-    sale_start: product.sale_start ?? null,
-    sale_end: product.sale_end ?? null,
-
-    stock:
-      typeof product.stock === "number" &&
-      !Number.isNaN(product.stock) &&
-      product.stock >= 0
-        ? product.stock
-        : 0,
-
-    is_active:
-      typeof product.is_active === "boolean"
-        ? product.is_active
-        : true,
-
-    views:
-      typeof product.views === "number" && !Number.isNaN(product.views)
-        ? product.views
-        : 0,
-
-    sold:
-      typeof product.sold === "number" && !Number.isNaN(product.sold)
-        ? product.sold
-        : 0,
-
-    seller_id: sellerId,
-  };
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
-    method: "POST",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE CREATE PRODUCT ERROR:", text);
-    throw new Error("FAILED_TO_CREATE_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
+  const { rows } = await query(
+    `
+    INSERT INTO products (
+      name,
+      description,
+      detail,
+      images,
+      thumbnail,
+      category_id,
+      price,
+      sale_price,
+      sale_start,
+      sale_end,
+      stock,
+      is_active,
+      seller_id
+    )
+    VALUES (
+      $1,$2,$3,$4,$5,$6,
+      $7,$8,$9,$10,$11,$12,$13
+    )
+    RETURNING *
+    `,
+    [
+      product.name,
+      product.description,
+      product.detail,
+      product.images,
+      product.thumbnail,
+      product.category_id,
+      product.price,
+      product.sale_price,
+      product.sale_start,
+      product.sale_end,
+      product.stock,
+      product.is_active,
+      sellerId,
+    ]
+  );
 
   if (!rows.length) {
-    throw new Error("PRODUCT_CREATED_BUT_EMPTY_RESPONSE");
+    throw new Error("FAILED_TO_CREATE_PRODUCT");
   }
 
   return toAppProduct(rows[0]);
