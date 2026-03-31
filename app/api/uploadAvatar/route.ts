@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-
+import { requireAuth } from "@/lib/auth/guard";
 
 import {
   getUserAvatar,
@@ -14,17 +13,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     /* ================= AUTH ================= */
-    const auth = await getUserFromBearer();
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
 
-if (!auth) {
-  return NextResponse.json(
-    { error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
-
-const userId = auth.userId;
-    
+    const userId = auth.userId;
 
     /* ================= FILE ================= */
     const formData = await req.formData();
@@ -44,7 +36,14 @@ const userId = auth.userId;
       );
     }
 
-    /* ================= LOAD OLD ================= */
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "FILE_TOO_LARGE" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= GET OLD ================= */
     const oldAvatarUrl = await getUserAvatar(userId);
 
     /* ================= DELETE OLD ================= */
@@ -52,8 +51,8 @@ const userId = auth.userId;
       try {
         const url = new URL(oldAvatarUrl);
         await del(url.pathname);
-      } catch (err) {
-        console.warn("⚠️ Failed to delete old avatar:", err);
+      } catch {
+        console.warn("[AVATAR] DELETE_OLD_FAILED");
       }
     }
 
@@ -70,14 +69,13 @@ const userId = auth.userId;
     /* ================= SAVE ================= */
     await updateAvatar(userId, blob.url);
 
-    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       avatar: `${blob.url}?t=${Date.now()}`,
     });
 
-  } catch (err) {
-    console.error("❌ UPLOAD AVATAR ERROR:", err);
+  } catch {
+    console.error("[AVATAR] UPLOAD_FAILED");
 
     return NextResponse.json(
       { error: "UPLOAD_FAILED" },
