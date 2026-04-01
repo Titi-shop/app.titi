@@ -83,6 +83,9 @@ interface Product {
   isOutOfStock: boolean;
   categoryId: string | null;
   variants: ProductVariant[];
+  domesticShippingFee?: number | null;
+asiaShippingFee?: number | null;
+internationalShippingFee?: number | null;
 }
 
 /* =======================
@@ -162,9 +165,14 @@ const product = await res.json();
   const isActive = api.isActive !== false;
 
   return {
-    id: api.id,
-    name: api.name,
-    price: api.price,
+  id: api.id,
+  name: api.name,
+  price: api.price,
+
+  // 🔥 THÊM 3 DÒNG NÀY
+  domesticShippingFee: api.domestic_shipping_fee ?? null,
+  asiaShippingFee: api.asia_shipping_fee ?? null,
+  internationalShippingFee: api.international_shipping_fee ?? null,
     finalPrice,
     isSale: finalPrice < api.price,
 
@@ -580,15 +588,20 @@ const canBuy = hasVariants
       hasVariants && selectedVariant?.id
         ? `${product.id}-${selectedVariant.id}`
         : product.id,
+
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
+
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
-    image: product.thumbnail || product.images?.[0] || "",
-    images: product.images,
+
+    // ✅ QUAN TRỌNG NHẤT
+    domesticShippingFee: product.domesticShippingFee,
+    asiaShippingFee: product.asiaShippingFee,
+    internationalShippingFee: product.internationalShippingFee,
   }}
 />
     </div>
