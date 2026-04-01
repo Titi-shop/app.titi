@@ -10,8 +10,8 @@ import { formatPi } from "@/lib/pi";
 
 function formatDetail(text: string) {
   return text
-    .replace(/\r\n/g, "<br/>")
-    .replace(/\n/g, "<br/>") 
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
     .trim();
 }
 
@@ -62,9 +62,6 @@ interface ApiProduct {
   isActive?: boolean;
   categoryId?: string | null;
   variants?: ProductVariant[];
-  domestic_shipping_fee?: number | null;
-  asia_shipping_fee?: number | null;
-  international_shipping_fee?: number | null;
 }
 
 interface Product {
@@ -86,9 +83,6 @@ interface Product {
   isOutOfStock: boolean;
   categoryId: string | null;
   variants: ProductVariant[];
-  domesticShippingFee?: number | null;
-asiaShippingFee?: number | null;
-internationalShippingFee?: number | null;
 }
 
 /* =======================
@@ -108,92 +102,111 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<
-  "domestic" | "asia" | "international" | null
->(null);
   const quantity = 1;
 
   /* =======================
      LOAD PRODUCT
   ======================= */
   useEffect(() => {
-  async function loadProduct() {
-    try {
-      if (!id) return;
+    async function loadProduct() {
+      try {
+        const res = await fetch("/api/products");
+        const data: unknown = await res.json();
 
-      const res = await fetch(`/api/products/${id}`);
-      const data: unknown = await res.json();
+        if (!Array.isArray(data)) return;
 
-      if (!data || typeof data !== "object") return;
+        const normalized: Product[] = data.map((p) => {
+  const api = p as ApiProduct;
 
-      const api = data as ApiProduct;
+  const finalPrice =
+    typeof api.finalPrice === "number"
+      ? api.finalPrice
+      : api.price;
 
-      const finalPrice =
-        typeof api.finalPrice === "number"
-          ? api.finalPrice
-          : api.price;
+  const variants: ProductVariant[] = Array.isArray(api.variants)
+    ? api.variants
+        .filter((v) => v && typeof v === "object")
+        .map((v: any) => ({
+          id: typeof v.id === "string" ? v.id : undefined,
+          optionName:
+            typeof v.optionName === "string"
+              ? v.optionName
+              : typeof v.option_name === "string"
+              ? v.option_name
+              : "size",
+          optionValue:
+            typeof v.optionValue === "string"
+              ? v.optionValue
+              : typeof v.option_value === "string"
+              ? v.option_value
+              : "",
+          stock: typeof v.stock === "number" ? v.stock : 0,
+          sku: typeof v.sku === "string" ? v.sku : null,
+          sortOrder:
+            typeof v.sortOrder === "number"
+              ? v.sortOrder
+              : typeof v.sort_order === "number"
+              ? v.sort_order
+              : 0,
+          isActive:
+            typeof v.isActive === "boolean"
+              ? v.isActive
+              : typeof v.is_active === "boolean"
+              ? v.is_active
+              : true,
+        }))
+        .filter((v) => v.optionValue !== "")
+    : [];
 
-      const normalized: Product = {
-        id: api.id,
-        name: api.name,
-        price: api.price,
-        finalPrice,
-        isSale: finalPrice < api.price,
+  const stock = typeof api.stock === "number" ? api.stock : 0;
+  const isActive = api.isActive !== false;
 
-        description: api.description ?? "",
-        detail: api.detail ?? "",
+  return {
+    id: api.id,
+    name: api.name,
+    price: api.price,
+    finalPrice,
+    isSale: finalPrice < api.price,
 
-        views: api.views ?? 0,
-        sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
+    description: api.description ?? "",
+    detail: api.detail ?? "",
 
-        thumbnail: api.thumbnail ?? "",
-        images: Array.isArray(api.images) ? api.images : [],
-        categoryId: api.categoryId ?? null,
+    views: api.views ?? 0,
+    sold: api.sold ?? 0,
+    ratingAvg:
+      typeof api.rating_avg === "number" ? api.rating_avg : 0,
+    ratingCount:
+      typeof api.rating_count === "number" ? api.rating_count : 0,
 
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
-        isActive: api.isActive !== false,
-        isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
+    thumbnail: api.thumbnail ?? "",
+    images: Array.isArray(api.images) ? api.images : [],
+    categoryId: api.categoryId ?? null,
 
-        variants: Array.isArray(api.variants)
-          ? api.variants
-          : [],
+    stock,
+    isActive,
+    isOutOfStock: stock <= 0 || !isActive,
+    variants,
+  };
+});
+        setProducts(normalized);
 
-        domesticShippingFee:
-          api.domestic_shipping_fee ?? null,
-        asiaShippingFee:
-          api.asia_shipping_fee ?? null,
-        internationalShippingFee:
-          api.international_shipping_fee ?? null,
-      };
+        const found = normalized.find((p) => p.id === id);
 
-      setProduct(normalized);
+if (found) {
+  setProduct(found);
 
-      const firstAvailableVariant =
-        normalized.variants.find(
-          (v) => (v.isActive ?? true) && v.stock > 0
-        ) ?? null;
+  const firstAvailableVariant =
+    found.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
 
-      setSelectedVariant(firstAvailableVariant);
-    } catch {
-      // không log sensitive
-    } finally {
-      setLoading(false);
+  setSelectedVariant(firstAvailableVariant);
+}
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  loadProduct();
-}, [id]);
+    loadProduct();
+  }, [id]);
 
   /* =======================
    INCREMENT VIEW
@@ -249,48 +262,29 @@ const availableVariants = product.variants.filter(
 const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
   : product.stock;
-  const shippingFee =
-  selectedRegion === "domestic"
-    ? product.domesticShippingFee
-    : selectedRegion === "asia"
-    ? product.asiaShippingFee
-    : selectedRegion === "international"
-    ? product.internationalShippingFee
-    : null;
 
-const canBuy =
-  (hasVariants
-    ? !!selectedVariant && selectedStock > 0
-    : !product.isOutOfStock) &&
-  !!selectedRegion;
+const canBuy = hasVariants
+  ? !!selectedVariant && selectedStock > 0
+  : !product.isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
 
   const add = () => {
-  if (!selectedRegion) {
-    alert(t.shipping_required);
-    return;
-  }
-
   if (hasVariants && !selectedVariant) {
-    alert(t.select_variant || "Vui lòng chọn phân loại");
+    alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
     return;
   }
 
   if (!canBuy) return;
 
   addToCart({
-    id:
-      hasVariants && selectedVariant?.id
-        ? `${product.id}-${selectedVariant.id}`
-        : product.id,
-    product_id: product.id,
-    variant_id: selectedVariant?.id ?? null,
-    name:
-      hasVariants && selectedVariant
-        ? `${product.name} - ${selectedVariant.optionValue}`
-        : product.name,
+    id: hasVariants && selectedVariant?.id
+      ? `${product.id}-${selectedVariant.id}`
+      : product.id,
+    name: hasVariants && selectedVariant
+      ? `${product.name} - ${selectedVariant.optionValue}`
+      : product.name,
     price: product.price,
     sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
@@ -314,8 +308,6 @@ const canBuy =
     id: hasVariants && selectedVariant?.id
       ? `${product.id}-${selectedVariant.id}`
       : product.id,
-    product_id: product.id,
-    variant_id: selectedVariant?.id ?? null,
     name: hasVariants && selectedVariant
       ? `${product.name} - ${selectedVariant.optionValue}`
       : product.name,
@@ -327,34 +319,7 @@ const canBuy =
     quantity,
   });
 
-  (async () => {
-  try {
-    const res = await fetch("/api/orders/preview", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        product_id: product.id,
-        quantity,
-        region: selectedRegion,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Preview failed");
-      return;
-    }
-
-    // 👉 mở checkout sau khi server tính xong
-    setOpenCheckout(true);
-
-  } catch {
-    alert("Không thể tính đơn hàng");
-  }
-})();
+  setOpenCheckout(true);
 };
 
   /* =======================
@@ -504,59 +469,6 @@ const canBuy =
     </span>
   )}
 </div>
-     {/* SHIPPING REGION */}
-<div className="bg-white px-4 pb-4">
-  <p className="text-sm font-medium mb-2">
-    🌍 {t.select_region}
-  </p>
-
-  <div className="flex gap-2 flex-wrap">{[
-  {
-    key: "domestic",
-    label: t.region_domestic || "VN",
-    fee: product.domesticShippingFee,
-  },
-  {
-    key: "asia",
-    label: t.region_asia || "Asia",
-    fee: product.asiaShippingFee,
-  },
-  {
-    key: "international",
-    label: t.region_international || "Global",
-    fee: product.internationalShippingFee,
-  },
-]
-  .filter((r) => r.fee !== null && r.fee !== undefined)
-  .map((r) => {
-    const active = selectedRegion === r.key;
-
-    return (
-      <button
-        key={r.key}
-        onClick={() =>
-          setSelectedRegion(
-            r.key as "domestic" | "asia" | "international"
-          )
-        }
-        className={`px-3 py-2 rounded border text-sm ${
-          active
-            ? "bg-orange-100 border-orange-500 text-orange-600"
-            : "bg-white border-gray-300"
-        }`}
-      >
-        {r.label} • {r.fee !== null ? `${formatPi(r.fee)} π` : t.free_shipping}
-      </button>
-    );
-  })}  
-  </div>
-
-  {!selectedRegion && (
-    <p className="text-xs text-red-500 mt-2">
-      ⚠️ {t.shipping_required}
-    </p>
-  )}
-</div>
 
       {/* DESCRIPTION */}
       <div className="bg-white p-4">
@@ -564,10 +476,12 @@ const canBuy =
           {t.product_description ?? "Mô tả sản phẩm"}
         </h3>
 
-      {product.description ? (
-  <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-    {product.description}
-  </div>
+        {product.description ? (
+  <ul className="text-sm text-gray-700 space-y-1">
+    {formatShortDescription(product.description).map((line, i) => (
+      <li key={i}>• {line}</li>
+    ))}
+  </ul>
 ) : (
   <p className="text-sm text-gray-400">
     {t.no_description}
@@ -583,17 +497,18 @@ const canBuy =
 
   {product.detail ? (
     <div
-  className="text-sm text-gray-700 leading-relaxed whitespace-pre-line [&_img]:rounded-lg [&_img]:my-2 [&_img]:w-full"
-  dangerouslySetInnerHTML={{
-  __html: product.detail,
-}}
-/>
+      className="text-sm text-gray-700 leading-relaxed"
+      dangerouslySetInnerHTML={{
+        __html: product.detail,
+      }}
+    />
   ) : (
     <p className="text-sm text-gray-400">
       {t.no_description}
     </p>
   )}
 </div>
+    
 
       {/* RELATED */}
       {relatedProducts.length > 0 && (
@@ -652,7 +567,7 @@ const canBuy =
     !canBuy ? "bg-gray-400" : "bg-red-500"
   }`}
 >
-  {!canBuy ? t.out_of_stock : t.buy_now}
+  {!canBuy ? "Hết hàng" : t.buy_now}
 </button>
       </div>
 
@@ -665,18 +580,15 @@ const canBuy =
       hasVariants && selectedVariant?.id
         ? `${product.id}-${selectedVariant.id}`
         : product.id,
-
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
-
     price: product.price,
     finalPrice: product.finalPrice,
-
-    thumbnail: product.thumbnail || "/placeholder.png",
-
-    stock: selectedStock, // ✅ quan trọng nhất
+    thumbnail: product.thumbnail,
+    image: product.thumbnail || product.images?.[0] || "",
+    images: product.images,
   }}
 />
     </div>
