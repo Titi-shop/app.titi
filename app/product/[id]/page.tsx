@@ -111,110 +111,88 @@ export default function ProductDetail() {
      LOAD PRODUCT
   ======================= */
   useEffect(() => {
-    async function loadProduct() {
-      try {
-        const res = await fetch(`/api/product`);
-const product = await res.json();
+  async function loadProduct() {
+    try {
+      const res = await fetch(`/api/product/${id}`);
+      const api: ApiProduct = await res.json();
 
-        if (!Array.isArray(data)) return;
+      if (!api || !api.id) return;
 
-        const normalized: Product[] = data.map((p) => {
-  const api = p as ApiProduct;
+      const finalPrice =
+        typeof api.finalPrice === "number"
+          ? api.finalPrice
+          : api.price;
 
-  const finalPrice =
-    typeof api.finalPrice === "number"
-      ? api.finalPrice
-      : api.price;
+      const variants: ProductVariant[] = Array.isArray(api.variants)
+        ? api.variants
+            .filter((v) => v && typeof v === "object")
+            .map((v) => ({
+              id: typeof v.id === "string" ? v.id : undefined,
+              optionName:
+                typeof v.optionName === "string"
+                  ? v.optionName
+                  : "size",
+              optionValue:
+                typeof v.optionValue === "string"
+                  ? v.optionValue
+                  : "",
+              stock: typeof v.stock === "number" ? v.stock : 0,
+              sku: typeof v.sku === "string" ? v.sku : null,
+              sortOrder:
+                typeof v.sortOrder === "number" ? v.sortOrder : 0,
+              isActive:
+                typeof v.isActive === "boolean" ? v.isActive : true,
+            }))
+            .filter((v) => v.optionValue !== "")
+        : [];
 
-  const variants: ProductVariant[] = Array.isArray(api.variants)
-    ? api.variants
-        .filter((v) => v && typeof v === "object")
-        .map((v: any) => ({
-          id: typeof v.id === "string" ? v.id : undefined,
-          optionName:
-            typeof v.optionName === "string"
-              ? v.optionName
-              : typeof v.option_name === "string"
-              ? v.option_name
-              : "size",
-          optionValue:
-            typeof v.optionValue === "string"
-              ? v.optionValue
-              : typeof v.option_value === "string"
-              ? v.option_value
-              : "",
-          stock: typeof v.stock === "number" ? v.stock : 0,
-          sku: typeof v.sku === "string" ? v.sku : null,
-          sortOrder:
-            typeof v.sortOrder === "number"
-              ? v.sortOrder
-              : typeof v.sort_order === "number"
-              ? v.sort_order
-              : 0,
-          isActive:
-            typeof v.isActive === "boolean"
-              ? v.isActive
-              : typeof v.is_active === "boolean"
-              ? v.is_active
-              : true,
-        }))
-        .filter((v) => v.optionValue !== "")
-    : [];
+      const stock = typeof api.stock === "number" ? api.stock : 0;
+      const isActive = api.isActive !== false;
 
-  const stock = typeof api.stock === "number" ? api.stock : 0;
-  const isActive = api.isActive !== false;
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
 
-  return {
-  id: api.id,
-  name: api.name,
-  price: api.price,
+        description: api.description ?? "",
+        detail: api.detail ?? "",
 
-  // 🔥 THÊM 3 DÒNG NÀY
-  domesticShippingFee: api.domestic_shipping_fee ?? null,
-  asiaShippingFee: api.asia_shipping_fee ?? null,
-  internationalShippingFee: api.international_shipping_fee ?? null,
-    finalPrice,
-    isSale: finalPrice < api.price,
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg: api.rating_avg ?? 0,
+        ratingCount: api.rating_count ?? 0,
 
-    description: api.description ?? "",
-    detail: api.detail ?? "",
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
 
-    views: api.views ?? 0,
-    sold: api.sold ?? 0,
-    ratingAvg:
-      typeof api.rating_avg === "number" ? api.rating_avg : 0,
-    ratingCount:
-      typeof api.rating_count === "number" ? api.rating_count : 0,
+        stock,
+        isActive,
+        isOutOfStock: stock <= 0 || !isActive,
+        variants,
 
-    thumbnail: api.thumbnail ?? "",
-    images: Array.isArray(api.images) ? api.images : [],
-    categoryId: api.categoryId ?? null,
+        // ✅ shipping
+        domesticShippingFee: api.domestic_shipping_fee ?? null,
+        asiaShippingFee: api.asia_shipping_fee ?? null,
+        internationalShippingFee: api.international_shipping_fee ?? null,
+      };
 
-    stock,
-    isActive,
-    isOutOfStock: stock <= 0 || !isActive,
-    variants,
-  };
-});
-        setProducts(normalized);
+      setProduct(normalized);
 
-        const found = normalized.find((p) => p.id === id);
+      const firstAvailableVariant =
+        normalized.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
 
-if (found) {
-  setProduct(found);
+      setSelectedVariant(firstAvailableVariant);
 
-  const firstAvailableVariant =
-    found.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
-
-  setSelectedVariant(firstAvailableVariant);
-}
-      } finally {
-        setLoading(false);
-      }
+    } finally {
+      setLoading(false);
     }
+  }
 
-    loadProduct();
-  }, [id]);
+  loadProduct();
+}, [id]);
 
   /* =======================
    INCREMENT VIEW
