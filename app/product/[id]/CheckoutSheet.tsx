@@ -245,12 +245,6 @@ console.log("🟡 VALIDATE START");
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
 }
-     if (selectedRegion === "domestic" && shipping.country !== "VN") {
-  showMessage(
-    t.address_not_supported || "Address must be in Vietnam"
-  );
-  return false;
-}
 
 
       if (!user) {
@@ -266,6 +260,23 @@ console.log("🟡 VALIDATE START");
      if (!selectedRegion) {
   showMessage(t.shipping_required || "Select shipping region");
   return false;
+}
+     // ✅ CHECK REGION CHUẨN (QUAN TRỌNG NHẤT)
+if (selectedRegion && shipping) {
+  const realRegion = getRegionFromCountry(shipping.country);
+
+  console.log("🌍 REGION CHECK:", {
+    selectedRegion,
+    realRegion,
+    country: shipping.country,
+  });
+
+  if (selectedRegion !== realRegion) {
+    showMessage(
+      t.address_not_supported || "Shipping region does not match address"
+    );
+    return false;
+  }
 }
 
     if (!item) {
