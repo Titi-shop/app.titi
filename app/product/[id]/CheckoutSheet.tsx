@@ -125,7 +125,7 @@ const [selectedRegion, setSelectedRegion] = useState<
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail || "/placeholder.png",
-    stock: product.stock ?? 99,
+    stock: product.stock ?? 1
   };
 }, [product]);
 
@@ -518,10 +518,7 @@ console.log("🟡 VALIDATE START");
 
           const val = Number(e.target.value || "0");
 
-          if (val > maxStock) {
-            setQtyDraft(String(maxStock));
-            return;
-          }
+          if (val > maxStock) return;
 
           setQtyDraft(e.target.value);
         }}
