@@ -82,10 +82,10 @@ interface Props {
     thumbnail?: string;
     stock?: number;
 
-    // ✅ ADD
-    domesticShippingFee?: number | null;
-    asiaShippingFee?: number | null;
-    internationalShippingFee?: number | null;
+    // 🔥 FIX ĐÚNG FIELD BACKEND
+    domestic_shipping_fee?: number | null;
+    asia_shipping_fee?: number | null;
+    international_shipping_fee?: number | null;
   };
 }
 
@@ -214,19 +214,19 @@ const quantity = useMemo(() => {
       : item.price;
   }, [item]);
    const shippingFee = useMemo(() => {
-  if (!selectedRegion || !item) return 0;
+  if (!selectedRegion) return 0;
 
   if (selectedRegion === "domestic")
-    return product.domesticShippingFee ?? 0;
+    return product.domestic_shipping_fee ?? 0;
 
   if (selectedRegion === "asia")
-    return product.asiaShippingFee ?? 0;
+    return product.asia_shipping_fee ?? 0;
 
   if (selectedRegion === "international")
-    return product.internationalShippingFee ?? 0;
+    return product.international_shipping_fee ?? 0;
 
   return 0;
-}, [selectedRegion, product, item]);
+}, [selectedRegion, product]);
 
   const total = useMemo(
   () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
@@ -449,12 +449,11 @@ console.log("🟡 VALIDATE START");
     🌍 {t.select_region || "Select region"}
   </p>
 
- <div className="flex gap-2 overflow-x-auto">
-  {[
-    { key: "domestic", label: "VN", fee: product.domesticShippingFee ?? 0 },
-    { key: "asia", label: "Asia", fee: product.asiaShippingFee ?? 0 },
-    { key: "international", label: "Global", fee: product.internationalShippingFee ?? 0 },
-  ].map(r => {
+ <div className="flex gap-2 overflow-x-auto">{[
+  { key: "domestic", label: "VN", fee: product.domestic_shipping_fee ?? 0 },
+  { key: "asia", label: "Asia", fee: product.asia_shipping_fee ?? 0 },
+  { key: "international", label: "Global", fee: product.international_shipping_fee ?? 0 },
+].map(r => {
     const active = selectedRegion === r.key;
 
     return (
