@@ -232,6 +232,42 @@ const quantity = useMemo(() => {
   () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
   [unitPrice, quantity, shippingFee]
 );
+
+   const previewOrder = async () => {
+  try {
+    console.log("🟡 PREVIEW START");
+
+    const token = await getPiAccessToken();
+
+    const res = await fetch("/api/orders/preview", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item!.id,
+        quantity,
+      }),
+    });
+
+    const data = await res.json();
+
+    console.log("🟢 PREVIEW RESULT:", data);
+
+    if (!res.ok) {
+      console.log("🔴 PREVIEW FAILED");
+      showMessage(data.error || "Không thể đặt hàng");
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("❌ PREVIEW ERROR:", err);
+    showMessage("Preview lỗi");
+    return false;
+  }
+};
    const isRegionValid =
   selectedRegion &&
   shipping &&
@@ -317,6 +353,11 @@ const quantity = useMemo(() => {
   const handlePay = useCallback(async () => {
      console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
+const ok = await previewOrder();
+if (!ok) {
+  console.log("🔴 PREVIEW BLOCK PAYMENT");
+  return;
+}
 if (processingRef.current) return;
 
 processingRef.current = true;
