@@ -74,13 +74,20 @@ interface Message {
 interface Props {
   open: boolean;
   onClose: () => void;
-  product: {
-    id: string;
+  items: {
+    product_id: string;
     name: string;
     price: number;
     finalPrice?: number;
     thumbnail?: string;
-  };
+    quantity: number;
+    stock?: number;
+
+    // 🔥 shipping
+    domesticShippingFee?: number | null;
+    asiaShippingFee?: number | null;
+    internationalShippingFee?: number | null;
+  }[];
 }
 
 /* ========================= */
@@ -91,7 +98,7 @@ function getCountryDisplay(country?: string) {
 
 /* ========================= */
 
-export default function CheckoutSheet({ open, onClose, product }: Props) {
+export default function CheckoutSheet({ open, onClose, items }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
@@ -100,6 +107,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
+const [selectedRegion, setSelectedRegion] = useState<
+  "domestic" | "asia" | "international" | null
+>(null);
 
   /* ========================= */
 
@@ -108,22 +118,37 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const quantity = useMemo(() => {
-    const n = Number(qtyDraft);
-    return Number.isInteger(n) && n >= 1 && n <= 99 ? n : 1;
-  }, [qtyDraft]);
+  const safeItems = Array.isArray(items) ? items : [];
+const firstItem = safeItems[0] ?? null;
+const maxStock = firstItem?.stock ?? 99;
 
-  const item = useMemo(() => {
-    if (!product) return null;
-    return {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      finalPrice: product.finalPrice,
-      thumbnail: product.thumbnail || "",
-    };
-  }, [product]);
+const quantity = useMemo(() => {
+  const n = Number(qtyDraft);
+  return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
+}, [qtyDraft, maxStock]);
+const subtotal = useMemo(() => {
+  return items.reduce((sum, i) => {
+    const price =
+      typeof i.finalPrice === "number" ? i.finalPrice : i.price;
 
+    return sum + price * i.quantity;
+  }, 0);
+}, [items]);
+// ================= SHIPPING =================
+const shippingFee = useMemo(() => {
+  if (!selectedRegion || !firstItem) return 0;
+
+  if (selectedRegion === "domestic")
+    return firstItem.domesticShippingFee ?? 0;
+
+  if (selectedRegion === "asia")
+    return firstItem.asiaShippingFee ?? 0;
+
+  if (selectedRegion === "international")
+    return firstItem.internationalShippingFee ?? 0;
+
+  return 0;
+}, [selectedRegion, firstItem]);
   /* =========================
      LOAD ADDRESS
   ========================= */
@@ -131,30 +156,40 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   useEffect(() => {
     async function loadAddress() {
       try {
-        const token = await getPiAccessToken();
+        console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
 
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    const token = await getPiAccessToken();
+    console.log("🟢 TOKEN:", token);
 
-        if (!res.ok) return;
+    const res = await fetch("/api/address", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-        const data: AddressApiResponse = await res.json();
-        const def = data.items?.find((a) => a.is_default);
-        if (!def) return;
+    console.log("🟢 ADDRESS RES:", res.status);
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch {
-        setShipping(null);
-      }
-    }
+    if (!res.ok) return;
+
+    const data: AddressApiResponse = await res.json();
+    console.log("🟢 ADDRESS DATA:", data);
+
+    const def = data.items?.find((a) => a.is_default);
+    if (!def) return;
+
+    setShipping({
+      name: def.full_name,
+      phone: def.phone,
+      address_line: def.address_line,
+      province: def.province,
+      country: def.country,
+      postal_code: def.postal_code ?? null,
+    });
+
+    console.log("🟢 SHIPPING SET");
+  } catch (err) {
+    console.error("❌ LOAD ADDRESS ERROR:", err);
+    setShipping(null);
+  }
+}
 
     if (open && user) loadAddress();
   }, [open, user]);
@@ -164,68 +199,72 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    if (!user || !shipping || processing) return;
+  console.log("🟡 AUTO PAY CHECK", {
+    user,
+    shipping,
+    processing,
+  });
 
-    const pending = localStorage.getItem("pending_checkout");
-    if (!pending) return;
+  if (!user || !shipping || processing) return;
 
-    localStorage.removeItem("pending_checkout");
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
 
-    setTimeout(() => {
-      handlePay();
-    }, 300);
-  }, [user, shipping, processing]);
+  localStorage.removeItem("pending_checkout");
 
-  
+  setTimeout(() => {
+    console.log("🟢 AUTO PAY TRIGGER");
+    handlePay();
+  }, 300);
+}, [user, shipping, processing]);
 
   /* ========================= */
 
   const unitPrice = useMemo(() => {
-    if (!item) return 0;
-    return typeof item.finalPrice === "number"
-      ? item.finalPrice
-      : item.price;
-  }, [item]);
+  if (!firstItem) return 0;
+
+  return typeof firstItem.finalPrice === "number"
+    ? firstItem.finalPrice
+    : firstItem.price;
+}, [firstItem]);
 
   const total = useMemo(
-    () => Number((unitPrice * quantity).toFixed(6)),
-    [unitPrice, quantity]
-  );
+  () => Number((subtotal + shippingFee).toFixed(6)),
+  [subtotal, shippingFee]
+);
 
   /* =========================
      VALIDATION
   ========================= */
 
   const validateBeforePay = () => {
-
-     if (!window.Pi || !piReady) {
+console.log("🟡 VALIDATE START");
+     
+     if (typeof window === "undefined" || !window?.Pi || !piReady) {
+  console.log("🔴 PI NOT READY");
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
 }
-    if (!window.Pi || !piReady) {
-      showMessage(t.pi_not_ready || "Pi is not ready");
-      return false;
-    }
-
-      if (!user) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("pending_checkout", "1");
-  }
-
-  pilogin?.(); // ✅ mở login Pi
-
-  showMessage(
-    t.please_login || "Please login first",
-    "error"
-  );
-
+     if (!selectedRegion) {
+  showMessage(t.shipping_required);
   return false;
 }
 
-    if (!item) {
-      showMessage(t.invalid_product || "Invalid product");
-      return false;
-    }
+
+      if (!user) {
+  console.log("🔴 USER NOT LOGIN");
+
+  localStorage.setItem("pending_checkout", "1");
+  pilogin?.();
+
+  showMessage(t.please_login);
+  return false;
+}
+
+    if (!firstItem) {
+  showMessage(t.invalid_product || "Invalid product");
+  return false;
+}
 
     if (!shipping) {
       showMessage(
@@ -234,7 +273,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       return false;
     }
 
-    if (quantity < 1 || quantity > 99) {
+    if (quantity < 1 || quantity > maxStock) {
       showMessage(t.invalid_quantity || "Invalid quantity");
       return false;
     }
@@ -247,12 +286,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   const handlePay = useCallback(async () => {
+     console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
+     
     if (processing) return;
 
     setProcessing(true);
 
     try {
+       console.log("🟢 CALL PI PAYMENT");
       await window.Pi?.createPayment(
         {
           amount: total,
@@ -260,17 +302,18 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           metadata: {
             shipping,
             product: {
-              id: item!.id,
-              name: item!.name,
-              image: item!.thumbnail || "",
-              price: unitPrice,
-            },
+  id: firstItem!.product_id,
+  name: firstItem!.name,
+  image: firstItem!.thumbnail || "",
+  price: unitPrice,
+},
             quantity,
           },
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
+               console.log("🟡 APPROVE START:", paymentId);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/approve", {
@@ -281,8 +324,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 },
                 body: JSON.stringify({ paymentId }),
               });
-
+         console.log("🟢 APPROVE RES:", res.status);
               if (!res.ok) {
+                 console.log("🔴 APPROVE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_approve_failed);
                 return;
@@ -297,6 +341,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           onReadyForServerCompletion: async (paymentId, txid) => {
             try {
+               console.log("🟡 COMPLETE START:", paymentId, txid);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/complete", {
@@ -306,21 +351,29 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  paymentId,
-                  txid,
-                  product_id: item!.id,
-                  quantity,
-                  total,
-                  shipping,
-                  user: { pi_uid: user!.pi_uid },
-                }),
+  paymentId,
+  txid,
+  items: items.map(i => ({
+    product_id: i.product_id,
+    quantity: i.quantity,
+  })),
+  region: selectedRegion,
+  shipping_fee: shippingFee,
+
+  total,
+  shipping,
+  user: { pi_uid: user!.pi_uid },
+}),
               });
+               console.log("🟢 COMPLETE RES:", res.status);
 
               if (!res.ok) {
+                 console.log("🔴 COMPLETE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_complete_failed);
                 return;
               }
+               console.log("🟢 PAYMENT SUCCESS");
 
               setProcessing(false);
               onClose();
@@ -333,6 +386,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           },
 
           onCancel: () => {
+             console.log("🟡 PAYMENT CANCEL");
             setProcessing(false);
             showMessage(t.payment_cancelled);
           },
@@ -347,11 +401,11 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       setProcessing(false);
       showMessage(t.transaction_failed);
     }
-  }, [item, quantity, total, shipping, unitPrice, processing, t, user, router, onClose]);
+  }, [firstItem, quantity, total, shipping, unitPrice, processing, t, user, router, onClose, items, selectedRegion, shippingFee]);
 
   /* ========================= */
 
-  if (!open || !item) return null;
+  if (!open || !firstItem) return null;
 
   return (
     <div className="fixed inset-0 z-[100]">
@@ -370,64 +424,153 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
-          <div
-            className="border rounded-lg p-3 cursor-pointer mb-4"
-            onClick={() => router.push("/customer/address")}
+         {/* ADDRESS */}
+<div
+  className="border rounded-lg p-3 cursor-pointer mb-4"
+  onClick={() => router.push("/customer/address")}
+>
+  {shipping ? (
+    <>
+      <p className="font-medium">{shipping.name}</p>
+      <p className="text-sm text-gray-600">{shipping.phone}</p>
+      <p className="text-sm text-gray-500 mt-1">
+        {shipping.address_line}
+      </p>
+      <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+        {shipping.province} – {getCountryDisplay(shipping.country)} –{" "}
+        {shipping.postal_code ?? ""}
+      </p>
+    </>
+  ) : (
+    <p className="text-gray-500">➕ {t.add_shipping}</p>
+  )}
+</div>
+
+{/* SHIPPING */}
+<div className="border rounded-lg p-3 mb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 {t.select_region}
+  </p>
+
+  <div className="flex gap-2 flex-wrap">
+    {[
+      { key: "domestic", label: "VN", fee: firstItem?.domesticShippingFee },
+      { key: "asia", label: "Asia", fee: firstItem?.asiaShippingFee },
+      { key: "international", label: "Global", fee: firstItem?.internationalShippingFee },
+    ]
+      .filter(r => r.fee !== null && r.fee !== undefined)
+      .map(r => {
+        const active = selectedRegion === r.key;
+
+        return (
+          <button
+            key={r.key}
+            onClick={() =>
+              setSelectedRegion(
+                r.key as "domestic" | "asia" | "international"
+              )
+            }
+            className={`px-3 py-2 rounded border text-sm ${
+              active
+                ? "bg-orange-100 border-orange-500 text-orange-600"
+                : "bg-white border-gray-300"
+            }`}
           >
-            {shipping ? (
-              <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-500">➕ {t.add_shipping}</p>
-            )}
-          </div>
+            {r.label} • {formatPi(r.fee || 0)} π
+          </button>
+        );
+      })}
+  </div>
+
+  {!selectedRegion && (
+    <p className="text-xs text-red-500 mt-2">
+      ⚠️ {t.shipping_required}
+    </p>
+  )}
+</div>
 
           <div className="flex items-center gap-3 border-b pb-3">
-            <img
-              src={item.thumbnail || "/placeholder.png"}
-              alt={item.name}
-              className="w-16 h-16 rounded object-cover"
-            />
+  <img
+    src={firstItem?.thumbnail || "/placeholder.png"}
+    alt={firstItem?.name}
+    className="w-16 h-16 rounded object-cover"
+  />
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+  <div className="flex-1">
+    <p className="text-sm font-medium line-clamp-2">
+      {firstItem?.name}
+    </p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                value={qtyDraft}
-                onChange={(e) => {
-                  if (/^\d*$/.test(e.target.value)) {
-                    setQtyDraft(e.target.value);
-                  }
-                }}
-                onBlur={() => {
-                  if (!qtyDraft || Number(qtyDraft) < 1) {
-                    setQtyDraft("1");
-                  }
-                }}
-                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-              />
-            </div>
+    <div className="flex items-center gap-2 mt-1">
+      <button
+        onClick={() => {
+          const val = Math.max(1, quantity - 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity <= 1}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        -
+      </button>
 
-            <div className="text-right">
-              <p className="font-semibold text-orange-600">
-                {formatPi(total)} π
-              </p>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={qtyDraft}
+        onChange={(e) => {
+          if (!/^\d*$/.test(e.target.value)) return;
 
-              {!user && (
-                <p className="text-xs text-red-500">
-                  {t.please_login || "Please login first"}
-                </p>
-              )}
-            </div>
-          </div>
+          const val = Number(e.target.value || "0");
+
+          if (val > maxStock) {
+            setQtyDraft(String(maxStock));
+            return;
+          }
+
+          setQtyDraft(e.target.value);
+        }}
+        onBlur={() => {
+          const val = Number(qtyDraft || "0");
+
+          if (val < 1) setQtyDraft("1");
+          else if (val > maxStock) setQtyDraft(String(maxStock));
+        }}
+        className="w-12 text-center border rounded py-1 text-sm"
+      />
+
+      <button
+        onClick={() => {
+          const val = Math.min(maxStock, quantity + 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity >= maxStock}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        +
+      </button>
+    </div>
+  </div>
+
+  <div className="text-right">
+    <p className="text-sm text-gray-500">
+      {t.subtotal}: {formatPi(subtotal)} π
+    </p>
+
+    <p className="text-sm text-gray-500">
+      {t.shipping_fee}: {formatPi(shippingFee)} π
+    </p>
+
+    <p className="font-semibold text-orange-600">
+      {formatPi(total)} π
+    </p>
+
+    {!user && (
+      <p className="text-xs text-red-500">
+        {t.please_login || "Please login first"}
+      </p>
+    )}
+  </div>
+</div>
         </div>
 
         <div className="border-t p-4">
