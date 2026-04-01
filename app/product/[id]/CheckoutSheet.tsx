@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
+import { useRef } from "react";
 
 /* =========================
    PI TYPE
@@ -102,7 +103,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
-
+const processingRef = useRef(false);
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
@@ -128,9 +129,7 @@ const [selectedRegion, setSelectedRegion] = useState<
     stock: product.stock ?? 1
   };
 }, [product]);
-
-// ✅ ĐẶT Ở ĐÂY
-const maxStock = item?.stock ?? 99;
+const maxStock = Math.max(1, item?.stock ?? 0);
 
 const quantity = useMemo(() => {
   const n = Number(qtyDraft);
@@ -296,11 +295,10 @@ console.log("🟡 VALIDATE START");
   const handlePay = useCallback(async () => {
      console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
-     
-    if (processing) return;
+if (processingRef.current) return;
 
-    setProcessing(true);
-
+processingRef.current = true;
+setProcessing(true);
     try {
        console.log("🟢 CALL PI PAYMENT");
       await window.Pi?.createPayment(
@@ -363,7 +361,6 @@ console.log("🟡 VALIDATE START");
                   txid,
                   product_id: item!.id,
                   quantity,
-                  total,
                   shipping,
                   user: { pi_uid: user!.pi_uid },
                 }),
@@ -409,6 +406,24 @@ console.log("🟡 VALIDATE START");
   /* ========================= */
 
   if (!open || !item) return null;
+
+   if (maxStock <= 0) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+      <div className="bg-white p-4 rounded-lg text-center">
+        <p className="text-red-500 font-semibold">
+          Hết hàng
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-3 px-4 py-2 bg-gray-200 rounded"
+        >
+          Đóng
+        </button>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="fixed inset-0 z-[100]">
@@ -514,10 +529,9 @@ console.log("🟡 VALIDATE START");
         inputMode="numeric"
         value={qtyDraft}
         onChange={(e) => {
-          if (!/^\d*$/.test(e.target.value)) return;
+          if (!/^\d+$/.test(e.target.value)) return;
 
           const val = Number(e.target.value || "0");
-
           if (val > maxStock) return;
 
           setQtyDraft(e.target.value);
@@ -562,8 +576,14 @@ console.log("🟡 VALIDATE START");
 
         <div className="border-t p-4">
           <button
-            onClick={handlePay}
-            disabled={processing}
+  onClick={handlePay}
+  disabled={
+    processing ||
+    quantity > maxStock ||
+    quantity < 1 ||
+    !selectedRegion ||
+    !shipping
+  }
             className={`w-full py-3 text-white rounded-lg font-semibold ${
               processing ? "bg-gray-400" : "bg-orange-600"
             }`}
