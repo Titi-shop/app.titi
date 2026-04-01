@@ -242,31 +242,43 @@ const quantity = useMemo(() => {
   ========================= */
 
   const validateBeforePay = () => {
-console.log("🟡 VALIDATE START");
-     
-     if (!window.Pi || !piReady) {
-  console.log("🔴 PI NOT READY");
-  showMessage(t.pi_not_ready || "Pi is not ready");
-  return false;
-}
+  console.log("🟡 VALIDATE START");
 
+  // ✅ chưa login → auto login
+  if (!user) {
+    console.log("🔴 NOT LOGIN");
 
-      if (!user) {
-  console.log("🔴 USER NOT LOGIN");
+    localStorage.setItem("pending_checkout", "1");
+    pilogin?.();
 
-  localStorage.setItem("pending_checkout", "1");
-  pilogin?.();
+    showMessage(t.please_login || "Please login");
+    return false;
+  }
 
-  showMessage(t.please_login);
-  return false;
-}
-     
-     if (!selectedRegion) {
-  showMessage(t.shipping_required || "Select shipping region");
-  return false;
-}
-     // ✅ CHECK REGION CHUẨN (QUAN TRỌNG NHẤT)
-if (selectedRegion && shipping) {
+  if (!window.Pi || !piReady) {
+    console.log("🔴 PI NOT READY");
+
+    showMessage(t.pi_not_ready || "Pi is not ready");
+    return false;
+  }
+
+  if (!shipping) {
+    console.log("🔴 NO SHIPPING");
+
+    showMessage(
+      t.please_add_shipping_address || "Please add shipping address"
+    );
+    return false;
+  }
+
+  if (!selectedRegion) {
+    console.log("🔴 NO REGION");
+
+    showMessage(t.shipping_required || "Select shipping region");
+    return false;
+  }
+
+  // ✅ CHECK REGION (QUAN TRỌNG)
   const realRegion = getRegionFromCountry(shipping.country);
 
   console.log("🌍 REGION CHECK:", {
@@ -275,34 +287,28 @@ if (selectedRegion && shipping) {
     country: shipping.country,
   });
 
-
   if (selectedRegion !== realRegion) {
+    console.log("🔴 REGION INVALID");
+
     showMessage(
-      t.address_not_supported || "Shipping region does not match address"
+      t.address_not_supported ||
+        "Shipping region does not match address"
     );
     return false;
   }
-}
 
-    if (!item) {
-      showMessage(t.invalid_product || "Invalid product");
-      return false;
-    }
+  if (!item) {
+    showMessage(t.invalid_product || "Invalid product");
+    return false;
+  }
 
-    if (!shipping) {
-      showMessage(
-        t.please_add_shipping_address || "Please add a shipping address"
-      );
-      return false;
-    }
+  if (quantity < 1 || quantity > maxStock) {
+    showMessage(t.invalid_quantity || "Invalid quantity");
+    return false;
+  }
 
-    if (quantity < 1 || quantity > maxStock) {
-      showMessage(t.invalid_quantity || "Invalid quantity");
-      return false;
-    }
-
-    return true;
-  };
+  return true;
+};
 
   /* =========================
      PAY
