@@ -27,9 +27,12 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
+    console.log("🟡 [PI COMPLETE] START");
+
     /* ================= BODY ================= */
 
     const raw = await req.json().catch(() => null);
+    console.log("🟡 BODY:", raw);
 
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
@@ -48,6 +51,13 @@ export async function POST(req: Request) {
 
     const quantity = safeQuantity(body.quantity);
 
+    console.log("🟢 PARSED:", {
+      paymentId,
+      txid,
+      productId,
+      quantity,
+    });
+
     if (!paymentId || !txid || !productId) {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
@@ -57,12 +67,16 @@ export async function POST(req: Request) {
     const authUser = await getUserFromBearer(req);
 
     if (!authUser) {
+      console.log("🔴 UNAUTHORIZED");
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const pi_uid = authUser.pi_uid;
+    console.log("🟢 USER:", pi_uid);
 
     /* ================= VERIFY PI ================= */
+
+    console.log("🟡 VERIFY PAYMENT");
 
     const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
@@ -70,6 +84,7 @@ export async function POST(req: Request) {
     });
 
     if (!piRes.ok) {
+      console.log("🔴 PI NOT FOUND");
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
         { status: 400 }
@@ -78,7 +93,10 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
+    console.log("🟢 PI DATA:", payment.status);
+
     if (payment.user_uid !== pi_uid) {
+      console.log("🔴 WRONG OWNER");
       return NextResponse.json(
         { error: "INVALID_PAYMENT_OWNER" },
         { status: 403 }
@@ -86,6 +104,7 @@ export async function POST(req: Request) {
     }
 
     if (payment.status !== "approved") {
+      console.log("🔴 NOT APPROVED");
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
@@ -93,6 +112,8 @@ export async function POST(req: Request) {
     }
 
     /* ================= COMPLETE PI ================= */
+
+    console.log("🟡 COMPLETE PAYMENT");
 
     const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -108,13 +129,16 @@ export async function POST(req: Request) {
 
     const completeData = await completeRes.json().catch(() => null);
 
+    console.log("🟢 COMPLETE RES:", completeRes.status, completeData);
+
     if (!completeRes.ok) {
       if (
         completeData?.error?.includes?.("already") ||
         completeData?.message?.includes?.("completed")
       ) {
-        // ok
+        console.log("🟡 PAYMENT ALREADY COMPLETED → CONTINUE");
       } else {
+        console.log("🔴 COMPLETE FAILED");
         return NextResponse.json(
           { error: "PI_COMPLETE_FAILED" },
           { status: 400 }
@@ -124,6 +148,8 @@ export async function POST(req: Request) {
 
     /* ================= DB PROCESS ================= */
 
+    console.log("🟡 PROCESS ORDER");
+
     const result = await processPiPayment({
       piUid: pi_uid,
       productId,
@@ -132,13 +158,15 @@ export async function POST(req: Request) {
       txid,
     });
 
+    console.log("🟢 ORDER CREATED:", result);
+
     return NextResponse.json({
       success: true,
       order_id: result.orderId,
     });
 
   } catch (err) {
-    console.error("[PI_COMPLETE]", err);
+    console.error("🔥 [PI_COMPLETE_ERROR]", err);
 
     const message =
       err instanceof Error ? err.message : "SERVER_ERROR";
