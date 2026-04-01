@@ -99,7 +99,7 @@ function getCountryDisplay(country?: string) {
 
 /* ========================= */
 
-export default function CheckoutSheet({ open, onClose, items }: Props)
+export default function CheckoutSheet({ open, onClose, items }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
@@ -221,7 +221,7 @@ const shippingFee = useMemo(() => {
   /* ========================= */
 
   const unitPrice = useMemo(() => {
-    if (!item) return 0;
+    if (!firstItem) return 0;
     return typeof item.finalPrice === "number"
       ? item.finalPrice
       : item.price;
@@ -301,11 +301,11 @@ console.log("🟡 VALIDATE START");
           metadata: {
             shipping,
             product: {
-              id: item!.id,
-              name: item!.name,
-              image: item!.thumbnail || "",
-              price: unitPrice,
-            },
+  id: firstItem!.product_id,
+  name: firstItem!.name,
+  image: firstItem!.thumbnail || "",
+  price: unitPrice,
+},
             quantity,
           },
         },
@@ -400,11 +400,11 @@ console.log("🟡 VALIDATE START");
       setProcessing(false);
       showMessage(t.transaction_failed);
     }
-  }, [item, quantity, total, shipping, unitPrice, processing, t, user, router, onClose]);
+  }, [firstItem, quantity, total, shipping, unitPrice, processing, t, user, router, onClose, items, selectedRegion, shippingFee]);
 
   /* ========================= */
 
-  if (!open || !item) return null;
+  if (!open || !firstItem) return null;
 
   return (
     <div className="fixed inset-0 z-[100]">
@@ -423,11 +423,30 @@ console.log("🟡 VALIDATE START");
 
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
-          <div
+         {/* ADDRESS */}
+<div
   className="border rounded-lg p-3 cursor-pointer mb-4"
   onClick={() => router.push("/customer/address")}
 >
-  <div className="border rounded-lg p-3 mb-4">
+  {shipping ? (
+    <>
+      <p className="font-medium">{shipping.name}</p>
+      <p className="text-sm text-gray-600">{shipping.phone}</p>
+      <p className="text-sm text-gray-500 mt-1">
+        {shipping.address_line}
+      </p>
+      <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+        {shipping.province} – {getCountryDisplay(shipping.country)} –{" "}
+        {shipping.postal_code ?? ""}
+      </p>
+    </>
+  ) : (
+    <p className="text-gray-500">➕ {t.add_shipping}</p>
+  )}
+</div>
+
+{/* SHIPPING */}
+<div className="border rounded-lg p-3 mb-4">
   <p className="text-sm font-medium mb-2">
     🌍 {t.select_region}
   </p>
@@ -446,7 +465,9 @@ console.log("🟡 VALIDATE START");
           <button
             key={r.key}
             onClick={() =>
-              setSelectedRegion(r.key as "domestic" | "asia" | "international")
+              setSelectedRegion(
+                r.key as "domestic" | "asia" | "international"
+              )
             }
             className={`px-3 py-2 rounded border text-sm ${
               active
