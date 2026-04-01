@@ -33,6 +33,9 @@ type PatchBody = {
   stock?: number;
   is_active?: boolean;
   variants?: ProductVariant[];
+  domestic_shipping_fee?: number;
+asia_shipping_fee?: number;
+international_shipping_fee?: number;
 };
 
 /* =========================================================
@@ -143,6 +146,9 @@ export async function GET(
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
       rating_count: p.rating_count ?? 0,
+      domestic_shipping_fee: p.domestic_shipping_fee ?? null,
+     asia_shipping_fee: p.asia_shipping_fee ?? null,
+     international_shipping_fee: p.international_shipping_fee ?? null,
 
       variants,
     });
@@ -210,6 +216,9 @@ export async function PATCH(
       sale_end?: string | null;
       stock?: number;
       is_active?: boolean;
+      domestic_shipping_fee?: number | null;
+     asia_shipping_fee?: number | null;
+    international_shipping_fee?: number | null;
     } = {};
 
     if (typeof body.name === "string") payload.name = body.name.trim();
@@ -239,11 +248,34 @@ export async function PATCH(
     }
 
     if (
-      typeof body.price === "number" &&
-      !Number.isNaN(body.price)
-    ) {
-      payload.price = body.price;
-    }
+  typeof body.price === "number" &&
+  !Number.isNaN(body.price)
+) {
+  payload.price = body.price;
+}
+
+/* ================= SHIPPING ================= */
+
+if (body.domestic_shipping_fee !== undefined) {
+  payload.domestic_shipping_fee =
+    typeof body.domestic_shipping_fee === "number"
+      ? body.domestic_shipping_fee
+      : null;
+}
+
+if (body.asia_shipping_fee !== undefined) {
+  payload.asia_shipping_fee =
+    typeof body.asia_shipping_fee === "number"
+      ? body.asia_shipping_fee
+      : null;
+}
+
+if (body.international_shipping_fee !== undefined) {
+  payload.international_shipping_fee =
+    typeof body.international_shipping_fee === "number"
+      ? body.international_shipping_fee
+      : null;
+}
 
     if (body.salePrice !== undefined) {
       payload.sale_price =
@@ -316,6 +348,9 @@ export async function PATCH(
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
       rating_count: p.rating_count ?? 0,
+      domestic_shipping_fee: p.domestic_shipping_fee ?? null,
+asia_shipping_fee: p.asia_shipping_fee ?? null,
+international_shipping_fee: p.international_shipping_fee ?? null,
 
       variants,
     });
