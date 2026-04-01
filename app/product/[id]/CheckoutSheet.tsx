@@ -449,7 +449,8 @@ console.log("🟡 VALIDATE START");
     🌍 {t.select_region || "Select region"}
   </p>
 
-  <div className="flex gap-2 overflow-x-auto"
+  <div className="flex gap-2 overflow-x-auto">
+
     {[
       { key: "domestic", label: "VN", fee: product.domesticShippingFee },
       { key: "asia", label: "Asia", fee: product.asiaShippingFee },
