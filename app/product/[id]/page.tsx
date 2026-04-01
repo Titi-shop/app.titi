@@ -571,7 +571,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
 
-    // ✅ QUAN TRỌNG NHẤT
+    stock: selectedStock,
     domesticShippingFee: product.domesticShippingFee,
     asiaShippingFee: product.asiaShippingFee,
     internationalShippingFee: product.internationalShippingFee,
