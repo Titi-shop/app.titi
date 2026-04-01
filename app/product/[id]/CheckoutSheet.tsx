@@ -75,14 +75,20 @@ interface Message {
 interface Props {
   open: boolean;
   onClose: () => void;
-  product: {
-    id: string;
+  items: {
+    product_id: string;
     name: string;
     price: number;
     finalPrice?: number;
     thumbnail?: string;
-     stock?: number; 
-  };
+    quantity: number;
+    stock?: number;
+
+    // 🔥 shipping
+    domesticShippingFee?: number | null;
+    asiaShippingFee?: number | null;
+    internationalShippingFee?: number | null;
+  }[];
 }
 
 /* ========================= */
@@ -93,7 +99,7 @@ function getCountryDisplay(country?: string) {
 
 /* ========================= */
 
-export default function CheckoutSheet({ open, onClose, product }: Props) {
+export default function CheckoutSheet({ open, onClose, items }: Props)
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
@@ -102,6 +108,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
+const [selectedRegion, setSelectedRegion] = useState<
+  "domestic" | "asia" | "international" | null
+>(null);
 
   /* ========================= */
 
@@ -110,26 +119,21 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const item = useMemo(() => {
-  if (!product) return null;
-  return {
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    finalPrice: product.finalPrice,
-    thumbnail: product.thumbnail || "/placeholder.png",
-    stock: product.stock ?? 99,
-  };
-}, [product]);
-
-// ✅ ĐẶT Ở ĐÂY
-const maxStock = item?.stock ?? 99;
+  const firstItem = items?.[0] ?? null;
+const maxStock = firstItem?.stock ?? 99;
 
 const quantity = useMemo(() => {
   const n = Number(qtyDraft);
   return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
 }, [qtyDraft, maxStock]);
+const subtotal = useMemo(() => {
+  return items.reduce((sum, i) => {
+    const price =
+      typeof i.finalPrice === "number" ? i.finalPrice : i.price;
 
+    return sum + price * i.quantity;
+  }, 0);
+}, [items]);
   /* =========================
      LOAD ADDRESS
   ========================= */
@@ -209,9 +213,9 @@ const quantity = useMemo(() => {
   }, [item]);
 
   const total = useMemo(
-    () => Number((unitPrice * quantity).toFixed(6)),
-    [unitPrice, quantity]
-  );
+  () => Number((subtotal + shippingFee).toFixed(6)),
+  [subtotal, shippingFee]
+);
 
   /* =========================
      VALIDATION
@@ -223,6 +227,10 @@ console.log("🟡 VALIDATE START");
      if (!window.Pi || !piReady) {
   console.log("🔴 PI NOT READY");
   showMessage(t.pi_not_ready || "Pi is not ready");
+  return false;
+}
+     if (!selectedRegion) {
+  showMessage(t.shipping_required);
   return false;
 }
 
@@ -397,6 +405,59 @@ console.log("🟡 VALIDATE START");
 
           <div
             className="border rounded-lg p-3 cursor-pointer mb-4"
+             <div className="border rounded-lg p-3 mb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 {t.select_region}
+  </p>
+
+  <div className="flex gap-2 flex-wrap">
+    {[
+      {
+        key: "domestic",
+        label: t.region_domestic || "VN",
+        fee: firstItem?.domesticShippingFee,
+      },
+      {
+        key: "asia",
+        label: t.region_asia || "Asia",
+        fee: firstItem?.asiaShippingFee,
+      },
+      {
+        key: "international",
+        label: t.region_international || "Global",
+        fee: firstItem?.internationalShippingFee,
+      },
+    ]
+      .filter((r) => r.fee !== null && r.fee !== undefined)
+      .map((r) => {
+        const active = selectedRegion === r.key;
+
+        return (
+          <button
+            key={r.key}
+            onClick={() =>
+              setSelectedRegion(
+                r.key as "domestic" | "asia" | "international"
+              )
+            }
+            className={`px-3 py-2 rounded border text-sm ${
+              active
+                ? "bg-orange-100 border-orange-500 text-orange-600"
+                : "bg-white border-gray-300"
+            }`}
+          >
+            {r.label} • {formatPi(r.fee || 0)} π
+          </button>
+        );
+      })}
+  </div>
+
+  {!selectedRegion && (
+    <p className="text-xs text-red-500 mt-2">
+      ⚠️ {t.shipping_required}
+    </p>
+  )}
+</div>
             onClick={() => router.push("/customer/address")}
           >
             {shipping ? (
@@ -479,9 +540,19 @@ console.log("🟡 VALIDATE START");
             </div>
 
             <div className="text-right">
-              <p className="font-semibold text-orange-600">
-                {formatPi(total)} π
-              </p>
+              <div className="text-right">
+  <p className="text-sm text-gray-500">
+    {t.subtotal}: {formatPi(subtotal)} π
+  </p>
+
+  <p className="text-sm text-gray-500">
+    {t.shipping_fee}: {formatPi(shippingFee)} π
+  </p>
+
+  <p className="font-semibold text-orange-600">
+    {formatPi(total)} π
+  </p>
+</div>
 
               {!user && (
                 <p className="text-xs text-red-500">
