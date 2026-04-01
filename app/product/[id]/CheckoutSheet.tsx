@@ -438,12 +438,12 @@ console.log("🟡 VALIDATE START");
             )}
           </div>
            {/* SHIPPING REGION */}
-<div className="border rounded-lg p-3 mb-4">
+<div className="border rounded-xl p-3 mb-4">
   <p className="text-sm font-medium mb-2">
     🌍 {t.select_region || "Select region"}
   </p>
 
-  <div className="flex gap-2 flex-wrap">
+  <div className="grid grid-cols-3 gap-2">
     {[
       { key: "domestic", label: "VN", fee: product.domesticShippingFee },
       { key: "asia", label: "Asia", fee: product.asiaShippingFee },
@@ -461,13 +461,18 @@ console.log("🟡 VALIDATE START");
                 r.key as "domestic" | "asia" | "international"
               )
             }
-            className={`px-3 py-2 rounded border text-sm ${
-              active
-                ? "bg-orange-100 border-orange-500 text-orange-600"
-                : "bg-white border-gray-300"
-            }`}
+            className={`rounded-lg border px-2 py-2 text-xs text-center transition
+              ${
+                active
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "bg-gray-50 border-gray-300"
+              }
+            `}
           >
-            {r.label} • {formatPi(r.fee || 0)} π
+            <div className="font-medium">{r.label}</div>
+            <div className="text-[11px] opacity-80">
+              {formatPi(r.fee || 0)} π
+            </div>
           </button>
         );
       })}
@@ -543,25 +548,18 @@ console.log("🟡 VALIDATE START");
   </div>
 
   {/* ✅ PRICE BLOCK (ĐÚNG CHỖ) */}
-  <div className="text-right">
-    <p className="text-sm text-gray-500">
-      {t.subtotal || "Subtotal"}: {formatPi(unitPrice * quantity)} π
-    </p>
+  
+    <div className="text-right">
+  <p className="font-semibold text-orange-600 text-lg">
+    {formatPi(total)} π
+  </p>
 
-    <p className="text-sm text-gray-500">
-      {t.shipping_fee || "Shipping"}: {formatPi(shippingFee)} π
+  {!user && (
+    <p className="text-xs text-red-500">
+      {t.please_login || "Please login first"}
     </p>
-
-    <p className="font-semibold text-orange-600">
-      {formatPi(total)} π
-    </p>
-
-    {!user && (
-      <p className="text-xs text-red-500">
-        {t.please_login || "Please login first"}
-      </p>
-    )}
-  </div>
+  )}
+</div>
 </div>
            </div>  
 
