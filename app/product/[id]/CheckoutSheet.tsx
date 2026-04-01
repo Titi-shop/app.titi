@@ -102,8 +102,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
    console.log("PRODUCT DATA:", product);
   const router = useRouter();
   const { t } = useTranslation();
-
-   const realRegion = getRegionFromCountry(shipping?.country);
   const { user, piReady, pilogin } = useAuth();
 const processingRef = useRef(false);
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
