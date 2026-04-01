@@ -473,7 +473,14 @@
 "inactive":  "已停用",
 
 "upcoming":  "即将开始",
-  "ended": "已结束"
+  "ended": "已结束",
+  "select_region": "选择配送区域",
+  "shipping_required": "请先选择配送区域",
+
+  "shipping_domestic": "国内",
+  "shipping_asia": "亚洲",
+  "shipping_international": "国际"
+
 
 
 
