@@ -481,89 +481,88 @@ console.log("🟡 VALIDATE START");
 </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
-            <img
-              src={item.thumbnail || "/placeholder.png"}
-              alt={item.name}
-              className="w-16 h-16 rounded object-cover"
-            />
-
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">{item.name}</p>
-
-              <div className="flex items-center gap-2 mt-1">
-
-  {/* - */}
-  <button
-    onClick={() => {
-      const val = Math.max(1, quantity - 1);
-      setQtyDraft(String(val));
-    }}
-    disabled={quantity <= 1}
-    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-  >
-    -
-  </button>
-
-  {/* INPUT */}
-  <input
-    type="text"
-    inputMode="numeric"
-    value={qtyDraft}
-    onChange={(e) => {
-      if (!/^\d*$/.test(e.target.value)) return;
-
-      const val = Number(e.target.value || "0");
-
-      if (val > maxStock) {
-        setQtyDraft(String(maxStock)); // ✅ chặn vượt kho
-        return;
-      }
-
-      setQtyDraft(e.target.value);
-    }}
-    onBlur={() => {
-      const val = Number(qtyDraft || "0");
-
-      if (val < 1) setQtyDraft("1");
-      else if (val > maxStock) setQtyDraft(String(maxStock));
-    }}
-    className="w-12 text-center border rounded py-1 text-sm"
+  <img
+    src={item.thumbnail || "/placeholder.png"}
+    alt={item.name}
+    className="w-16 h-16 rounded object-cover"
   />
 
-  {/* + */}
-  <button
-    onClick={() => {
-      const val = Math.min(maxStock, quantity + 1);
-      setQtyDraft(String(val));
-    }}
-    disabled={quantity >= maxStock}
-    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-  >
-    +
-  </button>
-
-</div>
-           <div className="text-right">
-  <p className="text-sm text-gray-500">
-    {t.subtotal || "Subtotal"}: {formatPi(unitPrice * quantity)} π
-  </p>
-
-  <p className="text-sm text-gray-500">
-    {t.shipping_fee || "Shipping"}: {formatPi(shippingFee)} π
-  </p>
-
-  <p className="font-semibold text-orange-600">
-    {formatPi(total)} π
-  </p>
-
-  {!user && (
-    <p className="text-xs text-red-500">
-      {t.please_login || "Please login first"}
+  <div className="flex-1">
+    <p className="text-sm font-medium line-clamp-2">
+      {item.name}
     </p>
-  )}
+
+    <div className="flex items-center gap-2 mt-1">
+      <button
+        onClick={() => {
+          const val = Math.max(1, quantity - 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity <= 1}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        -
+      </button>
+
+      <input
+        type="text"
+        inputMode="numeric"
+        value={qtyDraft}
+        onChange={(e) => {
+          if (!/^\d*$/.test(e.target.value)) return;
+
+          const val = Number(e.target.value || "0");
+
+          if (val > maxStock) {
+            setQtyDraft(String(maxStock));
+            return;
+          }
+
+          setQtyDraft(e.target.value);
+        }}
+        onBlur={() => {
+          const val = Number(qtyDraft || "0");
+
+          if (val < 1) setQtyDraft("1");
+          else if (val > maxStock) setQtyDraft(String(maxStock));
+        }}
+        className="w-12 text-center border rounded py-1 text-sm"
+      />
+
+      <button
+        onClick={() => {
+          const val = Math.min(maxStock, quantity + 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity >= maxStock}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        +
+      </button>
+    </div>
+  </div>
+
+  {/* ✅ PRICE BLOCK (ĐÚNG CHỖ) */}
+  <div className="text-right">
+    <p className="text-sm text-gray-500">
+      {t.subtotal || "Subtotal"}: {formatPi(unitPrice * quantity)} π
+    </p>
+
+    <p className="text-sm text-gray-500">
+      {t.shipping_fee || "Shipping"}: {formatPi(shippingFee)} π
+    </p>
+
+    <p className="font-semibold text-orange-600">
+      {formatPi(total)} π
+    </p>
+
+    {!user && (
+      <p className="text-xs text-red-500">
+        {t.please_login || "Please login first"}
+      </p>
+    )}
+  </div>
 </div>
-          </div>
-        </div>
 
         <div className="border-t p-4">
           <button
