@@ -537,46 +537,45 @@ const canBuy =
     🌍 {t.select_region}
   </p>
 
-  <div className="flex gap-2 flex-wrap">
-    {[
-      {
-        key: "domestic",
-        label: t.shipping_domestic,
-        fee: product.domesticShippingFee,
-      },
-      {
-        key: "asia",
-        label: t.shipping_asia,
-        fee: product.asiaShippingFee,
-      },
-      {
-        key: "international",
-        label: t.shipping_international,
-        fee: product.internationalShippingFee,
-      },
-    ]
-      .filter((r) => typeof r.fee === "number")
-      .map((r) => {
-        const active = selectedRegion === r.key;
+  <div className="flex gap-2 flex-wrap">{[
+  {
+    key: "domestic",
+    label: t.region_domestic,
+    fee: product.domesticShippingFee,
+  },
+  {
+    key: "asia",
+    label: t.region_asia,
+    fee: product.asiaShippingFee,
+  },
+  {
+    key: "international",
+    label: t.region_international,
+    fee: product.internationalShippingFee,
+  },
+]
+  .filter((r) => r.fee !== null && r.fee !== undefined)
+  .map((r) => {
+    const active = selectedRegion === r.key;
 
-        return (
-          <button
-            key={r.key}
-            onClick={() =>
-              setSelectedRegion(
-                r.key as "domestic" | "asia" | "international"
-              )
-            }
-            className={`px-3 py-2 rounded border text-sm ${
-              active
-                ? "bg-orange-100 border-orange-500 text-orange-600"
-                : "bg-white border-gray-300"
-            }`}
-          >
-            {r.label} • {formatPi(r.fee ?? 0)} π
-          </button>
-        );
-      })}
+    return (
+      <button
+        key={r.key}
+        onClick={() =>
+          setSelectedRegion(
+            r.key as "domestic" | "asia" | "international"
+          )
+        }
+        className={`px-3 py-2 rounded border text-sm ${
+          active
+            ? "bg-orange-100 border-orange-500 text-orange-600"
+            : "bg-white border-gray-300"
+        }`}
+      >
+        {r.label} • {formatPi(r.fee || 0)} π
+      </button>
+    );
+  })}  
   </div>
 
   {!selectedRegion && (
