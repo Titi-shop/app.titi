@@ -479,7 +479,8 @@
 
   "shipping_domestic": "国内",
   "shipping_asia": "亚洲",
-  "shipping_international": "国际"
+  "shipping_international": "国际",
+ "address_not_supported": "配送区域与地址不匹配"
 
 
 
