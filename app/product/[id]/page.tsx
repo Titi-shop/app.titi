@@ -293,19 +293,13 @@ const canBuy =
   ======================= */
 
   const add = () => {
-  if (hasVariants && !selectedVariant) {
-    alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
-    return;
-  }
-
-    const add = () => {
   if (!selectedRegion) {
-    alert("Vui lòng chọn khu vực vận chuyển");
+    alert(t.shipping_required);
     return;
   }
 
   if (hasVariants && !selectedVariant) {
-    alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
+    alert(t.select_variant || "Vui lòng chọn phân loại");
     return;
   }
 
