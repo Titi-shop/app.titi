@@ -295,6 +295,18 @@ const canBuy =
     return;
   }
 
+    const add = () => {
+  if (!selectedRegion) {
+    alert("Vui lòng chọn khu vực vận chuyển");
+    return;
+  }
+
+  if (hasVariants && !selectedVariant) {
+    alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
+    return;
+  }
+
+
   if (!canBuy) return;
 
   addToCart({
