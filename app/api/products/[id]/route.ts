@@ -283,7 +283,8 @@ if (body.international_shipping_fee !== undefined) {
           ? body.salePrice
           : null;
     
-    });
+    }
+  })
 
     if (body.saleStart !== undefined)
       payload.sale_start = body.saleStart;
