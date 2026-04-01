@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { processPiPayment } from "@/lib/db/orders";
+import { getRegionFromCountry } from "@/lib/shipping/region";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,12 +19,22 @@ function safeQuantity(v: unknown): number {
   return n;
 }
 
+/* ================= TYPES ================= */
+
 type Body = {
   paymentId?: unknown;
   txid?: unknown;
   product_id?: unknown;
   quantity?: unknown;
+
+  shipping?: {
+    country?: string;
+  };
+
+  selectedRegion?: unknown;
 };
+
+/* ================= API ================= */
 
 export async function POST(req: Request) {
   try {
@@ -51,11 +62,19 @@ export async function POST(req: Request) {
 
     const quantity = safeQuantity(body.quantity);
 
+    const shipping = body.shipping;
+    const selectedRegion =
+      typeof body.selectedRegion === "string"
+        ? body.selectedRegion
+        : "";
+
     console.log("🟢 PARSED:", {
       paymentId,
       txid,
       productId,
       quantity,
+      shipping,
+      selectedRegion,
     });
 
     if (!paymentId || !txid || !productId) {
@@ -93,7 +112,7 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
-    console.log("🟢 PI DATA:", payment.status);
+    console.log("🟢 PI STATUS:", payment.status);
 
     if (payment.user_uid !== pi_uid) {
       console.log("🔴 WRONG OWNER");
@@ -107,6 +126,34 @@ export async function POST(req: Request) {
       console.log("🔴 NOT APPROVED");
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= REGION CHECK ================= */
+
+    console.log("🟡 REGION CHECK");
+
+    if (!shipping?.country || !selectedRegion) {
+      console.log("🔴 MISSING REGION DATA");
+      return NextResponse.json(
+        { error: "INVALID_SHIPPING_REGION" },
+        { status: 400 }
+      );
+    }
+
+    const realRegion = getRegionFromCountry(shipping.country);
+
+    console.log("🌍 REGION:", {
+      selectedRegion,
+      realRegion,
+      country: shipping.country,
+    });
+
+    if (selectedRegion !== realRegion) {
+      console.log("🔴 REGION MISMATCH");
+      return NextResponse.json(
+        { error: "INVALID_REGION" },
         { status: 400 }
       );
     }
@@ -136,7 +183,7 @@ export async function POST(req: Request) {
         completeData?.error?.includes?.("already") ||
         completeData?.message?.includes?.("completed")
       ) {
-        console.log("🟡 PAYMENT ALREADY COMPLETED → CONTINUE");
+        console.log("🟡 ALREADY COMPLETED → CONTINUE");
       } else {
         console.log("🔴 COMPLETE FAILED");
         return NextResponse.json(
@@ -148,7 +195,7 @@ export async function POST(req: Request) {
 
     /* ================= DB PROCESS ================= */
 
-    console.log("🟡 PROCESS ORDER");
+    console.log("🟡 CREATE ORDER");
 
     const result = await processPiPayment({
       piUid: pi_uid,
