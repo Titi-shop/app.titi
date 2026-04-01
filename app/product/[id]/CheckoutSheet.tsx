@@ -80,7 +80,12 @@ interface Props {
     price: number;
     finalPrice?: number;
     thumbnail?: string;
-     stock?: number; 
+    stock?: number;
+
+    // ✅ ADD
+    domesticShippingFee?: number | null;
+    asiaShippingFee?: number | null;
+    internationalShippingFee?: number | null;
   };
 }
 
@@ -101,7 +106,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
-
+const [selectedRegion, setSelectedRegion] = useState<
+  "domestic" | "asia" | "international" | null
+>(null);
   /* ========================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
@@ -206,11 +213,25 @@ const quantity = useMemo(() => {
       ? item.finalPrice
       : item.price;
   }, [item]);
+   const shippingFee = useMemo(() => {
+  if (!selectedRegion || !item) return 0;
+
+  if (selectedRegion === "domestic")
+    return product.domesticShippingFee ?? 0;
+
+  if (selectedRegion === "asia")
+    return product.asiaShippingFee ?? 0;
+
+  if (selectedRegion === "international")
+    return product.internationalShippingFee ?? 0;
+
+  return 0;
+}, [selectedRegion, product, item]);
 
   const total = useMemo(
-    () => Number((unitPrice * quantity).toFixed(6)),
-    [unitPrice, quantity]
-  );
+  () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
+  [unitPrice, quantity, shippingFee]
+);
 
   /* =========================
      VALIDATION
@@ -233,6 +254,11 @@ console.log("🟡 VALIDATE START");
   pilogin?.();
 
   showMessage(t.please_login);
+  return false;
+}
+     
+     if (!selectedRegion) {
+  showMessage(t.shipping_required || "Select shipping region");
   return false;
 }
 
@@ -411,6 +437,48 @@ console.log("🟡 VALIDATE START");
               <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
+           {/* SHIPPING REGION */}
+<div className="border rounded-lg p-3 mb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 {t.select_region || "Select region"}
+  </p>
+
+  <div className="flex gap-2 flex-wrap">
+    {[
+      { key: "domestic", label: "VN", fee: product.domesticShippingFee },
+      { key: "asia", label: "Asia", fee: product.asiaShippingFee },
+      { key: "international", label: "Global", fee: product.internationalShippingFee },
+    ]
+      .filter(r => r.fee !== null && r.fee !== undefined)
+      .map(r => {
+        const active = selectedRegion === r.key;
+
+        return (
+          <button
+            key={r.key}
+            onClick={() =>
+              setSelectedRegion(
+                r.key as "domestic" | "asia" | "international"
+              )
+            }
+            className={`px-3 py-2 rounded border text-sm ${
+              active
+                ? "bg-orange-100 border-orange-500 text-orange-600"
+                : "bg-white border-gray-300"
+            }`}
+          >
+            {r.label} • {formatPi(r.fee || 0)} π
+          </button>
+        );
+      })}
+  </div>
+
+  {!selectedRegion && (
+    <p className="text-xs text-red-500 mt-2">
+      ⚠️ {t.shipping_required || "Select shipping region"}
+    </p>
+  )}
+</div>
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
@@ -475,19 +543,25 @@ console.log("🟡 VALIDATE START");
   </button>
 
 </div>
-            </div>
+           <div className="text-right">
+  <p className="text-sm text-gray-500">
+    {t.subtotal || "Subtotal"}: {formatPi(unitPrice * quantity)} π
+  </p>
 
-            <div className="text-right">
-              <p className="font-semibold text-orange-600">
-                {formatPi(total)} π
-              </p>
+  <p className="text-sm text-gray-500">
+    {t.shipping_fee || "Shipping"}: {formatPi(shippingFee)} π
+  </p>
 
-              {!user && (
-                <p className="text-xs text-red-500">
-                  {t.please_login || "Please login first"}
-                </p>
-              )}
-            </div>
+  <p className="font-semibold text-orange-600">
+    {formatPi(total)} π
+  </p>
+
+  {!user && (
+    <p className="text-xs text-red-500">
+      {t.please_login || "Please login first"}
+    </p>
+  )}
+</div>
           </div>
         </div>
 
