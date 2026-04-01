@@ -538,17 +538,17 @@ const canBuy =
   <div className="flex gap-2 flex-wrap">{[
   {
     key: "domestic",
-    label: t.region_domestic,
+    label: t.region_domestic || "VN"
     fee: product.domesticShippingFee,
   },
   {
     key: "asia",
-    label: t.region_asia,
+    label: t.region_asia || "Asia"
     fee: product.asiaShippingFee,
   },
   {
     key: "international",
-    label: t.region_international,
+    label: t.region_international || "Global"
     fee: product.internationalShippingFee,
   },
 ]
@@ -570,7 +570,7 @@ const canBuy =
             : "bg-white border-gray-300"
         }`}
       >
-        {r.label} • {formatPi(r.fee || 0)} π
+        {r.label} • {r.fee !== null ? `${formatPi(r.fee)} π` : t.free_shipping}
       </button>
     );
   })}  
