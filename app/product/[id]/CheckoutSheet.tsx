@@ -449,47 +449,39 @@ console.log("🟡 VALIDATE START");
     🌍 {t.select_region || "Select region"}
   </p>
 
-  <div className="flex gap-2 overflow-x-auto">
+ <div className="flex gap-2 overflow-x-auto">
+  {[
+    { key: "domestic", label: "VN", fee: product.domesticShippingFee ?? 0 },
+    { key: "asia", label: "Asia", fee: product.asiaShippingFee ?? 0 },
+    { key: "international", label: "Global", fee: product.internationalShippingFee ?? 0 },
+  ].map(r => {
+    const active = selectedRegion === r.key;
 
-    {[
-      { key: "domestic", label: "VN", fee: product.domesticShippingFee },
-      { key: "asia", label: "Asia", fee: product.asiaShippingFee },
-      { key: "international", label: "Global", fee: product.internationalShippingFee },
-    ]
-      .filter(r => r.fee !== null && r.fee !== undefined)
-      .map(r => {
-        const active = selectedRegion === r.key;
+    return (
+      <button
+        key={r.key}
+        onClick={() =>
+          setSelectedRegion(
+            r.key as "domestic" | "asia" | "international"
+          )
+        }
+        className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
+          ${
+            active
+              ? "bg-orange-500 text-white border-orange-500"
+              : "bg-gray-50 border-gray-300"
+          }
+        `}
+      >
+        <div className="font-medium">{r.label}</div>
+        <div className="text-[11px] opacity-80">
+          {formatPi(r.fee)} π
+        </div>
+      </button>
+    );
+  })}
+</div>
 
-        return (
-          <button
-            key={r.key}
-            onClick={() =>
-              setSelectedRegion(
-                r.key as "domestic" | "asia" | "international"
-              )
-            }
-            className={`rounded-lg border px-2 py-2 text-xs text-center transition
-              ${
-                active
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-gray-50 border-gray-300"
-              }
-            `}
-          >
-            <div className="font-medium">{r.label}</div>
-            <div className="text-[11px] opacity-80">
-              {formatPi(r.fee || 0)} π
-            </div>
-          </button>
-        );
-      })}
-  </div>
-
-  {!selectedRegion && (
-    <p className="text-xs text-red-500 mt-2">
-      ⚠️ {t.shipping_required || "Select shipping region"}
-    </p>
-  )}
 </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
