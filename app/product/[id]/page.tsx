@@ -110,8 +110,8 @@ export default function ProductDetail() {
   useEffect(() => {
     async function loadProduct() {
       try {
-        const res = await fetch("/api/products");
-        const data: unknown = await res.json();
+        const res = await fetch(`/api/product/${id}`);
+const product = await res.json();
 
         if (!Array.isArray(data)) return;
 
