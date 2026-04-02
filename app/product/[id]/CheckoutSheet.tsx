@@ -198,7 +198,6 @@ const quantity = useMemo(() => {
     shipping,
     processing,
   });
-
   if (!user || !shipping || processing) return;
 
   const pending = localStorage.getItem("pending_checkout");
@@ -579,34 +578,6 @@ setProcessing(true);
     );
   })}
 </div>
-    .map(r => {
-    const active = selectedRegion === r.key;
-
-    return (
-      <button
-        key={r.key}
-        onClick={() =>
-          setSelectedRegion(
-            r.key as "domestic" | "asia" | "international"
-          )
-        }
-        className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
-          ${
-            active
-              ? "bg-orange-500 text-white border-orange-500"
-              : "bg-gray-50 border-gray-300"
-          }
-        `}
-      >
-        <div className="font-medium">{r.label}</div>
-        <div className="text-[11px] opacity-80">
-          {formatPi(r.fee)} π
-        </div>
-      </button>
-    );
-  })}
-</div>
-
 </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
