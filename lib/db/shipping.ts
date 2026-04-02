@@ -9,26 +9,60 @@ export async function upsertShippingRates({
 }) {
   if (!sellerId) throw new Error("INVALID_USER");
 
-  for (const r of rates) {
-    if (!r.zone || typeof r.price !== "number") continue;
+  if (!Array.isArray(rates)) return;
 
-    const zoneRes = await query<{ id: string }>(
-      `select id from shipping_zones where code = $1 limit 1`,
-      [r.zone]
-    );
+  // ✅ validate input
+  const cleanRates = rates.filter(
+    (r) =>
+      r &&
+      typeof r.zone === "string" &&
+      typeof r.price === "number" &&
+      !Number.isNaN(r.price) &&
+      r.price >= 0
+  );
 
-    if (zoneRes.rowCount === 0) continue;
+  if (cleanRates.length === 0) return;
 
-    const zoneId = zoneRes.rows[0].id;
+  await query("BEGIN");
 
-    await query(
+  try {
+    // ✅ lấy tất cả zone_id 1 lần
+    const zoneRes = await query<{ id: string; code: string }>(
       `
-      insert into shipping_rates (zone_id, seller_id, price)
-      values ($1,$2,$3)
-      on conflict (zone_id, seller_id)
-      do update set price = excluded.price
+      select id, code
+      from shipping_zones
+      where code = any($1)
       `,
-      [zoneId, sellerId, r.price]
+      [cleanRates.map((r) => r.zone)]
     );
+
+    const zoneMap = new Map(
+      zoneRes.rows.map((z) => [z.code, z.id])
+    );
+
+    // ✅ clear old (tránh stale data)
+    await query(
+      `delete from shipping_rates where seller_id = $1`,
+      [sellerId]
+    );
+
+    // ✅ insert batch
+    for (const r of cleanRates) {
+      const zoneId = zoneMap.get(r.zone);
+      if (!zoneId) continue;
+
+      await query(
+        `
+        insert into shipping_rates (zone_id, seller_id, price)
+        values ($1,$2,$3)
+        `,
+        [zoneId, sellerId, r.price]
+      );
+    }
+
+    await query("COMMIT");
+  } catch (err) {
+    await query("ROLLBACK");
+    throw err;
   }
 }
