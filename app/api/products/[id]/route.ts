@@ -145,12 +145,14 @@ export async function GET(
       shipping_rates: shippingRates,
       
     });
-  } catch {
-    return NextResponse.json(
-      { error: "FAILED_TO_FETCH_PRODUCT" },
-      { status: 500 }
-    );
-  }
+  } catch (err) {
+  console.error("[PRODUCT][GET] ERROR", err);
+
+  return NextResponse.json(
+    { error: "FAILED_TO_FETCH_PRODUCT" },
+    { status: 500 }
+  );
+}
 }
 
 /* =========================================================
