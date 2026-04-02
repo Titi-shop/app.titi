@@ -569,10 +569,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-    shipping_rates: {
-  zone: string;
-  price: number;
-}[];
+    shipping_rates: product.shipping_rates,
     
   }}
 />
