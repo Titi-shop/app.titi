@@ -38,10 +38,6 @@ declare global {
     Pi?: PiPayment;
   }
 }
-
-/* =========================
-   TYPES
-========================= */
 /* =========================
    TYPES
 ========================= */
@@ -220,12 +216,20 @@ const quantity = useMemo(() => {
       : item.price;
   }, [item]);
   const shippingFee = useMemo(() => {
-  if (!selectedRegion) return 0;
+  if (!selectedRegion || !Array.isArray(product.shipping_rates)) {
+    console.log("❌ NO SHIPPING RATES");
+    return 0;
+  }
+
+  console.log("👉 SELECTED:", selectedRegion);
+  console.log("👉 RATES:", product.shipping_rates);
 
   const found = product.shipping_rates.find(
     (r) => r.zone === selectedRegion
   );
-     
+
+  console.log("👉 FOUND:", found);
+
   return found?.price ?? 0;
 }, [selectedRegion, product]);
 
@@ -269,11 +273,6 @@ const quantity = useMemo(() => {
     return false;
   }
 };
-   const isRegionValid =
-  selectedRegion &&
-  shipping &&
-  selectedRegion === getRegionFromCountry(shipping.country);
-
   /* =========================
      VALIDATION
   ========================= */
@@ -314,30 +313,7 @@ const quantity = useMemo(() => {
     showMessage(t.shipping_required || "Select shipping region");
     return false;
   }
-const realRegion = getRegionFromCountry(shipping.country);
-const regionMap: Record<string, string> = {
-  domestic: "domestic",
-  asia: "asia",
-  international: "rest_of_world",
-};
 
-const mappedRegion = regionMap[realRegion];
-
-  console.log("🌍 REGION CHECK:", {
-    selectedRegion,
-    realRegion,
-    country: shipping.country,
-  });
-
-  if (selectedRegion !== realRegion) {
-    console.log("🔴 REGION INVALID");
-
-    showMessage(
-      t.address_not_supported ||
-        "Shipping region does not match address"
-    );
-    return false;
-  }
 
   if (!item) {
     showMessage(t.invalid_product || "Invalid product");
@@ -376,6 +352,7 @@ setProcessing(true);
           memo: t.payment_memo_order || "Order payment",
           metadata: {
             shipping,
+             zone: selectedRegion,
             product: {
               id: item!.id,
               name: item!.name,
