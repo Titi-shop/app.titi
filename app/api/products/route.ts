@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+import { upsertShippingRates } from "@/lib/db/shipping";
 
 import type { ProductRecord } from "@/lib/db/products";
 import {
@@ -170,17 +171,12 @@ export async function GET(req: Request) {
           stock: finalStock,
           isActive,
           isOutOfStock: finalStock <= 0 || !isActive,
-
           views: p.views ?? 0,
           sold: p.sold ?? 0,
-
           rating_avg: p.rating_avg ?? 0,
           rating_count: p.rating_count ?? 0,
-          domestic_shipping_fee: p.domestic_shipping_fee ?? null,
-asia_shipping_fee: p.asia_shipping_fee ?? null,
-international_shipping_fee: p.international_shipping_fee ?? null,
-
           variants,
+          shipping_rates: [] 
         };
       })
     );
@@ -253,24 +249,16 @@ export async function POST(req: Request) {
       stock: finalStock,
       is_active:
         typeof body.is_active === "boolean" ? body.is_active : true,
-      domestic_shipping_fee:
-  typeof body.domestic_shipping_fee === "number"
-    ? body.domestic_shipping_fee
-    : null,
-
-asia_shipping_fee:
-  typeof body.asia_shipping_fee === "number"
-    ? body.asia_shipping_fee
-    : null,
-
-international_shipping_fee:
-  typeof body.international_shipping_fee === "number"
-    ? body.international_shipping_fee
-    : null,
 
       views: 0,
       sold: 0,
     });
+    if (Array.isArray(body.shipping_rates)) {
+  await upsertShippingRates({
+    sellerId: userId,
+    rates: body.shipping_rates,
+  });
+}
 
     if (hasVariants) {
       await createVariantsForProduct(product.id, normalizedVariants);
@@ -349,20 +337,6 @@ export async function PUT(req: Request) {
         stock: finalStock,
         is_active:
           typeof body.is_active === "boolean" ? body.is_active : true,
-        domestic_shipping_fee:
-  typeof body.domestic_shipping_fee === "number"
-    ? body.domestic_shipping_fee
-    : null,
-
-asia_shipping_fee:
-  typeof body.asia_shipping_fee === "number"
-    ? body.asia_shipping_fee
-    : null,
-
-international_shipping_fee:
-  typeof body.international_shipping_fee === "number"
-    ? body.international_shipping_fee
-    : null,
       }
     );
 
@@ -375,6 +349,12 @@ international_shipping_fee:
 
     await replaceVariantsByProductId(productId, normalizedVariants);
 
+    if (Array.isArray(body.shipping_rates)) {
+  await upsertShippingRates({
+    sellerId: userId,
+    rates: body.shipping_rates,
+  });
+}
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
