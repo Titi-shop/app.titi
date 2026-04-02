@@ -117,9 +117,7 @@ const processingRef = useRef(false);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
-const [selectedRegion, setSelectedRegion] = useState<
-  "domestic" | "asia" | "international" | null
->(null);
+const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   /* ========================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
