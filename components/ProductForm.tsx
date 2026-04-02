@@ -314,23 +314,17 @@ if (!name || Number(price) <= 0 || !categoryId) {
   price: Number(price),
   categoryId,
   description,
-      salePrice: salePrice === "" ? null : salePrice,
-      saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
-      saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
-      description,
-      detail,
-      images,
-      thumbnail: images[0] ?? null,
-      categoryId,
-      stock: stock === "" ? 0 : Number(stock),
-      is_active: isActive,
-      variants,
-       const shipping_rates_array = Object.entries(shippingRates)
-  .filter(([_, price]) => price !== "")
-  .map(([zone, price]) => ({
-    zone,
-    price: Number(price),
-  }));
+  salePrice: salePrice === "" ? null : salePrice,
+  saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
+  saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
+  detail,
+  images,
+  thumbnail: images[0] ?? null,
+  stock: stock === "" ? 0 : Number(stock),
+  is_active: isActive,
+  variants,
+  shipping_rates: shipping_rates_array, 
+};
 
     setSaving(true);
     setMessage({ text: "", type: "" });
@@ -454,53 +448,29 @@ if (!name || Number(price) <= 0 || !categoryId) {
        <div className="space-y-2">
   <p className="font-medium">🚚 Shipping Fee</p>
 
-  <div className="grid grid-cols-2 gap-3">
-    {[
-      { key: "domestic", label: "Domestic" },
-      { key: "sea", label: "SEA" },
-      { key: "asia", label: "Asia" },
-      { key: "europe", label: "Europe" },
-      { key: "north_america", label: "North America" },
-      { key: "rest_of_world", label: "Rest of World" },
-    ].map((z) => (
-      <input
-        key={z.key}
-        type="number"
-        step="0.00001"
-        placeholder={z.label}
-        value={shippingRates[z.key] ?? ""}
-        onChange={(e) =>
-          setShippingRates((prev) => ({
-            ...prev,
-            [z.key]: e.target.value ? Number(e.target.value) : "",
-          }))
-        }
-        className="border p-2 rounded"
-      />
-
+  <div className="grid grid-cols-2 gap-{[
+  { key: "domestic", label: "Domestic" },
+  { key: "sea", label: "SEA" },
+  { key: "asia", label: "Asia" },
+  { key: "europe", label: "Europe" },
+  { key: "north_america", label: "North America" },
+  { key: "rest_of_world", label: "Rest of World" },
+].map((z) => (
   <input
+    key={z.key}
     type="number"
     step="0.00001"
-    placeholder="Asia"
-    value={asiaShipping}
+    placeholder={z.label}
+    value={shippingRates[z.key] ?? ""}
     onChange={(e) =>
-      setAsiaShipping(e.target.value ? Number(e.target.value) : "")
+      setShippingRates((prev) => ({
+        ...prev,
+        [z.key]: e.target.value ? Number(e.target.value) : "",
+      }))
     }
-    className="w-full border p-2 rounded"
+    className="border p-2 rounded"
   />
-
-  <input
-    type="number"
-    step="0.00001"
-    placeholder="International"
-    value={internationalShipping}
-    onChange={(e) =>
-      setInternationalShipping(
-        e.target.value ? Number(e.target.value) : ""
-      )
-    }
-    className="w-full border p-2 rounded"
-  />
+))}
 </div>
 
       <label className="flex items-center gap-2">
