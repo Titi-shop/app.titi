@@ -300,15 +300,12 @@ if (!name || Number(price) <= 0 || !categoryId) {
       stock: stock === "" ? 0 : Number(stock),
       is_active: isActive,
       variants,
-       domestic_shipping_fee:
-  domesticShipping === "" ? null : domesticShipping,
-
-asia_shipping_fee:
-  asiaShipping === "" ? null : asiaShipping,
-
-international_shipping_fee:
-  internationalShipping === "" ? null : internationalShipping,
-    };
+       const shipping_rates_array = Object.entries(shippingRates)
+  .filter(([_, price]) => price !== "")
+  .map(([zone, price]) => ({
+    zone,
+    price: Number(price),
+  }));
 
     setSaving(true);
     setMessage({ text: "", type: "" });
@@ -455,9 +452,6 @@ international_shipping_fee:
         }
         className="border p-2 rounded"
       />
-    ))}
-  </div>
-</div>
 
   <input
     type="number"
