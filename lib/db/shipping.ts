@@ -142,3 +142,23 @@ export async function getShippingRatesBySeller(
       price: Number(r.price),
     }));
 }
+
+
+export async function getZoneByCountry(
+  countryCode: string
+): Promise<string | null> {
+  if (!countryCode) return null;
+
+  const { rows } = await query<{ code: string }>(
+    `
+    SELECT sz.code
+    FROM shipping_zone_countries szc
+    JOIN shipping_zones sz ON sz.id = szc.zone_id
+    WHERE szc.country_code = $1
+    LIMIT 1
+    `,
+    [countryCode.toUpperCase()]
+  );
+
+  return rows[0]?.code ?? null;
+}
