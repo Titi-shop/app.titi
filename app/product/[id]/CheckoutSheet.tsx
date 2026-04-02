@@ -220,20 +220,14 @@ const quantity = useMemo(() => {
       ? item.finalPrice
       : item.price;
   }, [item]);
-   const shippingFee = useMemo(() => {
-  if (!selectedRegion) return 0;
-
   const shippingFee = useMemo(() => {
   if (!selectedRegion) return 0;
 
   const found = product.shipping_rates.find(
     (r) => r.zone === selectedRegion
   );
-
+     
   return found?.price ?? 0;
-}, [selectedRegion, product]);
-
-  return 0;
 }, [selectedRegion, product]);
 
   const total = useMemo(
@@ -549,8 +543,7 @@ setProcessing(true);
     🌍 {t.select_region || "Select region"}
   </p>
 
- <div className="flex gap-2 overflow-x-auto">{
-    <div className="flex gap-2 overflow-x-auto">
+ <div className="flex gap-2 overflow-x-auto">
   {product.shipping_rates.map((r) => {
     const active = selectedRegion === r.zone;
 
@@ -566,7 +559,7 @@ setProcessing(true);
     return (
       <button
         key={r.zone}
-        onClick={() => setSelectedRegion(r.zone as any)}
+        onClick={() => setSelectedRegion(r.zone as Region)}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
             active
