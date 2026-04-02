@@ -44,9 +44,6 @@ type ProductRow = {
   deleted_at?: string | null;
   created_at: string;
   updated_at: string | null;
-   domestic_shipping_fee?: number | null;
-  asia_shipping_fee?: number | null;
-  international_shipping_fee?: number | null;
 };
 
 export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
@@ -69,9 +66,6 @@ export type CreateProductInput = {
   is_active: boolean;
   views?: number;
   sold?: number;
-domestic_shipping_fee: number | null;
-asia_shipping_fee: number | null;
-international_shipping_fee: number | null;
 };
 
 export type UpdateProductInput = Partial<
@@ -90,9 +84,6 @@ export type UpdateProductInput = Partial<
     | "stock"
     | "is_active"
     | "status"
-   | "domestic_shipping_fee"
-   | "asia_shipping_fee"
- | "international_shipping_fee"
   >
 >;
 
@@ -106,25 +97,6 @@ function toAppProduct(row: ProductRow): ProductRecord {
     price: Number(row.price),
     sale_price:
       row.sale_price !== null ? Number(row.sale_price) : null,
-
-    // ✅ normalize shipping
-    domestic_shipping_fee:
-      row.domestic_shipping_fee !== null &&
-      row.domestic_shipping_fee !== undefined
-        ? Number(row.domestic_shipping_fee)
-        : null,
-
-    asia_shipping_fee:
-      row.asia_shipping_fee !== null &&
-      row.asia_shipping_fee !== undefined
-        ? Number(row.asia_shipping_fee)
-        : null,
-
-    international_shipping_fee:
-      row.international_shipping_fee !== null &&
-      row.international_shipping_fee !== undefined
-        ? Number(row.international_shipping_fee)
-        : null,
   };
 }
 /* =========================================================
@@ -263,9 +235,6 @@ export async function createProduct(
       product.views ?? 0,
       product.sold ?? 0,
       sellerId,
-     product.domestic_shipping_fee,
-    product.asia_shipping_fee,
-     product.international_shipping_fee,
     ]
   );
 
@@ -305,11 +274,6 @@ export async function updateProductBySeller(
     "stock",
     "is_active",
     "status",
-
-    // 🔥 shipping
-    "domestic_shipping_fee",
-    "asia_shipping_fee",
-    "international_shipping_fee",
   ] as const;
 
   /* ================= BUILD QUERY ================= */
