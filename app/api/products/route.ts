@@ -265,12 +265,14 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, data: product });
-  } catch {
-    return NextResponse.json(
-      { error: "FAILED_TO_CREATE_PRODUCT" },
-      { status: 500 }
-    );
-  }
+  } catch (err) {
+  console.error("❌ CREATE PRODUCT ERROR:", err);
+
+  return NextResponse.json(
+    { error: "FAILED_TO_CREATE_PRODUCT" },
+    { status: 500 }
+  );
+}
 }
 
 /* =========================================================
