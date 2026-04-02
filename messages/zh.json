@@ -480,7 +480,50 @@
   "shipping_domestic": "国内",
   "shipping_asia": "亚洲",
   "shipping_international": "国际",
- "address_not_supported": "配送区域与地址不匹配"
+ "address_not_supported": "配送区域与地址不匹配",
+
+
+
+  "out_of_stock": "已售罄",
+  "close": "关闭",
+
+  "add_shipping": "添加收货地址",
+  "select_region": "选择配送区域",
+  "shipping_required": "请选择配送区域",
+
+  "region_domestic": "越南",
+  "region_sea": "东南亚",
+  "region_asia": "亚洲",
+  "region_europe": "欧洲",
+  "region_us": "北美",
+  "region_global": "全球",
+
+  "please_login": "请先登录",
+  "pi_not_ready": "Pi 尚未准备好",
+
+  "please_add_shipping_address": "请添加收货地址",
+
+  "invalid_product": "商品无效",
+  "invalid_quantity": "数量无效",
+
+  "order_preview_failed": "无法预览订单",
+  "order_preview_error": "订单预览错误",
+
+  "payment_memo_order": "订单支付",
+
+  "payment_approve_failed": "支付确认失败",
+  "payment_approve_error": "支付确认错误",
+
+  "payment_complete_failed": "支付完成失败",
+  "payment_failed": "支付失败",
+  "payment_success": "支付成功",
+
+  "payment_cancelled": "您已取消支付",
+  "transaction_failed": "交易失败",
+
+  "processing": "处理中...",
+  "pay_now": "立即支付"
+
 
 
 
