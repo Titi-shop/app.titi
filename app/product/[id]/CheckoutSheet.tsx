@@ -245,20 +245,21 @@ const quantity = useMemo(() => {
     const token = await getPiAccessToken();
 
     const res = await fetch("/api/orders/preview", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    country: shipping?.country,
+    items: [
+      {
+        product_id: item!.id.split("-")[0], // ✅ FIX
+        quantity,
       },
-      body: JSON.stringify({
-  country: shipping?.country,
-  items: [
-    {
-      product_id: item!.id,
-      quantity,
-    },
-  ],
-})
+    ],
+  }),
+});
 
     const data = await res.json();
 
