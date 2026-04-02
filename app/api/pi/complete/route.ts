@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { processPiPayment } from "@/lib/db/orders";
-import { getRegionFromCountry } from "@/lib/shipping/region";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
