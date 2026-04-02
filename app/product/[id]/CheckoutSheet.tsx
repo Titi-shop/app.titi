@@ -1,5 +1,4 @@
 "use client";
-import { getRegionFromCountry } from "@/lib/shipping/region";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
