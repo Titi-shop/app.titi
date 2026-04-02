@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { previewOrder } from "@/lib/db/orders";
+import { getZoneByCountry } from "@/lib/db/shipping";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,7 @@ type PreviewBody = {
 function isUUID(value: string): boolean {
   if (typeof value !== "string") return false;
 
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value
   );
 }
@@ -59,10 +60,34 @@ export async function POST(req: NextRequest) {
 
     const { country, items } = body;
 
+    if (!country || typeof country !== "string") {
+      console.log("🔴 INVALID COUNTRY");
+      return NextResponse.json(
+        { error: "INVALID_COUNTRY" },
+        { status: 400 }
+      );
+    }
+
     if (!Array.isArray(items) || items.length === 0) {
       console.log("🔴 INVALID ITEMS EMPTY");
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= GET ZONE FROM DB ================= */
+
+    console.log("🟡 GET ZONE FROM DB:", country);
+
+    const zone = await getZoneByCountry(country);
+
+    console.log("🟢 ZONE:", zone);
+
+    if (!zone) {
+      console.log("🔴 UNSUPPORTED COUNTRY");
+      return NextResponse.json(
+        { error: "UNSUPPORTED_COUNTRY" },
         { status: 400 }
       );
     }
@@ -117,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     const result = await previewOrder({
       userId,
-      country: typeof country === "string" ? country : undefined,
+      zone, // ✅ QUAN TRỌNG
       items: cleanItems,
     });
 
