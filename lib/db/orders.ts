@@ -814,3 +814,129 @@ export async function createReturn(
     );
   });
 }
+
+type PreviewItemInput = {
+  product_id: string;
+  quantity: number;
+};
+
+type PreviewOrderInput = {
+  userId: string;
+  items: PreviewItemInput[];
+};
+
+type PreviewOrderResult = {
+  items: {
+    product_id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    total: number;
+  }[];
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+};
+
+export async function previewOrder(
+  input: PreviewOrderInput
+): Promise<PreviewOrderResult> {
+  const { userId, items } = input;
+
+  if (!userId) throw new Error("INVALID_USER");
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("EMPTY_ITEMS");
+  }
+
+  /* ================= GET PRODUCTS ================= */
+
+  const productIds = items.map((i) => i.product_id);
+
+  const { rows: products } = await query<{
+    id: string;
+    name: string;
+    price: number;
+    seller_id: string;
+  }>(
+    `
+    SELECT id, name, price, seller_id
+    FROM products
+    WHERE id = ANY($1)
+    `,
+    [productIds]
+  );
+
+  if (products.length === 0) {
+    throw new Error("PRODUCT_NOT_FOUND");
+  }
+
+  /* ================= MAP ================= */
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+  const previewItems: PreviewOrderResult["items"] = [];
+
+  let subtotal = 0;
+
+  for (const item of items) {
+    const p = productMap.get(item.product_id);
+    if (!p) continue;
+
+    const qty =
+      typeof item.quantity === "number" &&
+      item.quantity > 0 &&
+      item.quantity <= 99
+        ? item.quantity
+        : 1;
+
+    const total = Number(p.price) * qty;
+
+    subtotal += total;
+
+    previewItems.push({
+      product_id: p.id,
+      name: p.name,
+      price: Number(p.price),
+      quantity: qty,
+      total,
+    });
+  }
+
+  if (previewItems.length === 0) {
+    throw new Error("INVALID_ITEMS");
+  }
+
+  /* ================= SHIPPING ================= */
+  // 🚨 TẠM FIX: lấy shipping của seller đầu tiên
+  // vì bạn đang dùng 1 giá ship cho toàn shop
+
+  const sellerId = products[0].seller_id;
+
+  const { rows: shippingRows } = await query<{
+    price: number;
+  }>(
+    `
+    SELECT price
+    FROM shipping_rates
+    WHERE seller_id = $1
+    LIMIT 1
+    `,
+    [sellerId]
+  );
+
+  const shippingFee =
+    shippingRows.length > 0
+      ? Number(shippingRows[0].price)
+      : 0;
+
+  /* ================= TOTAL ================= */
+
+  const total = subtotal + shippingFee;
+
+  return {
+    items: previewItems,
+    subtotal,
+    shipping_fee: shippingFee,
+    total,
+  };
+}
