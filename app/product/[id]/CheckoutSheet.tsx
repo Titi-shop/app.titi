@@ -254,7 +254,7 @@ const quantity = useMemo(() => {
     country: shipping?.country,
     items: [
       {
-        product_id: item!.id.split("-")[0], // ✅ FIX
+        product_id: item!.id,
         quantity,
       },
     ],
