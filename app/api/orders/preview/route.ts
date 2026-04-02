@@ -4,9 +4,7 @@ import { previewOrder } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 
-/* =========================================================
-   TYPES
-========================================================= */
+/* ================= TYPES ================= */
 
 type PreviewItem = {
   product_id: string;
@@ -18,19 +16,17 @@ type PreviewBody = {
   items?: PreviewItem[];
 };
 
-/*=========================================================
-   HELPERS
-========================================================= */
+/* ================= UTILS ================= */
 
 function isUUID(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
-    value.toLowerCase()
+  if (typeof value !== "string") return false;
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
   );
 }
 
-/* =========================================================
-   POST
-========================================================= */
+/* ================= API ================= */
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,40 +37,30 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth();
 
     if (!auth.ok) {
-      console.log("🔴 [ORDER][PREVIEW] AUTH FAILED");
+      console.log("🔴 AUTH FAILED");
       return auth.response;
     }
 
     const userId = auth.userId;
-
-    console.log("🟢 [ORDER][PREVIEW] USER OK", { userId });
+    console.log("🟢 USER:", userId);
 
     /* ================= BODY ================= */
 
-    const raw = await req.json().catch(() => null);
+    const body = (await req.json().catch(() => null)) as PreviewBody | null;
 
-    if (!raw || typeof raw !== "object") {
-      console.log("🔴 INVALID BODY");
+    console.log("🟡 BODY:", body);
+
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
 
-    const body = raw as PreviewBody;
+    const { country, items } = body;
 
-    const country =
-      typeof body.country === "string" ? body.country : undefined;
-
-    const items = Array.isArray(body.items) ? body.items : [];
-
-    console.log("🟡 [ORDER][PREVIEW] BODY", {
-      country,
-      itemsCount: items.length,
-    });
-
-    if (items.length === 0) {
-      console.log("🔴 EMPTY ITEMS");
+    if (!Array.isArray(items) || items.length === 0) {
+      console.log("🔴 INVALID ITEMS EMPTY");
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
@@ -85,41 +71,40 @@ export async function POST(req: NextRequest) {
 
     const cleanItems: PreviewItem[] = [];
 
-    for (const i of items) {
-      if (!i || typeof i !== "object") continue;
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
 
-      if (typeof i.product_id !== "string") {
-        console.log("🔴 INVALID PRODUCT_ID TYPE", i);
+      const productId =
+        typeof item.product_id === "string"
+          ? item.product_id.trim()
+          : "";
+
+      const quantity =
+        typeof item.quantity === "number" &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+          ? item.quantity
+          : 0;
+
+      if (!productId || !isUUID(productId)) {
+        console.log("🔴 INVALID PRODUCT ID:", productId);
         continue;
       }
 
-      if (!isUUID(i.product_id)) {
-        console.log("🔴 INVALID UUID", i.product_id);
-        continue;
-      }
-
-      if (
-        typeof i.quantity !== "number" ||
-        !Number.isInteger(i.quantity) ||
-        i.quantity <= 0
-      ) {
-        console.log("🔴 INVALID QUANTITY", i);
+      if (quantity <= 0) {
+        console.log("🔴 INVALID QUANTITY:", quantity);
         continue;
       }
 
       cleanItems.push({
-        product_id: i.product_id,
-        quantity: i.quantity,
+        product_id: productId,
+        quantity,
       });
     }
 
-    console.log("🟢 CLEAN ITEMS", {
-      valid: cleanItems.length,
-      invalid: items.length - cleanItems.length,
-    });
+    console.log("🟢 CLEAN ITEMS:", cleanItems);
 
     if (cleanItems.length === 0) {
-      console.log("🔴 ALL ITEMS INVALID");
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
@@ -132,18 +117,15 @@ export async function POST(req: NextRequest) {
 
     const result = await previewOrder({
       userId,
-      country,
+      country: typeof country === "string" ? country : undefined,
       items: cleanItems,
     });
 
-    console.log("🟢 PREVIEW SUCCESS", {
-      total: result?.total,
-    });
+    console.log("🟢 PREVIEW RESULT:", result);
 
     /* ================= RESPONSE ================= */
 
     return NextResponse.json(result);
-
   } catch (err) {
     console.error("🔥 [ORDER][PREVIEW] ERROR", err);
 
@@ -152,3 +134,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
