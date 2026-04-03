@@ -108,7 +108,7 @@ export default function ProductDetail() {
   const id = String(params?.id ?? "");
   const router = useRouter();
   const { addToCart } = useCart();
-
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -334,6 +334,12 @@ const canBuy = hasVariants
   >
     {gallery.map((img, i) => (
       <SwiperSlide key={i}>
+        {zoomImage && (
+  <div
+    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
+    onClick={() => setZoomImage(null)}
+  >
+    
           <img
            src={img}
            alt={product.name}
