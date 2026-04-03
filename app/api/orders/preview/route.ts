@@ -38,20 +38,22 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth();
 
     if (!auth.ok) {
-      console.log("🔴 AUTH FAILED");
+      console.log("🔴 [ORDER][PREVIEW] AUTH FAILED");
       return auth.response;
     }
 
     const userId = auth.userId;
-    console.log("🟢 USER:", userId);
+    console.log("🟢 [ORDER][PREVIEW] USER:", userId);
 
     /* ================= BODY ================= */
 
     const body = (await req.json().catch(() => null)) as PreviewBody | null;
 
-    console.log("🟡 BODY:", body);
+    console.log("🟡 [ORDER][PREVIEW] BODY:", body);
 
     if (!body || typeof body !== "object") {
+      console.log("🔴 [ORDER][PREVIEW] INVALID BODY");
+
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -60,38 +62,57 @@ export async function POST(req: NextRequest) {
 
     const { country, items } = body;
 
-    if (!country || typeof country !== "string") {
-      const selectedRegion =
-  typeof body.selectedRegion === "string"
-    ? body.selectedRegion
-    : "";
+    /* ================= COUNTRY ================= */
 
-if (!selectedRegion) {
-  return NextResponse.json(
-    { error: "MISSING_REGION" },
-    { status: 400 }
-  );
-}
-      console.log("🔴 INVALID COUNTRY");
+    if (!country || typeof country !== "string") {
+      console.log("🔴 [ORDER][PREVIEW] INVALID COUNTRY:", country);
+
       return NextResponse.json(
         { error: "INVALID_COUNTRY" },
         { status: 400 }
       );
     }
 
+    console.log("🟢 [ORDER][PREVIEW] COUNTRY:", country);
+
+    /* ================= REGION ================= */
+
+    const selectedRegion =
+      typeof body.selectedRegion === "string"
+        ? body.selectedRegion
+        : "";
+
+    if (!selectedRegion) {
+      console.log("🔴 [ORDER][PREVIEW] MISSING REGION");
+
+      return NextResponse.json(
+        { error: "MISSING_REGION" },
+        { status: 400 }
+      );
+    }
+
+    console.log("🟢 [ORDER][PREVIEW] REGION:", selectedRegion);
+
+    /* ================= ITEMS ================= */
+
     if (!Array.isArray(items) || items.length === 0) {
-      console.log("🔴 INVALID ITEMS EMPTY");
+      console.log("🔴 [ORDER][PREVIEW] EMPTY ITEMS");
+
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
       );
+    }
 
-    /* ================= VALIDATE ITEMS ================= */
+    console.log("🟡 [ORDER][PREVIEW] RAW ITEMS:", items);
 
     const cleanItems: PreviewItem[] = [];
 
     for (const item of items) {
-      if (!item || typeof item !== "object") continue;
+      if (!item || typeof item !== "object") {
+        console.log("⚠️ [ORDER][PREVIEW] SKIP INVALID ITEM:", item);
+        continue;
+      }
 
       const productId =
         typeof item.product_id === "string"
@@ -106,12 +127,12 @@ if (!selectedRegion) {
           : 0;
 
       if (!productId || !isUUID(productId)) {
-        console.log("🔴 INVALID PRODUCT ID:", productId);
+        console.log("🔴 [ORDER][PREVIEW] INVALID PRODUCT ID:", productId);
         continue;
       }
 
       if (quantity <= 0) {
-        console.log("🔴 INVALID QUANTITY:", quantity);
+        console.log("🔴 [ORDER][PREVIEW] INVALID QUANTITY:", quantity);
         continue;
       }
 
@@ -121,9 +142,11 @@ if (!selectedRegion) {
       });
     }
 
-    console.log("🟢 CLEAN ITEMS:", cleanItems);
+    console.log("🟢 [ORDER][PREVIEW] CLEAN ITEMS:", cleanItems);
 
     if (cleanItems.length === 0) {
+      console.log("🔴 [ORDER][PREVIEW] NO VALID ITEMS");
+
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
@@ -132,22 +155,22 @@ if (!selectedRegion) {
 
     /* ================= CALL DB ================= */
 
-    console.log("🟡 CALL previewOrder");
+    console.log("🟡 [ORDER][PREVIEW] CALL previewOrder");
 
     const result = await previewOrder({
-  userId,
-  country,
-  selectedRegion,
-  items: cleanItems,
-});
+      userId,
+      country,
+      selectedRegion,
+      items: cleanItems,
+    });
 
-    console.log("🟢 PREVIEW RESULT:", result);
+    console.log("🟢 [ORDER][PREVIEW] RESULT:", result);
 
     /* ================= RESPONSE ================= */
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error("🔥 [ORDER][PREVIEW] ERROR", err);
+    console.error("🔥 [ORDER][PREVIEW] ERROR:", err);
 
     return NextResponse.json(
       { error: "PREVIEW_FAILED" },
