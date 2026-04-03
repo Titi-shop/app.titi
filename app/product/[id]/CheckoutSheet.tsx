@@ -243,7 +243,7 @@ const quantity = useMemo(() => {
   console.log("👉 FOUND:", found);
 
   return found?.price ?? 0;
-}, [selectedRegion, product]);
+}, [selectedRegion, availableRegions]);
 
   const total = useMemo(
   () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
