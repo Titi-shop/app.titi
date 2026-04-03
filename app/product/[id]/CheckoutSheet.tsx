@@ -262,7 +262,22 @@ const quantity = useMemo(() => {
 
    const previewOrder = async () => {
   try {
+    console.log("🟡 PREVIEW START");
+
     const token = await getPiAccessToken();
+
+    const payload = {
+      country: shipping?.country,
+      selectedRegion,
+      items: [
+        {
+          product_id: item!.id,
+          quantity,
+        },
+      ],
+    };
+
+    console.log("🟡 PREVIEW PAYLOAD:", payload);
 
     const res = await fetch("/api/orders/preview", {
       method: "POST",
@@ -270,28 +285,26 @@ const quantity = useMemo(() => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        country: shipping?.country,
-         selectedRegion,
-        items: [
-          {
-            product_id: item!.id,
-            variant_id: product.variant_id ?? null, 
-            quantity,
-          },
-        ],
-      }),
+      body: JSON.stringify(payload),
     });
+
+    console.log("🟡 PREVIEW STATUS:", res.status);
 
     const data = await res.json();
 
+    console.log("🟡 PREVIEW RESPONSE:", data);
+
     if (!res.ok) {
-  showMessage(t[getErrorKey(data.error)]);
-  return false;
-}
+      console.log("🔴 PREVIEW ERROR:", data.error);
+      showMessage(t[getErrorKey(data.error)]);
+      return false;
+    }
+
+    console.log("🟢 PREVIEW OK");
 
     return true;
-  } catch {
+  } catch (err) {
+    console.error("❌ PREVIEW EXCEPTION:", err);
     showMessage(t.order_preview_error);
     return false;
   }
@@ -432,14 +445,13 @@ setProcessing(true);
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  paymentId,
-                  txid,
-                  product_id: item!.id,
-                  quantity,
-                  shipping,
-                   selectedRegion, 
-                  user: { pi_uid: user!.pi_uid },
-                }),
+  paymentId,
+  txid,
+  product_id: item!.id,
+  quantity,
+  shipping,
+  zone: selectedRegion,
+}),
               });
                console.log("🟢 COMPLETE RES:", res.status);
 
