@@ -445,13 +445,14 @@ setProcessing(true);
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-  paymentId,
-  txid,
-  product_id: item!.id,
-  quantity,
-  shipping,
-  zone: selectedRegion,
-}),
+              paymentId,
+              txid,
+              product_id: item!.id,
+              variant_id: product.variant_id ?? null,
+              quantity,
+              shipping,
+               zone: selectedRegion, 
+              }),
               });
                console.log("🟢 COMPLETE RES:", res.status);
 
