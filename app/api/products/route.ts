@@ -25,7 +25,10 @@ export const dynamic = "force-dynamic";
 /* =========================================================
    TYPES
 ========================================================= */
-
+type ShippingRateFE = {
+  zone: string;
+  price: number;
+};
 type ProductVariantInput = {
   id?: string;
   optionName?: string;
@@ -113,6 +116,25 @@ export async function GET(req: Request) {
     }
 
     const now = Date.now();
+    const productIds = products.map((p) => p.id);
+
+const shippingRows = await getShippingRatesByProducts(productIds);
+
+const shippingMap = new Map<
+  string,
+  { zone: string; price: number }[]
+>();
+
+for (const r of shippingRows) {
+  if (!shippingMap.has(r.product_id)) {
+    shippingMap.set(r.product_id, []);
+  }
+
+  shippingMap.get(r.product_id)!.push({
+    zone: r.zone,
+    price: r.price,
+  });
+}
 
     /* ================= ENRICH ================= */
     const enriched = await Promise.all(
@@ -124,7 +146,7 @@ export async function GET(req: Request) {
     } catch {
       // ignore
     }
-
+const shipping_rates = shippingMap.get(p.id) ?? [];
     /* ================= SALE ================= */
     const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
     const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
@@ -172,19 +194,14 @@ export async function GET(req: Request) {
         isSale && typeof p.sale_price === "number"
           ? p.sale_price
           : p.price,
-
       stock: finalStock,
       isActive,
       isOutOfStock: finalStock <= 0 || !isActive,
-
       views: p.views ?? 0,
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
       rating_count: p.rating_count ?? 0,
-
       variants,
-
-      /* ✅ QUAN TRỌNG */
       shipping_rates,
     };
   })
