@@ -855,12 +855,13 @@ type PreviewOrderResult = {
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
-  const { userId, items, country } = input;
+  const { userId, items, country, selectedRegion } = input;
 
   if (!userId) throw new Error("INVALID_USER");
   if (!country) throw new Error("MISSING_COUNTRY");
+  if (!selectedRegion) throw new Error("MISSING_REGION");
 
-  /* ================= ZONE ================= */
+  /* ================= ZONE FROM COUNTRY ================= */
 
   const { rows: zoneRows } = await query<{ code: string }>(
     `
@@ -877,7 +878,13 @@ export async function previewOrder(
     throw new Error("INVALID_COUNTRY");
   }
 
-  const zone = zoneRows[0].code;
+  const realZone = zoneRows[0].code;
+
+  /* ================= VALIDATE REGION ================= */
+
+  if (selectedRegion !== realZone) {
+    throw new Error("INVALID_REGION");
+  }
 
   /* ================= PRODUCTS ================= */
 
@@ -907,14 +914,20 @@ export async function previewOrder(
     const p = productMap.get(item.product_id);
     if (!p) throw new Error("INVALID_PRODUCT");
 
-    const total = Number(p.price) * item.quantity;
+    const qty =
+      typeof item.quantity === "number" && item.quantity > 0
+        ? item.quantity
+        : 1;
+
+    const total = Number(p.price) * qty;
+
     subtotal += total;
 
     return {
       product_id: p.id,
       name: p.name,
       price: Number(p.price),
-      quantity: item.quantity,
+      quantity: qty,
       total,
     };
   });
@@ -925,15 +938,21 @@ export async function previewOrder(
 
   const { rows: shippingRows } = await query<{ price: number }>(
     `
-    SELECT price
-    FROM shipping_rates
-    WHERE seller_id = $1 AND zone = $2
+    SELECT sr.price
+    FROM shipping_rates sr
+    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    WHERE sr.seller_id = $1
+    AND sz.code = $2
     LIMIT 1
     `,
-    [sellerId, zone]
+    [sellerId, realZone]
   );
 
-  const shippingFee = shippingRows[0]?.price ?? 0;
+  if (!shippingRows.length) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  const shippingFee = Number(shippingRows[0].price);
 
   /* ================= TOTAL ================= */
 
