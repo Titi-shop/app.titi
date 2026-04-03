@@ -43,13 +43,13 @@ function isValidRegion(value: string): value is Region {
 ========================= */
 
 export async function upsertShippingRates({
-  sellerId,
+  productId,
   rates,
 }: {
-  sellerId: string;
+  productId: string;
   rates: ShippingRateInput[];
 }) {
-  if (!sellerId) throw new Error("INVALID_USER");
+  if (!productId) throw new Error("INVALID_PRODUCT");
 
   if (!Array.isArray(rates)) return;
 
@@ -65,49 +65,25 @@ export async function upsertShippingRates({
 
   if (cleanRates.length === 0) return;
 
-  /* =========================
-     LẤY ZONE 1 LẦN (RULE #31)
-  ========================= */
-
-  const zoneRes = await query<{ id: string; code: string }>(
-    `
-    SELECT id, code
-    FROM shipping_zones
-    WHERE code = ANY($1)
-    `,
-    [cleanRates.map((r) => r.zone)]
-  );
-
-  const zoneMap = new Map(
-    zoneRes.rows.map((z) => [z.code, z.id])
-  );
-
-  /* =========================
-     DELETE OLD
-  ========================= */
+  /* ================= DELETE OLD ================= */
 
   await query(
     `
     DELETE FROM shipping_rates
-    WHERE seller_id = $1
+    WHERE product_id = $1
     `,
-    [sellerId]
+    [productId]
   );
 
-  /* =========================
-     INSERT NEW
-  ========================= */
+  /* ================= INSERT NEW ================= */
 
   for (const r of cleanRates) {
-    const zoneId = zoneMap.get(r.zone);
-    if (!zoneId) continue;
-
     await query(
       `
-      INSERT INTO shipping_rates (zone_id, seller_id, price)
+      INSERT INTO shipping_rates (product_id, zone_code, price)
       VALUES ($1, $2, $3)
       `,
-      [zoneId, sellerId, r.price]
+      [productId, r.zone, r.price]
     );
   }
 }
@@ -116,29 +92,27 @@ export async function upsertShippingRates({
    GET SHIPPING RATES
 ========================= */
 
-export async function getShippingRatesBySeller(
-  sellerId: string
+export async function getShippingRatesByProduct(
+  productId: string
 ): Promise<ShippingRateInput[]> {
-  if (!sellerId) throw new Error("INVALID_USER");
+  if (!productId) throw new Error("INVALID_PRODUCT");
 
-  const { rows } = await query<ShippingRateRow>(
+  const { rows } = await query<{
+    zone_code: string;
+    price: number;
+  }>(
     `
-    SELECT sz.code, sr.price
-    FROM shipping_rates sr
-    JOIN shipping_zones sz ON sz.id = sr.zone_id
-    WHERE sr.seller_id = $1
+    SELECT zone_code, price
+    FROM shipping_rates
+    WHERE product_id = $1
     `,
-    [sellerId]
+    [productId]
   );
 
-  /* =========================
-     FILTER + MAP SAFE
-  ========================= */
-
   return rows
-    .filter((r) => isValidRegion(r.code))
+    .filter((r) => isValidRegion(r.zone_code))
     .map((r) => ({
-      zone: r.code,
+      zone: r.zone_code,
       price: Number(r.price),
     }));
 }
