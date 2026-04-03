@@ -319,8 +319,7 @@ const canBuy = hasVariants
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
-     className="w-full h-[60vh] object-contain bg-white"
-
+    <div className="mt-14 relative bg-white">
   {/* SALE BADGE */}
   {product.isSale && (
     <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
