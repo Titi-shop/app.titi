@@ -922,33 +922,45 @@ export async function previewOrder(
     throw new Error("INVALID_REGION");
   }
 
-  /* ================= PRODUCTS ================= */
+  /* ================= VALIDATE ITEMS ================= */
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("INVALID_ITEMS");
+  }
 
   const productIds = items.map((i) => i.product_id);
+
+  /* ================= GET PRODUCTS ================= */
 
   const { rows: products } = await query<{
     id: string;
     name: string;
     price: number;
-    seller_id: string;
   }>(
     `
-    SELECT id, name, price, seller_id
+    SELECT id, name, price
     FROM products
-    WHERE id = ANY($1)
+    WHERE id = ANY($1::uuid[])
     `,
     [productIds]
   );
 
-  if (!products.length) throw new Error("PRODUCT_NOT_FOUND");
+  if (!products.length) {
+    throw new Error("PRODUCT_NOT_FOUND");
+  }
 
   const productMap = new Map(products.map((p) => [p.id, p]));
+
+  /* ================= BUILD ITEMS ================= */
 
   let subtotal = 0;
 
   const previewItems = items.map((item) => {
     const p = productMap.get(item.product_id);
-    if (!p) throw new Error("INVALID_PRODUCT");
+
+    if (!p) {
+      throw new Error("INVALID_PRODUCT");
+    }
 
     const qty =
       typeof item.quantity === "number" && item.quantity > 0
@@ -968,27 +980,44 @@ export async function previewOrder(
     };
   });
 
-  /* ================= SHIPPING ================= */
+  /* ================= SHIPPING (PRODUCT BASED) ================= */
 
-  const sellerId = products[0].seller_id;
-
-  const { rows: shippingRows } = await query<{ price: number }>(
+  const { rows: shippingRows } = await query<{
+    product_id: string;
+    price: number;
+  }>(
     `
-    SELECT sr.price
+    SELECT sr.product_id, sr.price
     FROM shipping_rates sr
     JOIN shipping_zones sz ON sz.id = sr.zone_id
-    WHERE sr.seller_id = $1
-    AND sz.code = $2
-    LIMIT 1
+    WHERE sr.product_id = ANY($1::uuid[])
+      AND sz.code = $2
     `,
-    [sellerId, realZone]
+    [productIds, realZone]
   );
 
   if (!shippingRows.length) {
     throw new Error("SHIPPING_NOT_AVAILABLE");
   }
 
-  const shippingFee = Number(shippingRows[0].price);
+  /* ================= MAP SHIPPING ================= */
+
+  const shippingMap = new Map(
+    shippingRows.map((r) => [r.product_id, Number(r.price)])
+  );
+
+  /* ================= CALC SHIPPING ================= */
+
+  // 👉 app bạn hiện chỉ cho 1 sản phẩm
+  const firstItem = items[0];
+
+  const shippingPrice = shippingMap.get(firstItem.product_id);
+
+  if (shippingPrice === undefined) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  const shippingFee = shippingPrice;
 
   /* ================= TOTAL ================= */
 
