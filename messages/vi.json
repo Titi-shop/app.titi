@@ -525,7 +525,10 @@
   "transaction_failed": "Giao dịch thất bại",
 
   "processing": "Đang xử lý...",
-  "pay_now": "Thanh toán ngay"
+  "pay_now": "Thanh toán ngay",
+  "unsupported_country": "Quốc gia không được hỗ trợ",
+  "order_preview_failed": "Xem trước đơn hàng thất bại",
+  "unknown_error": "Đã xảy ra lỗi"
 
       
 
