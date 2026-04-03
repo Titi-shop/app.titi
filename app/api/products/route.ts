@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-import { upsertShippingRates, getShippingRatesByProduct } from "@/lib/db/shipping";
-
+import {
+  upsertShippingRates,
+  getShippingRatesByProducts,
+} from "@/lib/db/shipping";
 import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
@@ -119,15 +121,6 @@ export async function GET(req: Request) {
 
     try {
       variants = await getVariantsByProductId(p.id);
-    } catch {
-      // ignore
-    }
-
-    /* ================= SHIPPING ================= */
-    let shipping_rates: ShippingRateFE[] = [];
-
-    try {
-      shipping_rates = await getShippingRatesByProduct(p.id);
     } catch {
       // ignore
     }
