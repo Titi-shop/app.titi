@@ -237,10 +237,9 @@ const quantity = useMemo(() => {
   console.log("👉 SELECTED:", selectedRegion);
   console.log("👉 RATES:", product.shipping_rates);
 
-  const found = {availableRegions.map((r) => {
-    r.zone === selectedRegion
+   const found = availableRegions.find(
+    (r) => r.zone === selectedRegion
   );
-
   console.log("👉 FOUND:", found);
 
   return found?.price ?? 0;
