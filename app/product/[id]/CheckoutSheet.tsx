@@ -292,6 +292,11 @@ const quantity = useMemo(() => {
     return false;
   }
 
+     if (!shipping?.country) {
+  showMessage(t.invalid_shipping_country);
+  return false;
+}
+
   if (!window.Pi || !piReady) {
     console.log("🔴 PI NOT READY");
 
@@ -468,14 +473,15 @@ setProcessing(true);
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
       <div className="bg-white p-4 rounded-lg text-center">
         <p className="text-red-500 font-semibold">
-          t.out_of_stock
-        </p>
+  {t.out_of_stock}
+</p>
         <button
           onClick={onClose}
           className="mt-3 px-4 py-2 bg-gray-200 rounded"
         >
-          t.close
-        </button>
+        <button>
+       {t.close}
+    </button>
       </div>
     </div>
   );
