@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { processPiPayment } from "@/lib/db/orders";
+import { processPiPayment, validateShippingRegion } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +8,12 @@ export const dynamic = "force-dynamic";
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/* ================= HELPERS ================= */
 
 function isUUID(value: string): boolean {
-  return /^[0-9a-f-]{36}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 }
 
 function safeQuantity(v: unknown): number {
@@ -24,9 +24,7 @@ function safeQuantity(v: unknown): number {
   return n;
 }
 
-/* =========================================================
-   TYPES
-========================================================= */
+/* ================= TYPES ================= */
 
 type Body = {
   paymentId?: unknown;
@@ -41,9 +39,7 @@ type Body = {
   selectedRegion?: unknown;
 };
 
-/* =========================================================
-   API
-========================================================= */
+/* ================= API ================= */
 
 export async function POST(req: Request) {
   try {
@@ -78,12 +74,18 @@ export async function POST(req: Request) {
         ? body.selectedRegion
         : "";
 
-    console.log("🟢 [PAYMENT][COMPLETE] PARSED", {
-      hasPaymentId: !!paymentId,
-      hasTxid: !!txid,
+    const country =
+      typeof body.shipping?.country === "string"
+        ? body.shipping.country
+        : "";
+
+    console.log("🟢 PARSED", {
+      paymentId,
+      txid,
       productId,
       quantity,
       selectedRegion,
+      country,
     });
 
     /* ================= VALIDATE ================= */
@@ -96,10 +98,15 @@ export async function POST(req: Request) {
     }
 
     if (!isUUID(productId)) {
-      console.log("🔴 INVALID PRODUCT UUID:", productId);
-
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    if (!country || !selectedRegion) {
+      return NextResponse.json(
+        { error: "INVALID_SHIPPING" },
         { status: 400 }
       );
     }
@@ -109,21 +116,22 @@ export async function POST(req: Request) {
     const authUser = await getUserFromBearer(req);
 
     if (!authUser) {
-      console.log("🔴 [PAYMENT][COMPLETE] UNAUTHORIZED");
-
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const pi_uid = authUser.pi_uid;
+    const userId = authUser.id; // ✅ FIX đúng kiến trúc
 
-    console.log("🟢 [PAYMENT][COMPLETE] USER OK");
+    /* ================= VERIFY SHIPPING ================= */
+
+    await validateShippingRegion({
+      country,
+      selectedRegion,
+    });
 
     /* ================= VERIFY PI ================= */
-
-    console.log("🟡 [PAYMENT][COMPLETE] VERIFY PI");
 
     const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
@@ -131,8 +139,6 @@ export async function POST(req: Request) {
     });
 
     if (!piRes.ok) {
-      console.log("🔴 PI PAYMENT NOT FOUND");
-
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
         { status: 400 }
@@ -141,9 +147,7 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
-    if (payment.user_uid !== pi_uid) {
-      console.log("🔴 INVALID PAYMENT OWNER");
-
+    if (payment.user_uid !== authUser.pi_uid) {
       return NextResponse.json(
         { error: "INVALID_PAYMENT_OWNER" },
         { status: 403 }
@@ -151,19 +155,13 @@ export async function POST(req: Request) {
     }
 
     if (payment.status !== "approved") {
-      console.log("🔴 PAYMENT NOT APPROVED");
-
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
       );
     }
 
-    console.log("🟢 PI VERIFIED");
-
     /* ================= COMPLETE PI ================= */
-
-    console.log("🟡 [PAYMENT][COMPLETE] COMPLETE PI");
 
     const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -186,8 +184,6 @@ export async function POST(req: Request) {
       ) {
         console.log("🟡 ALREADY COMPLETED");
       } else {
-        console.log("🔴 PI COMPLETE FAILED");
-
         return NextResponse.json(
           { error: "PI_COMPLETE_FAILED" },
           { status: 400 }
@@ -195,23 +191,16 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log("🟢 PI COMPLETED");
-
-    /* ================= DB PROCESS ================= */
-
-    console.log("🟡 [ORDER] CREATE");
+    /* ================= DB ================= */
 
     const result = await processPiPayment({
-      piUid: pi_uid,
+      userId,
       productId,
       quantity,
       paymentId,
       txid,
-    });
-
-    console.log("🟢 [ORDER] DONE", {
-      orderId: result.orderId,
-      duplicated: result.duplicated,
+      country,
+      selectedRegion,
     });
 
     return NextResponse.json({
