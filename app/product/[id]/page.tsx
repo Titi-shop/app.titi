@@ -167,7 +167,12 @@ export default function ProductDetail() {
           ? api.variants
           : [],
         shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
   : [],
       };
 
@@ -260,9 +265,8 @@ const canBuy = hasVariants
   if (!canBuy) return;
 
   addToCart({
-    id: hasVariants && selectedVariant?.id
-      ? `${product.id}-${selectedVariant.id}`
-      : product.id,
+  id: product.id,
+  variant_id: selectedVariant?.id ?? null, 
     name: hasVariants && selectedVariant
       ? `${product.name} - ${selectedVariant.optionValue}`
       : product.name,
