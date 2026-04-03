@@ -18,13 +18,18 @@ export type ShippingRateInput = {
 };
 
 type ShippingRateRow = {
-  code: string;
+  product_id: string;
+  zone_code: string;
   price: number;
 };
 
 /* =========================
-   VALIDATE REGION
+   VALIDATE
 ========================= */
+
+function isUUID(v: string): boolean {
+  return /^[0-9a-f-]{36}$/i.test(v);
+}
 
 function isValidRegion(value: string): value is Region {
   return [
@@ -38,8 +43,7 @@ function isValidRegion(value: string): value is Region {
 }
 
 /* =========================
-   UPSERT SHIPPING RATES
-   (1 seller = 1 bộ phí ship)
+   UPSERT (PRODUCT BASED)
 ========================= */
 
 export async function upsertShippingRates({
@@ -49,7 +53,9 @@ export async function upsertShippingRates({
   productId: string;
   rates: ShippingRateInput[];
 }) {
-  if (!productId) throw new Error("INVALID_PRODUCT");
+  if (!isUUID(productId)) {
+    throw new Error("INVALID_PRODUCT");
+  }
 
   if (!Array.isArray(rates)) return;
 
@@ -63,8 +69,6 @@ export async function upsertShippingRates({
       isValidRegion(r.zone)
   );
 
-  if (cleanRates.length === 0) return;
-
   /* ================= DELETE OLD ================= */
 
   await query(
@@ -75,27 +79,39 @@ export async function upsertShippingRates({
     [productId]
   );
 
-  /* ================= INSERT NEW ================= */
+  if (!cleanRates.length) return;
+
+  /* ================= BULK INSERT ================= */
+
+  const values: unknown[] = [];
+  const placeholders: string[] = [];
+
+  let idx = 1;
 
   for (const r of cleanRates) {
-    await query(
-      `
-      INSERT INTO shipping_rates (product_id, zone_code, price)
-      VALUES ($1, $2, $3)
-      `,
-      [productId, r.zone, r.price]
-    );
+    placeholders.push(`($${idx++}, $${idx++}, $${idx++})`);
+    values.push(productId, r.zone, r.price);
   }
+
+  await query(
+    `
+    INSERT INTO shipping_rates (product_id, zone_code, price)
+    VALUES ${placeholders.join(",")}
+    `,
+    values
+  );
 }
 
 /* =========================
-   GET SHIPPING RATES
+   GET — SINGLE PRODUCT
 ========================= */
 
 export async function getShippingRatesByProduct(
   productId: string
 ): Promise<ShippingRateInput[]> {
-  if (!productId) throw new Error("INVALID_PRODUCT");
+  if (!isUUID(productId)) {
+    throw new Error("INVALID_PRODUCT");
+  }
 
   const { rows } = await query<{
     zone_code: string;
@@ -117,6 +133,42 @@ export async function getShippingRatesByProduct(
     }));
 }
 
+/* =========================
+   GET — MULTIPLE PRODUCTS (🔥 QUAN TRỌNG)
+========================= */
+
+export async function getShippingRatesByProducts(
+  productIds: string[]
+): Promise<
+  { product_id: string; zone: Region; price: number }[]
+> {
+  if (!Array.isArray(productIds)) return [];
+
+  const validIds = productIds.filter(isUUID);
+
+  if (!validIds.length) return [];
+
+  const { rows } = await query<ShippingRateRow>(
+    `
+    SELECT product_id, zone_code, price
+    FROM shipping_rates
+    WHERE product_id = ANY($1::uuid[])
+    `,
+    [validIds]
+  );
+
+  return rows
+    .filter((r) => isValidRegion(r.zone_code))
+    .map((r) => ({
+      product_id: r.product_id,
+      zone: r.zone_code,
+      price: Number(r.price),
+    }));
+}
+
+/* =========================
+   ZONE BY COUNTRY
+========================= */
 
 export async function getZoneByCountry(
   countryCode: string
