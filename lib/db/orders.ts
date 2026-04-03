@@ -381,6 +381,13 @@ export async function processPiPayment(params: {
 
   return withTransaction(async (client) => {
 
+  console.log("🟡 [ORDER][PROCESS PAYMENT]", {
+    productId: params.productId,
+    variantId: params.variantId,
+    quantity: params.quantity,
+    paymentId: params.paymentId,
+  });
+
     /* ================= IDEMPOTENCY ================= */
     const existing = await client.query(
       `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
