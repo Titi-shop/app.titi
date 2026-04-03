@@ -522,7 +522,11 @@
   "transaction_failed": "交易失败",
 
   "processing": "处理中...",
-  "pay_now": "立即支付"
+  "pay_now": "立即支付",
+  "unsupported_country": "不支持的国家",
+  "order_preview_failed": "订单预览失败",
+  "unknown_error": "发生错误"
+
 
 
 
