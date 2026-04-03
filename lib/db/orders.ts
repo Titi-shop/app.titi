@@ -466,21 +466,63 @@ export async function processPiPayment(params: {
     if (!addr) throw new Error("NO_ADDRESS");
 
     /* ================= STOCK ================= */
-    const stock = await client.query(
-      `
-      UPDATE products
-      SET stock = stock - $1,
-          sold = sold + $1
-      WHERE id = $2
-      AND stock >= $1
-      RETURNING id
-      `,
-      [params.quantity, params.productId]
-    );
 
-    if (!stock.rowCount) {
-      throw new Error("OUT_OF_STOCK");
-    }
+let price = Number(product.price);
+
+/* ===== VARIANT ===== */
+
+if (params.variantId) {
+  const variantRes = await client.query(
+    `
+    SELECT id, stock
+    FROM product_variants
+    WHERE id = $1 AND product_id = $2
+    LIMIT 1
+    `,
+    [params.variantId, params.productId]
+  );
+
+  const variant = variantRes.rows[0];
+
+  if (!variant) {
+    throw new Error("VARIANT_NOT_FOUND");
+  }
+
+  const stockUpdate = await client.query(
+    `
+    UPDATE product_variants
+    SET stock = stock - $1
+    WHERE id = $2
+    AND stock >= $1
+    RETURNING id
+    `,
+    [params.quantity, params.variantId]
+  );
+
+  if (!stockUpdate.rowCount) {
+    throw new Error("OUT_OF_STOCK");
+  }
+
+} else {
+  /* ===== PRODUCT ===== */
+
+  const stock = await client.query(
+    `
+    UPDATE products
+    SET stock = stock - $1,
+        sold = sold + $1
+    WHERE id = $2
+    AND stock >= $1
+    RETURNING id
+    `,
+    [params.quantity, params.productId]
+  );
+
+  if (!stock.rowCount) {
+    throw new Error("OUT_OF_STOCK");
+  }
+}
+    
 
     /* ================= TOTAL ================= */
     const subtotal = price * params.quantity;
