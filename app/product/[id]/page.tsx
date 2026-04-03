@@ -266,17 +266,17 @@ const canBuy = hasVariants
 
   addToCart({
   id: product.id,
-  variant_id: selectedVariant?.id ?? null, 
-    name: hasVariants && selectedVariant
-      ? `${product.name} - ${selectedVariant.optionValue}`
-      : product.name,
-    price: product.price,
-    sale_price: product.finalPrice,
-    thumbnail: product.thumbnail,
-    image: product.thumbnail || product.images?.[0] || "",
-    images: product.images,
-    quantity,
-  });
+  variant_id: selectedVariant?.id ?? null,
+  name: hasVariants && selectedVariant
+    ? `${product.name} - ${selectedVariant.optionValue}`
+    : product.name,
+  price: product.price,
+  sale_price: product.finalPrice,
+  thumbnail: product.thumbnail,
+  image: product.thumbnail || product.images?.[0] || "",
+  images: product.images,
+  quantity,
+});
 
   router.push("/cart");
 };
