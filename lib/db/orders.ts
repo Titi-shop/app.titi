@@ -367,24 +367,19 @@ export async function processPiPayment(params: {
   quantity: number;
   paymentId: string;
   txid: string;
+  country: string;
+  selectedRegion: string;
 }) {
   function isUUID(v: string): boolean {
-    return /^[0-9a-f-]{36}$/i.test(v);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
   }
 
   if (!isUUID(params.productId)) {
     throw new Error("INVALID_PRODUCT_ID");
   }
 
-  if (
-    typeof params.quantity !== "number" ||
-    !Number.isInteger(params.quantity) ||
-    params.quantity < 1
-  ) {
-    throw new Error("INVALID_QUANTITY");
-  }
-
   return withTransaction(async (client) => {
+
     /* ================= IDEMPOTENCY ================= */
     const existing = await client.query(
       `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
@@ -393,6 +388,28 @@ export async function processPiPayment(params: {
 
     if (existing.rows.length > 0) {
       return { orderId: existing.rows[0].id, duplicated: true };
+    }
+
+    /* ================= GET ZONE ================= */
+    const zoneRes = await client.query<{ code: string }>(
+      `
+      SELECT sz.code
+      FROM shipping_zone_countries szc
+      JOIN shipping_zones sz ON sz.id = szc.zone_id
+      WHERE szc.country_code = $1
+      LIMIT 1
+      `,
+      [params.country.toUpperCase()]
+    );
+
+    if (!zoneRes.rows.length) {
+      throw new Error("INVALID_COUNTRY");
+    }
+
+    const realZone = zoneRes.rows[0].code;
+
+    if (realZone !== params.selectedRegion) {
+      throw new Error("INVALID_REGION");
     }
 
     /* ================= PRODUCT ================= */
@@ -414,9 +431,24 @@ export async function processPiPayment(params: {
 
     const price = Number(product.price);
 
-    if (Number.isNaN(price) || price < 0) {
-      throw new Error("INVALID_PRICE");
+    /* ================= SHIPPING ================= */
+    const shippingRes = await client.query<{ price: number }>(
+      `
+      SELECT sr.price
+      FROM shipping_rates sr
+      JOIN shipping_zones sz ON sz.id = sr.zone_id
+      WHERE sr.seller_id = $1
+      AND sz.code = $2
+      LIMIT 1
+      `,
+      [product.seller_id, realZone]
+    );
+
+    if (!shippingRes.rows.length) {
+      throw new Error("SHIPPING_NOT_AVAILABLE");
     }
+
+    const shippingFee = Number(shippingRes.rows[0].price);
 
     /* ================= ADDRESS ================= */
     const addrRes = await client.query(
@@ -430,7 +462,6 @@ export async function processPiPayment(params: {
     );
 
     const addr = addrRes.rows[0];
-
     if (!addr) throw new Error("NO_ADDRESS");
 
     /* ================= STOCK ================= */
@@ -450,7 +481,9 @@ export async function processPiPayment(params: {
       throw new Error("OUT_OF_STOCK");
     }
 
-    const total = price * params.quantity;
+    /* ================= TOTAL ================= */
+    const subtotal = price * params.quantity;
+    const total = subtotal + shippingFee;
 
     /* ================= ORDER ================= */
     const orderRes = await client.query(
@@ -463,11 +496,13 @@ export async function processPiPayment(params: {
         total,
         shipping_name,
         shipping_phone,
-        shipping_address
+        shipping_address,
+        shipping_zone,
+        shipping_fee
       )
       VALUES (
         gen_random_uuid()::text,
-        $1,$2,$3,$4,$5,$6,$7
+        $1,$2,$3,$4,$5,$6,$7,$8,$9
       )
       RETURNING id
       `,
@@ -479,6 +514,8 @@ export async function processPiPayment(params: {
         addr.full_name,
         addr.phone,
         addr.address_line,
+        realZone,
+        shippingFee,
       ]
     );
 
@@ -507,14 +544,13 @@ export async function processPiPayment(params: {
         product.thumbnail ?? "",
         price,
         params.quantity,
-        total,
+        subtotal,
       ]
     );
 
     return { orderId, duplicated: false };
   });
 }
-
 export async function upsertCartItems(
   userId: string,
   items: {
