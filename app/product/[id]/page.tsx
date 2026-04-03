@@ -335,9 +335,9 @@ const canBuy = hasVariants
     {gallery.map((img, i) => (
       <SwiperSlide key={i}>
           <img
-  src={img}
-  alt={product.name}
-  className="w-full max-w-[500px] aspect-square object-contain bg-white mx-auto"
+           src={img}
+           alt={product.name}
+            className="w-full aspect-square object-cover"
         />
       </SwiperSlide>
     ))}
