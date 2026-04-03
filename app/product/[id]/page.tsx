@@ -345,8 +345,6 @@ const canBuy = hasVariants
   </Swiper>
 
 </div>
-  </>
-)}
       </div>
 
       {/* INFO */}
