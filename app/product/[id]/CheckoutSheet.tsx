@@ -538,7 +538,7 @@ setProcessing(true);
   </p>
 
  <div className="flex gap-2 overflow-x-auto">
-  {product.shipping_rates.map((r) => {
+  {availableRegions.map((r) => {
     const active = selectedRegion === r.zone;
 
     const labelMap: Record<string, string> = {
