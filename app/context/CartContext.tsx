@@ -84,10 +84,10 @@ const mergeCartOnLogin = async () => {
     const finalCart = serverCart.map((item: CartItem) => ({
   ...item,
 
-  // ✅ FIX ID UNIQUE
-  id: item.variant_id
+  id:
+  item.variant_id && item.variant_id !== null
     ? `${item.product_id}_${item.variant_id}`
-    : item.product_id!,
+    : `${item.product_id}_default`,
 
   // ✅ đảm bảo có quantity
   quantity: item.quantity ?? 1,
@@ -168,8 +168,8 @@ useEffect(() => {
       ...prev,
       {
         ...item,
-        id: uniqueId, // ✅ FIX QUAN TRỌNG
-        product_id: item.product_id ?? item.id,
+        id: uniqueId, 
+        product_id: item.product_id!,
         quantity: safeQty,
         synced: false,
       },
@@ -222,7 +222,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item.product_id ?? item.id,
+        product_id: item.product_id!,
         variant_id: item.variant_id ?? null 
       }),
     });
@@ -248,9 +248,7 @@ useEffect(() => {
       if (p.id !== id) return p;
 
       const maxStock = p.variant?.stock ?? p.stock ?? 99;
-
       const safeQty = Math.max(1, Math.min(maxStock, qty || 1));
-
       target = { ...p, quantity: safeQty };
 
       return target;
@@ -271,7 +269,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: target.product_id ?? target.id,
+        product_id: target.product_id!,
         variant_id: target.variant_id ?? null,
         quantity: target.quantity,
       }),
