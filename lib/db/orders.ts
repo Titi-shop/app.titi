@@ -676,7 +676,7 @@ export async function upsertCartItems(
     FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
       AS x(product_id, variant_id, quantity)
 
-    ON CONFLICT ON CONSTRAINT cart_unique_idx
+    ON CONFLICT (buyer_id, product_id, variant_id)
     DO UPDATE SET
       quantity = cart_items.quantity + EXCLUDED.quantity,
       updated_at = NOW()
