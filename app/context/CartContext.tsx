@@ -160,8 +160,8 @@ useEffect(() => {
       {
         ...item,
         quantity: safeQty,
-       product_id: item.product_id
-        synced: false, // 🔥 quan trọng
+       product_id: item.product_id,
+        synced: false, 
       },
     ];
   });
@@ -230,15 +230,11 @@ useEffect(() => {
 
   const updateQty = async (id: string, qty: number) => {
   let target: CartItem | undefined;
-
   setCart((prev) =>
     prev.map((p) => {
       if (p.id !== id) return p;
-
       const maxStock = p.variant?.stock ?? p.stock ?? 99;
-
       const safeQty = Math.max(1, Math.min(maxStock, qty || 1));
-
       target = { ...p, quantity: safeQty };
 
       return target;
