@@ -632,9 +632,10 @@ export async function upsertCartItems(
 
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
-
-    if (typeof item.product_id !== "string") continue;
-
+   if (!isUUID(item.product_id)) {
+  console.error("[CART] INVALID product_id:", item.product_id);
+  continue;
+}
     const qty =
       typeof item.quantity === "number" &&
       !Number.isNaN(item.quantity) &&
@@ -644,7 +645,9 @@ export async function upsertCartItems(
 
     productIds.push(item.product_id);
     variantIds.push(
-  typeof item.variant_id === "string" && item.variant_id
+  variantIds.push(
+  isUUID(item.variant_id) ? item.variant_id : null
+);
     ? item.variant_id
     : null
 );
