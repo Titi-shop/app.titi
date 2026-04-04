@@ -450,7 +450,8 @@ const canBuy = hasVariants
         transition: "0.1s",
       }}
 
-      className="w-full aspect-square object-cover rounded-lg"
+      className="max-w-full max-h-full object-contain"
+    
     />
   </div>
 )}
