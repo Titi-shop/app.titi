@@ -156,8 +156,6 @@ const handleDoubleTap = () => {
 
       const now = new Date();
 
-const now = new Date();
-
 const isSale =
   typeof api.salePrice === "number" &&
   api.salePrice < api.price &&
