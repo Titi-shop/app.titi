@@ -35,7 +35,11 @@ function calcSalePercent(price: number, finalPrice: number) {
   if (finalPrice >= price) return 0;
   return Math.round(((price - finalPrice) / price) * 100);
 }
-
+function getDistance(touches: TouchList) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 /* =======================
    TYPES
 ======================= */
@@ -115,6 +119,24 @@ export default function ProductDetail() {
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const quantity = 1;
+const [zoomImage, setZoomImage] = useState<string | null>(null);
+const [scale, setScale] = useState(1);
+const [position, setPosition] = useState({ x: 0, y: 0 });
+const [dragging, setDragging] = useState(false);
+const [start, setStart] = useState({ x: 0, y: 0 });
+const [initialDistance, setInitialDistance] = useState(0);
+const [initialScale, setInitialScale] = useState(1);
+
+  let lastTap = 0;
+
+const handleDoubleTap = () => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    setScale(scale === 1 ? 2 : 1);
+    setPosition({ x: 0, y: 0 });
+  }
+  lastTap = now;
+};
 
   /* =======================
      LOAD PRODUCT
@@ -326,16 +348,75 @@ const canBuy = hasVariants
     {gallery.map((img, i) => (
       <SwiperSlide key={i}>
         <img
-          src={img}
-          alt={product.name}
-          className="w-full aspect-square object-contain bg-white"
-        />
+  src={img}
+  alt={product.name}
+  onClick={() => {
+    setZoomImage(img);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }}
+  className="w-full aspect-square object-contain bg-white cursor-zoom-in"
+/>
       </SwiperSlide>
     ))}
   </Swiper>
-
 </div>
+{zoomImage && (
+  <div
+    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
+    onClick={() => setZoomImage(null)}
+  >
+    <img
+      src={zoomImage}
+      onClick={(e) => e.stopPropagation()}
+     onTouchEnd={handleDoubleTap}
+      // 👉 PINCH START
+      onTouchStart={(e) => {
+        if (e.touches.length === 2) {
+          const distance = getDistance(e.touches);
+          setInitialDistance(distance);
+          setInitialScale(scale);
+        } else if (e.touches.length === 1) {
+          const touch = e.touches[0];
+          setDragging(true);
+          setStart({
+            x: touch.clientX - position.x,
+            y: touch.clientY - position.y,
+          });
+        }
+      }}
 
+      // 👉 PINCH MOVE
+      onTouchMove={(e) => {
+        if (e.touches.length === 2) {
+          const distance = getDistance(e.touches);
+          const scaleChange = distance / initialDistance;
+          let newScale = initialScale * scaleChange;
+
+          newScale = Math.max(1, Math.min(newScale, 6));
+          setScale(newScale);
+        }
+
+        if (e.touches.length === 1 && dragging) {
+          const touch = e.touches[0];
+          setPosition({
+            x: touch.clientX - start.x,
+            y: touch.clientY - start.y,
+          });
+        }
+      }}
+
+      onTouchEnd={() => setDragging(false)}
+
+      style={{
+        transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+        transition: "0.1s",
+      }}
+
+      className="max-w-full max-h-full object-contain"
+    />
+  </div>
+)}
       {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
         <h2 className="text-lg font-medium">
