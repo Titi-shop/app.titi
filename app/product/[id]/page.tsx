@@ -142,6 +142,8 @@ const handleDoubleTap = () => {
   /* =======================
      LOAD PRODUCT
   ======================= */
+  Ý mình hỏi thì đoạn dưới như vậy đúng chưa .
+
   useEffect(() => {
   async function loadProduct() {
     try {
@@ -219,10 +221,10 @@ const handleDoubleTap = () => {
     }
   }
 
+  loadProduct();
+}, [id]);
   useEffect(() => {
   async function loadProducts() {
-    if (!product?.categoryId) return;
-
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
@@ -254,7 +256,7 @@ const handleDoubleTap = () => {
   }
 
   loadProducts();
-}, [product]);
+}, []);
 
   /* =======================
    INCREMENT VIEW
