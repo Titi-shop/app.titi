@@ -142,9 +142,7 @@ const handleDoubleTap = () => {
   /* =======================
      LOAD PRODUCT
   ======================= */
-  Ý mình hỏi thì đoạn dưới như vậy đúng chưa .
-
-  useEffect(() => {
+ useEffect(() => {
   async function loadProduct() {
     try {
       if (!id) return;
