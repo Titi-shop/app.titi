@@ -133,6 +133,10 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
+    if (!item.product_id) {
+  console.error("❌ Missing product_id", item);
+  return;
+}
   const maxStock = item.variant?.stock ?? item.stock ?? 99;
   const safeQty = Math.min(maxStock, item.quantity ?? 1);
 
@@ -156,11 +160,6 @@ useEffect(() => {
       {
         ...item,
         quantity: safeQty,
-        if (!item.product_id) {
-  console.error("❌ Missing product_id", item);
-  return;
-}
-
        product_id: item.product_id
         synced: false, // 🔥 quan trọng
       },
