@@ -156,13 +156,13 @@ const handleDoubleTap = () => {
 
       const now = new Date();
 
+const now = new Date();
+
 const isSale =
   typeof api.salePrice === "number" &&
   api.salePrice < api.price &&
   (!api.saleStart || new Date(api.saleStart) <= now) &&
   (!api.saleEnd || new Date(api.saleEnd) >= now);
-
-const finalPrice = isSale ? api.salePrice! : api.price;
 
       const normalized: Product = {
         id: api.id,
