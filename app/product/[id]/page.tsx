@@ -219,10 +219,10 @@ const handleDoubleTap = () => {
     }
   }
 
-  loadProduct();
-}, [id]);
   useEffect(() => {
   async function loadProducts() {
+    if (!product?.categoryId) return;
+
     try {
       const res = await fetch("/api/products");
       const data = await res.json();
@@ -254,7 +254,7 @@ const handleDoubleTap = () => {
   }
 
   loadProducts();
-}, []);
+}, [product]);
 
   /* =======================
    INCREMENT VIEW
