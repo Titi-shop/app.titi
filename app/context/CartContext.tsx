@@ -141,10 +141,18 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
-  // ✅ tạo id chuẩn
-  const uniqueId = item.variant_id
-    ? `${item.product_id}_${item.variant_id}`
-    : item.product_id!;
+  const uniqueId =
+    item.variant_id && item.variant_id !== null
+      ? `${item.product_id}_${item.variant_id}`
+      : `${item.product_id}_default`;
+
+  // 🔥 LOG ĐẶT NGAY ĐÂY
+  console.log("🟡 ADD ITEM:", {
+    name: item.name,
+    product_id: item.product_id,
+    variant_id: item.variant_id,
+    uniqueId,
+  });
 
   const maxStock = item.variant?.stock ?? item.stock ?? 99;
   const safeQty = Math.min(maxStock, item.quantity ?? 1);
