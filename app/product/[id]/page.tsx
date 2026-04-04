@@ -35,7 +35,11 @@ function calcSalePercent(price: number, finalPrice: number) {
   if (finalPrice >= price) return 0;
   return Math.round(((price - finalPrice) / price) * 100);
 }
-
+function getDistance(touches: TouchList) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 /* =======================
    TYPES
 ======================= */
@@ -120,7 +124,8 @@ export default function ProductDetail() {
 const [position, setPosition] = useState({ x: 0, y: 0 });
 const [dragging, setDragging] = useState(false);
 const [start, setStart] = useState({ x: 0, y: 0 });
-
+const [initialDistance, setInitialDistance] = useState(0);
+const [initialScale, setInitialScale] = useState(1);
   let lastTap = 0;
 
 const handleDoubleTap = () => {
@@ -379,64 +384,55 @@ const canBuy = hasVariants
   src={zoomImage}
   onClick={(e) => e.stopPropagation()}
 
-  // 👉 DOUBLE TAP
-  onTouchEnd={handleDoubleTap}
-
-  // 👉 DRAG (MOBILE)
   onTouchStart={(e) => {
-    const touch = e.touches[0];
-    setDragging(true);
-    setStart({
-      x: touch.clientX - position.x,
-      y: touch.clientY - position.y,
-    });
+    if (e.touches.length === 2) {
+      const distance = getDistance(e.touches);
+      setInitialDistance(distance);
+      setInitialScale(scale);
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setDragging(true);
+      setStart({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
+      });
+    }
   }}
 
   onTouchMove={(e) => {
-    if (!dragging) return;
-    const touch = e.touches[0];
-    setPosition({
-      x: touch.clientX - start.x,
-      y: touch.clientY - start.y,
-    });
+    // 👉 PINCH ZOOM
+    if (e.touches.length === 2) {
+      const distance = getDistance(e.touches);
+      const scaleChange = distance / initialDistance;
+      let newScale = initialScale * scaleChange;
+
+      // giới hạn
+      newScale = Math.max(1, Math.min(newScale, 6));
+
+      setScale(newScale);
+    }
+
+    // 👉 DRAG
+    if (e.touches.length === 1 && dragging) {
+      const touch = e.touches[0];
+      setPosition({
+        x: touch.clientX - start.x,
+        y: touch.clientY - start.y,
+      });
+    }
   }}
 
-  onTouchEndCapture={() => setDragging(false)}
-
-  // 👉 DRAG (PC)
-  onMouseDown={(e) => {
-    setDragging(true);
-    setStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
-  }}
-
-  onMouseMove={(e) => {
-    if (!dragging) return;
-    setPosition({
-      x: e.clientX - start.x,
-      y: e.clientY - start.y,
-    });
-  }}
-
-  onMouseUp={() => setDragging(false)}
-  onMouseLeave={() => setDragging(false)}
-  onWheel={(e) => {
-    e.preventDefault();
-    const newScale = Math.min(Math.max(scale + e.deltaY * -0.001, 1), 4);
-    setScale(newScale);
+  onTouchEnd={() => {
+    setDragging(false);
   }}
 
   style={{
     transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-    transition: dragging ? "none" : "0.2s",
+    transition: "0.1s",
   }}
 
-  className="max-w-full max-h-full object-contain cursor-grab"
+  className="max-w-full max-h-full object-contain"
 />
-</div>
-)}
 
       {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
