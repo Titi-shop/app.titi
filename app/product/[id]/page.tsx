@@ -392,7 +392,7 @@ const canBuy = hasVariants
     setScale(1);
     setPosition({ x: 0, y: 0 });
   }}
-  className="w-full aspect-square object-contain bg-white cursor-zoom-in active:scale-95 transition"
+  className="w-full aspect-square object-contain bg-white cursor-zoom-in"
 />
       </SwiperSlide>
     ))}
@@ -604,7 +604,7 @@ const canBuy = hasVariants
               <div
                 key={p.id}
                 onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px] bg-gray-50 rounded-lg p-2"
+                className="min-w-[140px] bg-white rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition"
               >
                 <img
                   src={p.thumbnail || p.images[0] || "/placeholder.png"}
