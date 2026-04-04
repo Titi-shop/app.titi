@@ -155,9 +155,10 @@ const handleDoubleTap = () => {
       const api = data as ApiProduct;
 
       const finalPrice =
-        typeof api.finalPrice === "number"
-          ? api.finalPrice
-          : api.price;
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
       const normalized: Product = {
         id: api.id,
