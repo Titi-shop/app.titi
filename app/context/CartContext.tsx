@@ -11,26 +11,35 @@ type CartItem = {
   product_id?: string;
  variant_id?: string | null;
   name: string;
+
   price: number;
   sale_price?: number | null;
+
   stock?: number;
+
   variant?: {
     optionValue?: string;
     stock?: number;
   };
+
   description?: string;
   thumbnail?: string;
   image?: string;
   images?: string[];
+
   quantity?: number;
 };
+
 type CartContextType = {
   cart: CartItem[];
+
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
+
   updateQty: (id: string, qty: number) => void;
   updateItem: (id: string, data: Partial<CartItem>) => void;
+
   total: number;
 };
 
@@ -64,7 +73,7 @@ const mergeCartOnLogin = async () => {
         },
         body: JSON.stringify(
           newItems.map((item) => ({
-           product_id: item.product_id!,
+            product_id: item.product_id ?? item.id,
             variant_id: item.variant_id ?? null,
             quantity: item.quantity ?? 1,
           }))
@@ -133,10 +142,6 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
-    if (!item.product_id) {
-  console.error("❌ Missing product_id", item);
-  return;
-}
   const maxStock = item.variant?.stock ?? item.stock ?? 99;
   const safeQty = Math.min(maxStock, item.quantity ?? 1);
 
@@ -160,11 +165,13 @@ useEffect(() => {
       {
         ...item,
         quantity: safeQty,
-       product_id: item.product_id,
-        synced: false, 
+        product_id: item.product_id ?? item.id,
+        synced: false, // 🔥 quan trọng
       },
     ];
   });
+
+  // 👉 nếu đã login thì sync ngay
   try {
     if (!user) return;
 
@@ -179,7 +186,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item.product_id!,
+        product_id: item.product_id ?? item.id,
         variant_id: item.variant_id ?? null,
         quantity: safeQty,
       }),
@@ -210,7 +217,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item.product_id!,
+        product_id: item.product_id ?? item.id,
         variant_id: item.variant_id ?? null 
       }),
     });
@@ -230,11 +237,15 @@ useEffect(() => {
 
   const updateQty = async (id: string, qty: number) => {
   let target: CartItem | undefined;
+
   setCart((prev) =>
     prev.map((p) => {
       if (p.id !== id) return p;
+
       const maxStock = p.variant?.stock ?? p.stock ?? 99;
+
       const safeQty = Math.max(1, Math.min(maxStock, qty || 1));
+
       target = { ...p, quantity: safeQty };
 
       return target;
@@ -255,7 +266,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: target.product_id!,
+        product_id: target.product_id ?? target.id,
         variant_id: target.variant_id ?? null,
         quantity: target.quantity,
       }),
@@ -316,4 +327,3 @@ export function useCart() {
 
   return ctx;
 }
-
