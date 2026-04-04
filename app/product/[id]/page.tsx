@@ -392,7 +392,7 @@ const canBuy = hasVariants
     setScale(1);
     setPosition({ x: 0, y: 0 });
   }}
-  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+  className="w-full aspect-square object-cover cursor-zoom-in transition active:scale-95"
 />
       </SwiperSlide>
     ))}
