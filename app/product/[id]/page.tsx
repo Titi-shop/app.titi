@@ -231,17 +231,8 @@ export default function ProductDetail() {
   ...(product.thumbnail ? [product.thumbnail] : []),
   ...product.images.filter((img) => img && img !== product.thumbnail),
 ];
-
 const gallery =
   displayImages.length > 0 ? displayImages : ["/placeholder.png"];
-
-  const next = () =>
-  setCurrentIndex((i) => (i + 1) % gallery.length);
-
-const prev = () =>
-  setCurrentIndex((i) =>
-    i === 0 ? gallery.length - 1 : i - 1
-  );
 
 
   const hasVariants = product.variants.length > 0;
