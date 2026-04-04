@@ -644,30 +644,33 @@ export async function upsertCartItems(
 
     productIds.push(item.product_id);
     variantIds.push(
-      typeof item.variant_id === "string" ? item.variant_id : null
-    );
+  typeof item.variant_id === "string" && item.variant_id
+    ? item.variant_id
+    : null
+);
     quantities.push(qty);
   }
 
   if (productIds.length === 0) return;
 
   await query(
-    `
-    INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
-    SELECT 
-      $1,
-      x.product_id,
-      x.variant_id,
-      x.quantity
-    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-      AS x(product_id, variant_id, quantity)
-    ON CONFLICT (buyer_id, product_id, variant_id)
-    DO UPDATE SET
-      quantity = EXCLUDED.quantity,
-      updated_at = NOW()
-    `,
-    [userId, productIds, variantIds, quantities]
-  );
+  `
+  INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
+  SELECT 
+    $1,
+    x.product_id,
+    x.variant_id,
+    x.quantity
+  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+    AS x(product_id, variant_id, quantity)
+
+  ON CONFLICT ON CONSTRAINT cart_unique_idx
+  DO UPDATE SET
+    quantity = cart_items.quantity + EXCLUDED.quantity,
+    updated_at = NOW()
+  `,
+  [userId, productIds, variantIds, quantities]
+);
 }
 
 export async function cancelOrderByBuyer(
