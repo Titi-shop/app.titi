@@ -221,6 +221,41 @@ const handleDoubleTap = () => {
   loadProduct();
 }, [id]);
 
+  useEffect(() => {
+  async function loadProducts() {
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const normalized = data.map((api: ApiProduct) => {
+        const finalPrice =
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : api.price;
+
+        return {
+          id: api.id,
+          name: api.name,
+          price: api.price,
+          finalPrice,
+          isSale: finalPrice < api.price,
+          thumbnail: api.thumbnail ?? "",
+          images: Array.isArray(api.images) ? api.images : [],
+          categoryId: api.categoryId ?? null,
+        };
+      });
+
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Load products failed:", err);
+    }
+  }
+
+  loadProducts();
+}, []);
+
   /* =======================
    INCREMENT VIEW
 ======================= */
