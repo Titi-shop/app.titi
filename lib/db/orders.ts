@@ -2,6 +2,12 @@
 import { query } from "@/lib/db";
 import { PoolClient } from "pg";
 
+
+function isUUID(v: unknown): v is string {
+  return typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
 /* =========================================================
    SELLER — ORDER COUNTS
 ========================================================= */
@@ -632,10 +638,14 @@ export async function upsertCartItems(
 
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
-   if (!isUUID(item.product_id)) {
-  console.error("[CART] INVALID product_id:", item.product_id);
-  continue;
-}
+
+    // ✅ validate product_id
+    if (!isUUID(item.product_id)) {
+      console.error("[CART] INVALID product_id:", item.product_id);
+      continue;
+    }
+
+    // ✅ quantity safe
     const qty =
       typeof item.quantity === "number" &&
       !Number.isNaN(item.quantity) &&
@@ -644,36 +654,35 @@ export async function upsertCartItems(
         : 1;
 
     productIds.push(item.product_id);
+
+    // ✅ FIX variant_id
     variantIds.push(
-  variantIds.push(
-  isUUID(item.variant_id) ? item.variant_id : null
-);
-    ? item.variant_id
-    : null
-);
+      isUUID(item.variant_id) ? item.variant_id : null
+    );
+
     quantities.push(qty);
   }
 
   if (productIds.length === 0) return;
 
   await query(
-  `
-  INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
-  SELECT 
-    $1,
-    x.product_id,
-    x.variant_id,
-    x.quantity
-  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-    AS x(product_id, variant_id, quantity)
+    `
+    INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
+    SELECT 
+      $1,
+      x.product_id,
+      x.variant_id,
+      x.quantity
+    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+      AS x(product_id, variant_id, quantity)
 
-  ON CONFLICT ON CONSTRAINT cart_unique_idx
-  DO UPDATE SET
-    quantity = cart_items.quantity + EXCLUDED.quantity,
-    updated_at = NOW()
-  `,
-  [userId, productIds, variantIds, quantities]
-);
+    ON CONFLICT ON CONSTRAINT cart_unique_idx
+    DO UPDATE SET
+      quantity = cart_items.quantity + EXCLUDED.quantity,
+      updated_at = NOW()
+    `,
+    [userId, productIds, variantIds, quantities]
+  );
 }
 
 export async function cancelOrderByBuyer(
