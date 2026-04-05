@@ -71,6 +71,7 @@ export default function SellerOrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [qr, setQr] = useState<string>("");
+  const [generating, setGenerating] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -86,7 +87,7 @@ export default function SellerOrderDetailPage() {
     );
   }, [order]);
 
-  /* ================= LOAD ================= */
+  /* ================= LOAD ORDER ================= */
 
   useEffect(() => {
     if (authLoading || !user || !id) return;
@@ -146,23 +147,34 @@ export default function SellerOrderDetailPage() {
   /* ================= PDF ================= */
 
   const handleOpenPDF = async () => {
-    const el = printRef.current;
-    if (!el) return;
+    try {
+      const el = printRef.current;
+      if (!el) return;
 
-    const canvas = await html2canvas(el, { scale: 2 });
-    const img = canvas.toDataURL("image/png");
+      setGenerating(true);
 
-    const pdf = new jsPDF("p", "mm", "a4");
+      const canvas = await html2canvas(el, { scale: 2 });
+      const img = canvas.toDataURL("image/png");
 
-    const width = 210;
-    const height = (canvas.height * width) / canvas.width;
+      const pdf = new jsPDF("p", "mm", "a4");
 
-    pdf.addImage(img, "PNG", 0, 10, width, height);
+      const width = 210;
+      const height = (canvas.height * width) / canvas.width;
 
-    const blob = pdf.output("blob");
-    const url = URL.createObjectURL(blob);
+      pdf.addImage(img, "PNG", 0, 10, width, height);
 
-    window.open(url);
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+
+      // 🔥 FIX CHUẨN MOBILE
+      window.location.href = url;
+
+    } catch (err) {
+      console.error("PDF ERROR", err);
+      alert("Không thể tạo PDF");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   /* ================= UI ================= */
@@ -176,41 +188,42 @@ export default function SellerOrderDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
+    <main className="min-h-screen bg-gray-100 p-4">
 
-      {/* ACTIONS */}
-      <div className="flex justify-end gap-2 mb-6">
+      {/* ACTION */}
+      <div className="flex justify-between mb-4">
         <button
           onClick={() => router.back()}
-          className="px-4 py-2 border rounded"
+          className="px-3 py-2 border rounded"
         >
           Back
         </button>
 
         <button
           onClick={handleOpenPDF}
+          disabled={generating}
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
-          📄 Xem / In hóa đơn
+          {generating ? "Đang tạo..." : "📄 Xem / In"}
         </button>
       </div>
 
       {/* INVOICE */}
       <section
         ref={printRef}
-        className="max-w-2xl mx-auto bg-white p-6 border shadow"
+        className="bg-white p-4 border shadow max-w-xl mx-auto"
       >
-        <h1 className="text-xl font-bold text-center mb-4">
+        <h1 className="text-lg font-bold text-center mb-3">
           DELIVERY NOTE
         </h1>
 
         {qr && (
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-3">
             <img src={qr} alt="QR" />
           </div>
         )}
 
-        <div className="text-sm space-y-1 mb-6">
+        <div className="text-sm space-y-1 mb-4">
           <p><b>Receiver:</b> {order.shipping_name}</p>
           <p><b>Phone:</b> {order.shipping_phone}</p>
           <p><b>Address:</b> {order.shipping_address}</p>
