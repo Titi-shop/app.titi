@@ -486,9 +486,9 @@ setProcessing(true);
     setProcessing(false);
     processingRef.current = false;
     showMessage(t.payment_failed);
-          },
+          
         }
-      );
+          },
     } catch {
       setProcessing(false);
        processingRef.current = false;
