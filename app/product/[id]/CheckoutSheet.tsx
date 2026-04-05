@@ -438,45 +438,61 @@ setProcessing(true);
                console.log("🟡 COMPLETE START:", paymentId, txid);
               const token = await getPiAccessToken();
 
-              const res = await fetch("/api/pi/complete", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-              
-              paymentId,
-              txid,
-              product_id: item!.id,
-              variant_id: product.variant_id ?? null,
-              quantity,
-              shipping,
-              selectedRegion, 
-              }),
-              });
-               console.log("🟢 COMPLETE RES:", res.status);
+              onReadyForServerCompletion: async (paymentId, txid) => {
+  try {
+    console.log("🟡 COMPLETE START:", paymentId, txid);
 
-              if (!res.ok) {
-                 console.log("🔴 COMPLETE FAILED");
-                setProcessing(false);
-                 processingRef.current = false;
-                showMessage(t.payment_complete_failed);
-                return;
-              }
-               console.log("🟢 PAYMENT SUCCESS");
+    const token = await getPiAccessToken();
 
-              setProcessing(false);
-               processingRef.current = false;
-              onClose();
-              router.push("/customer/pending");
-              showMessage(t.payment_success, "success");
-            } catch {
-              setProcessing(false);
-               processingRef.current = false;
-              showMessage(t.payment_failed);
-            }
-          },
+    const payload = {
+      paymentId,
+      txid,
+      product_id: item!.id,
+      variant_id: product.variant_id ?? null,
+      quantity,
+      shipping,
+      selectedRegion, // ✅ FIX
+    };
+
+    console.log("🟡 SEND COMPLETE PAYLOAD:", payload);
+
+    const res = await fetch("/api/pi/complete", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("🟢 COMPLETE RES:", res.status);
+
+    const data = await res.json().catch(() => null);
+    console.log("🟡 COMPLETE RESPONSE:", data);
+
+    if (!res.ok) {
+      console.log("🔴 COMPLETE FAILED");
+      setProcessing(false);
+      processingRef.current = false;
+      showMessage(t.payment_complete_failed);
+      return;
+    }
+
+    console.log("🟢 PAYMENT SUCCESS");
+
+    setProcessing(false);
+    processingRef.current = false;
+    onClose();
+    router.push("/customer/pending");
+    showMessage(t.payment_success, "success");
+
+  } catch (err) {
+    console.error("❌ COMPLETE ERROR:", err);
+    setProcessing(false);
+    processingRef.current = false;
+    showMessage(t.payment_failed);
+  }
+},
 
           onCancel: () => {
              console.log("🟡 PAYMENT CANCEL");
