@@ -106,10 +106,11 @@ function toAppProduct(row: ProductRow): ProductRecord {
 export async function getAllProducts(): Promise<ProductRecord[]> {
   const { rows } = await query(
     `
-    SELECT *
-    FROM products
-    WHERE deleted_at IS NULL
-    ORDER BY created_at DESC
+    SELECT id, name, price, thumbnail, sold
+FROM products
+WHERE is_active = true
+ORDER BY created_at DESC
+LIMIT 20
     `
   );
 
