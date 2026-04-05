@@ -133,19 +133,19 @@ export async function POST(req: Request) {
 
     /* ================= AUTH ================= */
 
-    const authUser = await getUserFromBearer(req);
+    const auth = await getUserFromBearer();
 
-    if (!authUser) {
-      console.error("❌ [PAYMENT][UNAUTHORIZED]");
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+if (!auth) {
+  console.error("❌ [PAYMENT][UNAUTHORIZED]");
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
 
-    const userId = authUser.userId;
+const userId = auth.userId;
 
-    console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
+console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
 
     /* ================= VERIFY PI ================= */
 
