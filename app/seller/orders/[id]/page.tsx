@@ -231,7 +231,6 @@ export default function SellerOrderDetailPage() {
           <p><b>Postal:</b> {order.shipping_postal_code}</p>
           <p><b>Created:</b> {formatDate(order.created_at)}</p>
         </div>
-
         <table className="w-full border text-sm">
           <thead className="bg-gray-100">
             <tr>
@@ -241,7 +240,6 @@ export default function SellerOrderDetailPage() {
               <th className="border px-2 py-1 text-right">π</th>
             </tr>
           </thead>
-
           <tbody>
             {order.order_items.map((item, i) => (
               <tr key={item.id}>
@@ -255,7 +253,6 @@ export default function SellerOrderDetailPage() {
             ))}
           </tbody>
         </table>
-
         <div className="mt-4 text-right font-semibold">
           Total: π{formatPi(total)}
         </div>
