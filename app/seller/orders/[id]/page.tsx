@@ -9,7 +9,7 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useEffect, useMemo, useState, useRef } from "react";
-import QRCode from "qrcode.react";
+import QRCode from "qrcode";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -190,6 +190,13 @@ export default function SellerOrderDetailPage() {
 
     loadOrder();
   }, [authLoading, user, id]);
+  useEffect(() => {
+  if (!order?.id) return;
+
+  QRCode.toDataURL(`order:${order.id}`)
+    .then(setQr)
+    .catch(console.error);
+}, [order]);
 
   /* ================= UI ================= */
 
@@ -227,10 +234,15 @@ export default function SellerOrderDetailPage() {
         <h1 className="text-xl font-semibold mb-6 text-center">
           Delivery Note
         </h1>
+        {qr && (
+  <div className="flex justify-center mb-4">
+    <img src={qr} alt="QR Code" />
+  </div>
+)}
 
         {/* QR */}
         <div className="flex justify-center mb-4">
-          <QRCode value={`order:${order.id}`} size={100} />
+          const [qr, setQr] = useState<string>("");
         </div>
 
         {/* SHIPPING */}
