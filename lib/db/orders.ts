@@ -485,9 +485,9 @@ const country = params.country?.trim().toUpperCase();
       AND sz.code = $2
       LIMIT 1
       `,
-      [
+      
         [params.productId, realZone]
-        ]
+        
     );
 
     console.log("🟡 [ORDER] SHIPPING_RESULT", shippingRes.rows);
