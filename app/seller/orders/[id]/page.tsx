@@ -71,7 +71,7 @@ export default function SellerOrderDetailPage() {
       : Array.isArray(params?.id)
       ? params.id[0]
       : undefined;
-
+ const [qr, setQr] = useState<string>("");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -239,11 +239,6 @@ export default function SellerOrderDetailPage() {
     <img src={qr} alt="QR Code" />
   </div>
 )}
-
-        {/* QR */}
-        <div className="flex justify-center mb-4">
-          const [qr, setQr] = useState<string>("");
-        </div>
 
         {/* SHIPPING */}
         <div className="space-y-1 text-sm mb-6">
