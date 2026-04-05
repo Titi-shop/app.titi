@@ -1,25 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface PiPriceData {
   price_usd: number;
-  change_24h: number | null; // % tăng/giảm từ giá mở cửa
+  change_24h: number | null;
 }
 
 export default function PiPriceWidget() {
   const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
-  const [prevPrice, setPrevPrice] = useState<number | null>(null);
+
+  const prevPriceRef = useRef<number | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchPrice = async () => {
       try {
-        const res = await fetch("/api/pi-price", { cache: "no-store" });
+        const res = await fetch("/api/pi-price");
         const data: PiPriceData = await res.json();
 
+        if (!mounted) return;
+
         if (data.price_usd !== undefined) {
-          setPrevPrice(price); // lưu giá trước để so sánh
+          prevPriceRef.current = price;
           setPrice(Number(data.price_usd));
         }
 
@@ -31,20 +36,23 @@ export default function PiPriceWidget() {
       }
     };
 
-    fetchPrice(); // fetch ngay khi mount
-    const interval = setInterval(fetchPrice, 10 * 1000); // mỗi 10 giây
+    fetchPrice();
 
-    return () => clearInterval(interval);
-  }, [price]);
+    const interval = setInterval(fetchPrice, 15000); // 15s (giảm tải)
 
-  // Xác định màu giá Pi dựa trên so sánh với giá trước đó
-  let priceColor = "text-orange-500"; // mặc định cam
-if (change !== null) {
-  if (change > 0) priceColor = "text-green-600";
-  else if (change < 0) priceColor = "text-red-600";
-}
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []); // ✅ FIX
 
-  // Mũi tên tăng giảm dựa trên % thay đổi trong ngày
+  let priceColor = "text-orange-500";
+
+  if (change !== null) {
+    if (change > 0) priceColor = "text-green-600";
+    else if (change < 0) priceColor = "text-red-600";
+  }
+
   const isUp = change !== null && change > 0;
   const isDown = change !== null && change < 0;
 
@@ -62,9 +70,9 @@ if (change !== null) {
         {change !== null && (
           <span
             className={`text-xs font-semibold flex items-center gap-1
-            ${isUp ? "text-green-600" : ""}
-            ${isDown ? "text-red-600" : ""}
-          `}
+              ${isUp ? "text-green-600" : ""}
+              ${isDown ? "text-red-600" : ""}
+            `}
           >
             {isUp && "▲"}
             {isDown && "▼"}
