@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
     const result = await previewOrder({
       userId,
       country,
-      selectedRegion,
+      zone,
       items: cleanItems,
     });
 
