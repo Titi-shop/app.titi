@@ -268,15 +268,15 @@ const quantity = useMemo(() => {
     const token = await getPiAccessToken();
 
     const payload = {
-      country: shipping?.country,
-      zone,
-      items: [
-        {
-          product_id: item!.id,
-          quantity,
-        },
-      ],
-    };
+  country: shipping?.country,
+  zone: zone ?? "",
+  items: [
+    {
+      product_id: item!.id,
+      quantity,
+    },
+  ],
+};
 
     console.log("🟡 PREVIEW PAYLOAD:", payload);
 
