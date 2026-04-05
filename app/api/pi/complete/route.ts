@@ -74,15 +74,15 @@ export async function POST(req: Request) {
 
     const quantity = safeQuantity(body.quantity);
 
-       const zone =
-  typeof body.zone === "string"
-    ? body.zone.trim().toLowerCase()
-    : "";
+    const zone =
+      typeof body.zone === "string"
+        ? body.zone.trim().toLowerCase()
+        : "";
 
-const country =
-  typeof body.shipping?.country === "string"
-    ? body.shipping.country.trim().toUpperCase()
-    : "";
+    const country =
+      typeof body.shipping?.country === "string"
+        ? body.shipping.country.trim().toUpperCase()
+        : "";
 
     console.log("🟢 [PAYMENT][PARSED]", {
       paymentId,
@@ -120,7 +120,7 @@ const country =
       );
     }
 
-      if (!country || !zone){
+    if (!country || !zone) {
       console.error("❌ [PAYMENT][INVALID_SHIPPING]", {
         country,
         zone,
@@ -135,17 +135,17 @@ const country =
 
     const auth = await getUserFromBearer();
 
-if (!auth) {
-  console.error("❌ [PAYMENT][UNAUTHORIZED]");
-  return NextResponse.json(
-    { error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth) {
+      console.error("❌ [PAYMENT][UNAUTHORIZED]");
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
-console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
+    console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
 
     /* ================= VERIFY PI ================= */
 
@@ -165,46 +165,66 @@ console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
     }
 
     const payment = await piRes.json();
+    console.log("🟡 [PAYMENT][AMOUNT_CHECK]", {
+  amount: payment.amount,
+});
 
     console.log("🟢 [PAYMENT][PI_DATA]", {
       status: payment.status,
       user_uid: payment.user_uid,
     });
 
-  
-    /* ================= COMPLETE PI ================= */
+    const status = payment.status;
 
-    console.log("🟡 [PAYMENT][COMPLETE_PI]");
+    if (
+      !status?.developer_approved ||
+      !status?.transaction_verified
+    ) {
+      console.error("❌ [PAYMENT][NOT_APPROVED]", status);
 
-    const completeRes = await fetch(
-      `${PI_API}/payments/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${PI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
-
-    const completeData = await completeRes.json().catch(() => null);
-
-    if (!completeRes.ok) {
-      console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
-
-      if (
-        completeData?.error?.includes?.("already") ||
-        completeData?.message?.includes?.("completed")
-      ) {
-        console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
-      } else {
-        return NextResponse.json(
-          { error: "PI_COMPLETE_FAILED" },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json(
+        { error: "PAYMENT_NOT_APPROVED" },
+        { status: 400 }
+      );
     }
+
+   if (status?.developer_completed) {
+  console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
+} else {
+  console.log("🟡 [PAYMENT][COMPLETE_PI]");
+
+  const completeRes = await fetch(
+    `${PI_API}/payments/${paymentId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+    }
+  );
+
+  const completeData = await completeRes.json().catch(() => null);
+
+  console.log("🟡 [PAYMENT][COMPLETE_RESPONSE]", completeData);
+
+  if (!completeRes.ok) {
+    console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
+
+    if (
+      completeData?.error?.includes?.("already") ||
+      completeData?.message?.includes?.("completed")
+    ) {
+      console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
+    } else {
+      return NextResponse.json(
+        { error: "PI_COMPLETE_FAILED" },
+        { status: 400 }
+      );
+    }
+  }
+}
 
     /* ================= DB ================= */
 
