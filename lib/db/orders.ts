@@ -1053,11 +1053,11 @@ type PreviewOrderResult = {
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
-  const { userId, items, country, selectedRegion } = input;
+  const { userId, items, country, zone } = input;
 
   if (!userId) throw new Error("INVALID_USER");
   if (!country) throw new Error("MISSING_COUNTRY");
-  if (!selectedRegion) throw new Error("MISSING_REGION");
+  if (!zone) throw new Error("MISSING_REGION");
 
   /* ================= ZONE FROM COUNTRY ================= */
 
@@ -1080,9 +1080,9 @@ export async function previewOrder(
 
   /* ================= VALIDATE REGION ================= */
 
-  if (selectedRegion !== realZone) {
-    throw new Error("INVALID_REGION");
-  }
+  if (zone !== realZone) {
+  throw new Error("INVALID_REGION");
+}
 
   /* ================= VALIDATE ITEMS ================= */
 
