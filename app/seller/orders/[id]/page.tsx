@@ -3,12 +3,16 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useEffect, useMemo, useState, useRef } from "react";
+import QRCode from "qrcode.react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
 
 /* ================= TYPES ================= */
 
@@ -72,7 +76,7 @@ export default function SellerOrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-
+ const printRef = useRef<HTMLDivElement>(null);
   /* ================= TOTAL ================= */
 
   const total = useMemo(() => {
@@ -87,6 +91,45 @@ export default function SellerOrderDetailPage() {
     );
 
   }, [order]);
+  const handlePrint = () => {
+  const content = printRef.current;
+  if (!content) return;
+
+  const win = window.open("", "", "width=800,height=900");
+  if (!win) return;
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>Print</title>
+        <style>
+          body { font-family: Arial; padding: 20px; }
+        </style>
+      </head>
+      <body>${content.innerHTML}</body>
+    </html>
+  `);
+
+  win.document.close();
+  win.focus();
+  win.print();
+  win.close();
+};
+  const handleDownloadPDF = async () => {
+  const element = printRef.current;
+  if (!element) return;
+
+  const canvas = await html2canvas(element);
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const imgWidth = 210;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+  pdf.save(`order-${order?.order_number}.pdf`);
+};
 
   /* ================= LOAD ORDER ================= */
 
@@ -222,22 +265,33 @@ export default function SellerOrderDetailPage() {
 
     <main className="min-h-screen bg-gray-100 p-6">
 
-      <div className="flex justify-end mb-6">
+  {/* BUTTON */}
+  <div className="flex justify-end gap-2 mb-6">
+    <button onClick={() => router.back()} className="px-4 py-2 border rounded">
+      {t.back ?? "Back"}
+    </button>
 
-        <button
-          onClick={() => router.back()}
-          className="px-4 py-2 border rounded"
-        >
-          {t.back ?? "Back"}
-        </button>
+    <button onClick={handlePrint} className="px-4 py-2 bg-black text-white rounded">
+      Print
+    </button>
 
-      </div>
+    <button onClick={handleDownloadPDF} className="px-4 py-2 bg-blue-600 text-white rounded">
+      Save PDF
+    </button>
+  </div>
 
-      <section className="max-w-2xl mx-auto bg-white p-6 border shadow">
+  {/* 👇 QUAN TRỌNG */}
+  <section
+    ref={printRef}
+    className="max-w-2xl mx-auto bg-white p-6 border shadow"
+  >
+    <h1 className="text-xl font-semibold mb-6 text-center">
+  {t.delivery_note ?? "Delivery Note"}
+</h1>
 
-        <h1 className="text-xl font-semibold mb-6 text-center">
-          {t.delivery_note ?? "Delivery Note"}
-        </h1>
+<div className="flex justify-center mb-4">
+  <QRCode value={`order:${order.id}`} size={100} />
+</div>
 
         {/* SHIPPING */}
 
@@ -315,11 +369,13 @@ export default function SellerOrderDetailPage() {
         <div className="mt-4 text-right font-semibold">
           {t.total ?? "Total"}: π{formatPi(total)}
         </div>
-
+    <main>
+  <div>buttons</div>
+  <section ref={printRef}>
+    nội dung đơn
+  </section>
+</main>
       </section>
-
     </main>
-
   );
-
 }
