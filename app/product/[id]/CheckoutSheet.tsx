@@ -114,7 +114,8 @@ const processingRef = useRef(false);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
-const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
+  
+const [zone, setZone] = useState<Region | null>(null);
   /* ========================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
@@ -239,17 +240,17 @@ const quantity = useMemo(() => {
   });
 }, [shipping?.country, product.shipping_rates]);
   const shippingFee = useMemo(() => {
-  if (!selectedRegion || !Array.isArray(product.shipping_rates)) {
+  if (!zone || !Array.isArray(product.shipping_rates)) {
     console.log("❌ NO SHIPPING RATES");
     return 0;
   }
 
-  console.log("👉 SELECTED:", selectedRegion);
+  console.log("👉 SELECTED ZONE:", zone);
   console.log("👉 RATES:", product.shipping_rates);
 
    const found = availableRegions.find(
-    (r) => r.zone === selectedRegion
-  );
+  (r) => r.zone === zone
+);
   console.log("👉 FOUND:", found);
 
   return found?.price ?? 0;
@@ -268,7 +269,7 @@ const quantity = useMemo(() => {
 
     const payload = {
       country: shipping?.country,
-      selectedRegion,
+      zone,
       items: [
         {
           product_id: item!.id,
@@ -347,7 +348,7 @@ const quantity = useMemo(() => {
   return false;
 }
 
-  if (!selectedRegion) {
+  if (!zone) {
     console.log("🔴 NO REGION");
 
     showMessage(t.shipping_required || "Select shipping region");
@@ -392,7 +393,7 @@ setProcessing(true);
           memo: t.payment_memo_order || "Order payment",
           metadata: {
             shipping,
-             zone: selectedRegion,
+             zone,
             product: {
               id: item!.id,
               name: item!.name,
@@ -416,7 +417,7 @@ setProcessing(true);
                 },
                 body: JSON.stringify({ paymentId }),
               });
-         console.log("🟢 APPROVE RES:", res.status);
+            console.log("🟢 APPROVE RES:", res.status);
               if (!res.ok) {
                  console.log("🔴 APPROVE FAILED");
                 setProcessing(false);
@@ -451,7 +452,7 @@ setProcessing(true);
               variant_id: product.variant_id ?? null,
               quantity,
               shipping,
-               zone: selectedRegion, 
+               zone, 
               }),
               });
                console.log("🟢 COMPLETE RES:", res.status);
@@ -562,7 +563,7 @@ setProcessing(true);
 
  <div className="flex gap-2 overflow-x-auto">
   {availableRegions.map((r) => {
-    const active = selectedRegion === r.zone;
+    const active = zone === r.zone;
 
     const labelMap: Record<string, string> = {
   domestic: t.region_domestic,
@@ -578,7 +579,7 @@ setProcessing(true);
         key={r.zone}
         onClick={() => {
   if (!r.zone) return;
-  setSelectedRegion(r.zone);
+  setZone(r.zone);
 }}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
