@@ -35,7 +35,7 @@ type Body = {
   shipping?: {
     country?: string;
   };
-  selectedRegion?: unknown;
+  zone?: unknown;
 };
 
 /* ================= API ================= */
@@ -74,10 +74,10 @@ export async function POST(req: Request) {
 
     const quantity = safeQuantity(body.quantity);
 
-    const selectedRegion =
-      typeof body.selectedRegion === "string"
-        ? body.selectedRegion
-        : "";
+       const zone =
+       typeof body.zone === "string"
+          ? body.zone
+             : "";
 
     const country =
       typeof body.shipping?.country === "string"
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       productId,
       variantId,
       quantity,
-      selectedRegion,
+      zone,
       country,
     });
 
@@ -120,10 +120,10 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!country || !selectedRegion) {
+      if (!country || !zone){
       console.error("❌ [PAYMENT][INVALID_SHIPPING]", {
         country,
-        selectedRegion,
+        zone,
       });
       return NextResponse.json(
         { error: "INVALID_SHIPPING" },
@@ -233,7 +233,7 @@ export async function POST(req: Request) {
       paymentId,
       txid,
       country,
-      selectedRegion,
+      zone,
     });
 
     console.log("🟢 [PAYMENT][SUCCESS]", result);
