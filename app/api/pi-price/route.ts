@@ -1,23 +1,46 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs"; // ✅ rule 25
+export const revalidate = 15;    // ✅ cache server 15s
+
 interface OkxTickerData {
   last: string;
-  sodUtc8?: string; // giá mở cửa hôm nay
+  sodUtc8?: string;
 }
 
 interface OkxResponse {
   data?: OkxTickerData[];
 }
 
+// 🔥 cache in-memory (≤60s đúng rule 28)
+let cache: {
+  price: number;
+  change: number | null;
+  ts: number;
+} | null = null;
+
 export async function GET() {
+  const now = Date.now();
+
+  // ✅ dùng cache nếu < 10s
+  if (cache && now - cache.ts < 10000) {
+    return NextResponse.json({
+      symbol: "PI/USDT",
+      price_usd: cache.price,
+      change_24h: cache.change,
+      source: "CACHE",
+      updated_at: new Date(cache.ts).toISOString(),
+    });
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 5000); // nhanh hơn
 
   try {
     const res = await fetch(
       "https://www.okx.com/api/v5/market/ticker?instId=PI-USDT",
       {
-        cache: "no-store",
+        next: { revalidate: 15 }, // ✅ Next cache
         signal: controller.signal,
       }
     );
@@ -25,50 +48,60 @@ export async function GET() {
     clearTimeout(timeout);
 
     if (!res.ok) {
-      return NextResponse.json(
-        { error: `OKX response error (${res.status})` },
-        { status: 500 }
-      );
+      throw new Error(`OKX_${res.status}`);
     }
 
-    const json: OkxResponse = (await res.json()) as OkxResponse;
+    const json: OkxResponse = await res.json();
 
     if (!json.data || json.data.length === 0) {
-      return NextResponse.json(
-        { error: "Invalid response structure from OKX" },
-        { status: 500 }
-      );
+      throw new Error("INVALID_OKX_RESPONSE");
     }
 
     const ticker = json.data[0];
+
     const price = Number(ticker.last);
     const sod = ticker.sodUtc8 ? Number(ticker.sodUtc8) : null;
 
-    if (Number.isNaN(price)) {
-      return NextResponse.json(
-        { error: "Invalid price received from OKX" },
-        { status: 500 }
-      );
+    if (!Number.isFinite(price)) {
+      throw new Error("INVALID_PRICE");
     }
 
-    // Tính % tăng/giảm dựa trên giá mở cửa hôm nay
     let change: number | null = null;
+
     if (sod !== null && sod !== 0) {
       change = ((price - sod) / sod) * 100;
     }
 
+    // ✅ update cache
+    cache = {
+      price,
+      change,
+      ts: now,
+    };
+
     return NextResponse.json({
       symbol: "PI/USDT",
       price_usd: price,
-      change_24h: change, // % tăng/giảm
+      change_24h: change,
       source: "OKX",
       updated_at: new Date().toISOString(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    clearTimeout(timeout);
+
+    // 🔥 fallback cache nếu OKX lỗi
+    if (cache) {
+      return NextResponse.json({
+        symbol: "PI/USDT",
+        price_usd: cache.price,
+        change_24h: cache.change,
+        source: "FALLBACK",
+        updated_at: new Date(cache.ts).toISOString(),
+      });
+    }
 
     return NextResponse.json(
-      { error: `Failed to fetch PI price: ${message}` },
+      { error: "PI_PRICE_UNAVAILABLE" }, // ✅ chuẩn rule 32
       { status: 500 }
     );
   }
