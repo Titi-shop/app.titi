@@ -1,5 +1,5 @@
 
-import { query, withTransaction } from "@/lib/db/index";
+import { query, withTransaction } from "@/lib/db";
 import { PoolClient } from "pg";
 
 
