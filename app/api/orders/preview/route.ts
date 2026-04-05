@@ -13,7 +13,7 @@ type PreviewItem = {
 
 type PreviewBody = {
   country?: string;
-  selectedRegion?: string;
+  zone?: string;
   items?: PreviewItem[];
 };
 
@@ -77,12 +77,12 @@ export async function POST(req: NextRequest) {
 
     /* ================= REGION ================= */
 
-    const selectedRegion =
-      typeof body.selectedRegion === "string"
-        ? body.selectedRegion
-        : "";
+    const zone =
+  typeof body.zone === "string"
+    ? body.zone.trim().toLowerCase()
+    : "";
 
-    if (!selectedRegion) {
+    if (!zone) {
       console.log("🔴 [ORDER][PREVIEW] MISSING REGION");
 
       return NextResponse.json(
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("🟢 [ORDER][PREVIEW] REGION:", selectedRegion);
+    console.log("🟢 [ORDER][PREVIEW] ZONE:", zone);
 
     /* ================= ITEMS ================= */
 
