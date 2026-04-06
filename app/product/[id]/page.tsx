@@ -12,7 +12,6 @@ import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
 
-
 function formatDetail(text: string) {
   return text
     .replace(/\\n/g, "\n")
