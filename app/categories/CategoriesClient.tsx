@@ -229,61 +229,52 @@ useEffect(() => {
 
         {/* RIGHT */}
         <section className="p-2">
-      {loading ? (
+  {loading ? (
     <div className="grid grid-cols-2 gap-2">
-  {[...Array(6)].map((_, i) => (
-    <div
-      key={i}
-      className="bg-white h-52 animate-pulse rounded-xl"
-    />
-  ))}
-</div>
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="bg-white h-52 animate-pulse rounded-xl"
+        />
+      ))}
+    </div>
   ) : (
     <div className="grid grid-cols-2 gap-2">
-      {visibleProducts.map((p) => {
-      const discount =
-  p.isSale && p.price > 0
-    ? Math.round(((p.price - p.finalPrice) / p.price) * 100)
-    : 0;
-      return (
-                <Link key={p.id} href={`/product/${p.id}`}>
-                  <div className="bg-white rounded-xl border overflow-hidden relative">
-                    <Image
-                      src={p.thumbnail || "/placeholder.png"}
-                      alt={p.name}
-                      width={300}
-                      height={300}
-                      className="w-full h-40 object-cover"
-                    />
-                 {p.isSale && (
-               <div className="absolute top-1 left-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded">
-              -{discount}%
-              </div>
-                 )}
-                    <div className="p-2">
-                      <p className="text-sm line-clamp-2">{p.name}</p>
+      {visibleProducts.map((p) => (
+        <Link key={p.id} href={`/product/${p.id}`}>
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <Image
+              src={p.thumbnail || "/placeholder.png"}
+              alt={p.name}
+              width={300}
+              height={300}
+              className="w-full h-40 object-cover"
+            />
 
-                      <p className="text-red-600 font-bold">
-                        {formatPi(p.finalPrice)} π
-                      </p>
+            <div className="p-2">
+              <p className="text-sm line-clamp-2">{p.name}</p>
 
-                      <button
-                     className="absolute top-2 right-2 bg-white p-2 rounded-full shadow active:scale-95"
-                    onClick={(e) => {
+              <p className="text-red-600 font-bold">
+                {formatPi(p.finalPrice)} π
+              </p>
+
+              <button
+                className="absolute top-2 right-2 bg-white p-2 rounded-full shadow active:scale-95"
+                onClick={(e) => {
                   e.preventDefault();
-                   e.stopPropagation();
-                    handleAddToCart(p);
-                   }}
-                    >
-                    <ShoppingCart size={16} />
-                    </button>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  e.stopPropagation();
+                  handleAddToCart(p);
+                }}
+              >
+                <ShoppingCart size={16} />
+              </button>
             </div>
-          )}
-        </section>
+          </div>
+        </Link>
+      ))}
+    </div>
+  )}
+</section>
       </div>
     </main>
   );
