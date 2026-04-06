@@ -181,19 +181,43 @@ export async function GET(req: Request) {
           variants.length > 0 ? totalVariantStock : baseStock;
 
         return {
-          id: p.id,
-          name: p.name,
-          price: p.price ?? 0,
-          salePrice: p.sale_price ?? null,
-          isSale,
-          finalPrice: isSale ? p.sale_price : p.price,
-          stock: finalStock,
-          isActive: p.is_active !== false,
-          sold: p.sold ?? 0,
-          thumbnail: p.thumbnail ?? "",
-          variants,
-          shipping_rates,
-        };
+  id: p.id,
+  sellerId: p.seller_id,
+  name: p.name,
+  slug: p.slug ?? "",
+  shortDescription: p.short_description ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+  thumbnail: p.thumbnail ?? "",
+  images: p.images ?? [],
+  detailImages: p.detail_images ?? [],
+  videoUrl: p.video_url ?? "",
+  price: p.price ?? 0,
+  salePrice: p.sale_price ?? null,
+  isSale,
+  finalPrice: isSale ? p.sale_price : p.price,
+  currency: p.currency ?? "PI",
+  stock: finalStock,
+  isUnlimited: p.is_unlimited ?? false,
+  sold: p.sold ?? 0,
+  views: p.views ?? 0,
+  ratingAvg: p.rating_avg ?? 0,
+  ratingCount: p.rating_count ?? 0,
+  isActive: p.is_active ?? true,
+  isFeatured: p.is_featured ?? false,
+  isDigital: p.is_digital ?? false,
+  status: p.status ?? "active",
+  categoryId: p.category_id ?? null,
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
+  metaTitle: p.meta_title ?? "",
+  metaDescription: p.meta_description ?? "",
+  createdAt: p.created_at,
+  updatedAt: p.updated_at,
+  deletedAt: p.deleted_at ?? null,
+  variants,
+  shippingRates: shipping_rates, // ⚠️ đổi tên
+};
       })
     );
 
@@ -240,9 +264,14 @@ export async function POST(req: Request) {
       ? body.stock
       : 0;
 
-    const product = await createProduct(userId, {
+    const price =
+      typeof body.price === "number" && !Number.isNaN(body.price)
+      ? body.price
+      : 0;
+
+const product = await createProduct(userId, {
       name: String(body.name).trim(),
-      price: Number(body.price),
+      price, 
       description: body.description ?? "",
       detail: body.detail ?? "",
       images: Array.isArray(body.images)
@@ -251,7 +280,7 @@ export async function POST(req: Request) {
       thumbnail:
         typeof body.thumbnail === "string" ? body.thumbnail : null,
       category_id:
-        typeof body.categoryId === "string" ? body.categoryId : null,
+        typeof body.categoryId === "number" ? body.categoryId  : null,
       sale_price:
         typeof body.salePrice === "number" ? body.salePrice : null,
       sale_start:
@@ -335,7 +364,7 @@ export async function PUT(req: Request) {
         thumbnail:
           typeof body.thumbnail === "string" ? body.thumbnail : null,
         category_id:
-          typeof body.categoryId === "string" ? body.categoryId : null,
+          typeof body.categoryId === "number"  ? body.categoryId : null,
         sale_price:
           typeof body.salePrice === "number" ? body.salePrice : null,
         sale_start:
