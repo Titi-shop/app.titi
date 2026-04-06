@@ -69,9 +69,7 @@ export default function CategoriesClient() {
       try {
         const [cateRes, prodRes] = await Promise.all([
           fetch("/api/categories"),
-          fetch("/api/products", {
-          next: { revalidate: 60 },
-           })
+          fetch("/api/products")
            ]);
 
         const cateData = await cateRes.json();
@@ -194,7 +192,7 @@ export default function CategoriesClient() {
             </button>
 
             {categories.map((c) => {
-              const active = String(activeCategoryId) === String(c.id);
+              const active = activeCategoryId == c.id;
 
               return (
                 <button
@@ -229,13 +227,15 @@ export default function CategoriesClient() {
 
         {/* RIGHT */}
         <section className="p-2">
-          <div className="text-center text-gray-400 py-10">
-          {t.loading_products || "Đang tải..."}
-         </div>
-            <div className="grid grid-cols-2 gap-2">
-              {visibleProducts.map((p) => (
+      {loading ? (
+    <div className="text-center text-gray-400 py-10">
+      {t.loading_products || "Đang tải..."}
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 gap-2">
+      {visibleProducts.map((p) => (
                 <Link key={p.id} href={`/product/${p.id}`}>
-                  <div className="bg-white rounded-xl border overflow-hidden">
+                  <div className="bg-white rounded-xl border overflow-hidden relative">
                     <Image
                       src={p.thumbnail || "/placeholder.png"}
                       alt={p.name}
