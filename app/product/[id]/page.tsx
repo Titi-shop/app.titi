@@ -271,6 +271,8 @@ const handleDoubleTap = () => {
     </div>
   );
 }
+if (!product) return <p className="p-4">{t.no_products}</p>;
+
 const gallery = useMemo(() => {
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
@@ -280,7 +282,7 @@ const gallery = useMemo(() => {
   return displayImages.length > 0
     ? displayImages
     : ["/placeholder.png"];
-}, [product.thumbnail, product.images]);
+}, [product]);
   if (!product) return <p className="p-4">{t.no_products}</p>;
 
   const relatedProducts = useMemo(() => {
