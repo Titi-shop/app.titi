@@ -152,10 +152,8 @@ const handleDoubleTap = () => {
 
       setLoading(true);
 
-      const [productRes, listRes] = await Promise.all([
-        fetch(`/api/products/${id}`),
-        fetch(`/api/products`),
-      ]);
+      const productRes = await fetch(`/api/products/${id}`);
+const listRes = await fetch(`/api/products`);
 
       const productData: unknown = await productRes.json();
       const listData: unknown = await listRes.json();
