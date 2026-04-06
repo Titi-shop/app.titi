@@ -94,32 +94,42 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
-  let mounted = true;
+    let mounted = true;
 
-  Promise.all([
-    fetch("/api/categories").then((r) => r.json()),
-    fetch("/api/products").then((r) => r.json()),
-  ])
-    .then(([cateData, prodData]) => {
-      if (!mounted) return;
+    const load = async () => {
+      try {
+        const [cateRes, prodRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/products"),
+        ]);
 
-      setCategories(
-        Array.isArray(cateData)
-          ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
-          : []
-      );
+        const cateData = await cateRes.json();
+        const prodData = await prodRes.json();
 
-      setProducts(Array.isArray(prodData) ? prodData : []);
-    })
-    .catch(console.error)
-    .finally(() => {
-      if (mounted) setLoading(false);
-    });
+        if (!mounted) return;
 
-  return () => {
-    mounted = false;
-  };
-}, []);
+        setCategories(
+          Array.isArray(cateData)
+            ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
+            : []
+        );
+
+        setProducts(Array.isArray(prodData) ? prodData : []);
+      } catch (err) {
+        console.error("[CATEGORY_LOAD_ERROR]", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /
 
   /* ================= FILTER ================= */
 
