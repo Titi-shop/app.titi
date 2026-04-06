@@ -23,30 +23,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   TYPES
-========================================================= */
-type ShippingRateFE = {
-  zone: string;
-  price: number;
-};
-type ProductVariantInput = {
-  id?: string;
-  optionName?: string;
-  optionValue: string;
-  stock: number;
-  sku?: string | null;
-  sortOrder?: number;
-  isActive?: boolean;
-};
-
-/* =========================================================
    NORMALIZE VARIANTS
 ========================================================= */
 
-function normalizeVariants(input: unknown): ProductVariantInput[] {
-  if (!Array.isArray(input)) return [];
+function normalizeVariants(input: unknown) {
+  console.log("[PRODUCT_API] normalizeVariants start");
 
-  return input
+  if (!Array.isArray(input)) {
+    console.log("[PRODUCT_API] variants not array");
+    return [];
+  }
+
+  const result = input
     .map((item, index) => {
       if (typeof item !== "object" || item === null) return null;
 
@@ -77,8 +65,7 @@ function normalizeVariants(input: unknown): ProductVariantInput[] {
             ? row.sku.trim()
             : null,
         sortOrder:
-          typeof row.sortOrder === "number" &&
-          !Number.isNaN(row.sortOrder)
+          typeof row.sortOrder === "number"
             ? row.sortOrder
             : index,
         isActive:
@@ -87,128 +74,135 @@ function normalizeVariants(input: unknown): ProductVariantInput[] {
             : true,
       };
     })
-    .filter((i): i is ProductVariantInput => i !== null);
+    .filter((i): i is any => i !== null);
+
+  console.log("[PRODUCT_API] normalizeVariants done:", result.length);
+
+  return result;
 }
 
 /* =========================================================
-   GET — PUBLIC PRODUCTS
+   GET
 ========================================================= */
 
 export async function GET(req: Request) {
+  console.log("[PRODUCT_API][GET] START");
+
   try {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
 
     let products: ProductRecord[] = [];
 
-    /* ================= DB ================= */
     if (ids) {
+      console.log("[PRODUCT_API][GET] ids:", ids);
+
       const idArray = ids
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean);
 
+      console.log("[PRODUCT_API][GET] idArray:", idArray.length);
+
       if (!idArray.length) return NextResponse.json([]);
 
       products = await getProductsByIds(idArray);
     } else {
+      console.log("[PRODUCT_API][GET] load all products");
       products = await getAllProducts();
     }
+
+    console.log("[PRODUCT_API][GET] products:", products.length);
 
     const now = Date.now();
     const productIds = products.map((p) => p.id);
 
-const shippingRows = await getShippingRatesByProducts(productIds);
+    console.log("[PRODUCT_API][GET] productIds:", productIds.length);
 
-const shippingMap = new Map<
-  string,
-  { zone: string; price: number }[]
->();
+    const shippingRows = await getShippingRatesByProducts(productIds);
 
-for (const r of shippingRows) {
-  if (!shippingMap.has(r.product_id)) {
-    shippingMap.set(r.product_id, []);
-  }
+    console.log(
+      "[PRODUCT_API][GET] shippingRows:",
+      shippingRows.length
+    );
 
-  shippingMap.get(r.product_id)!.push({
-    zone: r.zone,
-    price: r.price,
-  });
-}
+    const shippingMap = new Map<
+      string,
+      { zone: string; price: number }[]
+    >();
 
-    /* ================= ENRICH ================= */
-    const enriched = await Promise.all(
-  products.map(async (p) => {
-    let variants: ProductVariantInput[] = [];
+    for (const r of shippingRows) {
+      if (!shippingMap.has(r.product_id)) {
+        shippingMap.set(r.product_id, []);
+      }
 
-    try {
-      variants = await getVariantsByProductId(p.id);
-    } catch {
-      // ignore
+      shippingMap.get(r.product_id)!.push({
+        zone: r.zone,
+        price: r.price,
+      });
     }
-const shipping_rates = shippingMap.get(p.id) ?? [];
-    /* ================= SALE ================= */
-    const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
-    const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-    const isSale =
-      typeof p.sale_price === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
+    console.log("[PRODUCT_API][GET] shippingMap ready");
 
-    /* ================= STOCK ================= */
-    const baseStock =
-      typeof p.stock === "number" ? p.stock : 0;
+    const enriched = await Promise.all(
+      products.map(async (p) => {
+        let variants = [];
 
-    const hasVariants = variants.length > 0;
+        try {
+          variants = await getVariantsByProductId(p.id);
+        } catch {
+          console.warn("[PRODUCT_API][GET] variant fail:", p.id);
+        }
 
-    const totalVariantStock = hasVariants
-      ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-      : 0;
+        const shipping_rates = shippingMap.get(p.id) ?? [];
 
-    const finalStock = hasVariants ? totalVariantStock : baseStock;
+        const start = p.sale_start
+          ? new Date(p.sale_start).getTime()
+          : null;
+        const end = p.sale_end
+          ? new Date(p.sale_end).getTime()
+          : null;
 
-    const isActive = p.is_active !== false;
+        const isSale =
+          typeof p.sale_price === "number" &&
+          start !== null &&
+          end !== null &&
+          now >= start &&
+          now <= end;
 
-    /* ================= RETURN ================= */
-    return {
-      id: p.id,
-      name: p.name,
+        const baseStock = typeof p.stock === "number" ? p.stock : 0;
 
-      description: p.description ?? "",
-      detail: p.detail ?? "",
+        const totalVariantStock =
+          variants.length > 0
+            ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+            : 0;
 
-      images: Array.isArray(p.images) ? p.images : [],
-      thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+        const finalStock =
+          variants.length > 0 ? totalVariantStock : baseStock;
 
-      categoryId: p.category_id ?? null,
+        return {
+          id: p.id,
+          name: p.name,
+          price: p.price ?? 0,
+          salePrice: p.sale_price ?? null,
+          isSale,
+          finalPrice: isSale ? p.sale_price : p.price,
+          stock: finalStock,
+          isActive: p.is_active !== false,
+          sold: p.sold ?? 0,
+          thumbnail: p.thumbnail ?? "",
+          variants,
+          shipping_rates,
+        };
+      })
+    );
 
-      price: typeof p.price === "number" ? p.price : 0,
-      salePrice:
-        typeof p.sale_price === "number" ? p.sale_price : null,
-
-      isSale,
-      finalPrice:
-        isSale && typeof p.sale_price === "number"
-          ? p.sale_price
-          : p.price,
-      stock: finalStock,
-      isActive,
-      isOutOfStock: finalStock <= 0 || !isActive,
-      views: p.views ?? 0,
-      sold: p.sold ?? 0,
-      rating_avg: p.rating_avg ?? 0,
-      rating_count: p.rating_count ?? 0,
-      variants,
-      shipping_rates,
-    };
-  })
-);
+    console.log("[PRODUCT_API][GET] DONE");
 
     return NextResponse.json(enriched);
-  } catch {
+  } catch (err) {
+    console.error("[PRODUCT_API][GET] ERROR");
+
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -217,24 +211,24 @@ const shipping_rates = shippingMap.get(p.id) ?? [];
 }
 
 /* =========================================================
-   POST — CREATE PRODUCT
+   POST
 ========================================================= */
 
 export async function POST(req: Request) {
+  console.log("[PRODUCT_API][POST] START");
+
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    console.warn("[PRODUCT_API][POST] auth failed");
+    return auth.response;
+  }
 
   const userId = auth.userId;
+  console.log("[PRODUCT_API][POST] userId:", userId);
 
   try {
     const body = await req.json();
-
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
+    console.log("[PRODUCT_API][POST] body received");
 
     const normalizedVariants = normalizeVariants(body.variants);
 
@@ -242,70 +236,70 @@ export async function POST(req: Request) {
 
     const finalStock = hasVariants
       ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
-      : typeof body.stock === "number" && body.stock >= 0
+      : typeof body.stock === "number"
       ? body.stock
       : 0;
 
     const product = await createProduct(userId, {
       name: String(body.name).trim(),
       price: Number(body.price),
-
       description: body.description ?? "",
       detail: body.detail ?? "",
-
       images: Array.isArray(body.images)
         ? body.images.filter((i: unknown): i is string => typeof i === "string")
         : [],
-
       thumbnail:
         typeof body.thumbnail === "string" ? body.thumbnail : null,
-
       category_id:
         typeof body.categoryId === "string" ? body.categoryId : null,
-
       sale_price:
         typeof body.salePrice === "number" ? body.salePrice : null,
-
       sale_start:
         typeof body.saleStart === "string" ? body.saleStart : null,
-
       sale_end:
         typeof body.saleEnd === "string" ? body.saleEnd : null,
-
       stock: finalStock,
       is_active:
         typeof body.is_active === "boolean" ? body.is_active : true,
-
       views: 0,
       sold: 0,
     });
+
+    console.log("[PRODUCT_API][POST] product created:", product.id);
+
     if (Array.isArray(body.shipping_rates)) {
-  await upsertShippingRates({
-    productId: product.id,
-    rates: body.shipping_rates,
-  });
-}
+      console.log("[PRODUCT_API][POST] upsert shipping");
+      await upsertShippingRates({
+        productId: product.id,
+        rates: body.shipping_rates,
+      });
+    }
 
     if (hasVariants) {
+      console.log("[PRODUCT_API][POST] create variants");
       await createVariantsForProduct(product.id, normalizedVariants);
     }
 
+    console.log("[PRODUCT_API][POST] DONE");
+
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
-  console.error("❌ CREATE PRODUCT ERROR:", err);
+    console.error("[PRODUCT_API][POST] ERROR");
 
-  return NextResponse.json(
-    { error: "FAILED_TO_CREATE_PRODUCT" },
-    { status: 500 }
-  );
-}
+    return NextResponse.json(
+      { error: "FAILED_TO_CREATE_PRODUCT" },
+      { status: 500 }
+    );
+  }
 }
 
 /* =========================================================
-   PUT — UPDATE PRODUCT
+   PUT
 ========================================================= */
 
 export async function PUT(req: Request) {
+  console.log("[PRODUCT_API][PUT] START");
+
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
@@ -314,14 +308,8 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
-
     const productId = String(body.id);
+    console.log("[PRODUCT_API][PUT] productId:", productId);
 
     const normalizedVariants = normalizeVariants(body.variants);
 
@@ -329,7 +317,7 @@ export async function PUT(req: Request) {
 
     const finalStock = hasVariants
       ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
-      : typeof body.stock === "number" && body.stock >= 0
+      : typeof body.stock === "number"
       ? body.stock
       : 0;
 
@@ -339,29 +327,21 @@ export async function PUT(req: Request) {
       {
         name: String(body.name).trim(),
         price: Number(body.price),
-
         description: body.description ?? "",
         detail: body.detail ?? "",
-
         images: Array.isArray(body.images)
           ? body.images.filter((i: unknown): i is string => typeof i === "string")
           : [],
-
         thumbnail:
           typeof body.thumbnail === "string" ? body.thumbnail : null,
-
         category_id:
           typeof body.categoryId === "string" ? body.categoryId : null,
-
         sale_price:
           typeof body.salePrice === "number" ? body.salePrice : null,
-
         sale_start:
           typeof body.saleStart === "string" ? body.saleStart : null,
-
         sale_end:
           typeof body.saleEnd === "string" ? body.saleEnd : null,
-
         stock: finalStock,
         is_active:
           typeof body.is_active === "boolean" ? body.is_active : true,
@@ -369,6 +349,7 @@ export async function PUT(req: Request) {
     );
 
     if (!updated) {
+      console.warn("[PRODUCT_API][PUT] not found");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
@@ -378,13 +359,18 @@ export async function PUT(req: Request) {
     await replaceVariantsByProductId(productId, normalizedVariants);
 
     if (Array.isArray(body.shipping_rates)) {
-  await upsertShippingRates({
-    productId: productId,
-    rates: body.shipping_rates,
-  });
-}
+      await upsertShippingRates({
+        productId,
+        rates: body.shipping_rates,
+      });
+    }
+
+    console.log("[PRODUCT_API][PUT] DONE");
+
     return NextResponse.json({ success: true });
   } catch {
+    console.error("[PRODUCT_API][PUT] ERROR");
+
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
@@ -393,10 +379,12 @@ export async function PUT(req: Request) {
 }
 
 /* =========================================================
-   DELETE — DELETE PRODUCT
+   DELETE
 ========================================================= */
 
 export async function DELETE(req: Request) {
+  console.log("[PRODUCT_API][DELETE] START");
+
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
@@ -405,6 +393,8 @@ export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+
+    console.log("[PRODUCT_API][DELETE] id:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -416,14 +406,19 @@ export async function DELETE(req: Request) {
     const deleted = await deleteProductBySeller(userId, id);
 
     if (!deleted) {
+      console.warn("[PRODUCT_API][DELETE] not found");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
       );
     }
 
+    console.log("[PRODUCT_API][DELETE] DONE");
+
     return NextResponse.json({ success: true });
   } catch {
+    console.error("[PRODUCT_API][DELETE] ERROR");
+
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
