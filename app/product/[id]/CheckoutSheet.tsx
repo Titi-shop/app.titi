@@ -193,20 +193,20 @@ const quantity = useMemo(() => {
   }
 }
 
-    if (open && user) loadAddress();
-  }, [open, user]);
+    const loadedRef = useRef(false);
+
+useEffect(() => {
+  if (!open || !user || loadedRef.current) return;
+
+  loadedRef.current = true;
+  loadAddress();
+}, [open, user]);
 
   /* =========================
      AUTO PAY AFTER LOGIN
   ========================= */
-
-  useEffect(() => {
-  console.log("🟡 AUTO PAY CHECK", {
-    user,
-    shipping,
-    processing,
-  });
-  if (!user || !shipping || processing) return;
+useEffect(() => {
+  if (!user || !shipping || processingRef.current) return;
 
   const pending = localStorage.getItem("pending_checkout");
   if (!pending) return;
@@ -214,10 +214,9 @@ const quantity = useMemo(() => {
   localStorage.removeItem("pending_checkout");
 
   setTimeout(() => {
-    console.log("🟢 AUTO PAY TRIGGER");
     handlePay();
   }, 300);
-}, [user, shipping, processing]);
+}, [user, shipping]);
 
   /* ========================= */
 
@@ -232,8 +231,12 @@ const quantity = useMemo(() => {
 
   const country = shipping.country.toUpperCase();
 
-  return product.shipping_rates.filter((r) => {
-    if (country === "VN") return r.zone === "domestic";
+  if (country === "VN") {
+    return product.shipping_rates.filter((r) => r.zone === "domestic");
+  }
+
+  return product.shipping_rates;
+}, [shipping?.country, product.shipping_rates]);
 
     // TODO: sau này map theo shipping_zone_countries từ backend
     return true;
@@ -257,7 +260,7 @@ const quantity = useMemo(() => {
 }, [zone, availableRegions]);
 
   const total = useMemo(
-  () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
+  () => unitPrice * quantity + shippingFee,
   [unitPrice, quantity, shippingFee]
 );
 
@@ -379,12 +382,18 @@ console.log("🟡 [CHECKOUT][FINAL_DATA]", {
   const handlePay = useCallback(async () => {
      console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
-const ok = await previewOrder();
+const ok = previewRef.current ? true : await previewOrder();
+
 if (!ok) {
   console.log("🔴 PREVIEW BLOCK PAYMENT");
   return;
 }
-if (processingRef.current) return;
+
+previewRef.current = true;
+if (processingRef.current) {
+  showMessage(t.processing);
+  return;
+}
 
 processingRef.current = true;
 setProcessing(true);
@@ -560,11 +569,16 @@ callback();
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
           <div
-            className="border rounded-lg p-3 cursor-pointer mb-4"
-            onClick={() => router.push("/customer/address")}
-          >
-            {shipping ? (
-              <>
+  className="border rounded-lg p-3 cursor-pointer mb-4"
+  onClick={() => router.push("/customer/address")}
+>
+  {!shipping ? (
+    <div className="animate-pulse space-y-2">
+      <div className="h-3 bg-gray-200 rounded w-1/2" />
+      <div className="h-3 bg-gray-200 rounded w-2/3" />
+    </div>
+  ) : (
+    <>
                 <p className="font-medium">{shipping.name}</p>
                 <p className="text-sm text-gray-600">{shipping.phone}</p>
                 <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
