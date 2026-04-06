@@ -110,6 +110,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
 const processingRef = useRef(false);
+   const previewRef = useRef(false);   // ✅ THÊM Ở ĐÂY
+const loadedRef = useRef(false); 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
@@ -156,46 +158,34 @@ const quantity = useMemo(() => {
   ========================= */
 
   useEffect(() => {
-    async function loadAddress() {
-      try {
-        console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
+  async function loadAddress() {
+    try {
+      const token = await getPiAccessToken();
 
-    const token = await getPiAccessToken();
-    console.log("🟢 TOKEN:", token);
+      const res = await fetch("/api/address", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const res = await fetch("/api/address", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      if (!res.ok) return;
 
-    console.log("🟢 ADDRESS RES:", res.status);
+      const data: AddressApiResponse = await res.json();
 
-    if (!res.ok) return;
+      const def = data.items?.find((a) => a.is_default);
+      if (!def) return;
 
-    const data: AddressApiResponse = await res.json();
-    console.log("🟢 ADDRESS DATA:", data);
-
-    const def = data.items?.find((a) => a.is_default);
-    if (!def) return;
-
-    setShipping({
-      name: def.full_name,
-      phone: def.phone,
-      address_line: def.address_line,
-      province: def.province,
-      country: def.country,
-      postal_code: def.postal_code ?? null,
-    });
-
-    console.log("🟢 SHIPPING SET");
-  } catch (err) {
-    console.error("❌ LOAD ADDRESS ERROR:", err);
-    setShipping(null);
+      setShipping({
+        name: def.full_name,
+        phone: def.phone,
+        address_line: def.address_line,
+        province: def.province,
+        country: def.country,
+        postal_code: def.postal_code ?? null,
+      });
+    } catch {
+      setShipping(null);
+    }
   }
-}
 
-    const loadedRef = useRef(false);
-
-useEffect(() => {
   if (!open || !user || loadedRef.current) return;
 
   loadedRef.current = true;
@@ -573,22 +563,20 @@ callback();
   onClick={() => router.push("/customer/address")}
 >
   {!shipping ? (
-    <div className="animate-pulse space-y-2">
-      <div className="h-3 bg-gray-200 rounded w-1/2" />
-      <div className="h-3 bg-gray-200 rounded w-2/3" />
-    </div>
-  ) : (
-    <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-500">➕ {t.add_shipping}</p>
-            )}
+  <div className="animate-pulse space-y-2">
+    <div className="h-3 bg-gray-200 rounded w-1/2" />
+    <div className="h-3 bg-gray-200 rounded w-2/3" />
+  </div>
+) : (
+  <>
+    <p className="font-medium">{shipping.name}</p>
+    <p className="text-sm text-gray-600">{shipping.phone}</p>
+    <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
+    <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+      {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+    </p>
+  </>
+)}
           </div>
            {/* SHIPPING REGION */}
 <div className="border rounded-xl p-3 mb-4">
