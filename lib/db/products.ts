@@ -194,13 +194,23 @@ export async function getProductsByIds(
    GET — BY ID
 ========================================================= */
 
+function isUUID(str: string): boolean {
+  return /^[0-9a-fA-F-]{36}$/.test(str);
+}
+
 export async function getProductById(
   id: string
 ): Promise<ProductRecord | null> {
   console.log("[DB][PRODUCT][GET_BY_ID] start", { id });
 
-  if (!id) {
-    console.warn("[DB][PRODUCT][GET_BY_ID] missing id");
+  if (!id || typeof id !== "string") {
+    console.warn("[DB][PRODUCT][GET_BY_ID] invalid id type");
+    return null;
+  }
+
+  // ✅ FIX QUAN TRỌNG
+  if (!isUUID(id)) {
+    console.warn("[DB][PRODUCT][GET_BY_ID] invalid UUID:", id);
     return null;
   }
 
@@ -225,8 +235,7 @@ export async function getProductById(
 
     return toAppProduct(rows[0]);
   } catch (err) {
-    console.error("[DB][PRODUCT][GET_BY_ID] ERROR");
-
+    console.error("[DB][PRODUCT][GET_BY_ID] ERROR:", err);
     return null;
   }
 }
