@@ -197,20 +197,38 @@ export async function getProductsByIds(
 export async function getProductById(
   id: string
 ): Promise<ProductRecord | null> {
-  const { rows } = await query(
-    `
-    SELECT *
-    FROM products
-    WHERE id = $1
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [id]
-  );
+  console.log("[DB][PRODUCT][GET_BY_ID] start", { id });
 
-  if (!rows.length) return null;
+  if (!id) {
+    console.warn("[DB][PRODUCT][GET_BY_ID] missing id");
+    return null;
+  }
 
-  return toAppProduct(rows[0]);
+  try {
+    const { rows } = await query(
+      `
+      SELECT *
+      FROM products
+      WHERE id = $1
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!rows.length) {
+      console.log("[DB][PRODUCT][GET_BY_ID] not found");
+      return null;
+    }
+
+    console.log("[DB][PRODUCT][GET_BY_ID] found");
+
+    return toAppProduct(rows[0]);
+  } catch (err) {
+    console.error("[DB][PRODUCT][GET_BY_ID] ERROR");
+
+    return null;
+  }
 }
 
 /* =========================================================
@@ -274,17 +292,24 @@ export async function createProduct(
 /* =========================================================
    UPDATE
 ========================================================= */
-
 export async function updateProductBySeller(
   sellerId: string,
   productId: string,
   data: UpdateProductInput
 ): Promise<boolean> {
+  console.log("[DB][PRODUCT][UPDATE] start", {
+    sellerId,
+    productId,
+  });
+
+  if (!sellerId || !productId) {
+    console.warn("[DB][PRODUCT][UPDATE] invalid ids");
+    return false;
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
-
-  /* ================= WHITELIST ================= */
 
   const allowedFields = [
     "name",
@@ -302,31 +327,55 @@ export async function updateProductBySeller(
     "status",
   ] as const;
 
-  /* ================= BUILD QUERY ================= */
-
   for (const key of allowedFields) {
     const value = data[key];
 
-    if (value !== undefined) {
-      fields.push(`${key} = $${idx++}`);
-      values.push(value);
+    if (value === undefined) continue;
+
+    // ✅ sanitize nhẹ
+    if (key === "price" || key === "sale_price") {
+      if (typeof value !== "number" || Number.isNaN(value)) {
+        console.warn("[DB][PRODUCT][UPDATE] invalid price", key);
+        continue;
+      }
     }
+
+    if (key === "stock") {
+      if (typeof value !== "number" || value < 0) {
+        console.warn("[DB][PRODUCT][UPDATE] invalid stock");
+        continue;
+      }
+    }
+
+    fields.push(`${key} = $${idx++}`);
+    values.push(value);
   }
 
-  if (!fields.length) return false;
+  if (!fields.length) {
+    console.warn("[DB][PRODUCT][UPDATE] no fields to update");
+    return false;
+  }
 
-  const { rowCount } = await query(
-    `
-    UPDATE products
-    SET ${fields.join(", ")},
-        updated_at = NOW()
-    WHERE id = $${idx}
-      AND seller_id = $${idx + 1}
-    `,
-    [...values, productId, sellerId]
-  );
+  try {
+    const { rowCount } = await query(
+      `
+      UPDATE products
+      SET ${fields.join(", ")},
+          updated_at = NOW()
+      WHERE id = $${idx}
+        AND seller_id = $${idx + 1}
+      `,
+      [...values, productId, sellerId]
+    );
 
-  return (rowCount ?? 0) > 0;
+    console.log("[DB][PRODUCT][UPDATE] rowCount:", rowCount);
+
+    return (rowCount ?? 0) > 0;
+  } catch (err) {
+    console.error("[DB][PRODUCT][UPDATE] ERROR");
+
+    return false;
+  }
 }
 /* =========================================================
    SOFT DELETE
