@@ -233,7 +233,11 @@ export default function CategoriesClient() {
     </div>
   ) : (
     <div className="grid grid-cols-2 gap-2">
-      {visibleProducts.map((p) => (
+      {visibleProducts.map((p) => {
+      const discount =
+  p.isSale && p.price > 0
+    ? Math.round(((p.price - p.finalPrice) / p.price) * 100)
+    : 0;
                 <Link key={p.id} href={`/product/${p.id}`}>
                   <div className="bg-white rounded-xl border overflow-hidden relative">
                     <Image
@@ -243,7 +247,11 @@ export default function CategoriesClient() {
                       height={300}
                       className="w-full h-40 object-cover"
                     />
-
+                 {p.isSale && (
+               <div className="absolute top-1 left-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded">
+              -{discount}%
+              </div>
+                 )}
                     <div className="p-2">
                       <p className="text-sm line-clamp-2">{p.name}</p>
 
