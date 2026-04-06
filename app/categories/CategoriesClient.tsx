@@ -61,7 +61,9 @@ export default function CategoriesClient() {
   };
 
   /* ================= LOAD DATA (OPTIMIZED) ================= */
-
+useEffect(() => {
+  document.body.style.background = "#f9fafb";
+}, []);
   useEffect(() => {
     let mounted = true;
 
