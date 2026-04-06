@@ -158,6 +158,11 @@ const quantity = useMemo(() => {
   ========================= */
 
   useEffect(() => {
+  if (!open) {
+    loadedRef.current = false; 
+    return;
+  }
+
   async function loadAddress() {
     try {
       const token = await getPiAccessToken();
@@ -186,7 +191,7 @@ const quantity = useMemo(() => {
     }
   }
 
-  if (!open || !user || loadedRef.current) return;
+  if (!user || loadedRef.current) return;
 
   loadedRef.current = true;
   loadAddress();
@@ -227,11 +232,6 @@ useEffect(() => {
 
   return product.shipping_rates;
 }, [shipping?.country, product.shipping_rates]);
-
-    // TODO: sau này map theo shipping_zone_countries từ backend
-    return true;
-  });
-}, [shipping?.country, product.shipping_rates]);
   const shippingFee = useMemo(() => {
   if (!zone || !Array.isArray(product.shipping_rates)) {
     console.log("❌ NO SHIPPING RATES");
@@ -250,7 +250,7 @@ useEffect(() => {
 }, [zone, availableRegions]);
 
   const total = useMemo(
-  () => unitPrice * quantity + shippingFee,
+  () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
   [unitPrice, quantity, shippingFee]
 );
 
