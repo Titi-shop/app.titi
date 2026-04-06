@@ -29,9 +29,12 @@ type Product = {
   finalPrice: number;
   isSale: boolean;
   thumbnail?: string;
+
+  // ✅ chuẩn mới
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
+
   categoryId: number | string;
   sold: number;
 };
@@ -94,42 +97,19 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const [cateRes, prodRes] = await Promise.all([
-          fetch("/api/categories"),
-          fetch("/api/products"),
-        ]);
-
-        const cateData = await cateRes.json();
-        const prodData = await prodRes.json();
-
-        if (!mounted) return;
-
+    Promise.all([
+      fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/products", { cache: "no-store" }).then((r) => r.json()),
+    ])
+      .then(([cateData, prodData]: [Category[], Product[]]) => {
         setCategories(
-          Array.isArray(cateData)
-            ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
-            : []
+          [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
         );
 
         setProducts(Array.isArray(prodData) ? prodData : []);
-      } catch (err) {
-        console.error("[CATEGORY_LOAD_ERROR]", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
+      })
+      .finally(() => setLoading(false));
   }, []);
-
-  /
 
   /* ================= FILTER ================= */
 
