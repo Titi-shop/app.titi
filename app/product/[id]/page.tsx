@@ -58,7 +58,6 @@ interface ApiProduct {
   id: string;
   name: string;
   price: number;
-  salePrice?: number | null;
   finalPrice?: number;
   description?: string;
   detail?: string;
@@ -148,27 +147,17 @@ const handleDoubleTap = () => {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
-
-      console.log("[PRODUCT_STATUS]", res.status);
-
-      if (!res.ok) {
-        console.error("[PRODUCT_API_ERROR]", res.status);
-        return;
-      }
-
       const data: unknown = await res.json();
-
-      console.log("[PRODUCT_DATA]", data);
 
       if (!data || typeof data !== "object") return;
 
       const api = data as ApiProduct;
 
       const finalPrice =
-        typeof api.salePrice === "number" &&
-        api.salePrice < api.price
-          ? api.salePrice
-          : api.price;
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
       const normalized: Product = {
         id: api.id,
@@ -182,34 +171,49 @@ const handleDoubleTap = () => {
 
         views: api.views ?? 0,
         sold: api.sold ?? 0,
-        ratingAvg: api.rating_avg ?? 0,
-        ratingCount: api.rating_count ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
 
         thumbnail: api.thumbnail ?? "",
         images: Array.isArray(api.images) ? api.images : [],
         categoryId: api.categoryId ?? null,
 
-        stock: api.stock ?? 0,
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
         isActive: api.isActive !== false,
         isOutOfStock:
-          (api.stock ?? 0) <= 0 || api.isActive === false,
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
 
-        variants: Array.isArray(api.variants) ? api.variants : [],
-        shipping_rates: Array.isArray(api.shipping_rates)
-          ? api.shipping_rates
+        variants: Array.isArray(api.variants)
+          ? api.variants
           : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
       };
 
       setProduct(normalized);
 
-      const firstVariant =
+      const firstAvailableVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstVariant);
-    } catch (err) {
-      console.error("[PRODUCT_PAGE] LOAD ERROR", err);
+      setSelectedVariant(firstAvailableVariant);
+    } catch {
+      // không log sensitive
     } finally {
       setLoading(false);
     }
@@ -217,6 +221,42 @@ const handleDoubleTap = () => {
 
   loadProduct();
 }, [id]);
+  useEffect(() => {
+  async function loadProducts() {
+    if (!product?.categoryId) return;
+
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const normalized = data.map((api: ApiProduct) => {
+        const finalPrice =
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : api.price;
+
+        return {
+          id: api.id,
+          name: api.name,
+          price: api.price,
+          finalPrice,
+          isSale: finalPrice < api.price,
+          thumbnail: api.thumbnail ?? "",
+          images: Array.isArray(api.images) ? api.images : [],
+          categoryId: api.categoryId ?? null,
+        };
+      });
+
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Load products failed:", err);
+    }
+  }
+
+  loadProducts();
+}, [product]);
 
   /* =======================
    INCREMENT VIEW
@@ -446,7 +486,7 @@ const canBuy = hasVariants
   </span>
 
   <span className="flex items-center gap-1">
-  ⭐ {(product.ratingAvg ?? 0).toFixed(1)}
+  ⭐ {product.ratingAvg.toFixed(1)}
   <span className="text-gray-400">
     ({product.ratingCount} {t.reviews})
   </span>
