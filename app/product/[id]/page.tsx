@@ -1,6 +1,6 @@
 
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -271,7 +271,8 @@ const handleDoubleTap = () => {
   );
 }
 
-  const gallery = useMemo(() => {
+  if (!product) return <p className="p-4">{t.no_products}</p>;
+const gallery = useMemo(() => {
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...product.images.filter((img) => img && img !== product.thumbnail),
@@ -293,15 +294,6 @@ const handleDoubleTap = () => {
       p.categoryId === product.categoryId
   );
 }, [products, product]);
-
-  const displayImages = [
-  ...(product.thumbnail ? [product.thumbnail] : []),
-  ...product.images.filter((img) => img && img !== product.thumbnail),
-];
-const gallery =
-  displayImages.length > 0 ? displayImages : ["/placeholder.png"];
-
-
   const hasVariants = product.variants.length > 0;
 
 const availableVariants = product.variants.filter(
