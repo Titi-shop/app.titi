@@ -82,71 +82,123 @@ const handleDoubleTap = () => {
   /* =======================
      LOAD PRODUCT
   ======================= */
- useEffect(() => {
-  let mounted = true;
-
-  async function loadAll() {
+  useEffect(() => {
+  async function loadProduct() {
     try {
       if (!id) return;
 
-      setLoading(true);
+      const res = await fetch(`/api/products/${id}`);
+      const data: unknown = await res.json();
 
-      const [productRes, listRes] = await Promise.all([
-        fetch(`/api/products/${id}`),
-        fetch(`/api/products`),
-      ]);
+      if (!data || typeof data !== "object") return;
 
-      if (!productRes.ok) throw new Error("product fetch fail");
-      const productData: unknown = await productRes.json();
-      const listData: unknown = await listRes.json();
+      const api = data as ApiProduct;
 
-      if (!mounted) return;
+      const finalPrice =
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
-      /* ================= PRODUCT ================= */
-      if (productData && typeof productData === "object") {
-        const api = productData as Product;
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
 
-        const finalPrice =
-          typeof api.salePrice === "number" &&
-          api.salePrice < api.price
-            ? api.salePrice
-            : api.price;
-        const normalized: Product = {
-        ...api,
-      finalPrice,
-       };
-        setProduct(normalized);
+        description: api.description ?? "",
+        detail: api.detail ?? "",
 
-        const firstVariant =
-          (normalized.variants ?? []).find(
-            (v) => (v.isActive ?? true) && v.stock > 0
-          ) ?? null;
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
 
-        setSelectedVariant(firstVariant);
-      }
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
 
-      /* ================= RELATED ================= */
-      if (Array.isArray(listData)) {
-        return {
-     ...api,
-     finalPrice,
-   };
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
 
-        setProducts(normalizedList);
-      }
-    } catch (err) {
-      console.error("[PRODUCT_PAGE] LOAD ERROR", err);
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
+      };
+
+      setProduct(normalized);
+
+      const firstAvailableVariant =
+        normalized.variants.find(
+          (v) => (v.isActive ?? true) && v.stock > 0
+        ) ?? null;
+
+      setSelectedVariant(firstAvailableVariant);
+    } catch {
+      // không log sensitive
     } finally {
-      if (mounted) setLoading(false);
+      setLoading(false);
     }
   }
 
-  loadAll();
-
-  return () => {
-    mounted = false;
-  };
+  loadProduct();
 }, [id]);
+  useEffect(() => {
+  async function loadProducts() {
+    if (!product?.categoryId) return;
+
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const normalized = data.map((api: ApiProduct) => {
+        const finalPrice =
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : api.price;
+
+        return {
+          id: api.id,
+          name: api.name,
+          price: api.price,
+          finalPrice,
+          isSale: finalPrice < api.price,
+          thumbnail: api.thumbnail ?? "",
+          images: Array.isArray(api.images) ? api.images : [],
+          categoryId: api.categoryId ?? null,
+        };
+      });
+
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Load products failed:", err);
+    }
+  }
+
+  loadProducts();
+}, [product]);
+
 
   /* =======================
      STATES
