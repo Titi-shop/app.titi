@@ -1,5 +1,6 @@
 
 "use client";
+import type { Product, ProductVariant } from "@/types/Product";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -40,68 +41,6 @@ function getDistance(touches: TouchList) {
   const dx = touches[0].clientX - touches[1].clientX;
   const dy = touches[0].clientY - touches[1].clientY;
   return Math.sqrt(dx * dx + dy * dy);
-}
-/* =======================
-   TYPES
-======================= */
-
-interface ProductVariant {
-  id?: string;
-  optionName?: string;
-  optionValue: string;
-  stock: number;
-  sku?: string | null;
-  sortOrder?: number;
-  isActive?: boolean;
-}
-
-interface ApiProduct {
-  id: string;
-  name: string;
-  price: number;
-  salePrice?: number | null;
-  finalPrice?: number;
-  description?: string;
-  detail?: string;
-  views?: number;
-  sold?: number;
-  rating_avg?: number;
-  rating_count?: number;
-  thumbnail?: string;
-  images?: string[];
-  stock?: number;
-  isActive?: boolean;
-  categoryId?: string | null;
-  variants?: ProductVariant[];
-  shipping_rates?: {
-  zone: string;
-  price: number;
-}[];
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice: number;
-  isSale: boolean;
-  description: string;
-  detail: string;
-  views: number;
-  sold: number;
-  ratingAvg: number;
-  ratingCount: number;
-  thumbnail?: string;
-  images: string[];
-  stock: number;
-  isActive: boolean;
-  isOutOfStock: boolean;
-  categoryId: string | null;
-  variants: ProductVariant[];
-  shipping_rates: {
-  zone: string;
-  price: number;
-}[];
 }
 
 /* =======================
@@ -164,44 +103,17 @@ const handleDoubleTap = () => {
 
       /* ================= PRODUCT ================= */
       if (productData && typeof productData === "object") {
-        const api = productData as ApiProduct;
+        const api = productData as Product;
 
         const finalPrice =
           typeof api.salePrice === "number" &&
           api.salePrice < api.price
             ? api.salePrice
             : api.price;
-
         const normalized: Product = {
-          id: api.id,
-          name: api.name,
-          price: api.price,
-          finalPrice,
-          isSale: finalPrice < api.price,
-
-          description: api.description ?? "",
-          detail: api.detail ?? "",
-
-          views: api.views ?? 0,
-          sold: api.sold ?? 0,
-          ratingAvg: api.rating_avg ?? 0,
-          ratingCount: api.rating_count ?? 0,
-
-          thumbnail: api.thumbnail ?? "",
-          images: Array.isArray(api.images) ? api.images : [],
-          categoryId: api.categoryId ?? null,
-
-          stock: api.stock ?? 0,
-          isActive: api.isActive !== false,
-          isOutOfStock:
-            (api.stock ?? 0) <= 0 || api.isActive === false,
-
-          variants: Array.isArray(api.variants) ? api.variants : [],
-          shipping_rates: Array.isArray(api.shipping_rates)
-            ? api.shipping_rates
-            : [],
-        };
-
+        ...api,
+      finalPrice,
+       };
         setProduct(normalized);
 
         const firstVariant =
@@ -214,33 +126,15 @@ const handleDoubleTap = () => {
 
       /* ================= RELATED ================= */
       if (Array.isArray(listData)) {
-        const normalizedList: Product[] = listData.map((api: ApiProduct) => {
+        const normalizedList: Product[] = listData.map((api: Product) => {
           const finalPrice =
             typeof api.finalPrice === "number"
               ? api.finalPrice
               : api.price;
 
           return {
-            id: api.id,
-            name: api.name,
-            price: api.price,
-            finalPrice,
-            isSale: finalPrice < api.price,
-            description: "",
-            detail: "",
-            views: 0,
-            sold: 0,
-            ratingAvg: 0,
-            ratingCount: 0,
-            thumbnail: api.thumbnail ?? "",
-            images: Array.isArray(api.images) ? api.images : [],
-            stock: 0,
-            isActive: true,
-            isOutOfStock: false,
-            categoryId: api.categoryId ?? null,
-            variants: [],
-            shipping_rates: [],
-          };
+  ...api,
+};
         });
 
         setProducts(normalizedList);
@@ -294,7 +188,7 @@ const gallery = useMemo(() => {
   );
 }, [products, product]);
   const hasVariants = product.variants.length > 0;
-
+const isSale = product.finalPrice < product.price;
 const availableVariants = product.variants.filter(
   (v) => (v.isActive ?? true) && v.optionValue
 );
@@ -303,9 +197,12 @@ const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
   : product.stock;
 
+const isOutOfStock =
+  product.stock <= 0 || product.isActive === false;
+
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : !product.isOutOfStock;
+  : !isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
@@ -370,7 +267,7 @@ const canBuy = hasVariants
 <div className="mt-14 relative bg-white">
 
   {/* SALE BADGE */}
-  {product.isSale && (
+  {isSale && (
     <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
       -{calcSalePercent(product.price, product.finalPrice)}%
     </div>
@@ -541,7 +438,7 @@ const canBuy = hasVariants
         })}
       </div>
     </div>
-  ) : product.isOutOfStock ? (
+  ) : isOutOfStock ? (
     <span className="text-red-500 font-semibold">
       ❌ {t.out_of_stock}
     </span>
@@ -669,7 +566,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-    shipping_rates: product.shipping_rates,
+    shippingRates: product.shippingRates,
   }}
 />
     </div>
