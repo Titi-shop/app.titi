@@ -124,8 +124,8 @@ const [description, setDescription] = useState("");
     rest_of_world: "",
   };
 
-  if (Array.isArray(initialData.shipping_rates)) {
-    for (const r of initialData.shipping_rates) {
+      if (Array.isArray(initialData.shippingRates)) {
+  for (const r of initialData.shippingRates) {
       if (r.zone && typeof r.price === "number") {
         newRates[r.zone] = r.price;
       }
@@ -272,7 +272,6 @@ if (!name || Number(price) <= 0 || !categoryId) {
       return;
     }
 
-    if (!name || price <= 0 || !categoryId) {
       setMessage({
         text: t.enter_valid_name_price,
         type: "error",
@@ -317,18 +316,19 @@ const shipping_rates_array = Object.entries(shippingRates)
   id: initialData?.id,
   name,
   price: Number(price),
-  categoryId,
+  categoryId: Number(categoryId),
   description,
-  salePrice: salePrice === "" ? null : salePrice,
+  salePrice:
+  salePrice === "" ? null : Number(salePrice),
   saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
   saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
   detail,
   images,
   thumbnail: images[0] ?? null,
   stock: stock === "" ? 0 : Number(stock),
-  is_active: isActive,
+  isActive,
   variants,
-  shipping_rates: shipping_rates_array, 
+  shippingRates: shipping_rates_array,
 };
 
     setSaving(true);
@@ -570,10 +570,13 @@ const shipping_rates_array = Object.entries(shippingRates)
       setVariants((prev) => [
         ...prev,
         {
-          optionValue: "",
-          stock: 0,
-          sku: "",
-        },
+  optionName: "size",
+  optionValue: "",
+  stock: 0,
+  sku: "",
+  isActive: true,
+}
+         ,
       ])
     }
     className="bg-green-500 text-white px-3 py-1 rounded"
