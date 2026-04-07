@@ -253,102 +253,88 @@ const [description, setDescription] = useState("");
   }
 };
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    // 🔥 dùng state luôn
-if (!name || Number(price) <= 0 || !categoryId) {
-  setMessage({
-    text: t.enter_valid_name_price,
-    type: "error",
-  });
-  return;
-}
-
-    if (!images.length) {
-      setMessage({
-        text: t.need_image,
-        type: "error",
-      });
-      return;
-    }
-
-      setMessage({
-        text: t.enter_valid_name_price,
-        type: "error",
-      });
-      return;
-    }
-
-    if (salePrice !== "") {
-      if (!saleStart || !saleEnd) {
-        setMessage({
-          text: t.need_sale_date,
-          type: "error",
-        });
-        return;
-      }
-
-      if (new Date(saleEnd) <= new Date(saleStart)) {
-        setMessage({
-          text: t.invalid_sale_range,
-          type: "error",
-        });
-        return;
-      }
-    }
-
-    for (const v of variants) {
-  if (!v.optionValue.trim() || v.stock < 0) {
+  if (!name || Number(price) <= 0 || !categoryId) {
     setMessage({
-      text: t.invalid_variant,
+      text: t.enter_valid_name_price,
       type: "error",
     });
     return;
   }
-}
-const shipping_rates_array = Object.entries(shippingRates)
-  .filter(([_, price]) => price !== "")
-  .map(([zone, price]) => ({
-    zone,
-    price: Number(price),
-  }));
-    const payload: ProductPayload = {
-  id: initialData?.id,
-  name,
-  price: Number(price),
-  categoryId: Number(categoryId),
-  description,
-  salePrice:
-  salePrice === "" ? null : Number(salePrice),
-  saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
-  detail,
-  images,
-  thumbnail: images[0] ?? null,
-  stock: stock === "" ? 0 : Number(stock),
-  isActive,
-  variants,
-  shippingRates: shipping_rates_array,
-};
 
-    setSaving(true);
-    setMessage({ text: "", type: "" });
+  if (!images.length) {
+    setMessage({
+      text: t.need_image,
+      type: "error",
+    });
+    return;
+  }
 
-    try {
-      await onSubmit(payload);
+  if (salePrice !== "") {
+    if (!saleStart || !saleEnd) {
       setMessage({
-        text: initialData ? t.update_success : t.post_success,
-        type: "success",
-      });
-    } catch {
-      setMessage({
-        text: initialData ? t.update_failed : t.post_failed,
+        text: t.need_sale_date,
         type: "error",
       });
-    } finally {
-      setSaving(false);
+      return;
     }
+
+    if (new Date(saleEnd) <= new Date(saleStart)) {
+      setMessage({
+        text: t.invalid_sale_range,
+        type: "error",
+      });
+      return;
+    }
+  }
+
+  const shipping_rates_array = Object.entries(shippingRates)
+    .filter(([_, price]) => price !== "")
+    .map(([zone, price]) => ({
+      zone,
+      price: Number(price),
+    }));
+
+  const payload = {
+    id: initialData?.id,
+    name,
+    price: Number(price),
+    categoryId: Number(categoryId),
+    description,
+    detail,
+    images,
+    thumbnail: images[0] ?? null,
+    stock: stock === "" ? 0 : Number(stock),
+    isActive,
+    salePrice: salePrice === "" ? null : Number(salePrice),
+    saleStart:
+      salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
+    saleEnd:
+      salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
+    variants,
+    shippingRates: shipping_rates_array,
   };
+
+  setSaving(true);
+  setMessage({ text: "", type: "" });
+
+  try {
+    await onSubmit(payload);
+
+    setMessage({
+      text: initialData ? t.update_success : t.post_success,
+      type: "success",
+    });
+  } catch {
+    setMessage({
+      text: initialData ? t.update_failed : t.post_failed,
+      type: "error",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
 
   const updateVariant = (
     index: number,
