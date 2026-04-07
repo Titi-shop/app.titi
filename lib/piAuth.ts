@@ -71,8 +71,18 @@ export async function getPiAccessToken(
     try {
 
       const auth = await window.Pi.authenticate(
-        scopes,
-        () => {}
+  scopes,
+  (payment: PiIncompletePayment) => {
+    console.log("🔥 INCOMPLETE PAYMENT FOUND:", payment);
+
+    if (payment.identifier && typeof payment.identifier === "string") {
+      const paymentId = payment.identifier;
+
+      localStorage.setItem("pi_payment_id", paymentId);
+
+      console.log("✅ SAVED PAYMENT ID:", paymentId);
+    }
+  }
       );
 
       if (!auth || !auth.accessToken) {
