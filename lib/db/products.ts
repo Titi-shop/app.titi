@@ -28,10 +28,11 @@ type ProductRow = {
   stock: number;
   is_unlimited?: boolean | null;
   is_active?: boolean | null;
-  category_id: string | null;
+  category_id: number | null;
   seller_id: string;
   views?: number | null;
   sold?: number | null;
+   final_price?: number | null;
   rating_avg?: number | null;
   rating_count?: number | null;
   status?: ProductStatus | null;
@@ -43,7 +44,7 @@ type ProductRow = {
   meta_description?: string | null;
   deleted_at?: string | null;
   created_at: string;
-  updated_at: string | null;
+  updated_at: string;
 };
 
 export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
@@ -117,17 +118,38 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   const { rows } = await query<ProductRecord>(
     `
     SELECT 
-      id,
-      name,
-      price,
-      sale_price,
-      sale_start,
-      sale_end,
-      thumbnail,
-      sold,
-      stock,
-      is_active,
-      category_id
+  id,
+  name,
+  slug,
+  short_description,
+  description,
+  detail,
+  thumbnail,
+  images,
+  detail_images,
+  video_url,
+  price,
+  sale_price,
+  currency,
+  stock,
+  is_unlimited,
+  sold,
+  views,
+  rating_avg,
+  rating_count,
+  is_active,
+  is_featured,
+  is_digital,
+  status,
+  category_id,
+  sale_start,
+  sale_end,
+  meta_title,
+  meta_description,
+  created_at,
+  updated_at,
+  deleted_at,
+  seller_id
     FROM products
     WHERE is_active = true
       AND deleted_at IS NULL
