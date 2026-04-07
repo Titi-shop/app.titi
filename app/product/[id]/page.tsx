@@ -96,6 +96,7 @@ const handleDoubleTap = () => {
         fetch(`/api/products`),
       ]);
 
+      if (!productRes.ok) throw new Error("product fetch fail");
       const productData: unknown = await productRes.json();
       const listData: unknown = await listRes.json();
 
@@ -117,7 +118,7 @@ const handleDoubleTap = () => {
         setProduct(normalized);
 
         const firstVariant =
-          normalized.variants.find(
+          (normalized.variants ?? []).find(
             (v) => (v.isActive ?? true) && v.stock > 0
           ) ?? null;
 
@@ -165,6 +166,8 @@ const handleDoubleTap = () => {
     </div>
   );
 }
+if (!product) return <p className="p-4">{t.no_products}</p>;
+
 const gallery = useMemo(() => {
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
@@ -175,7 +178,6 @@ const gallery = useMemo(() => {
     ? displayImages
     : ["/placeholder.png"];
 }, [product.thumbnail, product.images]);
-  if (!product) return <p className="p-4">{t.no_products}</p>;
 
   const relatedProducts = useMemo(() => {
   if (!product) return [];
