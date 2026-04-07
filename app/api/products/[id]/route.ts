@@ -127,6 +127,22 @@ export async function GET(
     }
 
     console.log("[PRODUCT][GET] done");
+    const now = Date.now();
+
+const start = p.sale_start
+  ? new Date(p.sale_start).getTime()
+  : null;
+
+const end = p.sale_end
+  ? new Date(p.sale_end).getTime()
+  : null;
+
+const isSale =
+  typeof p.sale_price === "number" &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
 
     return NextResponse.json({
   id: p.id,
@@ -142,7 +158,7 @@ export async function GET(
   videoUrl: p.video_url ?? "",
   price: p.price ?? 0,
   salePrice: p.sale_price ?? null,
-  finalPrice: p.sale_price ?? p.price,
+  finalPrice: isSale ? p.sale_price ?? p.price : p.price,
   currency: p.currency ?? "PI",
   stock: p.stock ?? 0,
   isUnlimited: p.is_unlimited ?? false,
@@ -210,7 +226,7 @@ export async function PATCH(
 
     console.log("[PRODUCT][PATCH] body received", {
       hasVariants: Array.isArray(body?.variants),
-      hasShipping: Array.isArray(body?.shipping_rates),
+      hasShipping: Array.isArray(body?.shippingRates),
     });
 
     if (!body || typeof body !== "object") {
@@ -251,9 +267,9 @@ export async function PATCH(
               : null
             : undefined,
         category_id:
-          typeof body.categoryId === "string"
-            ? body.categoryId
-            : null,
+  typeof body.categoryId === "number"
+    ? body.categoryId
+    : null,
         price:
           typeof body.price === "number" ? body.price : undefined,
         sale_price:
@@ -263,7 +279,10 @@ export async function PATCH(
         sale_start: body.saleStart,
         sale_end: body.saleEnd,
         stock: finalStock,
-        is_active: body.is_active,
+        is_active:
+  typeof body.isActive === "boolean"
+    ? body.isActive
+    : undefined,
       }
     );
 
@@ -278,12 +297,12 @@ export async function PATCH(
     }
 
     /* ================= SHIPPING ================= */
-    if (Array.isArray(body.shipping_rates)) {
-      console.log("[PRODUCT][PATCH] upsert shipping:", body.shipping_rates.length);
+    if (Array.isArray(body.shippingRates)) {
+      console.log("[PRODUCT][PATCH] upsert shipping:", body.shippingRates.length);
 
       await upsertShippingRates({
         productId: id,
-        rates: body.shipping_rates,
+        rates: body.shippingRates,
       });
     }
 
@@ -337,7 +356,7 @@ export async function PATCH(
 
   price: p.price ?? 0,
   salePrice: p.sale_price ?? null,
-  finalPrice: p.sale_price ?? p.price,
+  finalPrice: isSale ? p.sale_price ?? p.price : p.price,
 
   currency: p.currency ?? "PI",
 
