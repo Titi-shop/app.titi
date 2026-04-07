@@ -201,8 +201,7 @@ export async function GET(req: Request) {
   salePrice: p.sale_price ?? null,
 
   isSale,
-  finalPrice: isSale ? p.sale_price ?? p.price : p.price
-
+  finalPrice: isSale ? p.sale_price ?? p.price : p.price,
   currency: p.currency ?? "PI",
 
   stock: finalStock,
@@ -316,9 +315,9 @@ export async function POST(req: Request) {
     if (Array.isArray(body.shippingRates)) {
       console.log("[PRODUCT_API][POST] upsert shipping");
      await upsertShippingRates({
-    productId: product.id,
-    rates: body.shippingRates,
-    });
+  productId: productId,
+  rates: body.shippingRates,
+   });
     }
 
     if (hasVariants) {
@@ -409,11 +408,10 @@ export async function PUT(req: Request) {
 
     await replaceVariantsByProductId(productId, normalizedVariants);
 
-    if (Array.isArray(body.shippingRates)) {
     await upsertShippingRates({
-    productId: product.id,
-    rates: body.shippingRates,
-     });
+     productId: productId,
+     rates: body.shippingRates,
+      });
     }
 
     console.log("[PRODUCT_API][PUT] DONE");
