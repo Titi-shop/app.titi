@@ -19,6 +19,13 @@ export type PiUser = {
   pi_uid: string;
   username: string;
 };
+type PiIncompletePayment = {
+  identifier?: string;
+  amount?: number;
+  memo?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+};
 
 type PiAuthResult = {
   accessToken: string;
@@ -72,18 +79,58 @@ export async function getPiAccessToken(
 
       const auth = await window.Pi.authenticate(
   scopes,
-  (payment: PiIncompletePayment) => {
-    console.log("🔥 INCOMPLETE PAYMENT FOUND:", payment);
+  async (payment: PiIncompletePayment) => {
+    console.log("🔁 INCOMPLETE PAYMENT FOUND:", payment);
 
-    if (payment.identifier && typeof payment.identifier === "string") {
-      const paymentId = payment.identifier;
+    const paymentId =
+      typeof payment.identifier === "string"
+        ? payment.identifier
+        : "";
 
-      localStorage.setItem("pi_payment_id", paymentId);
+    const txid =
+      typeof (payment as { transaction?: { txid?: string } })
+        .transaction?.txid === "string"
+        ? (payment as { transaction?: { txid?: string } })
+            .transaction!.txid!
+        : "";
 
-      console.log("✅ SAVED PAYMENT ID:", paymentId);
+    if (paymentId) {
+      localStorage.setItem("pi:lastPaymentId", paymentId);
+      console.log("💾 SAVED paymentId:", paymentId);
+    }
+
+    if (txid) {
+      localStorage.setItem("pi:lastTxid", txid);
+      console.log("💾 SAVED txid:", txid);
+    }
+
+    // 🔥 AUTO FIX KẸT ĐƠN
+    if (paymentId && txid) {
+      try {
+        console.log("🟡 AUTO COMPLETE START");
+
+        const token = await getPiAccessToken(true);
+
+        const res = await fetch("/api/pi/complete-incomplete", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentId,
+            txid,
+          }),
+        });
+
+        console.log("🟢 AUTO COMPLETE RES:", res.status);
+
+      } catch (err) {
+        console.error("❌ AUTO COMPLETE FAIL", err);
+      }
     }
   }
-      );
+);
 
       if (!auth || !auth.accessToken) {
         throw new Error("PI_AUTH_FAILED");
