@@ -295,23 +295,6 @@ export async function PATCH(
         { status: 404 }
       );
     }
-
-    const now = Date.now();
-
-const start = p.sale_start
-  ? new Date(p.sale_start).getTime()
-  : null;
-
-const end = p.sale_end
-  ? new Date(p.sale_end).getTime()
-  : null;
-
-const isSale =
-  typeof p.sale_price === "number" &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
     /* ================= SHIPPING ================= */
     if (Array.isArray(body.shippingRates)) {
       console.log("[PRODUCT][PATCH] upsert shipping:", body.shippingRates.length);
@@ -339,7 +322,22 @@ const isSale =
         { status: 404 }
       );
     }
+const now = Date.now();
 
+const start = p.sale_start
+  ? new Date(p.sale_start).getTime()
+  : null;
+
+const end = p.sale_end
+  ? new Date(p.sale_end).getTime()
+  : null;
+
+const isSale =
+  typeof p.sale_price === "number" &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
     const variants = await getVariantsByProductId(id);
 
     let shippingRates: { zone: string; price: number }[] = [];
