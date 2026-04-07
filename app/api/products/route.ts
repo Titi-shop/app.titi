@@ -408,9 +408,10 @@ export async function PUT(req: Request) {
 
     await replaceVariantsByProductId(productId, normalizedVariants);
 
-    await upsertShippingRates({
-     productId: productId,
-     rates: body.shippingRates,
+    if (Array.isArray(body.shippingRates)) {
+      await upsertShippingRates({
+        productId: productId,
+        rates: body.shippingRates,
       });
     }
 
