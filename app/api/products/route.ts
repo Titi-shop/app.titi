@@ -409,11 +409,11 @@ export async function PUT(req: Request) {
 
     await replaceVariantsByProductId(productId, normalizedVariants);
 
-    if (Array.isArray(body.shipping_rates)) {
-      await upsertShippingRates({
-        productId,
-        rates: body.shippingRates
-      });
+    if (Array.isArray(body.shippingRates)) {
+    await upsertShippingRates({
+    productId: product.id,
+    rates: body.shippingRates,
+     });
     }
 
     console.log("[PRODUCT_API][PUT] DONE");
