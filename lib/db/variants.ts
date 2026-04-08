@@ -1,31 +1,8 @@
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { query, withTransaction } from "@/lib/db";
 
-if (!SUPABASE_URL) {
-  throw new Error("SUPABASE_URL is missing");
-}
-
-if (!SERVICE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
-}
-
-/* =========================================================
+/* =========================
    TYPES
-========================================================= */
-
-export type VariantRow = {
-  id: string;
-  product_id: string;
-  option_name: string;
-  option_value: string;
-  stock: number;
-  sku: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string | null;
-};
-
+========================= */
 export type ProductVariant = {
   id?: string;
   optionName?: string;
@@ -36,209 +13,112 @@ export type ProductVariant = {
   isActive?: boolean;
 };
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/* =========================
+   VALIDATE
+========================= */
+function validateVariants(variants: ProductVariant[]) {
+  if (!Array.isArray(variants)) return [];
 
-function supabaseHeaders() {
-  return {
-    apikey: SERVICE_KEY,
-    Authorization: `Bearer ${SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
+  return variants.filter(
+    (v) =>
+      v &&
+      typeof v.optionValue === "string" &&
+      v.optionValue.trim() !== ""
+  );
 }
 
-function toAppVariant(row: VariantRow): ProductVariant {
+/* =========================
+   NORMALIZE
+========================= */
+function normalizeVariant(v: ProductVariant, index: number) {
   return {
-    id: row.id,
-    optionName: row.option_name || "size",
-    optionValue: row.option_value || "",
-    stock:
-      typeof row.stock === "number" && !Number.isNaN(row.stock)
-        ? row.stock
-        : 0,
-    sku: row.sku ?? null,
-    sortOrder:
-      typeof row.sort_order === "number" && !Number.isNaN(row.sort_order)
-        ? row.sort_order
-        : 0,
-    isActive: row.is_active !== false,
-  };
-}
-
-function normalizeVariant(
-  variant: ProductVariant,
-  index = 0
-) {
-  return {
-    option_name:
-      typeof variant.optionName === "string" && variant.optionName.trim() !== ""
-        ? variant.optionName.trim()
-        : "size",
-
-    option_value:
-      typeof variant.optionValue === "string"
-        ? variant.optionValue.trim()
-        : "",
-
-    stock:
-      typeof variant.stock === "number" &&
-      !Number.isNaN(variant.stock) &&
-      variant.stock >= 0
-        ? variant.stock
-        : 0,
-
-    sku:
-      typeof variant.sku === "string" && variant.sku.trim() !== ""
-        ? variant.sku.trim()
-        : null,
-
+    option_name: v.optionName?.trim() || "size",
+    option_value: v.optionValue.trim(),
+    stock: Number.isFinite(v.stock) ? v.stock : 0,
+    sku: v.sku?.trim() || null,
     sort_order:
-      typeof variant.sortOrder === "number" &&
-      !Number.isNaN(variant.sortOrder)
-        ? variant.sortOrder
-        : index,
-
-    is_active:
-      typeof variant.isActive === "boolean"
-        ? variant.isActive
-        : true,
+      typeof v.sortOrder === "number" ? v.sortOrder : index,
+    is_active: v.isActive ?? true,
   };
 }
 
-/* =========================================================
-   GET — VARIANTS BY PRODUCT ID
-========================================================= */
+/* =========================
+   GET
+========================= */
+export async function getVariantsByProductId(productId: string) {
+  if (!productId) throw new Error("INVALID_PRODUCT_ID");
 
-export async function getVariantsByProductId(
-  productId: string
-): Promise<ProductVariant[]> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
+  const res = await query(
+    `
+    SELECT id, option_name, option_value, stock, sku, sort_order, is_active
+    FROM product_variants
+    WHERE product_id = $1
+    ORDER BY sort_order ASC
+    `,
+    [productId]
+  );
 
-  const url =
-    `${SUPABASE_URL}/rest/v1/product_variants` +
-    `?product_id=eq.${encodeURIComponent(productId)}` +
-    `&is_active=eq.true` +
-    `&order=sort_order.asc`;
-
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE GET VARIANTS ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_VARIANTS");
-  }
-
-  const rows: VariantRow[] = await res.json();
-
-  return rows.map(toAppVariant);
+  return res.rows.map((r) => ({
+    id: r.id,
+    optionName: r.option_name,
+    optionValue: r.option_value,
+    stock: r.stock,
+    sku: r.sku,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+  }));
 }
 
-/* =========================================================
-   POST — CREATE VARIANTS
-========================================================= */
-
-export async function createVariantsForProduct(
-  productId: string,
-  variants: ProductVariant[]
-): Promise<ProductVariant[]> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  if (!Array.isArray(variants) || variants.length === 0) {
-    return [];
-  }
-
-  const payload = variants
-    .map((variant, index) => {
-      const normalized = normalizeVariant(variant, index);
-
-      return {
-        ...normalized,
-        product_id: productId,
-      };
-    })
-    .filter(
-      (v) =>
-        typeof v.option_value === "string" &&
-        v.option_value.trim() !== ""
-    );
-
-  if (payload.length === 0) {
-    return [];
-  }
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/product_variants`, {
-    method: "POST",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ CREATE VARIANTS ERROR:", text);
-    throw new Error("FAILED_TO_CREATE_VARIANTS");
-  }
-
-  const rows: VariantRow[] = await res.json();
-
-  return rows.map(toAppVariant);
-}
-
-/* =========================================================
-   DELETE — ALL VARIANTS
-========================================================= */
-
-export async function deleteVariantsByProductId(
-  productId: string
-): Promise<boolean> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/product_variants` +
-    `?product_id=eq.${encodeURIComponent(productId)}`;
-
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      ...supabaseHeaders(),
-      Prefer: "return=representation",
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ DELETE VARIANTS ERROR:", text);
-    throw new Error("FAILED_TO_DELETE_VARIANTS");
-  }
-
-  return true;
-}
-
-/* =========================================================
-   REPLACE — DELETE + CREATE
-========================================================= */
-
+/* =========================
+   REPLACE (SAFE + ATOMIC)
+========================= */
 export async function replaceVariantsByProductId(
   productId: string,
   variants: ProductVariant[]
-): Promise<ProductVariant[]> {
-  await deleteVariantsByProductId(productId);
+) {
+  if (!productId) throw new Error("INVALID_PRODUCT_ID");
 
-  if (!Array.isArray(variants) || variants.length === 0) {
-    return [];
-  }
+  const valid = validateVariants(variants);
 
-  return createVariantsForProduct(productId, variants);
+  await withTransaction(async (client) => {
+    // delete old
+    await client.query(
+      `DELETE FROM product_variants WHERE product_id = $1`,
+      [productId]
+    );
+
+    if (valid.length === 0) return;
+
+    const normalized = valid.map(normalizeVariant);
+
+    const values: unknown[] = [];
+    const placeholders: string[] = [];
+
+    normalized.forEach((v, i) => {
+      const idx = i * 7;
+
+      placeholders.push(
+        `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7})`
+      );
+
+      values.push(
+        productId,
+        v.option_name,
+        v.option_value,
+        v.stock,
+        v.sku,
+        v.sort_order,
+        v.is_active
+      );
+    });
+
+    await client.query(
+      `
+      INSERT INTO product_variants
+      (product_id, option_name, option_value, stock, sku, sort_order, is_active)
+      VALUES ${placeholders.join(",")}
+      `,
+      values
+    );
+  });
 }
