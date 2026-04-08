@@ -12,7 +12,9 @@ const pool =
     ssl: { rejectUnauthorized: false },
 
     // 🔥 cực quan trọng
-    max: 5, // giới hạn connection
+    max: 1,
+idleTimeoutMillis: 10000,
+connectionTimeoutMillis: 5000, giới hạn connection
   });
 
 if (process.env.NODE_ENV !== "production") {
