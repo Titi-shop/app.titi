@@ -296,61 +296,12 @@ const {
 
    const shippingFee = preview?.shipping_fee ?? 0;
 
-const shippingFee = preview?.shipping_fee ?? 0;
-
 const total = useMemo(() => {
   if (preview) return preview.total;
   return unitPrice * quantity + shippingFee;
 }, [preview, unitPrice, quantity, shippingFee]);
 
-    const token = await getPiAccessToken();
-
-    const payload = {
-  country: shipping?.country?.toUpperCase(),
-  zone: zone || "",
-  items: [
-    {
-      product_id: item!.id,
-      quantity,
-    },
-  ],
-};
-console.log("🟡 [CHECKOUT][FINAL_DATA]", {
-  country: shipping?.country?.toUpperCase(),
-  zone,
-});
-    console.log("🟡 PREVIEW PAYLOAD:", payload);
-
-    const res = await fetch("/api/orders/preview", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    console.log("🟡 PREVIEW STATUS:", res.status);
-
-    const data = await res.json();
-
-    console.log("🟡 PREVIEW RESPONSE:", data);
-
-    if (!res.ok) {
-      console.log("🔴 PREVIEW ERROR:", data.error);
-      showMessage(t[getErrorKey(data.error)]);
-      return false;
-    }
-
-    console.log("🟢 PREVIEW OK");
-
-    return true;
-  } catch (err) {
-    console.error("❌ PREVIEW EXCEPTION:", err);
-    showMessage(t.order_preview_error);
-    return false;
-  }
-};
+   
   /* =========================
      VALIDATION
   ========================= */
