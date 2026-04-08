@@ -94,91 +94,79 @@ const handleDoubleTap = () => {
   /* =======================
      LOAD PRODUCT
   ======================= */
- useEffect(() => {
+  useEffect(() => {
   async function loadProduct() {
     try {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
-      const data = await res.json();
-
-      console.log("🔥 API PRODUCT:", data);
+      const data: unknown = await res.json();
 
       if (!data || typeof data !== "object") return;
 
-      const p = data as Partial<ProductType>;
+      const api = data as ApiProduct;
 
-const normalized: ProductType = {
-  id: p.id ?? "",
-  sellerId: p.sellerId ?? "",
+      const finalPrice =
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
-  name: p.name ?? "",
-  slug: p.slug ?? "",
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
 
-  shortDescription: p.shortDescription ?? "",
-  description: p.description ?? "",
-  detail: p.detail ?? "",
+        description: api.description ?? "",
+        detail: api.detail ?? "",
 
-  thumbnail: p.thumbnail ?? "",
-  images: Array.isArray(p.images) ? p.images : [],
-  detailImages: Array.isArray(p.detailImages) ? p.detailImages : [],
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
 
-  videoUrl: p.videoUrl ?? "",
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
 
-  price: p.price ?? 0,
-  salePrice: p.salePrice ?? null,
-  finalPrice:
-    typeof p.finalPrice === "number"
-      ? p.finalPrice
-      : typeof p.salePrice === "number" && p.salePrice < (p.price ?? 0)
-      ? p.salePrice
-      : p.price ?? 0,
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
 
-  currency: p.currency ?? "PI",
-
-  stock: p.stock ?? 0,
-  isUnlimited: p.isUnlimited ?? false,
-
-  sold: p.sold ?? 0,
-  views: p.views ?? 0,
-
-  ratingAvg: p.ratingAvg ?? 0,
-  ratingCount: p.ratingCount ?? 0,
-
-  isActive: p.isActive ?? true,
-  isFeatured: p.isFeatured ?? false,
-  isDigital: p.isDigital ?? false,
-
-  status: p.status ?? "active",
-
-  categoryId: p.categoryId ?? null,
-
-  saleStart: p.saleStart ?? null,
-  saleEnd: p.saleEnd ?? null,
-
-  metaTitle: p.metaTitle ?? "",
-  metaDescription: p.metaDescription ?? "",
-
-  createdAt: p.createdAt ?? "",
-  updatedAt: p.updatedAt ?? "",
-  deletedAt: p.deletedAt ?? null,
-
-  variants: Array.isArray(p.variants) ? p.variants : [],
-  shippingRates: Array.isArray(p.shippingRates) ? p.shippingRates : [],
-};
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
+      };
 
       setProduct(normalized);
 
-      const firstVariant =
+      const firstAvailableVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstVariant);
-
-      console.log("🚚 SHIPPING:", normalized.shippingRates);
-    } catch (err) {
-      console.error("LOAD PRODUCT ERROR", err);
+      setSelectedVariant(firstAvailableVariant);
+    } catch {
+      // không log sensitive
     } finally {
       setLoading(false);
     }
