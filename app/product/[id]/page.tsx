@@ -1,5 +1,6 @@
 
 "use client";
+import type { Product as ProductType } from "@/types/Product";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -55,28 +56,7 @@ interface ProductVariant {
   isActive?: boolean;
 }
 
-interface ApiProduct {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice?: number;
-  description?: string;
-  detail?: string;
-  views?: number;
-  sold?: number;
-  rating_avg?: number;
-  rating_count?: number;
-  thumbnail?: string;
-  images?: string[];
-  stock?: number;
-  isActive?: boolean;
-  categoryId?: string | null;
-  variants?: ProductVariant[];
-  shipping_rates?: {
-  zone: string;
-  price: number;
-}[];
-}
+
 
 interface Product {
   id: string;
