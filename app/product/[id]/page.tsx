@@ -1,7 +1,6 @@
 
 "use client";
-import type { Product as ProductType,ProductVariant } from "@/types/Product";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -46,7 +45,64 @@ function getDistance(touches: TouchList) {
    TYPES
 ======================= */
 
-type ApiProduct = ProductType;
+interface ProductVariant {
+  id?: string;
+  optionName?: string;
+  optionValue: string;
+  stock: number;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+interface ApiProduct {
+  id: string;
+  name: string;
+  price: number;
+  finalPrice?: number;
+  description?: string;
+  detail?: string;
+  views?: number;
+  sold?: number;
+  rating_avg?: number;
+  rating_count?: number;
+  thumbnail?: string;
+  images?: string[];
+  stock?: number;
+  isActive?: boolean;
+  categoryId?: string | null;
+  variants?: ProductVariant[];
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  finalPrice: number;
+  isSale: boolean;
+  description: string;
+  detail: string;
+  views: number;
+  sold: number;
+  ratingAvg: number;
+  ratingCount: number;
+  thumbnail?: string;
+  images: string[];
+  stock: number;
+  isActive: boolean;
+  isOutOfStock: boolean;
+  categoryId: string | null;
+  variants: ProductVariant[];
+  shipping_rates: {
+  zone: string;
+  price: number;
+}[];
+}
+
 /* =======================
    PAGE
 ======================= */
@@ -58,8 +114,8 @@ export default function ProductDetail() {
   const router = useRouter();
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<ProductType | null>(null);
-const [products, setProducts] = useState<ProductType[]>([]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -72,15 +128,15 @@ const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
-  const lastTapRef = useRef(0);
+  let lastTap = 0;
 
 const handleDoubleTap = () => {
   const now = Date.now();
-  if (now - lastTapRef.current < 300) {
+  if (now - lastTap < 300) {
     setScale(scale === 1 ? 2 : 1);
     setPosition({ x: 0, y: 0 });
   }
-  lastTapRef.current = now;
+  lastTap = now;
 };
 
   /* =======================
@@ -92,32 +148,73 @@ const handleDoubleTap = () => {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
-      const data = await res.json();
+      const data: unknown = await res.json();
 
       if (!data || typeof data !== "object") return;
 
-      const api = data as ProductType;
+      const api = data as ApiProduct;
 
-      const normalized: ProductType = {
-        ...api,
-        finalPrice:
-          typeof api.finalPrice === "number"
-            ? api.finalPrice
-            : typeof api.salePrice === "number" &&
-              api.salePrice < api.price
-            ? api.salePrice
-            : api.price,
+      const finalPrice =
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
+
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
+
+        description: api.description ?? "",
+        detail: api.detail ?? "",
+
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
+
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
+
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
+
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
       };
 
       setProduct(normalized);
 
-      const firstVariant =
+      const firstAvailableVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstVariant);
+      setSelectedVariant(firstAvailableVariant);
     } catch {
+      // không log sensitive
     } finally {
       setLoading(false);
     }
@@ -135,13 +232,23 @@ const handleDoubleTap = () => {
 
       if (!Array.isArray(data)) return;
 
-      const normalized: ProductType[] = data.map((p: ProductType) => ({
-        ...p,
-        finalPrice:
-          typeof p.salePrice === "number" && p.salePrice < p.price
-            ? p.salePrice
-            : p.price,
-      }));
+      const normalized = data.map((api: ApiProduct) => {
+        const finalPrice =
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : api.price;
+
+        return {
+          id: api.id,
+          name: api.name,
+          price: api.price,
+          finalPrice,
+          isSale: finalPrice < api.price,
+          thumbnail: api.thumbnail ?? "",
+          images: Array.isArray(api.images) ? api.images : [],
+          categoryId: api.categoryId ?? null,
+        };
+      });
 
       setProducts(normalized);
     } catch (err) {
@@ -200,7 +307,7 @@ const selectedStock = hasVariants
 
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : product.stock > 0;
+  : !product.isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
@@ -436,7 +543,7 @@ const canBuy = hasVariants
         })}
       </div>
     </div>
-  ) : product.stock <= 0 ? (
+  ) : product.isOutOfStock ? (
     <span className="text-red-500 font-semibold">
       ❌ {t.out_of_stock}
     </span>
@@ -553,18 +660,17 @@ const canBuy = hasVariants
   open={openCheckout}
   onClose={() => setOpenCheckout(false)}
   product={{
-    id: product.id, 
-    variant_id: selectedVariant?.id ?? null, 
+    id: product.id,
+    variant_id: selectedVariant?.id ?? null,
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
-
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-shippingRates: product.shippingRates,
+    shippingRates: product.shippingRates, // ✅ CHUẨN
   }}
 />
     </div>
