@@ -113,21 +113,27 @@ const handleDoubleTap = () => {
           ? api.salePrice
           : api.price;
 
-      // ✅ normalize kiểu CŨ (AN TOÀN)
-      const normalized: ProductType = {
-        ...api,
+      const normalized: ProductType & {
+  isSale: boolean;
+  isOutOfStock: boolean;
+} = {
+  ...api,
 
-        finalPrice,
+  finalPrice,
 
-        // ✅ đảm bảo không undefined
-        images: Array.isArray(api.images) ? api.images : [],
-        variants: Array.isArray(api.variants) ? api.variants : [],
+  images: Array.isArray(api.images) ? api.images : [],
+  variants: Array.isArray(api.variants) ? api.variants : [],
 
-        // 🔥 QUAN TRỌNG: giữ đúng tên camelCase API
-        shippingRates: Array.isArray(api.shippingRates)
-          ? api.shippingRates
-          : [],
-      };
+  shippingRates: Array.isArray(api.shippingRates)
+    ? api.shippingRates
+    : [],
+
+  // 🔥 THÊM 2 DÒNG NÀY
+  isSale: finalPrice < api.price,
+  isOutOfStock:
+    (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+    api.isActive === false,
+};
 
       setProduct(normalized);
 
