@@ -1,6 +1,6 @@
 
 "use client";
-import type { Product as ProductType } from "@/types/Product";
+import type { Product as ProductType,ProductVariant } from "@/types/Product";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -46,16 +46,6 @@ function getDistance(touches: TouchList) {
    TYPES
 ======================= */
 
-interface ProductVariant {
-  id?: string;
-  optionName?: string;
-  optionValue: string;
-  stock: number;
-  sku?: string | null;
-  sortOrder?: number;
-  isActive?: boolean;
-}
-
 type ApiProduct = ProductType;
 /* =======================
    PAGE
@@ -82,15 +72,15 @@ const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
-  let lastTap = 0;
+  const lastTapRef = useRef(0);
 
 const handleDoubleTap = () => {
   const now = Date.now();
-  if (now - lastTap < 300) {
+  if (now - lastTapRef.current < 300) {
     setScale(scale === 1 ? 2 : 1);
     setPosition({ x: 0, y: 0 });
   }
-  lastTap = now;
+  lastTapRef.current = now;
 };
 
   /* =======================
@@ -107,12 +97,6 @@ const handleDoubleTap = () => {
       if (!data || typeof data !== "object") return;
 
       const api = data as ApiProduct;
-
-      const finalPrice =
-  typeof api.salePrice === "number" &&
-  api.salePrice < api.price
-    ? api.salePrice
-    : api.price;
 
       const normalized: ProductType = {
   ...api,
@@ -154,11 +138,13 @@ const handleDoubleTap = () => {
 
       if (!Array.isArray(data)) return;
 
-      const normalized = data as ProductType[];
-        const finalPrice =
-          typeof api.finalPrice === "number"
-            ? api.finalPrice
-            : api.price;
+      const normalized: ProductType[] = data.map((p: ProductType) => ({
+  ...p,
+  finalPrice:
+    typeof p.salePrice === "number" && p.salePrice < p.price
+      ? p.salePrice
+      : p.price,
+}));
 
         return {
           id: api.id,
@@ -229,7 +215,7 @@ const selectedStock = hasVariants
 
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : !product.isOutOfStock;
+  : product.stock > 0;
   /* =======================
      ACTIONS
   ======================= */
