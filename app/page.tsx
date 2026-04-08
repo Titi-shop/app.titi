@@ -110,8 +110,8 @@ function ProductCard({
             e.stopPropagation();
             onAddToCart(product);
             setAdded(true);
-            const timer = setTimeout(() => setAdded(false), 600);
-return () => clearTimeout(timer);
+            setAdded(true);
+            setTimeout(() => setAdded(false), 600);
           }}
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             added ? "bg-green-500 text-white scale-110" : "bg-white"
@@ -166,16 +166,16 @@ const {
 });
 
 const products = useMemo(() => {
-  if (!productsData) return [];
-  return productsData;
-}, [productsData]);
+  if (productsData) return productsData;
+  return fallbackProducts;
+}, [productsData, fallbackProducts]);
 
 const categories = useMemo(() => {
   if (!categoriesData) return [];
   return categoriesData;
 }, [categoriesData]);
-
-const loading = loadingProducts || loadingCategories;
+   const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
+  const loading = loadingProducts || loadingCategories;
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [sortType, setSortType] = useState("sale");
   const [timeLeft, setTimeLeft] = useState("");
@@ -186,34 +186,26 @@ const loading = loadingProducts || loadingCategories;
 
 const showMessage = (text: string, type: "error" | "success" = "error") => {
   setMessage({ text, type });
-
-  const timer = setTimeout(() => setMessage(null), 3000);
-  return () => clearTimeout(timer);
+  setTimeout(() => setMessage(null), 3000);
 };
 
   const handleAddToCart = (product: Product) => {
-  // ❌ sản phẩm bị tắt
   if (product.isActive === false) {
     showMessage(t.product_unavailable || "Product is unavailable");
     return;
   }
 
-  // ❗ có variants → bắt buộc chọn
+  // ✅ có variant → chuyển trang luôn
   if (product.variants?.length) {
-  router.push(`/product/${product.id}`);
-  return;
-}
-  showMessage(t.select_variant || "Please select size / variant");
-  return;
-}
+    router.push(`/product/${product.id}`);
+    return;
+  }
 
-  // ❗ hết hàng
   if (product.stock !== undefined && product.stock <= 0) {
     showMessage(t.out_of_stock || "Out of stock");
     return;
   }
 
-  // ✅ add thành công
   addToCart({
     id: product.id,
     name: product.name,
@@ -249,11 +241,18 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
     return () => clearInterval(interval);
   }, []);
   useEffect(() => {
-  if (productsData) {
-    localStorage.setItem("products", JSON.stringify(productsData));
+  if (!productsData) {
+    const cached = localStorage.getItem("products");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setFallbackProducts(parsed);
+        }
+      } catch {}
+    }
   }
 }, [productsData]);
-
 useEffect(() => {
   if (categoriesData) {
     localStorage.setItem("categories", JSON.stringify(categoriesData));
