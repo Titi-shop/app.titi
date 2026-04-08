@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { createReturn, getReturnsByBuyer } from "@/lib/db/orders";
-
-// ✅ THÊM Ở ĐÂY
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
-
-// ✅ THÊM Ở ĐÂY
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 /* =========================================================
    POST — CREATE RETURN
@@ -75,7 +67,7 @@ export async function POST(req: NextRequest) {
 
         console.log("🟡 [UPLOAD] START:", fileName);
 
-        const { error } = await supabase.storage
+        const { error } = await supabaseAdmin.storage
           .from("returns")
           .upload(fileName, buffer, {
             contentType: file.type,
@@ -83,10 +75,13 @@ export async function POST(req: NextRequest) {
 
         if (error) {
           console.error("❌ [UPLOAD ERROR]:", error);
-          throw new Error("UPLOAD_FAILED");
+          return NextResponse.json(
+     { error: "UPLOAD_FAILED" },
+      { status: 500 }
+       );
         }
 
-        const { data } = supabase.storage
+        const { data } = supabaseAdmin.storage
           .from("returns")
           .getPublicUrl(fileName);
 
