@@ -1,5 +1,6 @@
 
 "use client";
+import type { Product as ProductType } from "@/types/Product";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -55,54 +56,7 @@ interface ProductVariant {
   isActive?: boolean;
 }
 
-interface ApiProduct {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice?: number;
-  description?: string;
-  detail?: string;
-  views?: number;
-  sold?: number;
-  rating_avg?: number;
-  rating_count?: number;
-  thumbnail?: string;
-  images?: string[];
-  stock?: number;
-  isActive?: boolean;
-  categoryId?: string | null;
-  variants?: ProductVariant[];
-  shipping_rates?: {
-  zone: string;
-  price: number;
-}[];
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice: number;
-  isSale: boolean;
-  description: string;
-  detail: string;
-  views: number;
-  sold: number;
-  ratingAvg: number;
-  ratingCount: number;
-  thumbnail?: string;
-  images: string[];
-  stock: number;
-  isActive: boolean;
-  isOutOfStock: boolean;
-  categoryId: string | null;
-  variants: ProductVariant[];
-  shipping_rates: {
-  zone: string;
-  price: number;
-}[];
-}
-
+type ApiProduct = ProductType;
 /* =======================
    PAGE
 ======================= */
@@ -114,8 +68,8 @@ export default function ProductDetail() {
   const router = useRouter();
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [product, setProduct] = useState<ProductType | null>(null);
+const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -160,50 +114,18 @@ const handleDoubleTap = () => {
     ? api.salePrice
     : api.price;
 
-      const normalized: Product = {
-        id: api.id,
-        name: api.name,
-        price: api.price,
-        finalPrice,
-        isSale: finalPrice < api.price,
+      const normalized: ProductType = {
+  ...api,
 
-        description: api.description ?? "",
-        detail: api.detail ?? "",
+  ratingAvg: api.ratingAvg ?? 0,
+  ratingCount: api.ratingCount ?? 0,
 
-        views: api.views ?? 0,
-        sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
-
-        thumbnail: api.thumbnail ?? "",
-        images: Array.isArray(api.images) ? api.images : [],
-        categoryId: api.categoryId ?? null,
-
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
-        isActive: api.isActive !== false,
-        isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
-
-        variants: Array.isArray(api.variants)
-          ? api.variants
-          : [],
-        shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates.filter(
-      (r) =>
-        r &&
-        typeof r.zone === "string" &&
-        typeof r.price === "number"
-    )
-  : [],
-      };
+  finalPrice:
+    typeof api.salePrice === "number" &&
+    api.salePrice < api.price
+      ? api.salePrice
+      : api.price,
+};
 
       setProduct(normalized);
 
@@ -232,7 +154,7 @@ const handleDoubleTap = () => {
 
       if (!Array.isArray(data)) return;
 
-      const normalized = data.map((api: ApiProduct) => {
+      const normalized = data as ProductType[];
         const finalPrice =
           typeof api.finalPrice === "number"
             ? api.finalPrice
@@ -671,7 +593,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-    shipping_rates: product.shipping_rates,
+shippingRates: product.shippingRates,
   }}
 />
     </div>
