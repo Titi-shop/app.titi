@@ -1,5 +1,5 @@
 
- "use client";
+"use client";
 import type { Product as ProductType } from "@/types/Product";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -607,5 +607,3 @@ const canBuy = hasVariants
     </div>
   );
 }
-
-😂😂😂😂
