@@ -7,7 +7,7 @@ import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-
+import useSWR from "swr";
 /* ================= TYPES ================= */
 
 type Category = {
@@ -66,7 +66,12 @@ export default function CategoriesClient() {
 
   /* ================= LOAD DATA (OPTIMIZED) ================= */
 useEffect(() => {
+  const prev = document.body.style.background;
   document.body.style.background = "#f9fafb";
+
+  return () => {
+    document.body.style.background = prev;
+  };
 }, []);
   const {
   data: categoriesData,
@@ -193,7 +198,7 @@ const loading = loadingCategories || loadingProducts;
               </span>
             </button>
 
-            {categories.map((c) => {
+            {categories?.map((c) => {
               const active = activeCategoryId == c.id;
 
               return (
@@ -242,9 +247,11 @@ const loading = loadingCategories || loadingProducts;
     <div className="grid grid-cols-2 gap-2">
       {visibleProducts.map((p) => (
         <Link key={p.id} href={`/product/${p.id}`}>
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="bg-white rounded-xl border overflow-hidden relative">
             <Image
-              src={p.thumbnail || "/placeholder.png"}
+              src={p.thumbnail && p.thumbnail.startsWith("http")
+             ? p.thumbnail
+              : "/placeholder.png"}
               alt={p.name}
               width={300}
               height={300}
