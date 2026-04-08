@@ -1,12 +1,12 @@
 "use client";
 import type { Product } from "@/types/Product";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
-import { useRef } from "react";
+import useSWR from "swr";
 
 /* =========================
    PI TYPE
@@ -77,6 +77,21 @@ interface Message {
   text: string;
   type: "error" | "success";
 }
+interface PreviewItem {
+  product_id: string;
+  quantity: number;
+}
+
+interface PreviewPayload {
+  country: string;
+  zone: Region;
+  items: PreviewItem[];
+}
+
+interface PreviewResponse {
+  shipping_fee: number;
+  total: number;
+}
 
 interface Props {
   open: boolean;
@@ -86,6 +101,28 @@ interface Props {
   };
 }
 
+const previewFetcher = async (
+  [url, payload]: [string, PreviewPayload]
+): Promise<PreviewResponse> => {
+  const token = await getPiAccessToken();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.error || "PREVIEW_FAILED");
+  }
+
+  return data as PreviewResponse;
+};
 /* ========================= */
 
 function getCountryDisplay(country?: string) {
@@ -140,6 +177,31 @@ const quantity = useMemo(() => {
   const n = Number(qtyDraft);
   return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
 }, [qtyDraft, maxStock]);
+   const previewKey: [string, PreviewPayload] | null =
+  open && shipping?.country && zone && item
+    ? [
+        "/api/orders/preview",
+        {
+          country: shipping.country.toUpperCase(),
+          zone,
+          items: [
+            {
+              product_id: item.id,
+              quantity,
+            },
+          ],
+        },
+      ]
+    : null;
+
+const {
+  data: preview,
+  error: previewError,
+  isLoading: previewLoading,
+} = useSWR<PreviewResponse, Error>(previewKey, previewFetcher, {
+  dedupingInterval: 3000,
+  revalidateOnFocus: false,
+});
 
   /* =========================
      LOAD ADDRESS
@@ -209,6 +271,12 @@ const quantity = useMemo(() => {
   }, 300);
 }, [user, shipping, processing]);
 
+   useEffect(() => {
+  if (!previewError) return;
+
+  showMessage(t[getErrorKey(previewError.message)]);
+}, [previewError]);
+
   /* ========================= */
 
   const unitPrice = useMemo(() => {
@@ -226,28 +294,14 @@ const quantity = useMemo(() => {
   });
 }, [shipping?.country, product.shippingRates]);
 
-   const shippingFee = useMemo(() => {
-  if (!zone) return 0;
- console.log("❌ NO SHIPPING RATES");
-  console.log("👉 SELECTED ZONE:", zone);
-  console.log("👉 RATES:", product.shippingRates);
+   const shippingFee = preview?.shipping_fee ?? 0;
 
-   const found = availableRegions.find(
-    (r) => r.zone === zone
-  );
-  console.log("👉 FOUND:", found);
+const shippingFee = preview?.shipping_fee ?? 0;
 
-  return found?.price ?? 0;
-}, [zone, availableRegions]);
-
-  const total = useMemo(
-  () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
-  [unitPrice, quantity, shippingFee]
-);
-
-   const previewOrder = async () => {
-  try {
-    console.log("🟡 PREVIEW START");
+const total = useMemo(() => {
+  if (preview) return preview.total;
+  return unitPrice * quantity + shippingFee;
+}, [preview, unitPrice, quantity, shippingFee]);
 
     const token = await getPiAccessToken();
 
@@ -363,10 +417,10 @@ console.log("🟡 [CHECKOUT][FINAL_DATA]", {
   const handlePay = useCallback(async () => {
      console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
-const ok = await previewOrder();
-if (!ok) {
-  console.log("🔴 PREVIEW BLOCK PAYMENT");
+if (!preview) {
+  showMessage(t.order_preview_error);
   return;
+
 }
 if (processingRef.current) return;
 
@@ -671,6 +725,11 @@ callback();
   <p className="font-semibold text-orange-600 text-lg">
     {formatPi(total)} π
   </p>
+       {previewLoading && (
+  <p className="text-xs text-gray-400">
+    Đang tính phí...
+  </p>
+)}
 
   {!user && (
     <p className="text-xs text-red-500">
