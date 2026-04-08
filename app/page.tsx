@@ -55,9 +55,11 @@ interface Category {
 /* ================= HELPERS ================= */
 
 function getMainImage(product: Product) {
-  return product.thumbnail || "/placeholder.png";
+  if (product.thumbnail && product.thumbnail.trim().startsWith("http")) {
+    return product.thumbnail;
+  }
+  return "/placeholder.png";
 }
-
 /* ================= PRODUCT CARD ================= */
 
 function ProductCard({
@@ -82,7 +84,11 @@ function ProductCard({
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
-      className="bg-white rounded-xl border shadow-sm overflow-hidden cursor-pointer active:scale-[0.97] transition-transform"
+    className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-transform ${
+  product.stock === 0
+    ? "opacity-50 pointer-events-none"
+    : "cursor-pointer active:scale-[0.97]"
+}`}
     >
       <div className="relative">
         <Image
@@ -104,7 +110,8 @@ function ProductCard({
             e.stopPropagation();
             onAddToCart(product);
             setAdded(true);
-            setTimeout(() => setAdded(false), 600);
+            const timer = setTimeout(() => setAdded(false), 600);
+return () => clearTimeout(timer);
           }}
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             added ? "bg-green-500 text-white scale-110" : "bg-white"
@@ -142,11 +149,36 @@ export default function HomePage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const { t } = useTranslation();
+  const {
+  data: productsData,
+  isLoading: loadingProducts,
+} = useSWR<Product[]>("/api/products", fetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 5000,
+});
+
+const {
+  data: categoriesData,
+  isLoading: loadingCategories,
+} = useSWR<Category[]>("/api/categories", fetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 10000,
+});
+
+const products = useMemo(() => {
+  if (!productsData) return [];
+  return productsData;
+}, [productsData]);
+
+const categories = useMemo(() => {
+  if (!categoriesData) return [];
+  return categoriesData;
+}, [categoriesData]);
+
+const loading = loadingProducts || loadingCategories;
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [sortType, setSortType] = useState("sale");
   const [timeLeft, setTimeLeft] = useState("");
-
-
   const [message, setMessage] = useState<{
   text: string;
   type: "error" | "success";
@@ -167,7 +199,10 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   }
 
   // ❗ có variants → bắt buộc chọn
-  if (product.variants && product.variants.length > 0) {
+  if (product.variants?.length) {
+  router.push(`/product/${product.id}`);
+  return;
+}
   showMessage(t.select_variant || "Please select size / variant");
   return;
 }
@@ -312,7 +347,7 @@ if (loading && products.length === 0) {
 
           <div className="flex gap-3 overflow-x-auto">
             {products
-              .filter((p) => p.isSale)
+               ?.filter((p) => p.isSale)
               .slice(0, 10)
               .map((p) => (
                 <div
