@@ -109,21 +109,62 @@ const handleDoubleTap = () => {
       const p = data as Partial<ProductType>;
 
 const normalized: ProductType = {
-  ...p,
+  id: p.id ?? "",
+  sellerId: p.sellerId ?? "",
 
-  shippingRates: Array.isArray(p.shippingRates)
-    ? p.shippingRates
-    : [],
+  name: p.name ?? "",
+  slug: p.slug ?? "",
 
-  variants: Array.isArray(p.variants) ? p.variants : [],
+  shortDescription: p.shortDescription ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+
+  thumbnail: p.thumbnail ?? "",
   images: Array.isArray(p.images) ? p.images : [],
+  detailImages: Array.isArray(p.detailImages) ? p.detailImages : [],
 
+  videoUrl: p.videoUrl ?? "",
+
+  price: p.price ?? 0,
+  salePrice: p.salePrice ?? null,
   finalPrice:
     typeof p.finalPrice === "number"
       ? p.finalPrice
       : typeof p.salePrice === "number" && p.salePrice < (p.price ?? 0)
       ? p.salePrice
       : p.price ?? 0,
+
+  currency: p.currency ?? "PI",
+
+  stock: p.stock ?? 0,
+  isUnlimited: p.isUnlimited ?? false,
+
+  sold: p.sold ?? 0,
+  views: p.views ?? 0,
+
+  ratingAvg: p.ratingAvg ?? 0,
+  ratingCount: p.ratingCount ?? 0,
+
+  isActive: p.isActive ?? true,
+  isFeatured: p.isFeatured ?? false,
+  isDigital: p.isDigital ?? false,
+
+  status: p.status ?? "active",
+
+  categoryId: p.categoryId ?? null,
+
+  saleStart: p.saleStart ?? null,
+  saleEnd: p.saleEnd ?? null,
+
+  metaTitle: p.metaTitle ?? "",
+  metaDescription: p.metaDescription ?? "",
+
+  createdAt: p.createdAt ?? "",
+  updatedAt: p.updatedAt ?? "",
+  deletedAt: p.deletedAt ?? null,
+
+  variants: Array.isArray(p.variants) ? p.variants : [],
+  shippingRates: Array.isArray(p.shippingRates) ? p.shippingRates : [],
 };
 
       setProduct(normalized);
