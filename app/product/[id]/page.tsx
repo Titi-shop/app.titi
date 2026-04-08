@@ -147,8 +147,10 @@ const handleDoubleTap = () => {
         variants: Array.isArray(api.variants)
           ? api.variants
           : [],
-        shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates.filter(
+        variants: Array.isArray(p.variants) ? p.variants : [],
+  shippingRates: Array.isArray(p.shippingRates)
+    ? p.shippingRates
+    (
       (r) =>
         r &&
         typeof r.zone === "string" &&
