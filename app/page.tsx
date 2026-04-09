@@ -294,15 +294,18 @@ useEffect(() => {
   }, [products, selectedCategory, sortType]);
 
   // CHỈ loading nếu KHÔNG có data
+// 🔥 Splash ưu tiên cao nhất
+if (showSplash) {
+  return <SplashScreen />;
+}
+
+// 👉 Sau đó mới tới loading
 if (loading && products.length === 0) {
   return (
     <p className="text-center mt-10">
       {t.loading_products || "Loading products..."}
     </p>
   );
-}
-if (showSplash) {
-  return <SplashScreen />;
 }
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
