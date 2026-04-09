@@ -40,6 +40,7 @@ export default function OrderSummary() {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
       keepPreviousData: true, // 🔥 mượt
+      revalidateOnMount: true,
     }
   );
 
