@@ -13,7 +13,9 @@ export default function PiRootClient({ children }: { children: React.ReactNode }
       <PiProvider />
       <Toaster position="top-center" reverseOrder={false} />
       <Navbar />
-      <main style={{ paddingTop: "56px" }}>
+      <main className="bg-white">
+  {children}
+</main>
         {children}
       </main>
       <BottomNav />
