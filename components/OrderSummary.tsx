@@ -1,5 +1,5 @@
 "use client";
-
+import useSWR from "swr";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getPiAccessToken } from "@/lib/piAuth";
@@ -10,45 +10,46 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
 
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("FETCH_FAILED");
+
+  return res.json();
+};
 /* =========================
    COMPONENT
 ========================= */
 export default function OrderSummary() {
   const { t } = useTranslation();
   const router = useRouter();
-  const [counts, setCounts] = useState({
-  pending: 0,
-  pickup: 0,
-  shipping: 0,
-  completed: 0,
+  const counts = {
+  pending: data?.pending ?? 0,
+  pickup: data?.pickup ?? 0,
+  shipping: data?.shipping ?? 0,
+  completed: data?.completed ?? 0,
+};
+
+  const {
+  data,
+  isLoading,
+} = useSWR("/api/orders/count", fetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 5000,
 });
-  useEffect(() => {
-  async function loadCounts() {
-    try {
-      const token = await getPiAccessToken();
-
-      console.log("TOKEN:", token);
-
-      if (!token) return;
-
-      const res = await fetch("/api/orders/count", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-      console.log("DATA:", data);
-
-      setCounts(data);
-    } catch (err) {
-      console.log("ERROR:", err);
-    }
-  }
-
-  loadCounts();
-}, []);
+  if (isLoading) {
+  return (
+    <section className="bg-white mx-4 mt-4 rounded-xl shadow p-4 text-center text-gray-400">
+      {t.loading_orders || "Loading orders..."}
+    </section>
+  );
+}
 
   return (
     <section className="bg-white mx-4 mt-4 rounded-xl shadow border border-gray-100">
