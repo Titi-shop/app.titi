@@ -27,6 +27,8 @@ export default function CustomerMenu() {
   const isSeller = user?.role === "seller" || user?.role === "admin";
 
   async function handleSellerClick() {
+  if (sellerLoading) return;
+
   if (!user) {
     await pilogin();
     return;
@@ -42,6 +44,7 @@ export default function CustomerMenu() {
     setSellerMessage(null);
 
     const token = await getPiAccessToken();
+
     if (!token) {
       setSellerMessage(`⚠️ ${t.session_expired ?? "Session expired"}`);
       await pilogin();
@@ -49,12 +52,12 @@ export default function CustomerMenu() {
     }
 
     const res = await fetch("/api/seller/register", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-});
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     const data: unknown = await res.json().catch(() => null);
 
@@ -70,11 +73,12 @@ export default function CustomerMenu() {
       return;
     }
 
-    setSellerMessage(`✅ ${t.seller_request_sent ?? "Seller request sent. Please wait for approval."}`);
-    
+    setSellerMessage(
+      `✅ ${t.seller_request_sent ?? "Seller request sent"}`
+    );
   } catch (err) {
     console.error("SELLER REGISTER ERROR:", err);
-    setSellerMessage(`❌ ${t.system_error ?? "System error, please try again"}`);
+    setSellerMessage(`❌ ${t.system_error ?? "System error"}`);
   } finally {
     setSellerLoading(false);
   }
