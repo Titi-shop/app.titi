@@ -1,5 +1,5 @@
 "use client";
-
+import useSWR from "swr";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { UserCircle } from "lucide-react";
@@ -14,6 +14,34 @@ interface Profile {
   avatar?: string | null;
   avatar_url?: string | null;
 }
+const fetchProfile = async (): Promise<Profile | null> => {
+  try {
+    const token = await getPiAccessToken();
+
+    const res = await fetch("/api/profile", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const raw: unknown = await res.json();
+
+    if (
+      typeof raw === "object" &&
+      raw !== null &&
+      "profile" in raw
+    ) {
+      const profile = (raw as { profile?: Profile }).profile;
+      return profile ?? null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
 
 /* =========================
    COMPONENT
@@ -21,52 +49,22 @@ interface Profile {
 export default function AccountHeader() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [avatar, setAvatar] = useState<string | null>(null);
+   const { data: profile } = useSWR(
+  user ? "profile" : null,
+  fetchProfile,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  }
+);
 
   /* =========================
      LOAD PROFILE (NETWORK–FIRST)
   ========================= */
-  useEffect(() => {
-    if (!user) return;
-
-    const loadProfile = async () => {
-      try {
-        const token = await getPiAccessToken();
-
-        const res = await fetch("/api/profile", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        });
-
-        if (!res.ok) return;
-
-        const raw: unknown = await res.json();
-
-        if (
-          typeof raw === "object" &&
-          raw !== null &&
-          "profile" in raw
-        ) {
-          const profile = (raw as { profile?: Profile }).profile;
-
-          if (profile) {
-            setAvatar(
-              profile.avatar_url ??
-              profile.avatar ??
-              null
-            );
-          }
-        }
-      } catch (err) {
-        console.error("Load profile failed:", err);
-        setAvatar(null);
-      }
-    };
-
-    loadProfile();
-  }, [user]);
+const avatar =
+  profile?.avatar_url ??
+  profile?.avatar ??
+  null;
 
   if (!user) return null;
 
