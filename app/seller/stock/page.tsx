@@ -284,10 +284,7 @@ export default function SellerStockPage() {
   /* =========================
      LOADING
   ========================= */
-
-  <div className="space-y-4">
-  {(pageLoading ? Array.from({ length: 5 }) : products).map((product, i) => {
-    if (pageLoading) {
+   const now = new Date();
       return (
         <div
           key={i}
@@ -303,8 +300,6 @@ export default function SellerStockPage() {
         </div>
       );
     }
-
-    // 👉 render product thật ở đây
 
   /* =========================
      UI
@@ -423,147 +418,123 @@ const now = new Date();
 
         {/* PRODUCT LIST */}
 
-       <div className="space-y-4">
-  {products.map((product) => {
-    const isSale = isProductOnSale(product);
-    const isOut = (product.stock ?? 0) <= 0;
-    const isOff = product.isActive === false;
-
-    const start = product.saleStart ? new Date(product.saleStart) : null;
-    const end = product.saleEnd ? new Date(product.saleEnd) : null;
-
-    const upcoming =
-      product.salePrice !== null &&
-      start !== null &&
-      now < start;
-
-    const ended =
-      product.salePrice !== null &&
-      end !== null &&
-      now > end;
-
-  // ✅ BADGE (chuẩn nhất)
-  const badge:
-  | { text: string; className: string }
-  | null =
-  isOut
-    ? { text: t.out_of_stock, className: "badge badge-out" }
-    : isOff
-    ? { text: t.inactive, className: "badge badge-off" }
-    : isSale
-    ? { text: "SALE", className: "badge badge-sale" }
-    : upcoming
-    ? { text: t.upcoming, className: "badge badge-upcoming" }
-    : ended
-    ? { text: t.ended, className: "badge badge-ended" }
-    : null;
-
-  return (
-    <div
-      key={product.id}
-      onClick={() => router.push(`/product/${product.id}`)}
-      className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
-    >
-
-      {/* IMAGE */}
-      <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
-
-        {badge && (
-          <span className={`absolute top-1 left-1 z-10 ${badge.className}`}>
-            {badge.text}
-          </span>
-        )}
-
-        {product.thumbnail ? (
-          <Image
-            src={product.thumbnail}
-            alt={product.name}
-            fill
-             unoptimized
-            className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-            {t.no_image}
+<div className="space-y-4">
+  {pageLoading
+    ? Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex gap-3 p-3 bg-white rounded-xl shadow animate-pulse"
+        >
+          <div className="w-24 h-24 bg-gray-200 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="h-4 bg-gray-200 rounded w-1/2" />
+            <div className="h-3 bg-gray-200 rounded w-1/3" />
           </div>
-        )}
-
-      </div>
-
-      {/* CONTENT */}
-      <div className="flex-1 min-w-0">
-
-        <h3 className="font-semibold text-sm line-clamp-2">
-          {product.name}
-        </h3>
-
-        {/* PRICE */}
-        <div className="mt-1">
-          {isSale ? (
-            <>
-              <p className="text-xs text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-              <p className="text-[#ff6600] font-bold">
-                {formatPi(product.salePrice)} π
-              </p>
-            </>
-          ) : (
-            <p className="text-[#ff6600] font-bold">
-              {formatPi(product.price)} π
-            </p>
-          )}
         </div>
+      ))
+    : products.map((product) => {
+        const isSale = isProductOnSale(product);
+        const isOut = (product.stock ?? 0) <= 0;
+        const isOff = product.isActive === false;
 
-        {/* TIME */}
-        {product.saleStart && (
-          <p className="text-xs text-gray-500">
-            {t.sale_start}: {new Date(product.saleStart).toLocaleString()}
-          </p>
-        )}
+        const start = product.saleStart ? new Date(product.saleStart) : null;
+        const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
-        {product.saleEnd && (
-          <p className="text-xs text-gray-500">
-            {t.sale_end}: {new Date(product.saleEnd).toLocaleString()}
-          </p>
-        )}
+        const upcoming =
+          product.salePrice !== null &&
+          start !== null &&
+          now < start;
 
-        {/* ACTION */}
-        <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
-          <span>⭐ {product.ratingAvg ?? 0}</span>
-          <span>📦 {product.stock ?? 0}</span>
-          <span>🛒 {product.sold ?? 0}</span>
+        const ended =
+          product.salePrice !== null &&
+          end !== null &&
+          now > end;
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/seller/edit/${product.id}`);
-            }}
-            className="text-green-600"
+        const badge =
+          isOut
+            ? { text: t.out_of_stock, className: "badge badge-out" }
+            : isOff
+            ? { text: t.inactive, className: "badge badge-off" }
+            : isSale
+            ? { text: "SALE", className: "badge badge-sale" }
+            : upcoming
+            ? { text: t.upcoming, className: "badge badge-upcoming" }
+            : ended
+            ? { text: t.ended, className: "badge badge-ended" }
+            : null;
+
+        return (
+          <div
+            key={product.id}
+            onClick={() => router.push(`/product/${product.id}`)}
+            className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
           >
-            {t.edit}
-          </button>
+            <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
+              {badge && (
+                <span className={`absolute top-1 left-1 z-10 ${badge.className}`}>
+                  {badge.text}
+                </span>
+              )}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(product.id);
-            }}
-            className="text-red-600"
-          >
-            {t.delete}
-          </button>
-        </div>
+              <Image
+                src={product.thumbnail || "/placeholder.png"}
+                alt={product.name}
+                fill
+                unoptimized
+                className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
+              />
+            </div>
 
-      </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm line-clamp-2">
+                {product.name}
+              </h3>
 
-    </div>
-  );
-})}
-        </div>
+              <div className="mt-1">
+                {isSale ? (
+                  <>
+                    <p className="text-xs text-gray-400 line-through">
+                      {formatPi(product.price)} π
+                    </p>
+                    <p className="text-[#ff6600] font-bold">
+                      {formatPi(product.salePrice)} π
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[#ff6600] font-bold">
+                    {formatPi(product.price)} π
+                  </p>
+                )}
+              </div>
 
-      </div>
+              <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
+                <span>⭐ {product.ratingAvg ?? 0}</span>
+                <span>📦 {product.stock ?? 0}</span>
+                <span>🛒 {product.sold ?? 0}</span>
 
-    </main>
-  );
-}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/seller/edit/${product.id}`);
+                  }}
+                  className="text-green-600"
+                >
+                  {t.edit}
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(product.id);
+                  }}
+                  className="text-red-600"
+                >
+                  {t.delete}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+</div>
