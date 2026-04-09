@@ -423,23 +423,24 @@ const now = new Date();
 
         {/* PRODUCT LIST */}
 
-        <div className="space-y-4">
-  const isSale = isProductOnSale(product); 
-  const isOut = (product.stock ?? 0) <= 0;
-  const isOff = product.isActive === false;
+       <div className="space-y-4">
+  {products.map((product) => {
+    const isSale = isProductOnSale(product);
+    const isOut = (product.stock ?? 0) <= 0;
+    const isOff = product.isActive === false;
 
-  const start = product.saleStart ? new Date(product.saleStart) : null;
-  const end = product.saleEnd ? new Date(product.saleEnd) : null;
+    const start = product.saleStart ? new Date(product.saleStart) : null;
+    const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
-  const upcoming =
-    product.salePrice !== null &&
-    start !== null &&
-    now < start;
+    const upcoming =
+      product.salePrice !== null &&
+      start !== null &&
+      now < start;
 
-  const ended =
-    product.salePrice !== null &&
-    end !== null &&
-    now > end;
+    const ended =
+      product.salePrice !== null &&
+      end !== null &&
+      now > end;
 
   // ✅ BADGE (chuẩn nhất)
   const badge:
