@@ -13,7 +13,7 @@ export default function PiRootClient({ children }: { children: React.ReactNode }
       <PiProvider />
       <Toaster position="top-center" reverseOrder={false} />
       <Navbar />
-      <main className="pt-[72px] bg-white">
+      <main className="bg-white">
         {children}
       </main>
       <BottomNav />
