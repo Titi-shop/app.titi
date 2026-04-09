@@ -60,9 +60,10 @@ export default function CategoriesClient() {
   } | null>(null);
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 2500);
-  };
+  setMessage({ text, type });
+  const timer = setTimeout(() => setMessage(null), 2500);
+  return () => clearTimeout(timer);
+};
 
   /* ================= LOAD DATA (OPTIMIZED) ================= */
 useEffect(() => {
@@ -81,7 +82,10 @@ useEffect(() => {
 const {
   data: productsData,
   isLoading: loadingProducts,
-} = useSWR<Product[]>("/api/products", fetcher);
+} = useSWR<Product[]>("/api/products", fetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 5000,
+});
 
   const categories = useMemo(() => {
   if (!categoriesData) return [];
@@ -104,8 +108,8 @@ const loading = loadingCategories || loadingProducts;
   if (activeCategoryId === null) return products;
 
   return products.filter(
-    (p) => String(p.categoryId) === String(activeCategoryId)
-  );
+  (p) => p.categoryId == activeCategoryId
+);
 }, [products, activeCategoryId]);
 
   /* ================= ADD TO CART ================= */
@@ -123,6 +127,11 @@ const loading = loadingCategories || loadingProducts;
     showMessage(t.out_of_stock || "Out of stock");
     return;
   }
+
+  // 👉 điều hướng luôn
+  window.location.href = `/product/${product.id}`;
+  return;
+}
 
   showMessage(t.select_variant || "Select variant");
   return;
@@ -249,9 +258,11 @@ const loading = loadingCategories || loadingProducts;
         <Link key={p.id} href={`/product/${p.id}`}>
           <div className="bg-white rounded-xl border overflow-hidden relative">
             <Image
-              src={p.thumbnail && p.thumbnail.startsWith("http")
-             ? p.thumbnail
-              : "/placeholder.png"}
+              src={
+            p.thumbnail && p.thumbnail.trim().startsWith("http")
+           ? p.thumbnail
+           : "/placeholder.png"
+            }
               alt={p.name}
               width={300}
               height={300}
