@@ -34,9 +34,8 @@ interface Product {
   name: string;
   price: number;
   finalPrice: number;
-  isSale: boolean;
   thumbnail?: string;
-  
+
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
@@ -59,6 +58,9 @@ function getMainImage(product: Product) {
   }
   return "/placeholder.png";
 }
+function isProductOnSale(p: Product) {
+  return p.finalPrice < p.price;
+}
 /* ================= PRODUCT CARD ================= */
 
 function ProductCard({
@@ -72,7 +74,7 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
-
+const isSale = isProductOnSale(product);
   const discount =
     product.price > 0
       ? Math.round(
@@ -98,7 +100,7 @@ function ProductCard({
           className="w-full h-44 object-cover"
         />
 
-        {product.isSale && (
+        {isSale && (
           <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
             -{discount}%
           </div>
@@ -127,7 +129,7 @@ function ProductCard({
           {formatPi(product.finalPrice ?? product.price)} π
         </p>
 
-        {product.isSale && (
+        {isSale && (
           <p className="text-xs text-gray-400 line-through">
             {formatPi(product.price)} π
           </p>
@@ -271,8 +273,8 @@ useEffect(() => {
     if (sortType === "sold") {
       list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
     } else if (sortType === "sale") {
-      list.sort((a, b) => Number(b.isSale) - Number(a.isSale));
-    }
+  list = list.filter((p) => isProductOnSale(p));
+}
 
     return list;
   }, [products, selectedCategory, sortType]);
@@ -324,8 +326,8 @@ if (loading && products.length === 0) {
           </div>
 
           <div className="flex gap-3 overflow-x-auto">
-            {products
-               ?.filter((p) => p.isSale)
+            products
+  ?.filter((p) => isProductOnSale(p))
               .slice(0, 10)
               .map((p) => (
                 <div
