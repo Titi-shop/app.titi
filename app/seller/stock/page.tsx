@@ -296,7 +296,7 @@ export default function SellerStockPage() {
   /* =========================
      UI
   ========================= */
-
+const now = new Date();
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
 
@@ -411,8 +411,6 @@ export default function SellerStockPage() {
         {/* PRODUCT LIST */}
 
         <div className="space-y-4">
-
-const now = new Date();
 {products.map((product) => {
   const isSale = isProductOnSale(product); 
   const isOut = (product.stock ?? 0) <= 0;
