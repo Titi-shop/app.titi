@@ -333,6 +333,8 @@ const now = new Date();
   alt="avatar"
   fill
   priority
+  placeholder="blur"
+  blurDataURL="/avatar.png"
   className="object-cover"
 />
   </div>
