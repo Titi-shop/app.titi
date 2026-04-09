@@ -9,13 +9,6 @@ export default function PiLoginPage() {
   const { loading, user } = useAuth();
 
   useEffect(() => {
-  const token = localStorage.getItem("pi_access_token");
-
-  if (token) {
-    router.replace("/account");
-    return;
-  }
-
   if (loading) return;
 
   if (user) {
