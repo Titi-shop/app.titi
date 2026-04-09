@@ -517,7 +517,9 @@ const now = new Date();
             </div>
           </div>
         );
-      })}
-</div>
-         );
-         }
+    })}
+        </div>
+      </div>
+    </main>
+  );
+}
