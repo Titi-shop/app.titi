@@ -296,14 +296,14 @@ const now = new Date();
 
   {/* BANNER */}
   <div className="relative w-full h-40 rounded-xl overflow-hidden">
-    <Image
-      src={shop.shop_banner || "/banners/default-shop.png"}
-      alt="Shop banner"
-      fill
-      priority
-      unoptimized
-      className="object-cover"
-    />
+   <Image
+  src={shop.shop_banner || "/banners/default-shop.png"}
+  alt="Shop banner"
+  fill
+  priority
+  sizes="100vw"
+  className="object-cover"
+/>
 
     {/* CHANGE BANNER */}
     <label className="absolute top-3 left-3 bg-black/60 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
@@ -328,12 +328,13 @@ const now = new Date();
 
   {/* AVATAR (ĐÈ 50%) */}
   <div className="absolute left-4 -bottom-12 w-24 h-24 border-4 border-white rounded-full overflow-hidden bg-white shadow">
-    <Image
-      src={shop.avatar_url || "/avatar.png"}
-      alt="avatar"
-      fill
-      className="object-cover"
-    />
+<Image
+  src={shop.avatar_url || "/avatar.png"}
+  alt="avatar"
+  fill
+  priority
+  className="object-cover"
+/>
   </div>
 
 </div>
@@ -458,13 +459,16 @@ const now = new Date();
                 </span>
               )}
 
-              <Image
-                src={product.thumbnail || "/placeholder.png"}
-                alt={product.name}
-                fill
-                unoptimized
-                className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
-              />
+     <Image
+    src={product.thumbnail || "/placeholder.png"}
+  alt={product.name}
+  fill
+       unoptimized
+      onError={(e) => {
+    (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
+         }}
+          className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
+           />
             </div>
 
             <div className="flex-1 min-w-0">
