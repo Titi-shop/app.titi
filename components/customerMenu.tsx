@@ -1,5 +1,5 @@
 "use client";
-import useSWR from "swr";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,100 +15,72 @@ import {
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
-const fetcher = async (url: string) => {
-  const token = await getPiAccessToken();
-  if (!token) return null;
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) return null;
-
-  return res.json();
-};
 
 export default function CustomerMenu() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, pilogin } = useAuth();
-  const [sellerLoading, setSellerLoading] = useState(false);
-  const [sellerMessage, setSellerMessage] = useState<string | null>(null);
-  const isSeller = user?.role === "seller" || user?.role === "admin";
-  export default function CustomerMenu() {
-  const router = useRouter();
-  const { t } = useTranslation();
-  const { user, pilogin } = useAuth();
 
   const [sellerLoading, setSellerLoading] = useState(false);
   const [sellerMessage, setSellerMessage] = useState<string | null>(null);
 
   const isSeller = user?.role === "seller" || user?.role === "admin";
-  const { data: profile } = useSWR(
-    user ? "/api/profile" : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  );
+
   async function handleSellerClick() {
-  if (sellerLoading) return;
+    if (sellerLoading) return;
 
-  if (!user) {
-    await pilogin();
-    return;
-  }
-
-  if (isSeller) {
-    router.push("/seller");
-    return;
-  }
-
-  try {
-    setSellerLoading(true);
-    setSellerMessage(null);
-
-    const token = await getPiAccessToken();
-
-    if (!token) {
-      setSellerMessage(`⚠️ ${t.session_expired ?? "Session expired"}`);
+    if (!user) {
       await pilogin();
       return;
     }
 
-    const res = await fetch("/api/seller/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const data: unknown = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const err =
-        typeof data === "object" &&
-        data !== null &&
-        "error" in data
-          ? String((data as { error: string }).error)
-          : t.register_failed ?? "Register failed";
-
-      setSellerMessage(`❌ ${err}`);
+    if (isSeller) {
+      router.push("/seller");
       return;
     }
 
-    setSellerMessage(
-      `✅ ${t.seller_request_sent ?? "Seller request sent"}`
-    );
-  } catch (err) {
-    console.error("SELLER REGISTER ERROR:", err);
-    setSellerMessage(`❌ ${t.system_error ?? "System error"}`);
-  } finally {
-    setSellerLoading(false);
+    try {
+      setSellerLoading(true);
+      setSellerMessage(null);
+
+      const token = await getPiAccessToken();
+
+      if (!token) {
+        setSellerMessage(`⚠️ ${t.session_expired ?? "Session expired"}`);
+        await pilogin();
+        return;
+      }
+
+      const res = await fetch("/api/seller/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data: unknown = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const err =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data
+            ? String((data as { error: string }).error)
+            : t.register_failed ?? "Register failed";
+
+        setSellerMessage(`❌ ${err}`);
+        return;
+      }
+
+      setSellerMessage(`✅ ${t.seller_request_sent ?? "Seller request sent"}`);
+    } catch (err) {
+      console.error("SELLER REGISTER ERROR:", err);
+      setSellerMessage(`❌ ${t.system_error ?? "System error"}`);
+    } finally {
+      setSellerLoading(false);
+    }
   }
-}
 
   const customerMenuItems = [
     { label: t.profile, icon: <User size={22} />, path: "/customer/profile" },
@@ -144,12 +116,10 @@ export default function CustomerMenu() {
             disabled={sellerLoading && item.onClick !== undefined}
             className="flex flex-col items-center justify-start h-[96px] text-gray-700 hover:text-orange-500 transition disabled:opacity-60"
           >
-            {/* ICON */}
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 shadow-sm mb-2">
               {item.icon}
             </div>
 
-            {/* LABEL */}
             <span className="text-[11px] font-medium leading-snug text-center line-clamp-2 max-w-[72px]">
               {item.label}
             </span>
