@@ -18,7 +18,10 @@ export default function Navbar() {
   }, [cart]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-orange-500 p-3 text-white flex justify-between items-center shadow-md z-50">
+    <header
+  style={{ height: "56px" }}
+  className="fixed top-0 left-0 right-0 bg-orange-500 px-3 flex items-center justify-between z-50"
+>
       
       {/* 🛒 Icon giỏ hàng */}
       <Link
