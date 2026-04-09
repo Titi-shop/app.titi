@@ -74,7 +74,6 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
 const isSale = isProductOnSale(product);
   const discount =
     product.price > 0
@@ -147,9 +146,11 @@ const isSale = isProductOnSale(product);
 /* ================= PAGE ================= */
 
 export default function HomePage() {
+  
   const router = useRouter();
   const { addToCart } = useCart();
   const { t } = useTranslation();
+  const [showSplash, setShowSplash] = useState(true);
   const {
   data: productsData,
   isLoading: loadingProducts,
@@ -280,13 +281,14 @@ useEffect(() => {
     }
 
     if (sortType === "sold") {
-      list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
-    } list.sort((a, b) => {
-  const discountA = a.price - a.finalPrice;
-  const discountB = b.price - b.finalPrice;
-
-  return discountB - discountA;
-});
+  list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+} else if (sortType === "sale") {
+  list.sort((a, b) => {
+    const discountA = a.price - a.finalPrice;
+    const discountB = b.price - b.finalPrice;
+    return discountB - discountA;
+  });
+}
 
     return list;
   }, [products, selectedCategory, sortType]);
