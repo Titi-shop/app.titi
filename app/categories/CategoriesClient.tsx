@@ -150,9 +150,14 @@ const loading = loadingCategories || loadingProducts;
 
   showMessage(t.added_to_cart || "Added", "success");
 };
-
   /* ================= UI ================= */
-
+  if (!loading && visibleProducts.length === 0) {
+  return (
+    <div className="flex justify-center items-center h-40 text-gray-400">
+      🛒 {t.no_products || "No products"}
+    </div>
+  );
+}
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
       {/* MESSAGE */}
