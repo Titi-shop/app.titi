@@ -68,23 +68,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ================= INIT (NO AUTO LOGIN) ================= */
 
   useEffect(() => {
-    const rawUser = localStorage.getItem(USER_KEY);
+  if (!piReady) return;
 
-    if (!rawUser) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
+  const initAuth = async () => {
     try {
-      const parsed = JSON.parse(rawUser);
-      setUser(parsed);
+      const token = await getPiAccessToken();
+
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      const res = await fetch("/api/pi/verify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        setUser(null);
+        return;
+      }
+
+      const data: unknown = await res.json();
+
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "user" in data
+      ) {
+        const verifiedUser = (data as { user: PiUser }).user;
+
+        setUser(verifiedUser);
+        localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
+      } else {
+        setUser(null);
+      }
     } catch {
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
+
+  initAuth();
+}, [piReady]);
 
   /* ================= LOGIN ================= */
 
