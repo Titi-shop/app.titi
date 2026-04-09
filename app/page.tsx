@@ -1,7 +1,7 @@
 
 "use client";
 export const dynamic = "force-dynamic";
-
+import SplashScreen from "./components/SplashScreen";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -74,6 +74,7 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 const isSale = isProductOnSale(product);
   const discount =
     product.price > 0
@@ -261,6 +262,14 @@ useEffect(() => {
     localStorage.setItem("products", JSON.stringify(productsData));
   }
 }, [productsData]);
+
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setShowSplash(false);
+  }, 1200); // 1.2s
+
+  return () => clearTimeout(timer);
+}, []);
   /* ===== FILTER ===== */
   
   const filteredProducts = useMemo(() => {
@@ -290,7 +299,9 @@ if (loading && products.length === 0) {
     </p>
   );
 }
-
+if (showSplash) {
+  return <SplashScreen />;
+}
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
       {message && (
