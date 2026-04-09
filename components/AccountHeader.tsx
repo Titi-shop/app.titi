@@ -62,6 +62,12 @@ const fetcher = async (url: string) => {
 export default function AccountHeader() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [avatarCache, setAvatarCache] = useState<string | null>(null);
+
+useEffect(() => {
+  const cached = localStorage.getItem("avatar");
+  if (cached) setAvatarCache(cached);
+}, []);
 
   const { data } = useSWR(
   user ? "/api/profile" : null,
@@ -73,23 +79,31 @@ export default function AccountHeader() {
 );
 
 const profile = data?.profile;
+  useEffect(() => {
+  if (profile?.avatar_url) {
+    setAvatarCache(profile.avatar_url);
+    localStorage.setItem("avatar", profile.avatar_url);
+  }
+}, [profile]);
 
   const avatar =
-    profile?.avatar_url ??
-    profile?.avatar ??
-    null;
+  avatarCache ||
+  profile?.avatar_url ||
+  profile?.avatar ||
+  null;
 
   return (
     <section className="bg-orange-500 text-white p-6 text-center shadow">
       <div className="w-24 h-24 bg-white rounded-full mx-auto overflow-hidden shadow flex items-center justify-center">
         {avatar ? (
           <Image
-            src={avatar}
-            alt="Avatar"
-            width={96}
-            height={96}
-            className="object-cover"
-          />
+  src={avatar}
+  alt="Avatar"
+  width={96}
+  height={96}
+  priority
+  className="object-cover"
+/>
         ) : (
           <UserCircle size={56} className="text-orange-500" />
         )}
