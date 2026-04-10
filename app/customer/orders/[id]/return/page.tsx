@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent } from "react";
+export const dynamic = "force-dynamic";
+
+import useSWR from "swr";
+import { useState, ChangeEvent, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
+/* ================= TYPES ================= */
 
 type OrderStatus =
   | "pending"
@@ -24,6 +29,18 @@ type OrderDetail = {
   order_items: OrderItem[];
 };
 
+/* ================= FETCHER ================= */
+
+const fetcher = async (url: string): Promise<OrderDetail | null> => {
+  const res = await apiAuthFetch(url);
+
+  if (!res.ok) return null;
+
+  return res.json();
+};
+
+/* ================= PAGE ================= */
+
 export default function OrderReturnPage() {
 
   const params = useParams<{ id: string }>();
@@ -38,7 +55,8 @@ export default function OrderReturnPage() {
       ? params.id[0]
       : "";
 
-  const [order, setOrder] = useState<OrderDetail | null>(null);
+  /* ================= STATE ================= */
+
   const [orderItemId, setOrderItemId] = useState("");
 
   const [reason, setReason] = useState("");
@@ -48,8 +66,37 @@ export default function OrderReturnPage() {
   const [previews, setPreviews] = useState<string[]>([]);
 
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  /* ================= SWR ================= */
+
+  const {
+    data: order,
+    isLoading,
+  } = useSWR(
+    user && orderId ? `/api/orders/${orderId}` : null,
+    fetcher
+  );
+
+  /* ================= VALIDATE ORDER ================= */
+
+  useEffect(() => {
+    if (!order) return;
+
+    if (order.status !== "completed") {
+      setError(
+        t.return_only_completed ??
+          "Only completed orders can be returned"
+      );
+      return;
+    }
+
+    if (order.order_items?.length > 0) {
+      setOrderItemId(order.order_items[0].id);
+    }
+  }, [order, t]);
+
+  /* ================= IMAGE ================= */
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
 
@@ -67,58 +114,21 @@ export default function OrderReturnPage() {
 
     setImages(selected);
 
-    const urls = selected.map((file) => URL.createObjectURL(file));
+    const urls = selected.map((file) =>
+      URL.createObjectURL(file)
+    );
+
     setPreviews(urls);
   }
 
+  // cleanup preview memory leak
   useEffect(() => {
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previews]);
 
-    if (authLoading) return;
-    if (!user) return;
-    if (!orderId) return;
-
-    async function loadOrder() {
-
-      try {
-
-        const res = await apiAuthFetch(`/api/orders/${orderId}`);
-
-        if (!res.ok) {
-          setError(t.order_load_failed ?? "Cannot load order");
-          setLoading(false);
-          return;
-        }
-
-        const data: OrderDetail = await res.json();
-
-        if (data.status !== "completed") {
-          setError(
-            t.return_only_completed ??
-              "Only completed orders can be returned"
-          );
-          setLoading(false);
-          return;
-        }
-
-        setOrder(data);
-
-        if (data.order_items && data.order_items.length > 0) {
-          setOrderItemId(data.order_items[0].id);
-        }
-
-        setLoading(false);
-
-      } catch {
-
-        setError(t.system_error ?? "System error");
-        setLoading(false);
-
-      }
-    }
-
-    loadOrder();
-
-  }, [authLoading, user, orderId, t]);
+  /* ================= SUBMIT ================= */
 
   async function handleSubmit() {
 
@@ -184,7 +194,9 @@ export default function OrderReturnPage() {
     }
   }
 
-  if (loading) {
+  /* ================= UI ================= */
+
+  if (isLoading || authLoading) {
     return (
       <main className="p-4">
         <p>{t.loading ?? "Loading..."}</p>
@@ -220,6 +232,7 @@ export default function OrderReturnPage() {
 
       </div>
 
+      {/* REASON */}
       <div className="space-y-2">
 
         <label className="block text-sm font-medium">
@@ -235,6 +248,7 @@ export default function OrderReturnPage() {
 
       </div>
 
+      {/* DESCRIPTION */}
       <div className="space-y-2">
 
         <label className="block text-sm font-medium">
@@ -250,58 +264,47 @@ export default function OrderReturnPage() {
 
       </div>
 
+      {/* IMAGE */}
       <div className="space-y-2">
 
         <label className="block text-sm font-medium">
           {t.upload_images ?? "Upload product images"} (max 3)
         </label>
 
-<div className="space-y-2">
+        <input
+          id="fileUpload"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+          className="hidden"
+        />
 
-  <input
-    id="fileUpload"
-    type="file"
-    accept="image/*"
-    multiple
-    onChange={handleImageChange}
-    className="hidden"
-  />
+        <label
+          htmlFor="fileUpload"
+          className="inline-block bg-gray-200 px-3 py-2 rounded cursor-pointer text-sm"
+        >
+          {t.choose_file ?? "Choose file"}
+        </label>
 
-  <label
-    htmlFor="fileUpload"
-    className="inline-block bg-gray-200 px-3 py-2 rounded cursor-pointer text-sm"
-  >
-    {t.choose_file ?? "Choose file"}
-  </label>
-
-  <p className="text-sm text-gray-500">
-    {images.length === 0
-      ? t.no_file_selected ?? "No file selected"
-      : `${images.length} ${t.photos_selected ?? "photos selected"}`}
-  </p>
-
-</div>
+        <p className="text-sm text-gray-500">
+          {images.length === 0
+            ? t.no_file_selected ?? "No file selected"
+            : `${images.length} ${t.photos_selected ?? "photos selected"}`}
+        </p>
 
         {previews.length > 0 && (
-
           <div className="flex gap-2">
-
             {previews.map((src, i) => (
-
               <div key={i} className="w-20 h-20 border rounded overflow-hidden">
-
                 <img
                   src={src}
                   alt="preview"
                   className="object-cover w-full h-full"
                 />
-
               </div>
-
             ))}
-
           </div>
-
         )}
 
       </div>
@@ -315,14 +318,11 @@ export default function OrderReturnPage() {
         disabled={submitting}
         className="w-full bg-black text-white rounded-md p-2 text-sm disabled:opacity-50"
       >
-
         {submitting
           ? t.submitting ?? "Submitting..."
           : t.submit_return ?? "Submit return request"}
-
       </button>
 
     </main>
-
   );
 }
