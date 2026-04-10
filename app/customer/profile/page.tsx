@@ -1,9 +1,10 @@
+
 "use client";
 export const dynamic = "force-dynamic";
 
 import useSWR from "swr";
 import { countries } from "@/data/countries";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Upload, Edit3, Save, X } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -140,28 +141,17 @@ export default function ProfilePage() {
   const [form, setForm] = useState<ProfileData>(defaultProfile);
   const [editMode, setEditMode] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
- const [avatarCache, setAvatarCache] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-useEffect(() => {
-  if (!editMode) {
+  /* sync form when load */
+  if (!editMode && form.full_name !== profile.full_name) {
     setForm(profile);
   }
-}, [profile, editMode]);
-  useEffect(() => {
-  const cached = localStorage.getItem("avatar");
-  if (cached) setAvatarCache(cached);
-}, []);
-  useEffect(() => {
-  if (profile?.avatar_url) {
-    setAvatarCache(profile.avatar_url);
-    localStorage.setItem("avatar", profile.avatar_url);
-  }
-}, [profile]);
 
   /* ================= AVATAR ================= */
 
@@ -194,16 +184,14 @@ useEffect(() => {
 
       const data = await res.json();
 
-      const avatarUrl = data.avatar || data.url;
-    localStorage.setItem("avatar", avatarUrl);
-setAvatarCache(avatarUrl);
-     mutate(
-     (prev: ProfileData) => ({
-    ...prev,
-    avatar_url: avatarUrl,
-     }),
-     false
-    );
+      // ✅ update UI ngay
+      mutate(
+        (prev: ProfileData) => ({
+          ...prev,
+          avatar_url: data.avatar,
+        }),
+        false
+      );
 
       setPreview(null);
       setSuccess(t.profile_avatar_updated);
@@ -240,7 +228,7 @@ setAvatarCache(avatarUrl);
       if (!res.ok) throw new Error();
 
       // ✅ update UI ngay
-      await mutate();
+      mutate(form, false);
 
       setEditMode(false);
       setSuccess(t.saved_successfully);
@@ -271,24 +259,21 @@ setAvatarCache(avatarUrl);
 
         {/* AVATAR */}
         <div className="relative w-28 h-28 mx-auto mb-4">
-  {avatar ? (
-    <Image
-      src={avatar}
-      alt="Avatar"
-      fill
-      className="rounded-full object-cover border-4 border-orange-500"
-    />
-  ) : (
-    <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
-      {user?.username?.charAt(0).toUpperCase()}
-    </div>
-  )}
+          {preview ? (
+            <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : profile.avatar_url ? (
+            <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : (
+            <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
+              {user?.username?.charAt(0).toUpperCase()}
+            </div>
+          )}
 
-  <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
-    <Upload size={16} className="text-white" />
-    <input type="file" hidden onChange={handleAvatarChange} />
-  </label>
-</div>
+          <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
+            <Upload size={16} className="text-white" />
+            <input type="file" hidden onChange={handleAvatarChange} />
+          </label>
+        </div>
 
         <h2 className="text-center font-semibold mb-4">
           @{user?.username}
