@@ -48,7 +48,6 @@ export default function SellerEditPage() {
   const params = useParams();
   const { user, loading } = useAuth();
   const isSeller = user?.role === "seller";
-  const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<ProductPayload | null>(null);
 
   const id = typeof params.id === "string" ? params.id : "";
