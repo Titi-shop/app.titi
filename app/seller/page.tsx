@@ -26,7 +26,15 @@ import {
 export default function SellerPage() {
   const { t } = useTranslation();
   const { user, loading, piReady } = useAuth();
-
+const { data, isLoading } = useSWR(
+  isSeller && piReady ? "/api/seller/orders/count" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+    keepPreviousData: true
+  }
+);
   const stats = useMemo(
   () => ({
     pending: data?.pending ?? 0,
@@ -45,15 +53,7 @@ const fetcher = (url: string) =>
   apiAuthFetch(url, { cache: "no-store" }).then((res) =>
     res.ok ? res.json() : null
   );
-  const { data, isLoading } = useSWR(
-  isSeller && piReady ? "/api/seller/orders/count" : null,
-  fetcher,
-  {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true
-  }
-);
+  
 
   if (loading || !piReady) {
   return (
