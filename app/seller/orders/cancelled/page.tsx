@@ -3,7 +3,8 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -47,13 +48,30 @@ interface Order {
   order_items: OrderItem[];
 }
 
+/* ================= FETCHER ================= */
+
+const fetcher = async (): Promise<Order[]> => {
+  try {
+    const res = await apiAuthFetch(
+      "/api/seller/orders?status=cancelled",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return [];
+
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as Order[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 /* ================= HELPERS ================= */
 
 function formatDate(date?: string): string {
   if (!date) return "—";
 
   const d = new Date(date);
-
   if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleDateString(undefined, {
@@ -66,50 +84,18 @@ function formatDate(date?: string): string {
 /* ================= PAGE ================= */
 
 export default function SellerCancelledOrdersPage() {
-
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* ================= SWR ================= */
 
-  /* ================= LOAD ================= */
-
-  const loadOrders = useCallback(async () => {
-
-    try {
-
-      const res = await apiAuthFetch(
-        "/api/seller/orders?status=cancelled",
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
-
-      const data = await res.json();
-
-      setOrders(Array.isArray(data) ? data : []);
-
-    } catch {
-
-      setOrders([]);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
+  const { data: orders = [], isLoading } = useSWR(
+    !authLoading && user
+      ? "/api/seller/orders?status=cancelled"
+      : null,
+    fetcher
+  );
 
   /* ================= TOTAL ================= */
 
@@ -124,7 +110,7 @@ export default function SellerCancelledOrdersPage() {
 
   /* ================= LOADING ================= */
 
-  if (loading) {
+  if (isLoading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Loading..."}
@@ -138,11 +124,8 @@ export default function SellerCancelledOrdersPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-
       <header className="bg-gray-600 text-white px-4 py-4">
-
         <div className="bg-gray-500 rounded-lg p-4">
-
           <p className="text-sm opacity-90">
             {t.cancelled_orders ?? "Cancelled orders"}
           </p>
@@ -150,13 +133,10 @@ export default function SellerCancelledOrdersPage() {
           <p className="text-xs opacity-80 mt-1">
             {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
-
         </div>
-
       </header>
 
       {/* LIST */}
-
       <section className="mt-6 px-4 space-y-4">
 
         {orders.length === 0 ? (
@@ -164,7 +144,6 @@ export default function SellerCancelledOrdersPage() {
             {t.no_cancelled_orders ?? "No cancelled orders"}
           </p>
         ) : (
-
           orders.map((order) => (
 
             <div
@@ -175,12 +154,10 @@ export default function SellerCancelledOrdersPage() {
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
 
-              {/* ORDER HEADER */}
-
+              {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
 
                 <div>
-
                   <p className="font-semibold text-sm">
                     #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
@@ -188,7 +165,6 @@ export default function SellerCancelledOrdersPage() {
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
-
                 </div>
 
                 <span className="text-gray-600 text-sm font-medium">
@@ -197,8 +173,7 @@ export default function SellerCancelledOrdersPage() {
 
               </div>
 
-              {/* SHIPPING INFO */}
-
+              {/* SHIPPING */}
               <div className="px-4 py-3 text-sm space-y-1 border-b">
 
                 <p>
@@ -219,30 +194,6 @@ export default function SellerCancelledOrdersPage() {
                   {order.shipping_address}
                 </p>
 
-                {(order.shipping_provider ||
-                  order.shipping_country ||
-                  order.shipping_postal_code) && (
-
-                  <p className="text-xs text-gray-500">
-
-                    {order.shipping_provider && (
-                      <span>{order.shipping_provider}</span>
-                    )}
-
-                    {order.shipping_country && (
-                      <span> · {order.shipping_country}</span>
-                    )}
-
-                    {order.shipping_postal_code && (
-                      <span> · {order.shipping_postal_code}</span>
-                    )}
-
-                  </p>
-
-                )}
-
-                {/* CANCEL REASON */}
-
                 {order.cancel_reason && (
                   <p className="text-xs text-red-500 mt-1">
                     {t.cancel_reason ?? "Reason"}: {order.cancel_reason}
@@ -252,7 +203,6 @@ export default function SellerCancelledOrdersPage() {
               </div>
 
               {/* PRODUCTS */}
-
               <div className="divide-y">
 
                 {order.order_items.map((item) => (
@@ -288,22 +238,18 @@ export default function SellerCancelledOrdersPage() {
               </div>
 
               {/* FOOTER */}
-
               <div
                 className="px-4 py-3 border-t bg-gray-50"
                 onClick={(e) => e.stopPropagation()}
               >
-
                 <span className="font-semibold">
                   {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
                 </span>
-
               </div>
 
             </div>
 
           ))
-
         )}
 
       </section>
