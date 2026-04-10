@@ -27,6 +27,10 @@ interface ProductPayload {
   stock: number;
   is_active: boolean;
 }
+const fetcher = (url: string) =>
+  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
+    res.ok ? res.json() : null
+  );
 
 function toDateTimeLocal(value: string | null | undefined): string {
   if (!value) return "";
@@ -43,38 +47,52 @@ export default function SellerEditPage() {
   const router = useRouter();
   const params = useParams();
   const { user, loading } = useAuth();
+  const isSeller = user?.role === "seller";
   const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<ProductPayload | null>(null);
 
   const id = typeof params.id === "string" ? params.id : "";
 
-  useEffect(() => {
-    fetch("/api/categories", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d: unknown) =>
-        setCategories(Array.isArray(d) ? (d as Category[]) : [])
-      )
-      .catch(() => setCategories([]));
-  }, []);
+  const { data: categories = [] } = useSWR(
+  "/api/categories",
+  fetcher
+);
 
-  useEffect(() => {
-    if (!id) return;
+const { data: productData, isLoading } = useSWR(
+  id ? `/api/products/${id}` : null,
+  fetcher
+);
+  const product: ProductPayload | null = productData
+  ? {
+      ...productData,
+      saleStart: toDateTimeLocal(productData.saleStart),
+      saleEnd: toDateTimeLocal(productData.saleEnd),
+    }
+  : null;
 
-    apiAuthFetch(`/api/products/${id}`, { method: "GET" })
-      .then((r) => r.json())
-      .then((data: ProductPayload) =>
-        setProduct({
-          ...data,
-          saleStart: toDateTimeLocal(data.saleStart),
-          saleEnd: toDateTimeLocal(data.saleEnd),
-        })
-      )
-      .catch(() => setProduct(null));
-  }, [id]);
+  if (loading || isLoading) {
+  return (
+    <div className="p-8 text-center text-gray-400">
+      {t.loading ?? "Loading..."}
+    </div>
+  );
+}
 
-  if (loading || !user || !product) {
-    return <div className="p-8 text-center">{t.loading}</div>;
-  }
+if (!user || !isSeller) {
+  return (
+    <div className="p-8 text-center text-gray-400">
+      {t.no_permission ?? "No permission"}
+    </div>
+  );
+}
+
+if (!product) {
+  return (
+    <div className="p-8 text-center text-gray-400">
+      {t.not_found ?? "Product not found"}
+    </div>
+  );
+}
 
   const updateProduct = async (payload: ProductPayload) => {
     const res = await apiAuthFetch(`/api/products/${payload.id}`, {
