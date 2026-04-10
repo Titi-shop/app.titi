@@ -7,7 +7,18 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
 
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  return res.ok ? res.json() : [];
+};
 /* =========================
 TYPES (MATCH API)
 ========================= */
