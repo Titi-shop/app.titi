@@ -140,6 +140,11 @@ export default function ProfilePage() {
 
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+  if (!editMode) {
+    setForm(profile);
+  }
+}, [profile, editMode]);
 
   const {
   data: profile = defaultProfile,
