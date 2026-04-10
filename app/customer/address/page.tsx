@@ -1,335 +1,373 @@
 "use client";
+
 export const dynamic = "force-dynamic";
 
 import useSWR from "swr";
-import { countries } from "@/data/countries";
 import { useState } from "react";
-import Image from "next/image";
-import { Upload, Edit3, Save, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
-import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
 
 /* ================= TYPES ================= */
 
-interface ProfileData {
-  full_name: string | null;
-  email: string | null;
-  phone: string | null;
-  bio: string | null;
-
+interface Address {
+  id: string;
+  full_name: string;
+  phone: string;
   country: string;
-  province: string | null;
-  district: string | null;
-  ward: string | null;
-  address_line: string | null;
-  postal_code: string | null;
-
-  avatar_url: string | null;
-
-  shop_name: string | null;
-  shop_slug: string | null;
-  shop_description: string | null;
-  shop_banner: string | null;
+  province: string;
+  district?: string;
+  ward?: string;
+  address_line: string;
+  postal_code?: string;
+  is_default: boolean;
 }
 
-const defaultProfile: ProfileData = {
-  full_name: null,
-  email: null,
-  phone: null,
-  bio: null,
-  country: "",
-  province: null,
-  district: null,
-  ward: null,
-  address_line: null,
-  postal_code: null,
-  avatar_url: null,
-  shop_name: null,
-  shop_slug: null,
-  shop_description: null,
-  shop_banner: null,
+const emptyForm = {
+  full_name: "",
+  phone: "",
+  country: "VN",
+
+  province: "",
+  provinceCode: "",
+  district: "",
+  districtCode: "",
+  ward: "",
+
+  address_line: "",
+  postal_code: "",
 };
 
-type EditableKey =
-  | "full_name"
-  | "email"
-  | "phone"
-  | "bio"
-  | "country"
-  | "province"
-  | "district"
-  | "ward"
-  | "address_line"
-  | "postal_code"
-  | "shop_name"
-  | "shop_description";
+/* ================= FETCHERS ================= */
 
-const editableFields: EditableKey[] = [
-  "full_name",
-  "email",
-  "phone",
-  "bio",
-  "shop_name",
-  "shop_description",
-  "country",
-  "province",
-  "district",
-  "ward",
-  "address_line",
-  "postal_code",
-];
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-/* ================= FETCHER ================= */
-
-const fetchProfile = async (): Promise<ProfileData> => {
-  const token = await getPiAccessToken();
-  if (!token) return defaultProfile;
-
-  let res = await fetch("/api/profile", {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  if (res.status === 401) {
-    clearPiToken();
-    const newToken = await getPiAccessToken();
-    if (!newToken) return defaultProfile;
-
-    res = await fetch("/api/profile", {
-      headers: { Authorization: `Bearer ${newToken}` },
-    });
-  }
-
-  if (!res.ok) return defaultProfile;
-
-  const raw = await res.json();
-  const p = raw?.profile ?? {};
-
-  return {
-    full_name: p.full_name ?? null,
-    email: p.email ?? null,
-    phone: p.phone ?? null,
-    bio: p.bio ?? null,
-    country: p.country ?? "VN",
-    province: p.province ?? null,
-    district: p.district ?? null,
-    ward: p.ward ?? null,
-    address_line: p.address_line ?? null,
-    postal_code: p.postal_code ?? null,
-    avatar_url: p.avatar_url ?? null,
-    shop_name: p.shop_name ?? null,
-    shop_slug: p.shop_slug ?? null,
-    shop_description: p.shop_description ?? null,
-    shop_banner: p.shop_banner ?? null,
-  };
+const addressFetcher = async (url: string) => {
+  const res = await apiAuthFetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.items || [];
 };
 
-/* ================= COMPONENT ================= */
+/* ================= PAGE ================= */
 
-export default function ProfilePage() {
+export default function CustomerAddressPage() {
+
+  const router = useRouter();
   const { t } = useTranslation();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
+
+  /* ================= SWR ================= */
 
   const {
-    data: profile = defaultProfile,
+    data: addresses = [],
     isLoading,
     mutate,
-  } = useSWR(user ? "/api/profile" : null, fetchProfile);
+  } = useSWR(user ? "/api/address" : null, addressFetcher);
 
-  const [form, setForm] = useState<ProfileData>(defaultProfile);
-  const [editMode, setEditMode] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  /* ================= STATE ================= */
+
+  const [form, setForm] = useState<any>(emptyForm);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /* ================= LOCATION SWR ================= */
 
-  /* sync form when load */
-  if (!editMode && form.full_name !== profile.full_name) {
-    setForm(profile);
-  }
+  const isVN = form.country === "VN";
 
-  /* ================= AVATAR ================= */
+  const { data: provinces = [] } = useSWR(
+    isVN ? "/api/location/provinces" : null,
+    fetcher
+  );
 
-  const handleAvatarChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (!user) return;
+  const { data: districts = [] } = useSWR(
+    isVN && form.provinceCode
+      ? `/api/location/districts?provinceCode=${form.provinceCode}`
+      : null,
+    fetcher
+  );
 
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const { data: wards = [] } = useSWR(
+    isVN && form.districtCode
+      ? `/api/location/wards?districtCode=${form.districtCode}`
+      : null,
+    fetcher
+  );
 
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-    setUploading(true);
+  /* ================= ACTIONS ================= */
 
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
+  const handleEdit = (a: Address) => {
+    setForm({
+      ...a,
+      provinceCode: "",
+      districtCode: "",
+    });
 
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/uploadAvatar", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-
-      // ✅ update UI ngay
-      mutate(
-        (prev: ProfileData) => ({
-          ...prev,
-          avatar_url: data.avatar,
-        }),
-        false
-      );
-
-      setPreview(null);
-      setSuccess(t.profile_avatar_updated);
-      setTimeout(() => setSuccess(null), 2000);
-
-    } catch {
-      setError(t.upload_failed);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-      setUploading(false);
-    }
+    setEditingId(a.id);
+    setShowForm(true);
   };
-
-  /* ================= SAVE ================= */
 
   const handleSave = async () => {
-    if (!user) return;
 
-    setSaving(true);
+    if (!form.full_name || !form.phone || !form.country || !form.address_line) {
+      setMessage("⚠️ " + (t.fill_all_fields || "Fill all fields"));
+      return;
+    }
 
     try {
-      const token = await getPiAccessToken();
-      if (!token) return;
 
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
+      setSaving(true);
+
+      await apiAuthFetch("/api/address", {
+        method: editingId ? "PATCH" : "POST",
+        body: JSON.stringify({
+          ...form,
+          id: editingId,
+        }),
       });
 
-      if (!res.ok) throw new Error();
+      await mutate();
 
-      // ✅ update UI ngay
-      mutate(form, false);
+      setShowForm(false);
+      setForm(emptyForm);
+      setEditingId(null);
 
-      setEditMode(false);
-      setSuccess(t.saved_successfully);
-      setTimeout(() => setSuccess(null), 2000);
+      setMessage("✅ " + (editingId ? t.updated : t.address_saved));
 
-    } catch {
-      setError(t.save_failed);
     } finally {
+
       setSaving(false);
+
     }
   };
 
-  /* ================= RENDER ================= */
+  const setDefault = async (id: string) => {
+    await apiAuthFetch("/api/address", {
+      method: "PUT",
+      body: JSON.stringify({ id }),
+    });
+    mutate();
+  };
 
-  if (isLoading || authLoading) {
-    return <p className="p-4 text-center">{t.loading_profile}</p>;
-  }
+  const deleteAddress = async (id: string) => {
+    if (!confirm(t.confirm_delete || "Delete?")) return;
 
-  const profileDialCode =
-    countries.find((c) => c.code === profile.country)?.dialCode ?? "";
+    await apiAuthFetch(`/api/address?id=${id}`, {
+      method: "DELETE",
+    });
 
-  const formDialCode =
-    countries.find((c) => c.code === form.country)?.dialCode ?? "";
+    mutate();
+  };
+
+  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
-      <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
 
-        {/* AVATAR */}
-        <div className="relative w-28 h-28 mx-auto mb-4">
-          {preview ? (
-            <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
-          ) : profile.avatar_url ? (
-            <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
-          ) : (
-            <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
-              {user?.username?.charAt(0).toUpperCase()}
-            </div>
-          )}
-
-          <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
-            <Upload size={16} className="text-white" />
-            <input type="file" hidden onChange={handleAvatarChange} />
-          </label>
+      {/* HEADER */}
+      <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center">
+          <button onClick={() => router.back()}>←</button>
+          <h1 className="flex-1 text-center font-semibold">
+            {t.shipping_address}
+          </h1>
         </div>
+      </div>
 
-        <h2 className="text-center font-semibold mb-4">
-          @{user?.username}
-        </h2>
+      {/* LIST */}
+      <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
 
-        {uploading && <p className="text-center text-sm">{t.uploading}</p>}
-        {success && <p className="text-center text-green-600 text-sm">✓ {success}</p>}
-        {error && <p className="text-center text-red-500 text-sm">{error}</p>}
+        {isLoading ? (
+          <p className="text-center text-gray-400">{t.loading}</p>
+        ) : (
+          addresses.map((a: Address) => (
+            <div key={a.id} className="bg-white p-4 rounded-xl shadow">
 
-        {/* INFO */}
-        <div className="space-y-3 mt-4">
-          {editableFields.map((key) => (
-            <div key={key} className="flex justify-between border-b pb-2">
-              <span className="text-gray-500">{t[`profile_${key}`]}</span>
+              <p className="font-semibold">{a.full_name}</p>
+              <p className="text-sm">{a.phone}</p>
+              <p className="text-sm text-gray-500">{a.address_line}</p>
 
-              {editMode ? (
-                <input
-                  className="text-right outline-none"
-                  value={(form[key] as string) ?? ""}
-                  onChange={(e) =>
-                    setForm({ ...form, [key]: e.target.value })
-                  }
-                />
-              ) : (
-                <span>{(profile[key] as string) ?? t.profile_not_set}</span>
-              )}
+              <div className="flex gap-3 mt-3 text-sm">
+                <button onClick={() => handleEdit(a)}>✏️ {t.edit}</button>
+                {!a.is_default && (
+                  <button onClick={() => setDefault(a.id)}>⭐ {t.set_default}</button>
+                )}
+                <button onClick={() => deleteAddress(a.id)} className="text-red-500">
+                  {t.delete}
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
 
-        {/* ACTION */}
-        <div className="flex justify-center mt-6 gap-3">
-          {editMode ? (
+        <button
+          onClick={() => {
+            setForm(emptyForm);
+            setEditingId(null);
+            setShowForm(true);
+          }}
+          className="w-full border-dashed border-2 border-orange-400 py-3 rounded-xl"
+        >
+          {t.add_address}
+        </button>
+
+        {message && <p className="text-center text-sm">{message}</p>}
+      </div>
+
+      {/* OVERLAY */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowForm(false)} />
+      )}
+
+      {/* FORM */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl transition ${
+          showForm ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{ height: "85vh" }}
+      >
+
+        <div className="px-4 overflow-y-auto h-full pb-32 pt-4 space-y-3">
+
+          {/* COUNTRY */}
+          <select
+            className="w-full border p-2 rounded"
+            value={form.country}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                country: e.target.value,
+                province: "",
+                district: "",
+                ward: "",
+              })
+            }
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name}
+              </option>
+            ))}
+          </select>
+
+          {/* VN */}
+          {isVN ? (
             <>
-              <button onClick={handleSave} className="btn-orange flex gap-2">
-                <Save size={16} /> {saving ? t.saving : t.save}
-              </button>
-
-              <button
-                onClick={() => {
-                  setForm(profile);
-                  setEditMode(false);
+              <select
+                className="w-full border p-2 rounded"
+                value={form.provinceCode || ""}
+                onChange={(e) => {
+                  const selected = provinces.find((p: any) => p.code == e.target.value);
+                  setForm({
+                    ...form,
+                    province: selected?.name,
+                    provinceCode: selected?.code,
+                    district: "",
+                    districtCode: "",
+                    ward: "",
+                  });
                 }}
-                className="bg-gray-300 px-4 py-2 rounded flex gap-2"
               >
-                <X size={16} /> {t.cancel}
-              </button>
+                <option>Chọn tỉnh</option>
+                {provinces.map((p: any) => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </select>
+
+              <select
+                className="w-full border p-2 rounded"
+                value={form.districtCode || ""}
+                onChange={(e) => {
+                  const selected = districts.find((d: any) => d.code == e.target.value);
+                  setForm({
+                    ...form,
+                    district: selected?.name,
+                    districtCode: selected?.code,
+                    ward: "",
+                  });
+                }}
+              >
+                <option>Chọn huyện</option>
+                {districts.map((d: any) => (
+                  <option key={d.code} value={d.code}>{d.name}</option>
+                ))}
+              </select>
+
+              <select
+                className="w-full border p-2 rounded"
+                value={form.ward || ""}
+                onChange={(e) => {
+                  const selected = wards.find((w: any) => w.code == e.target.value);
+                  setForm({
+                    ...form,
+                    ward: selected?.name,
+                  });
+                }}
+              >
+                <option>Chọn xã</option>
+                {wards.map((w: any) => (
+                  <option key={w.code} value={w.code}>{w.name}</option>
+                ))}
+              </select>
             </>
           ) : (
-            <button
-              onClick={() => setEditMode(true)}
-              className="btn-orange flex gap-2"
-            >
-              <Edit3 size={16} /> {t.edit}
-            </button>
+            <>
+              <input
+                className="w-full border p-2 rounded"
+                placeholder="State"
+                value={form.province}
+                onChange={(e) =>
+                  setForm({ ...form, province: e.target.value })
+                }
+              />
+
+              <input
+                className="w-full border p-2 rounded"
+                placeholder="City"
+                value={form.district}
+                onChange={(e) =>
+                  setForm({ ...form, district: e.target.value })
+                }
+              />
+            </>
           )}
+
+          <textarea
+            className="w-full border p-2 rounded"
+            placeholder="Address"
+            value={form.address_line}
+            onChange={(e) =>
+              setForm({ ...form, address_line: e.target.value })
+            }
+          />
+
+          <input
+            className="w-full border p-2 rounded"
+            placeholder="Postal code"
+            value={form.postal_code}
+            onChange={(e) =>
+              setForm({ ...form, postal_code: e.target.value })
+            }
+          />
+
         </div>
+
+        {/* SAVE BUTTON */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 pb-[env(safe-area-inset-bottom)]">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full bg-orange-500 text-white py-3 rounded-xl"
+          >
+            {saving ? t.saving : t.save_address}
+          </button>
+        </div>
+
       </div>
     </main>
   );
