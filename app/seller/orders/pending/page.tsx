@@ -1,14 +1,15 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/context/AuthContext";
+
 /* ================= TYPES ================= */
 
 interface OrderItem {
@@ -47,16 +48,26 @@ interface Order {
   order_items: OrderItem[];
 }
 
-/* ================= HELPERS ================= */
+/* ================= FETCHER ================= */
 
+const fetcher = async (): Promise<Order[]> => {
+  const res = await apiAuthFetch(
+    "/api/seller/orders?status=pending",
+    { cache: "no-store" }
+  );
 
+  if (!res.ok) return [];
+
+  const data: unknown = await res.json();
+
+  return Array.isArray(data) ? (data as Order[]) : [];
+};
+
+/* ================= HELPER ================= */
 
 function formatDate(date: string): string {
   const d = new Date(date);
-
-  if (Number.isNaN(d.getTime())) {
-    return "—";
-  }
+  if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleDateString(undefined, {
     year: "numeric",
@@ -70,19 +81,18 @@ function formatDate(date: string): string {
 export default function SellerPendingOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
-const { user, loading: authLoading } = useAuth();
-  
-  const SELLER_CANCEL_REASONS: string[] = [
-    t.cancel_reason_out_of_stock ?? "Out of stock",
-    t.cancel_reason_discontinued ?? "Product discontinued",
-    t.cancel_reason_wrong_price ?? "Wrong price",
-    t.cancel_reason_other ?? "Other",
-  ];
+  const { user } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* ================= SWR ================= */
+
+  const { data: orders = [], isLoading, mutate } = useSWR(
+    user ? "/api/seller/orders?status=pending" : null,
+    fetcher
+  );
+
+  /* ================= UI STATE ================= */
+
   const [processingId, setProcessingId] = useState<string | null>(null);
-
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
@@ -92,53 +102,27 @@ const { user, loading: authLoading } = useAuth();
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [customReason, setCustomReason] = useState<string>("");
 
-  /* ================= LOAD ================= */
+  const SELLER_CANCEL_REASONS: string[] = [
+    t.cancel_reason_out_of_stock ?? "Out of stock",
+    t.cancel_reason_discontinued ?? "Product discontinued",
+    t.cancel_reason_wrong_price ?? "Wrong price",
+    t.cancel_reason_other ?? "Other",
+  ];
 
-  const loadOrders = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch(
-        "/api/seller/orders?status=pending",
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
-
-      const data: unknown = await res.json();
-
-      if (Array.isArray(data)) {
-        setOrders(data as Order[]);
-      } else {
-        setOrders([]);
-      }
-    } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
-
-
+  /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
-  () =>
-    orders.reduce(
-      (sum, o) => sum + Number(o.total ?? 0),
-      0
-    ),
-  [orders]
-);
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [orders]
+  );
 
-  /* ================= CONFIRM ================= */
+  /* ================= ACTIONS ================= */
 
-  async function handleConfirm(orderId: string): Promise<void> {
+  async function handleConfirm(orderId: string) {
     if (!sellerMessage.trim()) return;
 
     try {
@@ -159,16 +143,15 @@ const { user, loading: authLoading } = useAuth();
 
       setShowConfirmFor(null);
       setSellerMessage("");
-      await loadOrders();
-    } catch {
+
+      // ✅ SWR revalidate
+      await mutate();
     } finally {
       setProcessingId(null);
     }
   }
 
-  /* ================= CANCEL ================= */
-
-  async function handleCancel(orderId: string): Promise<void> {
+  async function handleCancel(orderId: string) {
     const finalReason =
       selectedReason === (t.cancel_reason_other ?? "Other")
         ? customReason
@@ -195,8 +178,9 @@ const { user, loading: authLoading } = useAuth();
       setShowCancelFor(null);
       setSelectedReason("");
       setCustomReason("");
-      await loadOrders();
-    } catch {
+
+      // ✅ SWR revalidate
+      await mutate();
     } finally {
       setProcessingId(null);
     }
@@ -204,7 +188,7 @@ const { user, loading: authLoading } = useAuth();
 
   /* ================= LOADING ================= */
 
-  if (loading) {
+  if (isLoading) {
     return (
       <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Đang tải..."}
@@ -247,7 +231,7 @@ const { user, loading: authLoading } = useAuth();
               }}
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
-              {/* ORDER HEADER */}
+              {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
                 <div>
                   <p className="font-semibold text-sm">
@@ -263,58 +247,10 @@ const { user, loading: authLoading } = useAuth();
                 </span>
               </div>
 
-              {/* SHIPPING INFO */}
-              
-              <div className="px-4 py-3 text-sm space-y-1 border-b">
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.customer ?? "Customer"}:
-                  </span>{" "}
-                  {o.shipping_name}
-                </p>
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.phone ?? "Phone"}:
-                  </span>{" "}
-                  {o.shipping_phone}
-                </p>
-
-                <p className="text-gray-600 text-xs">
-                  {o.shipping_address}
-                </p>
-
-                {(o.shipping_provider ||
-                  o.shipping_country ||
-                  o.shipping_postal_code) && (
-
-                  <p className="text-xs text-gray-500">
-
-                    {o.shipping_provider && (
-                      <span>{o.shipping_provider}</span>
-                    )}
-
-                    {o.shipping_country && (
-                      <span> · {o.shipping_country}</span>
-                    )}
-
-                    {o.shipping_postal_code && (
-                      <span> · {o.shipping_postal_code}</span>
-                    )}
-
-                  </p>
-                )}
-
-              </div>
-
               {/* PRODUCTS */}
               <div className="divide-y">
                 {o.order_items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-3 p-4"
-                  >
+                  <div key={item.id} className="flex gap-3 p-4">
                     <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
                       {item.thumbnail ? (
                         <img
@@ -341,15 +277,15 @@ const { user, loading: authLoading } = useAuth();
                 ))}
               </div>
 
-               {/* FOOTER */}
+              {/* FOOTER */}
               <div
                 className="px-4 py-3 border-t bg-gray-50 text-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">
-                {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
-            </span>
+                    {t.total ?? "Total"}: π{formatPi(o.total)}
+                  </span>
 
                   <div className="flex gap-2">
                     <button
@@ -357,12 +293,12 @@ const { user, loading: authLoading } = useAuth();
                       onClick={() => {
                         setSellerMessage(
                           t.confirm_default_message ??
-                            "Thank you for your order. "
+                            "Thank you for your order."
                         );
                         setShowConfirmFor(o.id);
                         setShowCancelFor(null);
                       }}
-                      className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
+                      className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded"
                     >
                       {t.confirm ?? "Xác nhận"}
                     </button>
@@ -373,95 +309,12 @@ const { user, loading: authLoading } = useAuth();
                         setShowCancelFor(o.id);
                         setShowConfirmFor(null);
                       }}
-                      className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
+                      className="px-3 py-1.5 text-xs border rounded"
                     >
                       {t.cancel ?? "Huỷ"}
                     </button>
                   </div>
                 </div>
-
-                {/* CONFIRM FORM */}
-                {showConfirmFor === o.id && (
-                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
-                    <textarea
-                      value={sellerMessage}
-                      onChange={(e) => setSellerMessage(e.target.value)}
-                      className="w-full border rounded-md p-2 text-sm"
-                      rows={3}
-                    />
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleConfirm(o.id)}
-                        disabled={processingId === o.id}
-                        className="px-4 py-1 text-sm bg-green-600 text-white rounded disabled:opacity-50"
-                      >
-                        {t.confirm_order ?? "Confirm order"}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowConfirmFor(null);
-                          setSellerMessage("");
-                        }}
-                        className="px-4 py-1 text-sm border rounded"
-                      >
-                        {t.close ?? "Close"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* CANCEL FORM */}
-                {showCancelFor === o.id && (
-                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
-                    {SELLER_CANCEL_REASONS.map((reason) => (
-                      <label
-                        key={reason}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <input
-                          type="radio"
-                          value={reason}
-                          checked={selectedReason === reason}
-                          onChange={(e) => setSelectedReason(e.target.value)}
-                        />
-                        {reason}
-                      </label>
-                    ))}
-
-                    {selectedReason ===
-                      (t.cancel_reason_other ?? "Other") && (
-                      <textarea
-                        value={customReason}
-                        onChange={(e) => setCustomReason(e.target.value)}
-                        className="w-full border rounded-md p-2 text-sm"
-                        rows={3}
-                      />
-                    )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCancel(o.id)}
-                        disabled={processingId === o.id}
-                        className="px-4 py-1 text-sm bg-red-500 text-white rounded disabled:opacity-50"
-                      >
-                        {t.confirm_cancel ?? "Confirm cancel"}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowCancelFor(null);
-                          setSelectedReason("");
-                          setCustomReason("");
-                        }}
-                        className="px-4 py-1 text-sm border rounded"
-                      >
-                        {t.close ?? "Close"}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           ))
