@@ -3,7 +3,8 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -16,10 +17,8 @@ interface OrderItem {
   id: string;
   product_id: string | null;
   product_name: string;
-
   thumbnail?: string;
   images?: string[];
-
   quantity: number;
   unit_price: number | string;
   total_price: number | string;
@@ -28,10 +27,8 @@ interface OrderItem {
 interface Order {
   id: string;
   order_number?: string;
-
   status: string;
   total: number | string;
-
   created_at?: string;
 
   shipping_name?: string;
@@ -45,13 +42,29 @@ interface Order {
   order_items: OrderItem[];
 }
 
+/* ================= FETCHER ================= */
+
+const fetcher = async (): Promise<Order[]> => {
+  try {
+    const res = await apiAuthFetch(
+      "/api/seller/orders?status=completed",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
 /* ================= HELPERS ================= */
 
 function formatDate(date?: string): string {
   if (!date) return "—";
-
   const d = new Date(date);
-
   if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleDateString(undefined, {
@@ -64,63 +77,63 @@ function formatDate(date?: string): string {
 /* ================= PAGE ================= */
 
 export default function SellerCompletedOrdersPage() {
-
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: orders = [], isLoading } = useSWR(
+    !authLoading && user
+      ? "/api/seller/orders?status=completed"
+      : null,
+    fetcher
+  );
 
-  /* ================= LOAD ================= */
+  /* ================= FILTER STATE ================= */
 
-  const loadOrders = useCallback(async () => {
-    try {
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
-      const res = await apiAuthFetch(
-        "/api/seller/orders?status=completed",
-        { cache: "no-store" }
-      );
+  /* ================= FILTER LOGIC ================= */
 
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const created = o.created_at
+        ? new Date(o.created_at).getTime()
+        : 0;
 
-      const data = await res.json();
+      const from = fromDate ? new Date(fromDate).getTime() : null;
+      const to = toDate ? new Date(toDate).getTime() : null;
 
-      setOrders(Array.isArray(data) ? data : []);
+      const matchDate =
+        (!from || created >= from) &&
+        (!to || created <= to + 86400000);
 
-    } catch {
+      const keyword = search.toLowerCase();
 
-      setOrders([]);
+      const matchSearch =
+        !search ||
+        o.id.toLowerCase().includes(keyword) ||
+        (o.order_number ?? "").toLowerCase().includes(keyword);
 
-    } finally {
-
-      setLoading(false);
-
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
+      return matchDate && matchSearch;
+    });
+  }, [orders, search, fromDate, toDate]);
 
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
     () =>
-      orders.reduce(
+      filteredOrders.reduce(
         (sum, o) => sum + Number(o.total ?? 0),
         0
       ),
-    [orders]
+    [filteredOrders]
   );
 
   /* ================= LOADING ================= */
 
-  if (loading) {
+  if (isLoading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Loading..."}
@@ -136,32 +149,58 @@ export default function SellerCompletedOrdersPage() {
       {/* HEADER */}
 
       <header className="bg-gray-600 text-white px-4 py-4">
-
         <div className="bg-gray-500 rounded-lg p-4">
-
           <p className="text-sm opacity-90">
             {t.completed_orders ?? "Completed orders"}
           </p>
 
           <p className="text-xs opacity-80 mt-1">
-            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
+            {t.orders ?? "Orders"}: {filteredOrders.length} · π{formatPi(totalPi)}
           </p>
+        </div>
+      </header>
 
+      {/* FILTER BAR */}
+
+      <div className="px-4 mt-4 space-y-2">
+
+        {/* SEARCH */}
+        <input
+          placeholder="🔍 Search order ID"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full p-2 rounded border"
+        />
+
+        {/* DATE RANGE */}
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
         </div>
 
-      </header>
+      </div>
 
       {/* LIST */}
 
-      <section className="mt-6 px-4 space-y-4">
+      <section className="mt-4 px-4 space-y-4">
 
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <p className="text-center text-gray-400">
             {t.no_completed_orders ?? "No completed orders"}
           </p>
         ) : (
-
-          orders.map((order) => (
+          filteredOrders.map((order) => (
 
             <div
               key={order.id}
@@ -171,12 +210,10 @@ export default function SellerCompletedOrdersPage() {
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
 
-              {/* ORDER HEADER */}
-
+              {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
 
                 <div>
-
                   <p className="font-semibold text-sm">
                     #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
@@ -184,7 +221,6 @@ export default function SellerCompletedOrdersPage() {
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
-
                 </div>
 
                 <span className="text-green-600 text-sm font-medium">
@@ -193,7 +229,7 @@ export default function SellerCompletedOrdersPage() {
 
               </div>
 
-              {/* SHIPPING INFO */}
+              {/* SHIPPING */}
 
               <div className="px-4 py-3 text-sm space-y-1 border-b">
 
@@ -214,28 +250,6 @@ export default function SellerCompletedOrdersPage() {
                 <p className="text-gray-600 text-xs">
                   {order.shipping_address}
                 </p>
-
-                {(order.shipping_provider ||
-                  order.shipping_country ||
-                  order.shipping_postal_code) && (
-
-                  <p className="text-xs text-gray-500">
-
-                    {order.shipping_provider && (
-                      <span>{order.shipping_provider}</span>
-                    )}
-
-                    {order.shipping_country && (
-                      <span> · {order.shipping_country}</span>
-                    )}
-
-                    {order.shipping_postal_code && (
-                      <span> · {order.shipping_postal_code}</span>
-                    )}
-
-                  </p>
-
-                )}
 
               </div>
 
@@ -277,21 +291,15 @@ export default function SellerCompletedOrdersPage() {
 
               {/* FOOTER */}
 
-              <div
-                className="px-4 py-3 border-t bg-gray-50"
-                onClick={(e) => e.stopPropagation()}
-              >
-
+              <div className="px-4 py-3 border-t bg-gray-50">
                 <span className="font-semibold">
                   {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
                 </span>
-
               </div>
 
             </div>
 
           ))
-
         )}
 
       </section>
