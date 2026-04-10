@@ -1,208 +1,222 @@
 "use client";
 
-import useSWR from "swr";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { countries } from "@/data/countries";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
-import AddressForm, {
-  AddressFormData,
-} from "@/components/address/AddressForm";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
-interface Address {
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipping"
+  | "completed"
+  | "cancelled"
+  | "return_requested";
+
+interface Product {
   id: string;
-  full_name: string;
-  phone: string;
-  country: string;
-  province: string;
-  address_line: string;
-  postal_code?: string;
-  is_default: boolean;
+  name: string;
+  thumbnail: string;
 }
 
-interface ApiResponse {
-  items: Address[];
+interface OrderItem {
+  quantity: number;
+  price: number;
+  product_id: string;
+
+  // API có thể trả kiểu này
+  product?: Product;
+
+  // hoặc kiểu này
+  product_name?: string;
+  thumbnail?: string;
 }
 
-/* ================= FETCHER ================= */
-
-const fetcher = async (): Promise<ApiResponse> => {
-  const token = await getPiAccessToken();
-  const res = await fetch("/api/address", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) throw new Error("FETCH_FAILED");
-  return res.json();
-};
+interface Order {
+  id: string;
+  total: number;
+  status: OrderStatus;
+  created_at: string;
+  order_items: OrderItem[];
+}
 
 /* ================= PAGE ================= */
 
-export default function CustomerAddressPage() {
+export default function OrderDetailPage() {
   const { t } = useTranslation();
+
+  const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const orderId = params.id as string;
 
-  const { data, mutate, isLoading } = useSWR(
-    user ? "/api/address" : null,
-    fetcher
-  );
+  const { user, loading: authLoading } = useAuth();
 
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [form, setForm] = useState<AddressFormData>({
-    full_name: "",
-    phone: "",
-    country: "",
-    province: "",
-    address_line: "",
-    postal_code: "",
-  });
+  /* ================= LOAD ORDER ================= */
 
-  const addresses = data?.items ?? [];
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
 
-  const getCountryDisplay = (code: string) => {
-    const c = countries.find((x) => x.code === code);
-    return c ? `${c.flag} ${c.name}` : code;
-  };
+    void loadOrder();
+  }, [authLoading, user, orderId]);
 
-  /* ================= SAVE ================= */
-
-  const handleSave = async () => {
-    setSaving(true);
-
+  async function loadOrder(): Promise<void> {
     try {
       const token = await getPiAccessToken();
+      if (!token) return;
 
-      await fetch("/api/address", {
-        method: "POST",
+      const res = await fetch(`/api/orders/${orderId}`, {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        cache: "no-store",
       });
 
-      await mutate();
-      setShowForm(false);
-      setForm({
-        full_name: "",
-        phone: "",
-        country: "",
-        province: "",
-        address_line: "",
-        postal_code: "",
-      });
+      if (!res.ok) throw new Error("Load failed");
+
+      const data = await res.json();
+      setOrder(data);
+
+    } catch (err) {
+      console.error("Load order error:", err);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
-  };
+  }
 
-  const setDefault = async (id: string) => {
-    const token = await getPiAccessToken();
+  /* ================= STATE ================= */
 
-    await fetch("/api/address", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ id }),
-    });
+  if (loading || authLoading) {
+    return (
+      <main className="p-6 text-center text-gray-400">
+        {t.loading_order}
+      </main>
+    );
+  }
 
-    mutate();
-  };
-
-  const deleteAddress = async (id: string) => {
-    const token = await getPiAccessToken();
-
-    await fetch(`/api/address?id=${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    mutate();
-  };
+  if (!order) {
+    return (
+      <main className="p-6 text-center text-red-500">
+        {t.order_not_found}
+      </main>
+    );
+  }
 
   /* ================= UI ================= */
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-28">
+    <main className="min-h-screen bg-gray-100 pb-20">
+      <div className="max-w-xl mx-auto p-4 space-y-6">
 
-      {/* HEADER */}
-      <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center">
-          <button onClick={() => router.back()}>←</button>
-          <h1 className="flex-1 text-center font-semibold">
-            {t.shipping_address}
+        {/* HEADER */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <h1 className="text-lg font-bold mb-2">
+            🧾 {t.order_detail}
           </h1>
-        </div>
-      </div>
 
-      {/* LIST */}
-      <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
-
-        {isLoading ? (
-          <p className="text-center text-gray-400">{t.loading}</p>
-        ) : addresses.length === 0 ? (
-          <p className="text-center text-gray-400">
-            {t.no_address}
+          <p className="text-sm text-gray-500">
+            {t.order_id}: {order.id}
           </p>
-        ) : (
-          addresses.map((a) => (
-            <div key={a.id} className="bg-white p-4 rounded-xl shadow">
-              <p className="font-semibold">{a.full_name}</p>
-              <p className="text-sm">{a.phone}</p>
-              <p className="text-sm">{a.address_line}</p>
-              <p className="text-sm">
-                {a.province} - {getCountryDisplay(a.country)}
-              </p>
 
-              <div className="flex gap-3 mt-2 text-sm">
-                {!a.is_default && (
-                  <button onClick={() => setDefault(a.id)}>
-                    {t.set_default}
-                  </button>
-                )}
-                <button onClick={() => deleteAddress(a.id)}>
-                  {t.delete}
-                </button>
+          <p className="text-sm mt-1">
+            {t.status}:{" "}
+            <span className="font-semibold text-orange-500">
+              {t[`order_status_${order.status}`] ?? order.status}
+            </span>
+          </p>
+
+          <p className="text-xs text-gray-400 mt-1">
+            {t.created_at}:{" "}
+            {new Date(order.created_at).toLocaleString()}
+          </p>
+        </div>
+
+        {/* PRODUCTS */}
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-4">
+          {order.order_items.map((item, idx) => {
+
+            // ✅ FIX ẢNH (quan trọng)
+            const image =
+              item.product?.thumbnail ||
+              item.thumbnail ||
+              "/placeholder.png";
+
+            const name =
+              item.product?.name ||
+              item.product_name ||
+              "Product";
+
+            return (
+              <div key={idx} className="flex gap-3">
+
+                <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
+                  <img
+                    src={image}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    {name}
+                  </p>
+
+                  <p className="text-xs text-gray-500">
+                    x{item.quantity}
+                  </p>
+
+                  <p className="text-sm font-semibold mt-1">
+                    π{formatPi(item.price)}
+                  </p>
+                </div>
+
               </div>
-            </div>
-          ))
-        )}
+            );
+          })}
+        </div>
 
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full py-3 border-dashed border-2 border-orange-400 text-orange-600 rounded-xl"
-        >
-          {t.add_address}
-        </button>
+        {/* TOTAL */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <p className="text-base font-bold">
+            {t.total ?? "Total"}: π{formatPi(order.total)}
+          </p>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="space-y-3">
+
+          {order.status === "completed" && (
+            <button
+              onClick={() =>
+                router.push(`/customer/orders/${order.id}/return`)
+              }
+              className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+            >
+              {t.request_return}
+            </button>
+          )}
+
+          {order.status === "return_requested" && (
+            <button
+              onClick={() => router.push(`/customer/returns`)}
+              className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              {t.view_return_status}
+            </button>
+          )}
+
+        </div>
+
       </div>
-
-      {/* FORM */}
-      {showForm && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 z-40"
-            onClick={() => setShowForm(false)}
-          />
-
-          <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl h-[80vh]">
-            <AddressForm
-              form={form}
-              setForm={setForm}
-              onSubmit={handleSave}
-              saving={saving}
-            />
-          </div>
-        </>
-      )}
     </main>
   );
 }
