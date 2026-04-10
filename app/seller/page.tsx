@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
+import useSWR from "swr";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -27,76 +27,46 @@ export default function SellerPage() {
   const { t } = useTranslation();
   const { user, loading, piReady } = useAuth();
 
-  const [stats, setStats] = useState({
-  pending: 0,
-  confirmed: 0,
-  shipping: 0,
-  completed: 0,
-  returned: 0,
-  cancelled: 0,
-  total: 0,
-});
+  const stats = useMemo(
+  () => ({
+    pending: data?.pending ?? 0,
+    confirmed: data?.confirmed ?? 0,
+    shipping: data?.shipping ?? 0,
+    completed: data?.completed ?? 0,
+    returned: data?.returned ?? 0,
+    cancelled: data?.cancelled ?? 0,
+    total: data?.total ?? 0,
+  }),
+  [data]
+);
 
 const isSeller = user?.role === "seller";
-
-useEffect(() => {
-  if (!isSeller || !piReady) return;
-
-  const loadStats = async () => {
-    try {
-      const res = await apiAuthFetch(
-        "/api/seller/orders/count",
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setStats({
-          pending: 0,
-          confirmed: 0,
-          shipping: 0,
-          completed: 0,
-          returned: 0,
-          cancelled: 0,
-          total: 0,
-        });
-        return;
-      }
-
-      const data = await res.json();
-
-      setStats({
-        pending: data.pending ?? 0,
-        confirmed: data.confirmed ?? 0,
-        shipping: data.shipping ?? 0,
-        completed: data.completed ?? 0,
-        returned: data.returned ?? 0,
-        cancelled: data.cancelled ?? 0,
-        total: data.total ?? 0,
-      });
-
-    } catch {
-      setStats({
-        pending: 0,
-        confirmed: 0,
-        shipping: 0,
-        completed: 0,
-        returned: 0,
-        cancelled: 0,
-        total: 0,
-      });
-    }
-  };
-
-  void loadStats();
-}, [isSeller, piReady]);
+const fetcher = (url: string) =>
+  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
+    res.ok ? res.json() : null
+  );
+  const { data, isLoading } = useSWR(
+  isSeller && piReady ? "/api/seller/orders/count" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+    keepPreviousData: true
+  }
+);
 
   if (loading || !piReady) {
-    return (
-      <div className="flex justify-center mt-16 text-gray-500 text-sm">
-         {t.loading ?? "Loading..."}
-      </div>
-    );
-  }
+  return (
+    <main className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-24 bg-gray-200 rounded-xl animate-pulse"
+        />
+      ))}
+    </main>
+  );
+}
 
   if (!isSeller) {
     return (
