@@ -1,5 +1,5 @@
 "use client";
-
+import useSWR from "swr";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -48,8 +48,6 @@ export default function SellerEditPage() {
   const params = useParams();
   const { user, loading } = useAuth();
   const isSeller = user?.role === "seller";
-  const [product, setProduct] = useState<ProductPayload | null>(null);
-
   const id = typeof params.id === "string" ? params.id : "";
 
   const { data: categories = [] } = useSWR(
