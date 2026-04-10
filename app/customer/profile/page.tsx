@@ -133,7 +133,6 @@ export default function ProfilePage() {
 
   const [editMode, setEditMode] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -151,6 +150,54 @@ export default function ProfilePage() {
   mutate,
 } = useSWR(user ? "/api/profile" : null, fetchProfile);
   /* ================= AVATAR ================= */
+
+  const handleAvatarChange = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  if (authLoading || !user) return;
+
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  setPreview(objectUrl);
+  setUploading(true);
+
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/uploadAvatar", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+
+    mutate(
+      (prev: ProfileData) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }),
+      false
+    );
+
+    setPreview(null);
+  } catch {
+    setError(t.upload_failed);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+    setUploading(false);
+  }
+};
+
+  /* ================= SHOP BANNER ================= */
 
   const handleBannerUpload = async (
   e: React.ChangeEvent<HTMLInputElement>
@@ -190,78 +237,6 @@ export default function ProfilePage() {
     setError("Upload failed");
   }
 };
-
-  /* ================= SHOP BANNER ================= */
-
-  const handleBannerUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (authLoading || !user) return;
-
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/uploadShopBanner", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-
-      mutate(
-  (prev: ProfileData) => ({
-    ...prev,
-    avatar_url: data.avatar,
-  }),
-  false
-);
-
-  /* ================= SAVE ================= */
-
-  const handleSave = async () => {
-    if (authLoading || !user) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) throw new Error();
-
-      await mutate();
-      setEditMode(false);
-
-      setSuccess(t.saved_successfully);
-      setTimeout(() => setSuccess(null), 2000);
-    } catch {
-      setError(t.save_failed);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   /* ================= RENDER ================= */
 
