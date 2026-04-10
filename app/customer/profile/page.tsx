@@ -129,7 +129,6 @@ const fetchProfile = async (): Promise<ProfileData> => {
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [form, setForm] = useState<ProfileData>(defaultProfile);
 
   const [editMode, setEditMode] = useState(false);
@@ -287,13 +286,12 @@ export default function ProfilePage() {
 
   const formDialCode =
     countries.find((c) => c.code === form.country)?.dialCode ?? "";
-
+const avatar = preview || profile.avatar_url || null;
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
       <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
 
         {/* AVATAR */}
-        const avatar = preview || profile.avatar_url || null;
 
 <div className="relative w-28 h-28 mx-auto mb-4">
   {avatar ? (
