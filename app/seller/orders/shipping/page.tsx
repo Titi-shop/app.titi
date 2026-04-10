@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -87,18 +87,12 @@ export default function SellerShippingOrdersPage() {
 
   /* ================= SWR ================= */
 
-  const {
-    data: orders = [],
-    isLoading,
-    mutate,
-  } = useSWR(
+  const { data: orders = [], isLoading } = useSWR(
     !authLoading && user
       ? "/api/seller/orders?status=shipping"
       : null,
     fetcher
   );
-
-  const [processingId, setProcessingId] = useState<string | null>(null);
 
   /* ================= TOTAL ================= */
 
@@ -110,37 +104,6 @@ export default function SellerShippingOrdersPage() {
       ),
     [orders]
   );
-
-  /* ================= COMPLETE (OPTIMISTIC) ================= */
-
-  async function markDelivered(orderId: string) {
-    try {
-      setProcessingId(orderId);
-
-      const previous = orders;
-
-      // 🚀 optimistic remove khỏi shipping list
-      await mutate(
-        orders.filter((o) => o.id !== orderId),
-        false
-      );
-
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/complete`,
-        { method: "PATCH" }
-      );
-
-      if (!res.ok) {
-        // 🔴 rollback nếu fail
-        await mutate(previous, false);
-        return;
-      }
-
-      mutate(); // sync lại server
-    } finally {
-      setProcessingId(null);
-    }
-  }
 
   /* ================= LOADING ================= */
 
@@ -266,26 +229,11 @@ export default function SellerShippingOrdersPage() {
               </div>
 
               {/* FOOTER */}
-              <div
-                className="px-4 py-3 border-t bg-gray-50"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="px-4 py-3 border-t bg-gray-50">
 
-                <div className="flex justify-between items-center">
-
-                  <span className="font-semibold">
-                    {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
-                  </span>
-
-                  <button
-                    disabled={processingId === order.id}
-                    onClick={() => markDelivered(order.id)}
-                    className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg disabled:opacity-50"
-                  >
-                    {t.mark_delivered ?? "Delivered"}
-                  </button>
-
-                </div>
+                <span className="font-semibold">
+                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
+                </span>
 
               </div>
 
