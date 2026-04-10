@@ -1,18 +1,16 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
 
+import useSWR from "swr";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
 
-/* =========================
-TYPES
-========================= */
+/* ================= TYPES ================= */
 
 type OrderStatus =
   | "pending"
@@ -43,220 +41,160 @@ interface ReviewMap {
   [orderId: string]: boolean;
 }
 
-/* =========================
-PAGE
-========================= */
+/* ================= FETCHER ================= */
+
+const fetchOrders = async () => {
+  const token = await getPiAccessToken();
+  if (!token) return [];
+
+  const res = await fetch("/api/orders", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return data.orders ?? [];
+};
+
+const fetchReviews = async (): Promise<ReviewMap> => {
+  const token = await getPiAccessToken();
+  if (!token) return {};
+
+  const res = await fetch("/api/reviews", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return {};
+
+  const data = await res.json();
+
+  const map: ReviewMap = {};
+  (data.reviews || []).forEach((r: any) => {
+    map[r.order_id] = true;
+  });
+
+  return map;
+};
+
+/* ================= PAGE ================= */
 
 export default function CompletedOrdersPage() {
-
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [reviewedMap, setReviewedMap] = useState<ReviewMap>({});
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
-
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState<string>("");
-
   const [reviewError, setReviewError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
+  /* ================= SWR ================= */
 
-    void loadOrders();
-  }, [authLoading, user]);
+  const {
+    data: allOrders = [],
+    isLoading,
+  } = useSWR(user ? "/api/orders" : null, fetchOrders, {
+    revalidateOnFocus: false,
+  });
 
-  /* =========================
-  LOAD COMPLETED ORDERS
-  ========================= */
+  const {
+    data: reviewedMap = {},
+    mutate: mutateReviews,
+  } = useSWR(user ? "/api/reviews" : null, fetchReviews);
 
-  async function loadOrders(): Promise<void> {
+  /* ================= FILTER ================= */
 
-    if (authLoading) return;
-    if (!user) return;
+  const orders = useMemo(
+    () =>
+      allOrders.filter(
+        (o: Order) => o.status === "completed"
+      ),
+    [allOrders]
+  );
 
+  const totalPi = useMemo(
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total),
+        0
+      ),
+    [orders]
+  );
+
+  /* ================= SUBMIT REVIEW ================= */
+
+  async function submitReview(orderId: string, productId: string) {
     try {
-
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const res = await fetch("/api/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-
-      if (!res.ok) throw new Error("UNAUTHORIZED");
-
-      const data = await res.json();
-
-      const rawOrders: Order[] = data.orders ?? [];
-
-      const completed = rawOrders.filter(
-        (o) => o.status === "completed"
-      );
-
-      setOrders(completed);
-
-      /* LOAD EXISTING REVIEWS */
-
-      try {
-
-        const reviewRes = await fetch("/api/reviews", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        if (reviewRes.ok) {
-
-          const data: {
-            reviews: { order_id: string }[];
-          } = await reviewRes.json();
-
-          const map: ReviewMap = {};
-
-          data.reviews.forEach((r) => {
-            map[r.order_id] = true;
-          });
-
-          setReviewedMap(map);
-
-        }
-
-      } catch (err) {
-
-        console.error("Load reviews error:", err);
-
-      }
-
-    } catch (err) {
-
-      console.error("Load completed error:", err);
-      setOrders([]);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  }
-
-  /* =========================
-  SUBMIT REVIEW
-  ========================= */
-
-  async function submitReview(
-    orderId: string,
-    productId: string
-  ) {
-
-    if (authLoading) return;
-    if (!user) return;
-
-    try {
-
       setReviewError(null);
 
       const token = await getPiAccessToken();
       if (!token) return;
 
       const res = await fetch("/api/reviews", {
-
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-
         body: JSON.stringify({
-
           order_id: orderId,
           product_id: productId,
           rating,
           comment: comment.trim() || t.default_review_comment,
-
         }),
-
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-
         if (data?.error === "ALREADY_REVIEWED") {
-
-          setReviewError(
-            t.already_reviewed ?? "Already reviewed"
-          );
-
+          setReviewError(t.already_reviewed ?? "Already reviewed");
         } else {
-
-          setReviewError(
-            t.review_failed ?? "Review failed"
-          );
-
+          setReviewError(t.review_failed ?? "Review failed");
         }
-
         return;
-
       }
 
-      setReviewedMap((prev) => ({
-        ...prev,
-        [orderId]: true,
-      }));
+      // ✅ update UI ngay
+      mutateReviews(
+        (prev: ReviewMap) => ({
+          ...prev,
+          [orderId]: true,
+        }),
+        false
+      );
 
       setActiveReviewId(null);
       setComment("");
       setRating(5);
 
     } catch {
-
-      setReviewError(
-        t.review_failed ?? "Review failed"
-      );
-
+      setReviewError(t.review_failed ?? "Review failed");
     }
-
   }
 
-  const totalPi = orders.reduce(
-    (sum, o) => sum + Number(o.total),
-    0
-  );
+  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-
       <header className="bg-orange-500 text-white px-4 py-4">
-
         <div className="bg-orange-400 rounded-lg p-4">
-
-          <p className="text-sm opacity-90">
-            {t.order_info}
-          </p>
-
+          <p className="text-sm opacity-90">{t.order_info}</p>
           <p className="text-xs opacity-80 mt-1">
             {t.orders}: {orders.length} · π{formatPi(totalPi)}
           </p>
-
         </div>
-
       </header>
 
       {/* CONTENT */}
-
       <section className="mt-6 px-4">
 
-        {loading ? (
+        {isLoading || authLoading ? (
 
           <p className="text-center text-gray-400">
             {t.loading_orders}
@@ -265,11 +203,8 @@ export default function CompletedOrdersPage() {
         ) : orders.length === 0 ? (
 
           <div className="flex flex-col items-center justify-center mt-16 text-gray-400">
-
             <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 opacity-40" />
-
             <p>{t.no_completed_orders}</p>
-
           </div>
 
         ) : (
@@ -285,62 +220,48 @@ export default function CompletedOrdersPage() {
               >
 
                 {/* HEADER */}
-
-                <div className="flex justify-between items-start px-4 py-3 border-b">
-
+                <div className="flex justify-between px-4 py-3 border-b">
                   <span className="font-semibold text-xs break-all max-w-[60%]">
                     #{o.order_number}
                   </span>
 
-                  <span className="text-orange-500 text-xs text-right max-w-[120px] leading-tight">
+                  <span className="text-orange-500 text-xs">
                     {t.status_completed}
                   </span>
-
                 </div>
 
                 {/* PRODUCTS */}
-
                 <div className="px-4 py-3 space-y-3">
-
                   {o.order_items.map((item, idx) => (
 
-                    <div
-                      key={idx}
-                      className="flex gap-3 items-center min-h-[70px]"
-                    >
+                    <div key={idx} className="flex gap-3 items-center">
 
-                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-
+                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
                         <img
                           src={item.thumbnail || "/placeholder.png"}
                           alt={item.product_name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
-
                       </div>
 
                       <div className="flex-1 min-w-0">
-
-                        <p className="text-sm font-medium line-clamp-2 min-h-[40px]">
+                        <p className="text-sm font-medium line-clamp-2">
                           {item.product_name}
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          x{item.quantity} · π
-                          {formatPi(item.unit_price)}
+                          x{item.quantity} · π{formatPi(item.unit_price)}
                         </p>
-
                       </div>
 
                     </div>
 
                   ))}
-
                 </div>
 
                 {/* FOOTER */}
-
-                <div className="px-4 py-3 border-t relative">
+                <div className="px-4 py-3 border-t">
 
                   <p className="text-sm font-semibold mb-3">
                     {t.total}: π{formatPi(o.total)}
@@ -348,46 +269,30 @@ export default function CompletedOrdersPage() {
 
                   {reviewedMap[o.id] ? (
 
-                    <div className="relative inline-block">
-
-                      <button
-                        disabled
-                        className="px-4 py-1.5 text-sm bg-green-100 text-green-600 rounded-md"
-                      >
-                        {t.order_review}
-                      </button>
-
-                      <span className="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
-                        ✓
-                      </span>
-
-                    </div>
+                    <button
+                      disabled
+                      className="px-4 py-1.5 text-sm bg-green-100 text-green-600 rounded-md"
+                    >
+                      {t.order_review}
+                    </button>
 
                   ) : activeReviewId === o.id ? (
 
                     <div className="space-y-3">
 
                       <div className="flex gap-1">
-
                         {[1,2,3,4,5].map((star) => (
-
                           <button
                             key={star}
-                            onClick={(e) => {
+                            onClick={(e)=>{
                               e.stopPropagation();
                               setRating(star);
                             }}
-                            className={`text-lg ${
-                              star <= rating
-                                ? "text-yellow-500"
-                                : "text-gray-300"
-                            }`}
+                            className={star <= rating ? "text-yellow-500" : "text-gray-300"}
                           >
                             ★
                           </button>
-
                         ))}
-
                       </div>
 
                       <textarea
@@ -412,7 +317,7 @@ export default function CompletedOrdersPage() {
                             o.order_items?.[0]?.product_id
                           );
                         }}
-                        className="px-4 py-1.5 text-sm bg-orange-500 text-white rounded-md hover:bg-orange-600 transition"
+                        className="px-4 py-1.5 text-sm bg-orange-500 text-white rounded-md"
                       >
                         {t.submit_review}
                       </button>
@@ -427,7 +332,7 @@ export default function CompletedOrdersPage() {
                         setActiveReviewId(o.id);
                         setComment(t.default_review_comment);
                       }}
-                      className="px-4 py-1.5 text-sm border border-orange-500 text-orange-500 rounded-md hover:bg-orange-500 hover:text-white transition"
+                      className="px-4 py-1.5 text-sm border border-orange-500 text-orange-500 rounded-md"
                     >
                       {t.review_orders}
                     </button>
