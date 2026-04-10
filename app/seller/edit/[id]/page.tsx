@@ -49,7 +49,6 @@ export default function SellerEditPage() {
   const { user, loading } = useAuth();
   const isSeller = user?.role === "seller";
   const id = typeof params.id === "string" ? params.id : "";
-
   const { data: categories = [] } = useSWR(
   "/api/categories",
   fetcher
