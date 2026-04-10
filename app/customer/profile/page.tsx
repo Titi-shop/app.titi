@@ -152,56 +152,44 @@ export default function ProfilePage() {
 } = useSWR(user ? "/api/profile" : null, fetchProfile);
   /* ================= AVATAR ================= */
 
-  const handleAvatarChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (authLoading || !user) return;
+  const handleBannerUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  if (authLoading || !user) return;
 
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-    setUploading(true);
-    setError(null);
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
 
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return;
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const formData = new FormData();
-      formData.append("file", file);
+    const res = await fetch("/api/uploadShopBanner", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
 
-      const res = await fetch("/api/uploadAvatar", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+    if (!res.ok) throw new Error();
 
-      if (!res.ok) throw new Error();
+    const data = await res.json();
 
-      const data = await res.json();
-
-      setProfile((prev) => ({
+    mutate(
+      (prev: ProfileData) => ({
         ...prev,
-        avatar_url: data.avatar,
-      }));
-
-      setForm((prev) => ({
-        ...prev,
-        avatar_url: data.avatar,
-      }));
-
-      setPreview(null);
-      setSuccess(t.profile_avatar_updated);
-      setTimeout(() => setSuccess(null), 2000);
-    } catch {
-      setError(t.upload_failed);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-      setUploading(false);
-    }
-  };
+        shop_banner: data.banner,
+      }),
+      false
+    );
+  } catch {
+    setError("Upload failed");
+  }
+};
 
   /* ================= SHOP BANNER ================= */
 
