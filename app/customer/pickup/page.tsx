@@ -1,17 +1,15 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { useMemo } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
 
-/* =========================
-ORDER STATUS
-========================= */
+/* ================= TYPES ================= */
 
 type OrderStatus =
   | "pending"
@@ -21,21 +19,14 @@ type OrderStatus =
   | "cancelled"
   | "refunded";
 
-/* =========================
-TYPES (MATCH API)
-========================= */
-
 interface OrderItem {
   product_name: string;
   thumbnail: string;
   images?: string[];
-
   quantity: number;
   unit_price: number;
   total_price: number;
-
   status: string;
-
   seller_cancel_reason?: string | null;
   seller_message?: string | null;
 }
@@ -49,89 +40,70 @@ interface Order {
   order_items: OrderItem[];
 }
 
-/* =========================
-PAGE
-========================= */
+/* ================= FETCHER ================= */
+
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
+  if (!token) return [];
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return data.orders ?? [];
+};
+
+/* ================= PAGE ================= */
 
 export default function CustomerPickupPage() {
-
   const { t } = useTranslation();
-
   const { user, loading: authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  /* ================= SWR ================= */
 
-  useEffect(() => {
-
-    if (authLoading) return;
-    if (!user) return;
-
-    void loadOrders();
-
-  }, [authLoading, user]);
-
-  /* =========================
-  LOAD ORDERS
-  ========================= */
-
-  async function loadOrders(): Promise<void> {
-
-    if (authLoading) return;
-    if (!user) return;
-
-    try {
-
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const res = await fetch("/api/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-
-      if (!res.ok) throw new Error("UNAUTHORIZED");
-
-      const data = (await res.json()) as { orders: Order[] };
-
-      const rawOrders = data.orders ?? [];
-
-      const filtered = rawOrders.filter(
-        (o) => o.status === "pickup"
-      );
-
-      setOrders(filtered);
-
-    } catch (err) {
-
-      console.error("Load pickup orders error:", err);
-      setOrders([]);
-
-    } finally {
-
-      setLoading(false);
-
+  const { data: allOrders = [], isLoading } = useSWR(
+    user ? "/api/orders" : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+      keepPreviousData: true,
     }
-  }
-
-  const totalPi = orders.reduce(
-    (sum, o) => sum + Number(o.total),
-    0
   );
 
-  /* =========================
-  UI
-  ========================= */
+  /* ================= FILTER ================= */
+
+  const orders = useMemo(
+    () =>
+      allOrders.filter(
+        (o: Order) => o.status === "pickup"
+      ),
+    [allOrders]
+  );
+
+  const totalPi = useMemo(
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total),
+        0
+      ),
+    [orders]
+  );
+
+  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
 
+      {/* HEADER */}
       <header className="bg-orange-500 text-white px-4 py-4">
-
         <div className="bg-orange-400 rounded-lg p-4">
-
           <p className="text-sm opacity-90">
             {t.order_info}
           </p>
@@ -139,14 +111,13 @@ export default function CustomerPickupPage() {
           <p className="text-xs opacity-80 mt-1">
             {t.orders}: {orders.length} · π{formatPi(totalPi)}
           </p>
-
         </div>
-
       </header>
 
+      {/* CONTENT */}
       <section className="mt-6 px-4">
 
-        {loading || authLoading ? (
+        {isLoading || authLoading ? (
 
           <p className="text-center text-gray-400">
             {t.loading_orders}
@@ -176,7 +147,6 @@ export default function CustomerPickupPage() {
               >
 
                 {/* HEADER */}
-
                 <div className="flex justify-between items-center px-4 py-3 border-b">
 
                   <span className="font-medium text-sm">
@@ -190,7 +160,6 @@ export default function CustomerPickupPage() {
                 </div>
 
                 {/* PRODUCTS */}
-
                 <div className="px-4 py-3 space-y-3">
 
                   {o.order_items
@@ -210,6 +179,7 @@ export default function CustomerPickupPage() {
                             src={item.thumbnail || "/placeholder.png"}
                             alt={item.product_name}
                             className="w-full h-full object-cover"
+                            loading="lazy"
                           />
                         </div>
 
@@ -236,7 +206,6 @@ export default function CustomerPickupPage() {
                 </div>
 
                 {/* FOOTER */}
-
                 <div className="flex justify-between items-center px-4 py-3 border-t">
 
                   <p className="text-sm font-semibold">
