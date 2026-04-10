@@ -147,10 +147,11 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /* sync form when load */
-  if (!editMode && form.full_name !== profile.full_name) {
+useEffect(() => {
+  if (!editMode) {
     setForm(profile);
   }
+}, [profile, editMode]);
 
   /* ================= AVATAR ================= */
 
@@ -228,7 +229,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error();
 
       // ✅ update UI ngay
-      mutate(form, false);
+      await mutate();
 
       setEditMode(false);
       setSuccess(t.saved_successfully);
