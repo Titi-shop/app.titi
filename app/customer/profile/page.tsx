@@ -1,7 +1,7 @@
 
 "use client";
 export const dynamic = "force-dynamic";
-
+import useSWR from "swr";
 import { countries } from "@/data/countries";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -37,16 +37,13 @@ const defaultProfile: ProfileData = {
   email: null,
   phone: null,
   bio: null,
-
   country: "",
   province: null,
   district: null,
   ward: null,
   address_line: null,
   postal_code: null,
-
   avatar_url: null,
-
   shop_name: null,
   shop_slug: null,
   shop_description: null,
@@ -81,19 +78,62 @@ const editableFields: EditableKey[] = [
   "address_line",
   "postal_code",
 ];
+const fetchProfile = async (): Promise<ProfileData> => {
+  const token = await getPiAccessToken();
+  if (!token) return defaultProfile;
+
+  let res = await fetch("/api/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (res.status === 401) {
+    clearPiToken();
+    const newToken = await getPiAccessToken();
+    if (!newToken) return defaultProfile;
+
+    res = await fetch("/api/profile", {
+      headers: { Authorization: `Bearer ${newToken}` },
+    });
+  }
+
+  if (!res.ok) return defaultProfile;
+
+  const raw = await res.json();
+  const p = raw?.profile ?? {};
+
+  return {
+    full_name: p.full_name ?? null,
+    email: p.email ?? null,
+    phone: p.phone ?? null,
+    bio: p.bio ?? null,
+
+    country: p.country ?? "",
+    province: p.province ?? null,
+    district: p.district ?? null,
+    ward: p.ward ?? null,
+    address_line: p.address_line ?? null,
+    postal_code: p.postal_code ?? null,
+
+    avatar_url: p.avatar_url ?? null,
+
+    shop_name: p.shop_name ?? null,
+    shop_slug: p.shop_slug ?? null,
+    shop_description: p.shop_description ?? null,
+    shop_banner: p.shop_banner ?? null,
+  };
+};
 
 /* ================= COMPONENT ================= */
 
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
   const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [form, setForm] = useState<ProfileData>(defaultProfile);
 
   const [editMode, setEditMode] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -101,73 +141,11 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /* ================= LOAD PROFILE ================= */
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
-
-    const loadProfile = async () => {
-      try {
-        const token = await getPiAccessToken();
-        if (!token) return;
-
-        let res = await fetch("/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.status === 401) {
-          clearPiToken();
-          const newToken = await getPiAccessToken();
-          if (!newToken) return;
-
-          res = await fetch("/api/profile", {
-            headers: { Authorization: `Bearer ${newToken}` },
-          });
-        }
-
-        if (!res.ok) throw new Error();
-
-        const raw = await res.json();
-
-        const profileData =
-          raw?.profile && typeof raw.profile === "object"
-            ? raw.profile
-            : null;
-
-        const safeProfile: ProfileData = {
-          full_name: profileData?.full_name ?? null,
-          email: profileData?.email ?? null,
-          phone: profileData?.phone ?? null,
-          bio: profileData?.bio ?? null,
-
-          country: profileData?.country ?? "VN",
-          province: profileData?.province ?? null,
-          district: profileData?.district ?? null,
-          ward: profileData?.ward ?? null,
-          address_line: profileData?.address_line ?? null,
-          postal_code: profileData?.postal_code ?? null,
-
-          avatar_url: profileData?.avatar_url ?? null,
-
-          shop_name: profileData?.shop_name ?? null,
-          shop_slug: profileData?.shop_slug ?? null,
-          shop_description: profileData?.shop_description ?? null,
-          shop_banner: profileData?.shop_banner ?? null,
-        };
-
-        setProfile(safeProfile);
-        setForm(safeProfile);
-      } catch {
-        setError(t.profile_error_loading);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [authLoading, user, t]);
-
+  const {
+  data: profile = defaultProfile,
+  isLoading,
+  mutate,
+} = useSWR(user ? "/api/profile" : null, fetchProfile);
   /* ================= AVATAR ================= */
 
   const handleAvatarChange = async (
@@ -250,19 +228,13 @@ export default function ProfilePage() {
 
       const data = await res.json();
 
-      setProfile((prev) => ({
-        ...prev,
-        shop_banner: data.banner,
-      }));
-
-      setForm((prev) => ({
-        ...prev,
-        shop_banner: data.banner,
-      }));
-    } catch {
-      setError("Upload failed");
-    }
-  };
+      mutate(
+  (prev: ProfileData) => ({
+    ...prev,
+    avatar_url: data.avatar,
+  }),
+  false
+);
 
   /* ================= SAVE ================= */
 
@@ -287,7 +259,7 @@ export default function ProfilePage() {
 
       if (!res.ok) throw new Error();
 
-      setProfile(form);
+      await mutate();
       setEditMode(false);
 
       setSuccess(t.saved_successfully);
@@ -301,7 +273,7 @@ export default function ProfilePage() {
 
   /* ================= RENDER ================= */
 
-  if (loading || authLoading) {
+  if (isLoading || authLoading) {
     return <p className="p-4 text-center">{t.loading_profile}</p>;
   }
 
