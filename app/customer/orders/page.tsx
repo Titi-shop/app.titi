@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-
+import useSWR from "swr";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
@@ -44,6 +44,7 @@ type OrderTab =
   | "pickup"
   | "shipping"
   | "completed"
+  | "returned"
   | "cancelled";
 
 /* =========================
@@ -54,69 +55,33 @@ export default function CustomerOrdersPage() {
 
   const { t } = useTranslation();
   const router = useRouter();
-
   const { user, loading: authLoading } = useAuth();
-
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
-
+ const [paying, setPaying] = useState(false);
   /* =========================
   LOAD ORDERS
   ========================= */
 
-  useEffect(() => {
-
-    if (authLoading) return;
-    if (!user) return;
-
-    void loadOrders();
-
-  }, [authLoading, user]);
-
-  async function loadOrders(): Promise<void> {
-
-    if (authLoading) return;
-    if (!user) return;
-
-    try {
-
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const res = await fetch("/api/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-
-      if (!res.ok) throw new Error("UNAUTHORIZED");
-
-      const data = await res.json();
-
-      const rawOrders: Order[] = data.orders ?? [];
-
-      setOrders(Array.isArray(rawOrders) ? rawOrders : []);
-
-    } catch (e) {
-
-      console.error("Load orders error:", e);
-      setOrders([]);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+  const { data, isLoading } = useSWR(
+  user ? "/api/orders" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
   }
+);
 
+const orders: Order[] = data?.orders ?? [];
   /* =========================
   REBUY
   ========================= */
 
   async function handleRebuy(order: Order) {
+
+  if (paying) return;        // ✅ chặn spam
+  setPaying(true);           // ✅ bắt đầu lock
+
+  try {
 
     if (authLoading || !user) {
       alert("Auth chưa sẵn sàng");
@@ -134,6 +99,15 @@ export default function CustomerOrdersPage() {
       alert("Không có sản phẩm");
       return;
     }
+      } catch (err) {
+
+    console.error(err);
+    alert("Không thể thanh toán");
+
+  } finally {
+    setPaying(false); // ✅ mở lại
+  }
+}
 
     const total = Number(order.total);
 
@@ -293,7 +267,7 @@ export default function CustomerOrdersPage() {
 
       <section className="px-4 mt-4 space-y-4">
 
-        {loading || authLoading ? (
+        {isLoading || authLoading ? (
 
           <p className="text-center text-gray-500">
             {t.loading}
@@ -336,10 +310,9 @@ export default function CustomerOrdersPage() {
                   <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
 
                     <img
-                      src={item.thumbnail || "/placeholder.png"}
-                      alt={item.product_name}
-                      className="w-full h-full object-cover"
-                    />
+               src={item.thumbnail}
+               loading="lazy"
+                />
 
                   </div>
 
@@ -381,12 +354,13 @@ export default function CustomerOrdersPage() {
                   {t.total}: <b>π{formatPi(o.total)}</b>
                 </span>
 
-                <button
-                  onClick={() => handleRebuy(o)}
-                  className="px-4 py-1 border border-orange-500 text-orange-500 rounded"
-                >
-                  {t.buy_now}
-                </button>
+               <button
+  disabled={paying}
+  onClick={() => handleRebuy(o)}
+  className="px-4 py-1 border border-orange-500 text-orange-500 rounded disabled:opacity-50"
+>
+  {paying ? "Processing..." : t.buy_now}
+</button>
 
               </div>
 
