@@ -145,7 +145,11 @@ export async function upsertCartItems(
 
   for (const item of finalItems) {
     productIds.push(item.product_id);
-    variantIds.push(item.variant_id ?? null);
+    variantIds.push(
+  item.variant_id && isUUID(item.variant_id)
+    ? item.variant_id
+    : null
+);
     quantities.push(item.quantity ?? 1);
   }
 
