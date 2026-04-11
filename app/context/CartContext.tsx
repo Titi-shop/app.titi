@@ -207,24 +207,37 @@ useEffect(() => {
       quantity: safeQty,
     });
 
-    await fetch("/api/cart", {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        product_id: item.product_id,
-        variant_id: item.variant_id ?? null,
-        quantity: safeQty,
-      }),
-    });
+    const res = await fetch("/api/cart", {
+  method: "POST",
+  cache: "no-store",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: item.product_id,
+    variant_id: item.variant_id ?? null,
+    quantity: safeQty,
+  }),
+});
 
-  } catch (err) {
-    console.error("[CART][CLIENT_POST_FAILED]", err);
-  }
-};
+// ❌ nếu API lỗi
+if (!res.ok) {
+  console.error("[CART] POST failed", await res.text());
+  return;
+}
+
+// ✅ load lại cart từ server
+const cartRes = await fetch("/api/cart", {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+
+if (!cartRes.ok) return;
+
+const serverCart = await cartRes.json();
+setCart(serverCart);
   /* ================= REMOVE ================= */
 
   const removeFromCart = async (id: string) => {
