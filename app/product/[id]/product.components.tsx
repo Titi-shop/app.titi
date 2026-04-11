@@ -187,25 +187,12 @@ export function ProductView({
       )}
 
       {/* ===== ACTION ===== */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
-
-        <button
-          onClick={add}
-          disabled={!canBuy}
-          className={`flex-1 py-2 rounded-md text-white ${
-            !canBuy ? "bg-gray-400" : "bg-yellow-500"
-          }`}
-        >
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
+        <button onClick={add} className="flex-1 bg-yellow-500 text-white">
           {t.add_to_cart}
         </button>
 
-        <button
-          onClick={buy}
-          disabled={!canBuy}
-          className={`flex-1 py-2 rounded-md text-white ${
-            !canBuy ? "bg-gray-400" : "bg-red-500"
-          }`}
-        >
+        <button onClick={buy} className="flex-1 bg-red-500 text-white">
           {t.buy_now}
         </button>
       </div>
