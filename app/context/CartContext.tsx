@@ -8,7 +8,7 @@ import { getPiAccessToken } from "@/lib/piAuth";
 
 type CartItem = {
   id: string;
-  product_id?: string;
+  product_id: string; 
  variant_id?: string | null;
   name: string;
   price: number;
@@ -143,13 +143,18 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
+  // ✅ VALIDATE NGAY TỪ ĐẦU
+  if (!item.product_id || typeof item.product_id !== "string") {
+    console.error("[CART][CLIENT] INVALID product_id", item);
+    return;
+  }
+
   const uniqueId =
     item.variant_id && item.variant_id !== null
       ? `${item.product_id}_${item.variant_id}`
       : `${item.product_id}_default`;
 
-  // 🔥 LOG ĐẶT NGAY ĐÂY
-  console.log("🟡 ADD ITEM:", {
+  console.log("[CART][ADD]", {
     name: item.name,
     product_id: item.product_id,
     variant_id: item.variant_id,
@@ -178,39 +183,45 @@ useEffect(() => {
       ...prev,
       {
         ...item,
-        id: uniqueId, 
-        product_id: item.product_id!,
+        id: uniqueId,
+        product_id: item.product_id, // ✅ bỏ !
         quantity: safeQty,
         synced: false,
       },
     ];
   });
 
-  // 👉 API giữ nguyên
+  // 👉 API
   try {
-  if (!user) return;
+    if (!user) return;
 
-  const token = await getPiAccessToken();
-  if (!token) return;
+    const token = await getPiAccessToken();
+    if (!token) return;
 
-  await fetch("/api/cart", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      product_id: item.product_id!,
-      variant_id: item.variant_id ?? null,
+    console.log("[CART][POST_SEND]", {
+      product_id: item.product_id,
+      variant_id: item.variant_id,
       quantity: safeQty,
-    }),
-  });
+    });
 
-} catch (err) {
-  console.error(err);
-}
-}; 
+    await fetch("/api/cart", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item.product_id,
+        variant_id: item.variant_id ?? null,
+        quantity: safeQty,
+      }),
+    });
+
+  } catch (err) {
+    console.error("[CART][CLIENT_POST_FAILED]", err);
+  }
+};
   /* ================= REMOVE ================= */
 
   const removeFromCart = async (id: string) => {
