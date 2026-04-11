@@ -103,52 +103,60 @@ export async function upsertCartItems(
 
   if (!Array.isArray(items) || items.length === 0) return;
 
-  const map = new Map<string, CartItemInput>();
+  /* ================= NORMALIZE ================= */
 
-  for (const item of items) {
-    if (!item || typeof item !== "object") continue;
-    if (!isUUID(item.product_id)) continue;
+const map = new Map<string, CartItemInput>();
 
-    const variantId = isUUID(item.variant_id)
-      ? item.variant_id
-      : null;
+for (const item of items) {
+  if (!item || typeof item !== "object") continue;
+  if (!isUUID(item.product_id)) continue;
 
-    let quantity =
-      typeof item.quantity === "number" && !Number.isNaN(item.quantity)
-        ? item.quantity
-        : 1;
+  const variantId = isUUID(item.variant_id)
+    ? item.variant_id
+    : null;
 
-    if (quantity <= 0) quantity = 1;
-    if (quantity > 10) quantity = 10;
+  let quantity =
+    typeof item.quantity === "number" && !Number.isNaN(item.quantity)
+      ? item.quantity
+      : 1;
 
-    const key = `${item.product_id}_${variantId ?? "null"}`;
+  if (quantity <= 0) quantity = 1;
+  if (quantity > 10) quantity = 10;
 
-    // ✅ FIX: không cộng dồn nữa
+  const key = `${item.product_id}_${variantId ?? "null"}`;
+
+  if (map.has(key)) {
+    map.get(key)!.quantity! += quantity;
+  } else {
     map.set(key, {
       product_id: item.product_id,
       variant_id: variantId,
       quantity,
     });
   }
+}
 
-  const finalItems = Array.from(map.values());
-  if (finalItems.length === 0) return;
+const finalItems = Array.from(map.values());
 
-  const productIds: string[] = [];
-  const variantIds: (string | null)[] = [];
-  const quantities: number[] = [];
+if (!finalItems.length) return;
 
-  for (const item of finalItems) {
-    productIds.push(item.product_id);
+/* ================= PREPARE ================= */
 
-    variantIds.push(
-      item.variant_id && isUUID(item.variant_id)
-        ? item.variant_id
-        : null
-    );
+const productIds: string[] = [];
+const variantIds: (string | null)[] = [];
+const quantities: number[] = [];
 
-    quantities.push(item.quantity ?? 1);
-  }
+for (const item of finalItems) {
+  productIds.push(item.product_id);
+
+  variantIds.push(
+    item.variant_id && isUUID(item.variant_id)
+      ? item.variant_id
+      : null
+  );
+
+  quantities.push(item.quantity ?? 1);
+}
 
   await query(
     `
