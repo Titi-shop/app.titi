@@ -201,9 +201,10 @@ console.log("[DEBUG][USER]", user);
     if (!user) {
   console.warn("[CART] user not ready → retry in 500ms");
 
-  setTimeout(() => {
-    addToCart(item);
-  }, 500);
+  if (!user) {
+  console.warn("[CART] user not ready → skip API");
+  return;
+}
 
   return;
 }
