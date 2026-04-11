@@ -69,7 +69,22 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      console.warn("[CART][POST] INVALID_BODY_JSON");
+      // 🔥 REMOVE DUPLICATE ITEMS (QUAN TRỌNG)
+const map = new Map<string, CartItemInput>();
+
+for (const item of items) {
+  const key = `${item.product_id}_${item.variant_id ?? "null"}`;
+
+  if (map.has(key)) {
+    map.get(key)!.quantity! += item.quantity ?? 1;
+  } else {
+    map.set(key, item);
+  }
+}
+
+const finalItems = Array.from(map.values());
+
+console.log("[CART][POST] deduplicated_items:", finalItems);
 
       return NextResponse.json(
         { error: "INVALID_BODY" },
@@ -123,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     console.log("[CART][POST] UPSERT_START");
 
-    await upsertCartItems(userId, items);
+    await upsertCartItems(userId, finalItems);
 
     console.log("[CART][POST] UPSERT_DONE");
 
