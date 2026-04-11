@@ -316,51 +316,6 @@ export async function getOrderByBuyerId(
   return rows[0] ?? null;
 }
 
-/* =========================================================
-   CART
-========================================================= */
-
-export async function getCartByBuyer(userId: string) {
-  const { rows } = await query(
-    `
-    SELECT 
-      c.product_id,
-      c.variant_id,
-      c.quantity,
-
-      p.name,
-      p.price,
-      p.sale_price,
-      p.thumbnail,
-      p.images
-
-    FROM cart_items c
-    JOIN products p ON p.id = c.product_id
-
-    WHERE c.buyer_id = $1
-    ORDER BY c.created_at DESC
-    `,
-    [userId]
-  );
-
-  return rows;
-}
-
-export async function deleteCartItem(
-  userId: string,
-  productId: string,
-  variantId?: string | null
-) {
-  await query(
-    `
-    DELETE FROM cart_items
-    WHERE buyer_id=$1
-    AND product_id=$2
-    AND variant_id IS NOT DISTINCT FROM $3
-    `,
-    [userId, productId, variantId ?? null]
-  );
-}
 
 /* =========================================================
    RETURNS
@@ -703,78 +658,8 @@ const orderRes = await client.query(
     return { orderId, duplicated: false };
   });
 }
-export async function upsertCartItems(
-  userId: string,
-  items: {
-    product_id: string;
-    variant_id?: string | null;
-    quantity?: number;
-  }[]
-): Promise<void> {
-  if (!userId) {
-    throw new Error("INVALID_USER_ID");
-  }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return;
-  }
 
-  const productIds: string[] = [];
-  const variantIds: (string | null)[] = [];
-  const quantities: number[] = [];
-
-  for (const item of items) {
-    if (!item || typeof item !== "object") continue;
-
-    // ✅ validate product_id
-    if (!isUUID(item.product_id)) {
-      console.error("[CART] INVALID product_id:", item.product_id);
-      continue;
-    }
-
-    // ✅ quantity safe
-    const qty =
-      typeof item.quantity === "number" &&
-      !Number.isNaN(item.quantity) &&
-      item.quantity > 0
-        ? Math.min(item.quantity, 99)
-        : 1;
-
-    productIds.push(item.product_id);
-
-    // ✅ FIX variant_id
-    variantIds.push(
-      isUUID(item.variant_id) ? item.variant_id : null
-    );
-
-    quantities.push(qty);
-  }
-
-  if (productIds.length === 0) return;
-
-  await query(
-  `
-  INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
-  SELECT 
-    $1,
-    x.product_id,
-    x.variant_id,
-    x.quantity
-  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-    AS x(product_id, variant_id, quantity)
-
-  ON CONFLICT (
-    buyer_id,
-    product_id,
-    COALESCE(variant_id, '00000000-0000-0000-0000-000000000000')
-  )
-  DO UPDATE SET
-    quantity = cart_items.quantity + EXCLUDED.quantity,
-    updated_at = NOW()
-  `,
-  [userId, productIds, variantIds, quantities]
-);
-}
 
 export async function cancelOrderByBuyer(
   orderId: string,
