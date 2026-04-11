@@ -49,23 +49,16 @@ type CartItemInput = {
 
 export async function POST(req: NextRequest) {
   try {
-    /* ===== AUTH ===== */
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
 
-    console.log("[CART][POST] userId:", userId);
-
-    /* ===== BODY ===== */
     let body: unknown;
 
     try {
       body = await req.json();
-      console.log("[CART][POST] raw body:", body);
-    } catch (err) {
-      console.error("[CART][POST] INVALID_BODY", err);
-
+    } catch {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -74,66 +67,64 @@ export async function POST(req: NextRequest) {
 
     const rawItems: unknown[] = Array.isArray(body) ? body : [body];
 
-    console.log("[CART][POST] rawItems:", rawItems);
+    /* ================= PARSE ================= */
 
-    /* ===== VALIDATE ===== */
     const items: CartItemInput[] = rawItems
-      .map((item, index) => {
-        if (typeof item !== "object" || item === null) {
-          console.error("[CART][POST] INVALID_ITEM_OBJECT:", index, item);
-          return null;
-        }
+      .map((item) => {
+        if (typeof item !== "object" || item === null) return null;
 
         const row = item as Record<string, unknown>;
 
-        if (typeof row.product_id !== "string") {
-          console.error("[CART][POST] INVALID_PRODUCT_ID:", row.product_id);
-          return null;
-        }
+        if (typeof row.product_id !== "string") return null;
 
-        const parsedItem: CartItemInput = {
+        let quantity =
+          typeof row.quantity === "number" ? row.quantity : 1;
+
+        // 🔥 FIX: chống spam / auto tăng
+        if (quantity <= 0) quantity = 1;
+        if (quantity > 10) quantity = 10; // limit chống abuse
+
+        return {
           product_id: row.product_id,
           variant_id:
             typeof row.variant_id === "string"
               ? row.variant_id
               : null,
-          quantity:
-            typeof row.quantity === "number" &&
-            !Number.isNaN(row.quantity)
-              ? row.quantity
-              : 1,
+          quantity,
         };
-
-        return parsedItem;
       })
       .filter((item): item is CartItemInput => item !== null);
 
-    console.log("[CART][POST] parsed items:", items);
-
     if (items.length === 0) {
-      console.error("[CART][POST] INVALID_ITEMS_AFTER_PARSE");
-
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
       );
     }
 
-    /* ===== DB ===== */
-    try {
-      await upsertCartItems(userId, items);
+    /* ================= MERGE TRÙNG ================= */
+    // 🔥 QUAN TRỌNG: gộp item trước khi gửi DB
 
-      console.log("[CART][POST] UPSERT SUCCESS");
+    const map = new Map<string, CartItemInput>();
 
-      return NextResponse.json({ success: true });
-    } catch (dbErr) {
-      console.error("[CART][POST][DB_ERROR]", dbErr);
+    for (const item of items) {
+      const key = `${item.product_id}_${item.variant_id ?? "null"}`;
 
-      return NextResponse.json(
-        { error: "UPSERT_CART_FAILED" },
-        { status: 500 }
-      );
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.quantity += item.quantity;
+      } else {
+        map.set(key, { ...item });
+      }
     }
+
+    const finalItems = Array.from(map.values());
+
+    /* ================= DB ================= */
+
+    await upsertCartItems(userId, finalItems);
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[CART][POST_FAILED]", err);
 
@@ -143,7 +134,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
 /* =========================================================
    DELETE CART ITEM
 ========================================================= */
