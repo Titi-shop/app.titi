@@ -63,7 +63,7 @@ const mergeCartOnLogin = async () => {
         },
         body: JSON.stringify(
           newItems.map((item) => ({
-            product_id: item.product_id ?? item.id,
+            product_id: item.product_id!,
             variant_id: item.variant_id ?? null,
             quantity: item.quantity ?? 1,
           }))
@@ -192,14 +192,15 @@ useEffect(() => {
     if (!token) return;
 
     await fetch("/api/cart", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        cache: "no-store",
-        "Content-Type": "application/json",
-      },
+  method: "POST",
+  cache: "no-store",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+})
       body: JSON.stringify({
-        product_id: item.product_id ?? item.id,
+        product_id: item.product_id!,
         variant_id: item.variant_id ?? null,
         quantity: safeQty,
       }),
