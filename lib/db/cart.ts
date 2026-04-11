@@ -177,7 +177,7 @@ export async function upsertCartItems(
       AS x(product_id, variant_id, quantity)
     JOIN products p ON p.id = x.product_id
 
-    ON CONFLICT ON CONSTRAINT idx_cart_items_unique
+    ON CONFLICT (user_id, product_id, variant_id, seller_id)
     DO UPDATE SET
       quantity = cart_items.quantity + EXCLUDED.quantity,
       unit_price = EXCLUDED.unit_price,
