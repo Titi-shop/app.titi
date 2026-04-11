@@ -99,7 +99,6 @@ export async function upsertCartItems(
 ): Promise<void> {
 
   console.log("[CART][UPSERT] RUNNING NEW VERSION"); // ✅ ĐẶT Ở ĐÂY
-
   if (!isUUID(userId)) {
     throw new Error("INVALID_USER_ID");
   }
