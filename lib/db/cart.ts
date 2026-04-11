@@ -97,10 +97,12 @@ export async function upsertCartItems(
   userId: string,
   items: CartItemInput[]
 ): Promise<void> {
+
+  console.log("[CART][UPSERT] RUNNING NEW VERSION"); // ✅ ĐẶT Ở ĐÂY
+
   if (!isUUID(userId)) {
     throw new Error("INVALID_USER_ID");
   }
-
   if (!Array.isArray(items) || items.length === 0) return;
 
   /* ================= NORMALIZE ================= */
