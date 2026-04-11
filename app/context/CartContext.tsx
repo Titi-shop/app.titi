@@ -97,8 +97,12 @@ const mergeCartOnLogin = async () => {
   synced: true,
 }));
 
-    setCart(finalCart);
-    localStorage.removeItem("cart"); // 🔥 QUAN TRỌNG
+    if (finalCart.length > 0) {
+  setCart(finalCart);
+  localStorage.removeItem("cart");
+} else {
+  console.warn("[CART] server empty → KEEP LOCAL CART");
+}
 
   } catch (err) {
     console.error("❌ MERGE ERROR:", err);
@@ -141,7 +145,7 @@ useEffect(() => {
   void mergeCartOnLogin();
 }, [user]);
   /* ================= ADD ================= */
-
+console.log("[DEBUG][USER]", user);
   const addToCart = async (item: CartItem) => {
   // ✅ VALIDATE
   if (!item.product_id || typeof item.product_id !== "string") {
@@ -195,9 +199,14 @@ useEffect(() => {
   // 👉 API
   try {
     if (!user) {
-      console.warn("[CART] user not ready → save local only");
-      return;
-    }
+  console.warn("[CART] user not ready → retry in 500ms");
+
+  setTimeout(() => {
+    addToCart(item);
+  }, 500);
+
+  return;
+}
 
     const token = await getPiAccessToken();
     if (!token) {
