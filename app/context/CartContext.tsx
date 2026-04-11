@@ -184,7 +184,7 @@ useEffect(() => {
       {
         ...item,
         id: uniqueId,
-        product_id: item.product_id, // ✅ bỏ !
+        product_id: item.product_id,
         quantity: safeQty,
         synced: false,
       },
@@ -193,7 +193,10 @@ useEffect(() => {
 
   // 👉 API
   try {
-    if (!user) return;
+    if (!user) {
+  console.warn("[CART] user not ready → skip API, save local only");
+  return;
+}
 
     const token = await getPiAccessToken();
     if (!token) return;
