@@ -32,11 +32,17 @@ export async function GET() {
 
     const userId = auth.userId;
 
+    console.log("[CART][GET] user:", userId);
+
     const items = await getCart(userId);
+
+    console.log("[CART][GET] items_count:", items.length);
 
     return NextResponse.json(items);
   } catch (err) {
-    console.error("[CART][GET_FAILED]", err);
+    console.error("[CART][GET_FAILED]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     return NextResponse.json(
       { error: "GET_CART_FAILED" },
@@ -56,16 +62,22 @@ export async function POST(req: NextRequest) {
 
     const userId = auth.userId;
 
+    console.log("[CART][POST] user:", userId);
+
     let body: unknown;
 
     try {
       body = await req.json();
     } catch {
+      console.warn("[CART][POST] INVALID_BODY_JSON");
+
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
+
+    console.log("[CART][POST] raw_body:", JSON.stringify(body));
 
     const rawItems: unknown[] = Array.isArray(body) ? body : [body];
 
@@ -96,7 +108,11 @@ export async function POST(req: NextRequest) {
       })
       .filter((i): i is CartItemInput => i !== null);
 
+    console.log("[CART][POST] validated_items:", items);
+
     if (items.length === 0) {
+      console.warn("[CART][POST] INVALID_ITEMS_EMPTY");
+
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
@@ -105,15 +121,32 @@ export async function POST(req: NextRequest) {
 
     /* ================= UPSERT ================= */
 
+    console.log("[CART][POST] UPSERT_START");
+
     await upsertCartItems(userId, items);
+
+    console.log("[CART][POST] UPSERT_DONE");
 
     /* ================= RETURN UPDATED CART ================= */
 
     const updatedCart = await getCart(userId);
 
+    console.log(
+      "[CART][POST] updated_count:",
+      updatedCart.length
+    );
+
     return NextResponse.json(updatedCart);
-  } catch (err) {
-    console.error("[CART][POST_FAILED]", err);
+  } catch (err: unknown) {
+    const errorCode =
+      typeof err === "object" && err !== null && "code" in err
+        ? (err as { code?: string }).code
+        : undefined;
+
+    console.error("[CART][POST_FAILED]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+      code: errorCode,
+    });
 
     return NextResponse.json(
       { error: "UPSERT_CART_FAILED" },
@@ -133,18 +166,15 @@ export async function DELETE(req: NextRequest) {
 
     const userId = auth.userId;
 
+    console.log("[CART][DELETE] user:", userId);
+
     let body: unknown;
 
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
-    }
+      console.warn("[CART][DELETE] INVALID_BODY_JSON");
 
-    if (typeof body !== "object" || body === null) {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -163,7 +193,14 @@ export async function DELETE(req: NextRequest) {
         ? data.variant_id
         : null;
 
+    console.log("[CART][DELETE] target:", {
+      productId,
+      variantId,
+    });
+
     if (!productId) {
+      console.warn("[CART][DELETE] INVALID_PRODUCT_ID");
+
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
@@ -172,11 +209,15 @@ export async function DELETE(req: NextRequest) {
 
     await deleteCartItem(userId, productId, variantId);
 
+    console.log("[CART][DELETE] DONE");
+
     const updatedCart = await getCart(userId);
 
     return NextResponse.json(updatedCart);
   } catch (err) {
-    console.error("[CART][DELETE_FAILED]", err);
+    console.error("[CART][DELETE_FAILED]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     return NextResponse.json(
       { error: "DELETE_CART_FAILED" },
@@ -196,18 +237,15 @@ export async function PATCH(req: NextRequest) {
 
     const userId = auth.userId;
 
+    console.log("[CART][PATCH] user:", userId);
+
     let body: unknown;
 
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
-    }
+      console.warn("[CART][PATCH] INVALID_BODY_JSON");
 
-    if (typeof body !== "object" || body === null) {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -232,7 +270,15 @@ export async function PATCH(req: NextRequest) {
         ? data.quantity
         : null;
 
+    console.log("[CART][PATCH] update:", {
+      productId,
+      variantId,
+      quantity,
+    });
+
     if (!productId || quantity === null) {
+      console.warn("[CART][PATCH] INVALID_INPUT");
+
       return NextResponse.json(
         { error: "INVALID_INPUT" },
         { status: 400 }
@@ -246,11 +292,15 @@ export async function PATCH(req: NextRequest) {
       quantity
     );
 
+    console.log("[CART][PATCH] DONE");
+
     const updatedCart = await getCart(userId);
 
     return NextResponse.json(updatedCart);
   } catch (err) {
-    console.error("[CART][PATCH_FAILED]", err);
+    console.error("[CART][PATCH_FAILED]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     return NextResponse.json(
       { error: "UPDATE_CART_FAILED" },
