@@ -126,14 +126,11 @@ export async function upsertCartItems(
 
     const key = `${item.product_id}_${variantId ?? "null"}`;
 
-    if (map.has(key)) {
-      map.get(key)!.quantity! += quantity;
-    } else {
-      map.set(key, {
-        product_id: item.product_id,
-        variant_id: variantId,
-        quantity,
-      });
+    map.set(key, {
+  product_id: item.product_id,
+  variant_id: variantId,
+  quantity,
+});
     }
   }
 
