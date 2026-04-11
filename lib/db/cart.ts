@@ -179,7 +179,7 @@ export async function upsertCartItems(
 
     ON CONFLICT (user_id, product_id, variant_id, seller_id)
     DO UPDATE SET
-      quantity = cart_items.quantity + EXCLUDED.quantity,
+      quantity = EXCLUDED.quantity,
       unit_price = EXCLUDED.unit_price,
       final_price = EXCLUDED.final_price,
       is_price_changed = cart_items.final_price <> EXCLUDED.final_price,
