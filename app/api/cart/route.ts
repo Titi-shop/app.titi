@@ -4,7 +4,7 @@ import {
   deleteCartItem,
   getCartByBuyer,
   upsertCartItems,
-} from "@/lib/db/orders";
+} from "@/lib/db/cart";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
