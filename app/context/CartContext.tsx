@@ -57,7 +57,7 @@ const mergeCartOnLogin = async () => {
   return;
 }
 
-const newItems = localCart;
+const newItems = localCart.filter(i => !i.synced);
 
     if (newItems.length > 0) {
       await fetch("/api/cart", {
@@ -104,7 +104,12 @@ const newItems = localCart;
 
     if (finalCart.length > 0) {
   setCart(finalCart);
-  localStorage.removeItem("cart");
+  const updatedLocal = localCart.map(item => ({
+  ...item,
+  synced: true,
+}));
+
+localStorage.setItem("cart", JSON.stringify(updatedLocal));
 } else {
   console.warn("[CART] server empty → KEEP LOCAL CART");
 }
@@ -149,12 +154,13 @@ useEffect(() => {
   if (!user) return;
 
   const merged = sessionStorage.getItem("cart_merged");
-  if (merged) {
-    console.log("[CART] already merged → skip");
-    return;
-  }
 
-  sessionStorage.setItem("cart_merged", "1");
+if (merged === user.id) {
+  console.log("[CART] already merged → skip");
+  return;
+}
+
+sessionStorage.setItem("cart_merged", user.id);
  console.log("[CART][MERGE_TRIGGER]");
   void mergeCartOnLogin();
 }, [user]);
@@ -261,7 +267,25 @@ try {
 
   console.log("[CART][SYNC]", serverCart);
 
-  setCart(serverCart);
+  const map = new Map();
+
+for (const item of serverCart) {
+  const key = `${item.product_id}_${item.variant_id ?? "null"}`;
+  map.set(key, item);
+}
+
+const finalCart = Array.from(map.values());
+
+setCart(
+  finalCart.map((item) => ({
+    ...item,
+    id:
+      item.variant_id
+        ? `${item.product_id}_${item.variant_id}`
+        : `${item.product_id}_default`,
+    synced: true,
+  }))
+);
 
 } catch (err) {
   console.error("[CART][CLIENT_POST_FAILED]", err);
