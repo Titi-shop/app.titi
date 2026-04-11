@@ -210,7 +210,7 @@ useEffect(() => {
 } catch (err) {
   console.error(err);
 }
-
+}; 
   /* ================= REMOVE ================= */
 
   const removeFromCart = async (id: string) => {
