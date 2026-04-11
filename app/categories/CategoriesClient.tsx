@@ -141,6 +141,7 @@ const loading = loadingCategories || loadingProducts;
 
   addToCart({
     id: String(product.id),
+    product_id: product.id,
     name: product.name,
     price: product.price,
     sale_price: product.finalPrice,
