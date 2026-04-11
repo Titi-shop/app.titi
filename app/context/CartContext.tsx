@@ -23,6 +23,7 @@ type CartItem = {
   image?: string;
   images?: string[];
   quantity?: number;
+  synced?: boolean;
 };
 
 type CartContextType = {
@@ -55,12 +56,13 @@ const mergeCartOnLogin = async () => {
 
     if (newItems.length > 0) {
       await fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          cache: "no-store",
-          "Content-Type": "application/json",
-        },
+  method: "POST",
+  cache: "no-store",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  
         body: JSON.stringify(
           newItems.map((item) => ({
             product_id: item.product_id!,
@@ -186,34 +188,28 @@ useEffect(() => {
 
   // 👉 API giữ nguyên
   try {
-    if (!user) return;
+  if (!user) return;
 
-    const token = await getPiAccessToken();
-    if (!token) return;
+  const token = await getPiAccessToken();
+  if (!token) return;
 
-    await fetch("/api/cart", {
-  method: "POST",
-  cache: "no-store", // ✅ đúng vị trí
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    product_id: item.product_id!, // ✅ không dùng item.id nữa
-    variant_id: item.variant_id ?? null,
-    quantity: safeQty,
-  }),
-});
-      body: JSON.stringify({
-        product_id: item.product_id!,
-        variant_id: item.variant_id ?? null,
-        quantity: safeQty,
-      }),
-    });
-  } catch (err) {
-    console.error(err);
-  }
-};
+  await fetch("/api/cart", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      product_id: item.product_id!,
+      variant_id: item.variant_id ?? null,
+      quantity: safeQty,
+    }),
+  });
+
+} catch (err) {
+  console.error(err);
+}
 
   /* ================= REMOVE ================= */
 
