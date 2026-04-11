@@ -155,43 +155,39 @@ export async function upsertCartItems(
   /* ================= UPSERT ================= */
 
   await query(
-    `
-    INSERT INTO cart_items (
-      user_id,
-      product_id,
-      variant_id,
-      seller_id,
-      unit_price,
-      final_price,
-      quantity
-    )
-    SELECT 
-      $1,
-      x.product_id,
-      x.variant_id,
-      p.seller_id,
-      p.price,
-      COALESCE(p.sale_price, p.price),
-      x.quantity
-    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-      AS x(product_id, variant_id, quantity)
-    JOIN products p ON p.id = x.product_id
+  `
+  INSERT INTO cart_items (
+    user_id,
+    product_id,
+    variant_id,
+    seller_id,
+    unit_price,
+    final_price,
+    quantity
+  )
+  SELECT 
+    $1,
+    x.product_id,
+    x.variant_id,
+    p.seller_id,
+    p.price,
+    COALESCE(p.sale_price, p.price),
+    x.quantity
+  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+    AS x(product_id, variant_id, quantity)
+  JOIN products p ON p.id = x.product_id
 
-    ON CONFLICT (
-  user_id,
-  product_id,
-  COALESCE(variant_id, '00000000-0000-0000-0000-000000000000')
-)
-    DO UPDATE SET
-      quantity = EXCLUDED.quantity,
-      unit_price = EXCLUDED.unit_price,
-      final_price = EXCLUDED.final_price,
-      is_price_changed = cart_items.final_price <> EXCLUDED.final_price,
-      updated_at = NOW()
-    WHERE cart_items.deleted_at IS NULL
-    `,
-    [userId, productIds, variantIds, quantities]
-  );
+  ON CONFLICT ON CONSTRAINT cart_items_unique
+  DO UPDATE SET
+    quantity = EXCLUDED.quantity,
+    unit_price = EXCLUDED.unit_price,
+    final_price = EXCLUDED.final_price,
+    is_price_changed = cart_items.final_price <> EXCLUDED.final_price,
+    updated_at = NOW()
+  WHERE cart_items.deleted_at IS NULL
+  `,
+  [userId, productIds, variantIds, quantities]
+);
 }
 
 /* =========================================================
