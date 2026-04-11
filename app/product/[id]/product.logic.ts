@@ -39,21 +39,3 @@ export function useProduct(id: string) {
 
   return { product, isLoading };
 }
-
-/* ===== helpers ===== */
-
-export function calcSalePercent(price: number, finalPrice: number) {
-  if (finalPrice >= price) return 0;
-  return Math.round(((price - finalPrice) / price) * 100);
-}
-
-export function formatShortDescription(text?: string) {
-  if (!text || typeof text !== "string") return [];
-
-  return text
-    .replace(/\\n/g, "\n")
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
