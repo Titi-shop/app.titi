@@ -33,32 +33,32 @@ export async function getCart(userId: string) {
   }
 
   const { rows } = await query(
-    `
-    SELECT 
-      c.product_id,
-      c.variant_id,
-      c.quantity,
-      c.unit_price,
-      c.final_price,
-      c.is_price_changed,
-      c.is_out_of_stock,
+  `
+  SELECT 
+    c.product_id,
+    c.variant_id,
+    c.quantity,
 
-      p.name,
-      p.price,
-      p.sale_price,
-      p.thumbnail,
-      p.images
+    c.unit_price AS price,
+    c.final_price AS sale_price,
 
-    FROM cart_items c
-    JOIN products p ON p.id = c.product_id
+    c.is_price_changed,
+    c.is_out_of_stock,
 
-    WHERE c.user_id = $1
-    AND c.deleted_at IS NULL
+    p.name,
+    p.thumbnail,
+    p.images
 
-    ORDER BY c.created_at DESC
-    `,
-    [userId]
-  );
+  FROM cart_items c
+  JOIN products p ON p.id = c.product_id
+
+  WHERE c.user_id = $1
+  AND c.deleted_at IS NULL
+
+  ORDER BY c.created_at DESC
+  `,
+  [userId]
+);
 
   return rows;
 }
