@@ -216,12 +216,13 @@ export default function CustomerAddressPage() {
      </p>
 
       <p className="text-sm text-gray-500">
-        {[a.ward, a.district, a.region].filter(Boolean).join(", ")}
-         </p>
+  {[a.ward, a.district, a.region].filter(Boolean).join(", ")}
+</p>
 
-          <p className="text-sm text-gray-400">
-            {getCountryDisplay(a.country)}
-             </p>
+<p className="text-sm text-gray-400">
+  {getCountryDisplay(a.country)}
+      {a.postal_code ? ` · ${a.postal_code}` : ""}
+         </p>
 
               <div className="flex gap-4 mt-3 text-sm">
 
