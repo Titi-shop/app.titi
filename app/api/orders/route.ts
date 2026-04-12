@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 import {
@@ -12,8 +12,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     /* ================= AUTH ================= */
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+    const auth = await getUserFromBearer();
+
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
     const userId = auth.userId;
 
@@ -22,8 +28,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ orders });
 
-  } catch {
-    console.error("[ORDER] GET_ORDERS_ERROR");
+  } catch (err) {
+    console.error("[ORDER] GET_ORDERS_ERROR", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
