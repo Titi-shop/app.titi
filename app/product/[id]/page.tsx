@@ -67,40 +67,43 @@ export default function ProductDetail() {
   /* ================= LOAD RELATED ================= */
 
   useEffect(() => {
-    async function loadProducts() {
-      if (!product?.categoryId) return;
+  async function loadProducts() {
+    if (!product?.categoryId) return;
 
-      try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/products?categoryId=${product.categoryId}`
+      );
 
-        if (!Array.isArray(data)) return;
+      const data = await res.json();
 
-        const normalized = data.map((p: any) => ({
-          ...p,
-          finalPrice:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price
-              ? p.salePrice
-              : p.price,
-          isSale:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price,
-        }));
+      if (!Array.isArray(data)) return;
 
-        setProducts(normalized);
-      } catch (err) {
-        console.error("Load related failed:", err);
-      }
+      const normalized = data.map((p: any) => ({
+        ...p,
+        finalPrice:
+          typeof p.salePrice === "number" &&
+          p.salePrice < p.price
+            ? p.salePrice
+            : p.price,
+        isSale:
+          typeof p.salePrice === "number" &&
+          p.salePrice < p.price,
+      }));
+
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Load related failed:", err);
     }
+  }
 
-    loadProducts();
-  }, [product]);
+  loadProducts();
+}, [product?.categoryId]);
 
   /* ================= GUARD ================= */
 
-  if (!product) return null;
-  if (!product) return <div>{t.no_products}</div>;
+  if (isLoading) return null; // hoặc skeleton
+if (!product) return <div>{t.no_products}</div>;
 
   /* ================= LOGIC ================= */
 
