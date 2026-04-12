@@ -53,7 +53,7 @@ export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
 
     const def = data.items?.find((a) => a.is_default);
     if (!def) return null;
-
+console.log("🟢 DEFAULT ADDRESS:", def);
     return {
   name: def.full_name,
   phone: def.phone,
