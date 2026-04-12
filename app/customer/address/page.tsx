@@ -18,12 +18,18 @@ interface Address {
   full_name: string;
   phone: string;
   country: string;
-  province: string;
+  region: string;
   district?: string;
   ward?: string;
+
   address_line: string;
   postal_code?: string;
+  label: "home" | "office" | "other"; 
   is_default: boolean;
+  is_verified?: boolean;
+  latitude?: number;
+  longitude?: number;
+  place_id?: string;
 }
 
 interface ApiResponse {
@@ -61,15 +67,15 @@ export default function CustomerAddressPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState<AddressFormData>({
-    full_name: "",
-    phone: "",
-    country: "",
-    province: "",
-    district: "",
-    ward: "",
-    address_line: "",
-    postal_code: "",
-  });
+  full_name: "",
+  phone: "",
+  country: "",
+  region: "", 
+  district: "",
+  ward: "",
+  address_line: "",
+  postal_code: "",
+});
 
   const addresses = data?.items ?? [];
 
@@ -87,7 +93,7 @@ export default function CustomerAddressPage() {
       full_name: a.full_name,
       phone: a.phone,
       country: a.country,
-      province: a.province || "",
+      region: a.region || "",
       district: a.district || "",
       ward: a.ward || "",
       address_line: a.address_line,
@@ -205,13 +211,11 @@ export default function CustomerAddressPage() {
               <p className="font-semibold">{a.full_name}</p>
               <p className="text-sm">{a.phone}</p>
 
-              <p className="text-sm text-gray-500 mt-1">
-                {a.address_line}
-              </p>
-
-              <p className="text-sm text-gray-500">
-                {a.province} - {getCountryDisplay(a.country)}
-              </p>
+             <p className="text-xs text-orange-500 mt-1">
+  {a.         label === "home" && "🏠 Home"}
+  {a.        label === "office" && "🏢 Office"}
+  {a.        label === "other" && "📍 Other"}
+</p>
 
               <div className="flex gap-4 mt-3 text-sm">
 
@@ -249,7 +253,7 @@ export default function CustomerAddressPage() {
             setForm({
               full_name: "",
               phone: "",
-              country: "",
+              region: "",
               province: "",
               district: "",
               ward: "",
