@@ -211,11 +211,17 @@ export default function CustomerAddressPage() {
               <p className="font-semibold">{a.full_name}</p>
               <p className="text-sm">{a.phone}</p>
 
-          <p className="text-xs text-orange-500 mt-1">
-  {a.label === "home" && "🏠 Home"}
-  {a.label === "office" && "🏢 Office"}
-  {a.label === "other" && "📍 Other"}
-</p>
+          <p className="text-sm text-gray-500 mt-1">
+  {a.address_line}
+     </p>
+
+      <p className="text-sm text-gray-500">
+        {[a.ward, a.district, a.region].filter(Boolean).join(", ")}
+         </p>
+
+          <p className="text-sm text-gray-400">
+            {getCountryDisplay(a.country)}
+             </p>
 
               <div className="flex gap-4 mt-3 text-sm">
 
