@@ -2,73 +2,65 @@
 
 import { formatPi } from "@/lib/pi";
 import { useCheckout } from "./checkout.logic";
-import { getCountryDisplay } from "./checkout.helpers";
 
 export default function CheckoutSheet({ open, onClose, product }: any) {
+  const t = {}; // giữ nguyên của bạn
+
   const {
     item,
     quantity,
+    qtyDraft,
     setQtyDraft,
     maxStock,
-    shipping,
     zone,
     setZone,
-    handlePay,
+    availableRegions,
+    total,
+    previewLoading,
     processing,
-    preview,
-  } = useCheckout(product, open, onClose);
+    handlePay,
+  } = useCheckout(product, open, t);
 
   if (!open || !item) return null;
 
   return (
-    <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] bg-black/40">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4">
 
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[65vh] flex flex-col">
-        
-        <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
-
-          {/* ADDRESS */}
-          <div className="border p-3 mb-4">
-            {shipping ? (
-              <>
-                <p>{shipping.name}</p>
-                <p>{shipping.phone}</p>
-                <p>{shipping.address_line}</p>
-                <p>
-                  {shipping.province} – {getCountryDisplay(shipping.country)}
-                </p>
-              </>
-            ) : (
-              <p>➕ Add address</p>
-            )}
-          </div>
-
-          {/* PRODUCT */}
-          <div className="flex gap-3">
-            <img src={item.thumbnail} className="w-16 h-16" />
-            <div className="flex-1">
-              <p>{item.name}</p>
-
-              <input
-                value={quantity}
-                onChange={(e) => setQtyDraft(e.target.value)}
-              />
-            </div>
-
-            <p>{formatPi(preview?.total ?? item.finalPrice)} π</p>
-          </div>
+        {/* REGION */}
+        <div className="flex gap-2 overflow-x-auto mb-4">
+          {availableRegions.map((r: any) => (
+            <button
+              key={r.zone}
+              onClick={() => setZone(r.zone)}
+              className={`px-3 py-2 border rounded ${
+                zone === r.zone ? "bg-orange-500 text-white" : ""
+              }`}
+            >
+              {r.zone}
+            </button>
+          ))}
         </div>
 
-        {/* ACTION */}
-        <div className="p-4 border-t">
-          <button
-            onClick={handlePay}
-            className="w-full bg-orange-600 text-white py-3 rounded"
-          >
-            Pay now
-          </button>
-        </div>
+        {/* PRODUCT */}
+        <p>{item.name}</p>
+
+        {/* QTY */}
+        <input value={qtyDraft} onChange={(e) => setQtyDraft(e.target.value)} />
+
+        {/* TOTAL */}
+        <p>{formatPi(total)} π</p>
+
+        {previewLoading && <p>Đang tính phí...</p>}
+
+        {/* BUTTON */}
+        <button
+          onClick={handlePay}
+          disabled={processing}
+          className="w-full bg-orange-500 text-white p-3 rounded"
+        >
+          PAY
+        </button>
       </div>
     </div>
   );
