@@ -81,7 +81,7 @@ export function ProductView({
                   setScale(1);
                   setPosition({ x: 0, y: 0 });
                 }}
-                className="w-full aspect-square object-cover block"
+                className="w-full aspect-square object-cover block active:scale-95"
               />
             </SwiperSlide>
           ))}
