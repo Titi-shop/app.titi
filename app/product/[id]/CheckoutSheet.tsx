@@ -261,17 +261,64 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           </div>
 
           {/* PRODUCT */}
-          <div className="flex items-center gap-3">
-            <img
-              src={item.thumbnail}
-              className="w-16 h-16 rounded object-cover"
-            />
-            <div className="flex-1">
-              <p>{item.name}</p>
-            </div>
-            <div>{formatPi(total)} π</div>
-          </div>
-        </div>
+          <div className="flex items-center gap-3 border-b pb-3">
+  <img
+    src={item.thumbnail}
+    className="w-16 h-16 rounded object-cover"
+  />
+
+  <div className="flex-1">
+    <p className="text-sm font-medium line-clamp-2">
+      {item.name}
+    </p>
+
+    {/* ✅ QUANTITY FIX */}
+    <div className="flex items-center gap-2 mt-1">
+      <button
+        onClick={() => {
+          const val = Math.max(1, quantity - 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity <= 1}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        -
+      </button>
+
+      <input
+        type="text"
+        inputMode="numeric"
+        value={qtyDraft}
+        onChange={(e) => {
+          if (!/^\d+$/.test(e.target.value)) return;
+
+          const val = Number(e.target.value || "0");
+          if (val > maxStock) return;
+
+          setQtyDraft(e.target.value);
+        }}
+        className="w-12 text-center border rounded py-1 text-sm"
+      />
+
+      <button
+        onClick={() => {
+          const val = Math.min(maxStock, quantity + 1);
+          setQtyDraft(String(val));
+        }}
+        disabled={quantity >= maxStock}
+        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+      >
+        +
+      </button>
+    </div>
+  </div>
+
+  <div className="text-right">
+    <p className="font-semibold text-orange-600 text-lg">
+      {formatPi(total)} π
+    </p>
+  </div>
+</div>
 
         {/* PAY */}
         <div className="border-t p-4">
