@@ -183,7 +183,7 @@ console.log("[API] product:", product);
   shippingRates,
 });
   } catch (err) {
-    console.error("[PRODUCT][GET] ERROR");
+  console.error("[PRODUCT][GET] ERROR:", err);
 
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCT" },
