@@ -143,9 +143,8 @@ const isSale =
   end !== null &&
   now >= start &&
   now <= end;
-
+console.log("[API] product:", product);
     return NextResponse.json({
-      console.log("[API] product:", product);
   id: p.id,
   sellerId: p.seller_id,
   name: p.name,
