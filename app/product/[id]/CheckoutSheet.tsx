@@ -357,8 +357,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   className={`w-full py-3 text-white rounded ${
     processing ? "bg-gray-400" : "bg-orange-600"
   }`}
->
-            className="w-full py-3 bg-orange-600 text-white rounded"
           >
             {processing ? t.processing : t.pay_now}
           </button>
