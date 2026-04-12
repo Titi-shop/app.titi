@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { completeOrderByBuyer } from "@/lib/db/orders";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function PATCH(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
     /* ================= AUTH ================= */
@@ -14,7 +15,9 @@ export async function PATCH(
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-    const orderId = params.id;
+
+    /* ================= PARAMS ================= */
+    const orderId = context?.params?.id;
 
     if (!orderId) {
       return NextResponse.json(
@@ -36,6 +39,7 @@ export async function PATCH(
       );
     }
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       message: "ORDER_COMPLETED",
