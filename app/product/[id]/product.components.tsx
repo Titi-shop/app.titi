@@ -19,6 +19,21 @@ export function ProductView({
   router,
   add,
   buy,
+  zoomImage,
+  setZoomImage,
+  scale,
+  setScale,
+  position,
+  setPosition,
+  dragging,
+  setDragging,
+  start,
+  setStart,
+  initialDistance,
+  setInitialDistance,
+  initialScale,
+  setInitialScale,
+  handleDoubleTap,
   selectedVariant,
   setSelectedVariant,
   availableVariants,
@@ -79,6 +94,24 @@ export function ProductView({
         </div>
       </div>
 
+       {/* ===== META ===== */}
+      <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
+        <span>👁 {product.views} {t.views}</span>
+
+        <span className="flex items-center gap-1">
+          <ShoppingCart className="w-4 h-4" />
+          {product.sold} {t.orders}
+        </span>
+
+        <span className="flex items-center gap-1">
+          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
+          <span className="text-gray-400">
+            ({product.ratingCount ?? 0})
+          </span>
+        </span>
+      </div>
+
+    
       {/* ===== STOCK ===== */}
       <div className="bg-white px-4 pb-2 text-sm">
         {canBuy ? (
