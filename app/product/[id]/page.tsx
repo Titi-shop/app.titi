@@ -20,7 +20,7 @@ export default function ProductDetail() {
   const id = String(params?.id ?? "");
 
   const { product, isLoading } = useProduct(id);
-
+console.log("[PAGE] product:", product);
   /* ================= ZOOM STATE (🔥 QUAN TRỌNG) ================= */
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);
