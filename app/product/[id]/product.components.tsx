@@ -87,39 +87,64 @@ export function ProductView({
           ))}
         </Swiper>
       </div>
-
       {/* ===== ZOOM ===== */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999]"
-          onClick={() => setZoomImage(null)}
-        >
-          <img
-            src={zoomImage}
-            onClick={(e) => e.stopPropagation()}
-            onTouchEnd={handleDoubleTap}
-            onTouchStart={(e) => {
-              if (e.touches.length === 2) {
-                const d = getDistance(e.touches);
-                setInitialDistance(d);
-                setInitialScale(scale);
-              }
-            }}
-            onTouchMove={(e) => {
-              if (e.touches.length === 2) {
-                const d = getDistance(e.touches);
-                let newScale = initialScale * (d / initialDistance);
-                newScale = Math.max(1, Math.min(newScale, 6));
-                setScale(newScale);
-              }
-            }}
-            style={{
-              transform: `scale(${scale})`,
-            }}
-            className="max-w-full max-h-full"
-          />
-        </div>
-      )}
+{zoomImage && (
+  <div
+    className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999]"
+    onClick={() => setZoomImage(null)}
+  >
+    <img
+      src={zoomImage}
+      onClick={(e) => e.stopPropagation()}
+
+      onTouchEnd={handleDoubleTap}
+
+      /* ===== START ===== */
+      onTouchStart={(e) => {
+        if (e.touches.length === 2) {
+          const d = getDistance(e.touches);
+          setInitialDistance(d);
+          setInitialScale(scale);
+        } else if (e.touches.length === 1) {
+          const touch = e.touches[0];
+          setDragging(true);
+          setStart({
+            x: touch.clientX - position.x,
+            y: touch.clientY - position.y,
+          });
+        }
+      }}
+
+      /* ===== MOVE ===== */
+      onTouchMove={(e) => {
+        if (e.touches.length === 2) {
+          const d = getDistance(e.touches);
+          let newScale = initialScale * (d / initialDistance);
+
+          newScale = Math.max(1, Math.min(newScale, 6));
+          setScale(newScale);
+        }
+
+        if (e.touches.length === 1 && dragging) {
+          const touch = e.touches[0];
+          setPosition({
+            x: touch.clientX - start.x,
+            y: touch.clientY - start.y,
+          });
+        }
+      }}
+
+      onTouchEnd={() => setDragging(false)}
+
+      style={{
+        transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+        transition: "0.1s",
+      }}
+
+      className="max-w-full max-h-full object-contain"
+    />
+  </div>
+)}
 
       {/* ===== INFO ===== */}
       <div className="bg-white p-4 flex justify-between items-start">
