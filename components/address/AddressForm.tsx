@@ -11,11 +11,9 @@ export interface AddressFormData {
   full_name: string;
   phone: string;
   country: string;
-
   region: string;
   district: string;
   ward: string;
-
   address_line: string;
   postal_code: string;
 }
@@ -145,54 +143,59 @@ export default function AddressForm({
 
         {/* ================= VN MODE ================= */}
         {isVN ? (
-          <select
-            className="w-full border p-2 rounded"
-            value={form.province}
-            onChange={handleProvinceChange}
-          >
-            <option value="">Tỉnh / Thành</option>
-            {provinces?.map((p) => (
-              <option key={p.code} value={p.name}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            className="w-full border p-2 rounded"
-            placeholder={t.province_city}
-            value={form.province}
-            onChange={handleChange("province")}
-          />
-        )}
+  <select
+    className="w-full border p-2 rounded"
+    value={form.region}
+    onChange={handleRegionChange}
+  >
+    <option value="">Tỉnh / Thành</option>
+    {provinces?.map((p) => (
+      <option key={p.code} value={p.name}>
+        {p.name}
+      </option>
+    ))}
+  </select>
+) : (
+  <input
+    className="w-full border p-2 rounded"
+    placeholder={t.province_city}
+    value={form.region}
+    onChange={handleChange("region")}
+  />
+)}
 
-        {/* ADDRESS FULL (gộp huyện + xã luôn) */}
-        <textarea
-          className="w-full border p-2 rounded"
-          placeholder={t.address}
-          value={form.address_line}
-          onChange={handleChange("address_line")}
-        />
+        {/* REGION xong rồi */}
 
-        {/* POSTAL */}
-        <input
-          className="w-full border p-2 rounded"
-          placeholder={t.postal_code_optional}
-          value={form.postal_code}
-          onChange={handleChange("postal_code")}
-        />
-        <input
+{/* DISTRICT */}
+<input
   className="w-full border p-2 rounded"
   placeholder={t.district || "District"}
   value={form.district}
   onChange={handleChange("district")}
 />
 
+{/* WARD */}
 <input
   className="w-full border p-2 rounded"
   placeholder={t.ward || "Ward"}
   value={form.ward}
   onChange={handleChange("ward")}
+/>
+
+{/* ADDRESS */}
+<textarea
+  className="w-full border p-2 rounded"
+  placeholder={t.address}
+  value={form.address_line}
+  onChange={handleChange("address_line")}
+/>
+
+{/* POSTAL */}
+<input
+  className="w-full border p-2 rounded"
+  placeholder={t.postal_code_optional}
+  value={form.postal_code}
+  onChange={handleChange("postal_code")}
 />
 
       </div>
