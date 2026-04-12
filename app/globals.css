@@ -37,6 +37,14 @@ body {
 }
 
 /* ===============================
+   DISABLE IMAGE DRAG / SELECT
+================================ */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+  touch-action: none;
+}
+/* ===============================
    5️⃣ Dark mode
 ================================ */
 @media (prefers-color-scheme: dark) {
