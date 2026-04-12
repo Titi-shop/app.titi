@@ -36,7 +36,35 @@ export default function ProductForm({
   const { user, loading } = useAuth();
 
   const form = useProductForm(initialData);
+const uploadDetailImages = async (files: File[]) => {
+  if (!files.length) return;
 
+  try {
+    const uploads = files.map(async (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      return data.url;
+    });
+
+    const urls = await Promise.all(uploads);
+
+    // 🔥 dùng form.setDetail (đúng với hook của bạn)
+    form.setDetail((prev: string) => {
+      const html = urls.map((url) => `<img src="${url}" />`).join("\n");
+      return prev + "\n" + html;
+    });
+
+  } catch (err) {
+    console.error("Upload detail error", err);
+  }
+};
   if (loading || !user) {
     return <div className="text-center p-8">{t.loading}</div>;
   }
@@ -192,7 +220,18 @@ export default function ProductForm({
         placeholder="Detail"
         className="w-full border p-2 rounded"
       />
-
+     <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
+  + Thêm ảnh mô tả
+  <input
+    type="file"
+    accept="image/*"
+    hidden
+    multiple
+    onChange={(e) =>
+      uploadDetailImages(Array.from(e.target.files || []))
+    }
+  />
+</label>
       {/* SUBMIT */}
       <button
         className="w-full bg-orange-500 text-white py-3 rounded"
