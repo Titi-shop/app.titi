@@ -21,7 +21,11 @@ interface AddressPayload {
   full_name: string;
   phone: string;
   country: string;
-  province: string;
+
+  region: string;
+  district?: string;
+  ward?: string;
+
   address_line: string;
   postal_code?: string | null;
   label?: "home" | "office" | "other";
@@ -40,7 +44,7 @@ function parseBody(body: unknown): AddressPayload | null {
     typeof b.full_name !== "string" ||
     typeof b.phone !== "string" ||
     typeof b.country !== "string" ||
-    typeof b.province !== "string" ||
+    typeof b.region !== "string" ||
     typeof b.address_line !== "string"
   ) {
     return null;
@@ -51,12 +55,20 @@ function parseBody(body: unknown): AddressPayload | null {
     full_name: b.full_name.trim(),
     phone: b.phone.trim(),
     country: b.country.trim(),
-    province: b.province.trim(),
+
+    region: b.region.trim(),
+    district:
+      typeof b.district === "string" ? b.district.trim() : "",
+    ward:
+      typeof b.ward === "string" ? b.ward.trim() : "",
+
     address_line: b.address_line.trim(),
+
     postal_code:
       typeof b.postal_code === "string"
         ? b.postal_code.trim()
         : null,
+
     label:
       b.label === "office" || b.label === "other"
         ? b.label
