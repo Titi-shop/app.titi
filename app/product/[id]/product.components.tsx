@@ -3,11 +3,13 @@
 import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+import { ShoppingCart } from "lucide-react";
 
 import {
   formatShortDescription,
   formatDetail,
   calcSalePercent,
+  getDistance,
 } from "./product.helpers";
 
 import "swiper/css";
@@ -42,19 +44,28 @@ export function ProductView({
   hasVariants,
   relatedProducts,
 }: any) {
+  /* ================= SAFE DATA ================= */
+
+  if (!product) return null;
+
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
-    ...product.images.filter((img: string) => img && img !== product.thumbnail),
+    ...(Array.isArray(product.images)
+      ? product.images.filter((img: string) => img && img !== product.thumbnail)
+      : []),
   ];
 
   const gallery =
     displayImages.length > 0 ? displayImages : ["/placeholder.png"];
 
+  /* ================= RENDER ================= */
+
   return (
-    <div className="pb-32 bg-gray-50 min-h- {/* GALLERY */}
+    <div className="pb-32 bg-gray-50 min-h-screen">
+      {/* ===== GALLERY ===== */}
       <div className="mt-14 relative bg-white">
         {product.isSale && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded">
+          <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
             -{calcSalePercent(product.price, product.finalPrice)}%
           </div>
         )}
@@ -64,6 +75,7 @@ export function ProductView({
             <SwiperSlide key={i}>
               <img
                 src={img}
+                alt={product.name}
                 onClick={() => {
                   setZoomImage(img);
                   setScale(1);
@@ -76,10 +88,10 @@ export function ProductView({
         </Swiper>
       </div>
 
-      {/* ZOOM */}
+      {/* ===== ZOOM ===== */}
       {zoomImage && (
         <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999]"
           onClick={() => setZoomImage(null)}
         >
           <img
@@ -109,12 +121,9 @@ export function ProductView({
         </div>
       )}
 
-      
       {/* ===== INFO ===== */}
       <div className="bg-white p-4 flex justify-between items-start">
-        <h2 className="text-lg font-medium">
-          {product.name}
-        </h2>
+        <h2 className="text-lg font-medium">{product.name}</h2>
 
         <div className="text-right">
           <p className="text-xl font-bold text-orange-600">
@@ -129,13 +138,13 @@ export function ProductView({
         </div>
       </div>
 
-       {/* ===== META ===== */}
+      {/* ===== META ===== */}
       <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
-        <span>👁 {product.views} {t.views}</span>
+        <span>👁 {product.views || 0} {t.views}</span>
 
         <span className="flex items-center gap-1">
           <ShoppingCart className="w-4 h-4" />
-          {product.sold} {t.orders}
+          {product.sold || 0} {t.orders}
         </span>
 
         <span className="flex items-center gap-1">
@@ -146,7 +155,6 @@ export function ProductView({
         </span>
       </div>
 
-    
       {/* ===== STOCK ===== */}
       <div className="bg-white px-4 pb-2 text-sm">
         {canBuy ? (
@@ -190,9 +198,7 @@ export function ProductView({
                   </div>
 
                   <div className="text-[11px]">
-                    {v.stock > 0
-                      ? `${v.stock}`
-                      : "0"}
+                    {v.stock}
                   </div>
                 </button>
               );
@@ -217,7 +223,7 @@ export function ProductView({
       />
 
       {/* ===== RELATED ===== */}
-      {relatedProducts.length > 0 && (
+      {relatedProducts?.length > 0 && (
         <div className="bg-white mt-2 p-4">
           <h3 className="text-sm font-semibold mb-3">
             🔗 {t.product_related_products}
@@ -255,12 +261,24 @@ export function ProductView({
       )}
 
       {/* ===== ACTION ===== */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
-        <button onClick={add} className="flex-1 bg-yellow-500 text-white">
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2 z-50">
+        <button
+          onClick={add}
+          disabled={!canBuy}
+          className={`flex-1 py-2 rounded text-white ${
+            !canBuy ? "bg-gray-400" : "bg-yellow-500"
+          }`}
+        >
           {t.add_to_cart}
         </button>
 
-        <button onClick={buy} className="flex-1 bg-red-500 text-white">
+        <button
+          onClick={buy}
+          disabled={!canBuy}
+          className={`flex-1 py-2 rounded text-white ${
+            !canBuy ? "bg-gray-400" : "bg-red-500"
+          }`}
+        >
           {t.buy_now}
         </button>
       </div>
