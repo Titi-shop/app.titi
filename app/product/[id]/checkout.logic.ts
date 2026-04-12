@@ -1,223 +1,277 @@
-"use client";
-
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useCallback } from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
-import useSWR from "swr";
-import type { Product } from "@/types/Product";
-import type {
-  Region,
-  ShippingInfo,
-  PreviewPayload,
-  PreviewResponse,
-} from "./checkout.types";
+import type { ShippingInfo, Region } from "./checkout.types";
 
-const previewFetcher = async (
-  [url, payload]: [string, PreviewPayload]
-): Promise<PreviewResponse> => {
-  const token = await getPiAccessToken();
+/* =========================
+   MESSAGE
+========================= */
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+export const getErrorKey = (code?: string) => {
+  const map: Record<string, string> = {
+    UNSUPPORTED_COUNTRY: "unsupported_country",
+    PREVIEW_FAILED: "order_preview_failed",
+    INVALID_REGION: "invalid_region",
+    SHIPPING_NOT_AVAILABLE: "shipping_not_available",
+  };
 
-  const data = await res.json();
-
-  if (!res.ok) throw new Error(data?.error || "PREVIEW_FAILED");
-
-  return data;
+  return map[code || ""] || "unknown_error";
 };
 
-export function useCheckout(product: Product & { variant_id?: string | null }, open: boolean, t: any) {
-  const router = useRouter();
-  const { user, piReady, pilogin } = useAuth();
+/* =========================
+   VALIDATE
+========================= */
 
-  const processingRef = useRef(false);
+export function validateBeforePay({
+  user,
+  piReady,
+  shipping,
+  zone,
+  item,
+  quantity,
+  maxStock,
+  pilogin,
+  showMessage,
+  t,
+}: any) {
+  console.log("🟡 VALIDATE START");
 
-  const [shipping, setShipping] = useState<ShippingInfo | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [qtyDraft, setQtyDraft] = useState("1");
-  const [zone, setZone] = useState<Region | null>(null);
+  if (!user) {
+    console.log("🔴 NOT LOGIN");
 
-  /* ================= ITEM ================= */
+    localStorage.setItem("pending_checkout", "1");
+    pilogin?.();
 
-  const item = useMemo(() => {
-    if (!product) return null;
-    return {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      finalPrice: product.finalPrice,
-      thumbnail: product.thumbnail || "/placeholder.png",
-      stock: product.stock ?? 1,
-    };
-  }, [product]);
+    showMessage(t.please_login || "Please login");
+    return false;
+  }
 
-  const maxStock = Math.max(1, item?.stock ?? 0);
+  if (!window.Pi || !piReady) {
+    console.log("🔴 PI NOT READY");
 
-  const quantity = useMemo(() => {
-    const n = Number(qtyDraft);
-    return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
-  }, [qtyDraft, maxStock]);
+    showMessage(t.pi_not_ready || "Pi is not ready");
+    return false;
+  }
 
-  /* ================= PREVIEW ================= */
+  if (!shipping) {
+    console.log("🔴 NO SHIPPING");
 
-  const previewKey =
-    open && shipping?.country && zone && item
-      ? [
-          "/api/orders/preview",
-          {
-            country: shipping.country.toUpperCase(),
-            zone,
-            items: [{ product_id: item.id, quantity }],
-          },
-        ]
-      : null;
+    showMessage(
+      t.please_add_shipping_address || "Please add shipping address"
+    );
+    return false;
+  }
 
-  const { data: preview, isLoading: previewLoading } = useSWR(
-    previewKey,
-    previewFetcher
-  );
+  if (!shipping?.country) {
+    showMessage(t.invalid_shipping_country);
+    return false;
+  }
 
-  /* ================= ADDRESS ================= */
+  if (!zone) {
+    console.log("🔴 NO REGION");
 
-  useEffect(() => {
-    if (!open || !user) return;
+    showMessage(t.shipping_required || "Select shipping region");
+    return false;
+  }
 
-    (async () => {
-      try {
-        const token = await getPiAccessToken();
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  if (!item) {
+    showMessage(t.invalid_product || "Invalid product");
+    return false;
+  }
 
-        const data = await res.json();
-        const def = data.items?.find((a: any) => a.is_default);
+  if (quantity < 1 || quantity > maxStock) {
+    showMessage(t.invalid_quantity || "Invalid quantity");
+    return false;
+  }
 
-        if (!def) return;
+  return true;
+}
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch {
-        setShipping(null);
-      }
-    })();
-  }, [open, user]);
+/* =========================
+   PAY
+========================= */
 
-  /* ================= REGION ================= */
+export function useCheckoutPay({
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  setProcessing,
+  processingRef,
+  t,
+  user,
+  router,
+  onClose,
+  zone,
+  product,
+  showMessage,
+  validate,
+  preview,
+}: any) {
+  return useCallback(async () => {
+    console.log("🟡 PAY START");
 
-  const availableRegions = useMemo(() => {
-    if (!shipping?.country) return [];
+    if (!validate()) return;
 
-    const country = shipping.country.toUpperCase();
-
-    return product.shippingRates.filter((r: any) => {
-      if (country === "VN") return r.zone === "domestic";
-      return true;
-    });
-  }, [shipping?.country, product.shippingRates]);
-
-  /* ================= PRICE ================= */
-
-  const unitPrice =
-    typeof item?.finalPrice === "number" ? item.finalPrice : item?.price ?? 0;
-
-  const total = preview?.total ?? unitPrice * quantity;
-
-  /* ================= PAY ================= */
-
-  const handlePay = useCallback(async () => {
-    if (!user) {
-      localStorage.setItem("pending_checkout", "1");
-      pilogin?.();
+    if (!preview) {
+      showMessage(t.order_preview_error);
       return;
     }
 
-    if (!preview || processingRef.current) return;
+    if (processingRef.current) return;
 
     processingRef.current = true;
     setProcessing(true);
 
-    await window.Pi?.createPayment(
-      {
-        amount: total,
-        memo: "Order payment",
-        metadata: { shipping, zone, product: item, quantity },
-      },
-      {
-        onReadyForServerApproval: async (paymentId, callback) => {
-          const token = await getPiAccessToken();
+    try {
+      console.log("🟢 CALL PI PAYMENT");
 
-          await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
+      await window.Pi?.createPayment(
+        {
+          amount: total,
+          memo: t.payment_memo_order || "Order payment",
+          metadata: {
+            shipping,
+            zone,
+            product: {
+              id: item!.id,
+              name: item!.name,
+              image: item!.thumbnail || "",
+              price: unitPrice,
             },
-            body: JSON.stringify({ paymentId }),
-          });
-
-          callback();
+            quantity,
+          },
         },
+        {
+          onReadyForServerApproval: async (paymentId, callback) => {
+            console.log("🔥 CLIENT PAYMENT_ID:", paymentId);
 
-        onReadyForServerCompletion: async (paymentId, txid) => {
-          const token = await getPiAccessToken();
+            try {
+              console.log("🟡 APPROVE START:", paymentId);
 
-          await fetch("/api/pi/complete", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              paymentId,
-              txid,
-              product_id: item!.id,
-              variant_id: product.variant_id ?? null,
-              quantity,
-              shipping,
-              zone,
-            }),
-          });
+              const token = await getPiAccessToken();
 
-          processingRef.current = false;
-          setProcessing(false);
-          router.push("/customer/pending");
-        },
-      }
-    );
-  }, [user, preview, total, item, shipping, zone, quantity]);
+              const res = await fetch("/api/pi/approve", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paymentId }),
+              });
 
-  return {
+              const text = await res.text();
+
+              console.log("🟢 APPROVE RES:", res.status, text);
+
+              if (!res.ok) {
+                console.log("🔴 APPROVE FAILED FULL:", text);
+
+                setProcessing(false);
+                processingRef.current = false;
+
+                showMessage(t.payment_approve_failed);
+                return;
+              }
+
+              callback();
+            } catch {
+              setProcessing(false);
+              processingRef.current = false;
+
+              showMessage(t.payment_approve_error);
+            }
+          },
+
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              console.log("🟡 COMPLETE START:", paymentId, txid);
+
+              const token = await getPiAccessToken();
+
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item!.id,
+                  variant_id: product.variant_id ?? null,
+                  quantity,
+                  shipping,
+                  zone,
+                }),
+              });
+
+              console.log("🟢 COMPLETE RES:", res.status);
+
+              if (!res.ok) {
+                console.log("🔴 COMPLETE FAILED");
+
+                setProcessing(false);
+                processingRef.current = false;
+
+                showMessage(t.payment_complete_failed);
+                return;
+              }
+
+              console.log("🟢 PAYMENT SUCCESS");
+
+              setProcessing(false);
+              processingRef.current = false;
+
+              onClose();
+              router.push("/customer/pending");
+
+              showMessage(t.payment_success, "success");
+            } catch {
+              setProcessing(false);
+              processingRef.current = false;
+
+              showMessage(t.payment_failed);
+            }
+          },
+
+          onCancel: () => {
+            console.log("🟡 PAYMENT CANCEL");
+
+            setProcessing(false);
+            processingRef.current = false;
+
+            showMessage(t.payment_cancelled);
+          },
+
+          onError: () => {
+            setProcessing(false);
+            processingRef.current = false;
+
+            showMessage(t.payment_failed);
+          },
+        }
+      );
+    } catch {
+      setProcessing(false);
+      processingRef.current = false;
+
+      showMessage(t.transaction_failed);
+    }
+  }, [
     item,
     quantity,
-    qtyDraft,
-    setQtyDraft,
-    maxStock,
-
-    shipping,
-    zone,
-    setZone,
-    availableRegions,
-
-    preview,
-    previewLoading,
-
     total,
+    shipping,
+    unitPrice,
     processing,
-
-    handlePay,
-  };
+    t,
+    user,
+    router,
+    onClose,
+    zone,
+    product?.variant_id,
+    preview,
+  ]);
 }
