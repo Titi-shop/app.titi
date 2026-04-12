@@ -181,37 +181,6 @@ export default function ProductDetail() {
 
   return (
     <>
-      <ProductView
-        product={product}
-        t={t}
-        router={router}
-        add={add}
-        buy={buy}
-        selectedVariant={selectedVariant}
-        setSelectedVariant={setSelectedVariant}
-        availableVariants={availableVariants}
-        hasVariants={hasVariants}
-        canBuy={canBuy}
-        selectedStock={selectedStock}
-        relatedProducts={relatedProducts}
-
-        {/* 🔥 ZOOM PROPS */}
-        zoomImage={zoomImage}
-        setZoomImage={setZoomImage}
-        scale={scale}
-        setScale={setScale}
-        position={position}
-        setPosition={setPosition}
-        dragging={dragging}
-        setDragging={setDragging}
-        start={start}
-        setStart={setStart}
-        initialDistance={initialDistance}
-        setInitialDistance={setInitialDistance}
-        initialScale={initialScale}
-        setInitialScale={setInitialScale}
-        handleDoubleTap={handleDoubleTap}
-      />
 
       {/* ===== CHECKOUT ===== */}
       <CheckoutSheet
