@@ -11,7 +11,11 @@ export interface AddressFormData {
   full_name: string;
   phone: string;
   country: string;
-  province: string;
+
+  region: string;
+  district: string;
+  ward: string;
+
   address_line: string;
   postal_code: string;
 }
@@ -61,28 +65,30 @@ export default function AddressForm({
     };
 
   const handleCountryChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setForm({
-      ...form,
-      country: e.target.value,
-      province: "",
-    });
-  };
+  setForm({
+    ...form,
+    country: e.target.value,
+    region: "",
+    district: "",
+    ward: "",
+  });
+};
 
-  const handleProvinceChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setForm({
-      ...form,
-      province: e.target.value,
-    });
-  };
+  const handleRegionChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  setForm({
+    ...form,
+    region: e.target.value,
+  });
+};
 
   /* ================= VALIDATION ================= */
 
   const isValid =
-    form.full_name &&
-    form.phone &&
-    form.country &&
-    form.address_line &&
-    (!isVN || form.province);
+  form.full_name &&
+  form.phone &&
+  form.country &&
+  form.address_line &&
+  (!isVN || form.region);
 
   /* ================= UI ================= */
 
