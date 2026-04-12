@@ -232,24 +232,4 @@ export default function ProductDetail() {
   </>
 );
 
-      {/* ===== CHECKOUT ===== */}
-      <CheckoutSheet
-        open={openCheckout}
-        onClose={() => setOpenCheckout(false)}
-        product={{
-          id: product.id,
-          variant_id: selectedVariant?.id ?? null,
-          name:
-            hasVariants && selectedVariant
-              ? `${product.name} - ${selectedVariant.optionValue}`
-              : product.name,
-          price: product.price,
-          finalPrice: product.finalPrice,
-          thumbnail: product.thumbnail,
-          stock: selectedStock,
-          shippingRates: product.shippingRates,
-        }}
-      />
-    </>
-  );
 }
