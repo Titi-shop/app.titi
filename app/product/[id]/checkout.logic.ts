@@ -20,15 +20,22 @@ async function previewOrderDirect({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      country: shipping?.country?.toUpperCase(),
-      zone,
-      items: [
-        {
-          product_id: item.id,
-          quantity,
-        },
-      ],
-    }),
+  country: shipping?.country?.toUpperCase(),
+  zone,
+
+  shipping: {
+    region: shipping?.region,
+    district: shipping?.district,
+    ward: shipping?.ward,
+  },
+
+  items: [
+    {
+      product_id: item.id,
+      quantity,
+    },
+  ],
+   }),
   });
 
   const data = await res.json();
@@ -102,6 +109,10 @@ export function validateBeforePay({
     showMessage(t.invalid_shipping_country);
     return false;
   }
+   if (!shipping?.region) {
+  showMessage(t.invalid_shipping_region || "Invalid region");
+  return false;
+}
 
   if (!zone) {
     console.log("🔴 NO REGION");
@@ -169,6 +180,7 @@ showMessage(t[key] || key);
   }
 }
 if (!finalPreview) {
+  console.log("🔴 FINAL PREVIEW NULL");
   showMessage(t.order_preview_error);
   return;
 }
@@ -313,19 +325,22 @@ if (!finalPreview) {
       showMessage(t.transaction_failed);
     }
   }, [
-    item,
-    quantity,
-    total,
-    shipping,
-    unitPrice,
-    t,
-    user,
-    router,
-    onClose,
-    zone,
-    product?.variant_id,
-    preview,
-    validate,
-    showMessage,
-  ]);
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  setProcessing,
+  processingRef,
+  t,
+  user,
+  router,
+  onClose,
+  zone,
+  product?.variant_id,
+  preview,
+  validate,
+  showMessage,
+]);
 }
