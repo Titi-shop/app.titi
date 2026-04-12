@@ -1,5 +1,3 @@
-// lib/db/orders.buyer.ts
-
 import { query } from "@/lib/db";
 
 /* =========================================================
@@ -106,4 +104,67 @@ export async function getOrderByBuyerId(
   );
 
   return rows[0] ?? null;
+}
+
+export async function completeOrderByBuyer(
+  orderId: string,
+  userId: string
+): Promise<boolean> {
+  if (!orderId || !userId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  return withTransaction(async (client) => {
+    /* ================= CHECK ORDER ================= */
+    const { rows } = await client.query<{
+      status: string;
+    }>(
+      `
+      SELECT status
+      FROM orders
+      WHERE id = $1
+      AND buyer_id = $2
+      LIMIT 1
+      `,
+      [orderId, userId]
+    );
+
+    const order = rows[0];
+
+    if (!order) {
+      return false;
+    }
+
+    /* ================= VALID STATUS ================= */
+    if (order.status !== "shipping") {
+      return false;
+    }
+
+    /* ================= UPDATE ITEMS ================= */
+    await client.query(
+      `
+      UPDATE order_items
+      SET
+        status = 'completed',
+        delivered_at = NOW()
+      WHERE order_id = $1
+      AND status = 'shipping'
+      `,
+      [orderId]
+    );
+
+    /* ================= UPDATE ORDER ================= */
+    await client.query(
+      `
+      UPDATE orders
+      SET
+        status = 'completed',
+        delivered_at = NOW()
+      WHERE id = $1
+      `,
+      [orderId]
+    );
+
+    return true;
+  });
 }
