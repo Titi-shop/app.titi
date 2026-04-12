@@ -343,6 +343,16 @@ export async function processPiPayment(params: {
   txid: string;
   country: string;
   zone: string;
+
+  shipping: {
+    name: string;
+    phone: string;
+    address_line: string;
+    ward?: string | null;
+    district?: string | null;
+    region?: string | null;
+    postal_code?: string | null;
+  };
 }) {
   function isUUID(v: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -459,26 +469,6 @@ if (!shippingRes.rows.length) {
 
     console.log("🟡 [ORDER] SHIPPING_FEE", shippingFee);
 
-    /* ================= ADDRESS ================= */
-    const addrRes = await client.query(
-      `
-      SELECT full_name, phone, address_line
-      FROM addresses
-      WHERE user_id=$1 AND is_default=true
-      LIMIT 1
-      `,
-      [params.userId]
-    );
-
-    const addr = addrRes.rows[0];
-
-    console.log("🟡 [ORDER] ADDRESS", addr);
-
-    if (!addr) {
-      console.error("❌ [ORDER] NO_ADDRESS");
-      throw new Error("NO_ADDRESS");
-    }
-
     /* ===== VARIANT ===== */
 
     if (params.variantId) {
@@ -553,6 +543,13 @@ if (!shippingRes.rows.length) {
       shippingFee,
       total,
     });
+    console.log("🟣 [ORDER] FINAL_PAYLOAD", {
+  buyer: params.userId,
+  seller: product.seller_id,
+  shipping: params.shipping,
+  zone: realZone,
+  total,
+});
     /* ================= ORDER ================= */
 
 const orderRes = await client.query(
@@ -560,63 +557,87 @@ const orderRes = await client.query(
   INSERT INTO orders (
     order_number,
     buyer_id,
+    seller_id,
+
     pi_payment_id,
     pi_txid,
 
-    total,
-    subtotal,
     items_total,
+    subtotal,
     discount,
+    shipping_fee,
     tax,
-
+    total,
     currency,
+
     payment_status,
     paid_at,
 
+    status,
+
     shipping_name,
     shipping_phone,
-    shipping_address,
-    shipping_zone,
-    shipping_fee,
+    shipping_address_line,
+    shipping_ward,
+    shipping_district,
+    shipping_region,
     shipping_country,
     shipping_postal_code,
-    shipping_province
+    shipping_zone,
+
+    total_items,
+    total_quantity
   )
   VALUES (
     gen_random_uuid()::text,
-    $1,$2,$3,
+    $1,$2,
 
-    $4,$5,$6,$7,$8,
+    $3,$4,
 
-    $9,$10,$11,
+    $5,$6,$7,$8,$9,$10,$11,
 
-    $12,$13,$14,$15,$16,$17,$18,$19
+    $12,$13,
+
+    $14,
+
+    $15,$16,$17,$18,$19,$20,$21,$22,$23,
+
+    $24,$25
   )
   RETURNING id
   `,
   [
-    params.userId,
+    params.userId,               // buyer_id
+    product.seller_id,           // ✅ FIX seller
+
     params.paymentId,
     params.txid,
 
-    total,                 // total
-    subtotal,              // subtotal
-    subtotal,              // items_total
-    0,                     // discount
-    0,                     // tax
-
-    "PI",                  // currency
-    "paid",                // payment_status
-     new Date(),        // paid_at
-
-    addr.full_name,
-    addr.phone,
-    addr.address_line,
-    realZone,
+    subtotal,                    // items_total
+    subtotal,                    // subtotal
+    0,                           // discount
     shippingFee,
-    params.country ?? "VN", // shipping_country
-    null,                   // postal_code (nếu chưa có)
-    null,                   // province (nếu chưa có)
+    0,                           // tax
+    total,
+    "PI",
+
+    "paid",
+    new Date(),
+
+    "pending",
+
+    params.shipping.name,
+    params.shipping.phone,
+    params.shipping.address_line,
+    params.shipping.ward ?? null,
+    params.shipping.district ?? null,
+    params.shipping.region ?? null,
+    params.country,
+    params.shipping.postal_code ?? null,
+    realZone,
+
+    1,                           // total_items
+    params.quantity
   ]
 );
 
