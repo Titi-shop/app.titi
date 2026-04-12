@@ -43,7 +43,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
   const [zone, setZone] = useState<Region | null>(null);
-
+console.log("🟣 SHIPPING STATE:", shipping);
   /* ========================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
@@ -118,7 +118,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
       const def = data.items?.find((a) => a.is_default);
       if (!def) return;
-
+   console.log("🟢 SHIPPING SET:", def);
       setShipping({
   name: def.full_name,
   phone: def.phone,
