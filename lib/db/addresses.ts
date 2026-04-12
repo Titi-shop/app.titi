@@ -28,9 +28,9 @@ export async function createAddress(
     full_name: string;
     phone: string;
     country: string;
-    province: string;
-    district: string | null;
-    ward: string | null;
+    region: string;
+    district?: string | null;
+    ward?: string | null;
     address_line: string;
     postal_code: string | null;
     label: string;
@@ -48,7 +48,7 @@ export async function createAddress(
       full_name,
       phone,
       country,
-      province,
+      region,
       district,
       ward,
       address_line,
@@ -64,9 +64,9 @@ export async function createAddress(
       data.full_name,
       data.phone,
       data.country,
-      data.province,
-      data.district,
-      data.ward,
+      data.region,
+      data.district ?? null,
+      data.ward ?? null,
       data.address_line,
       data.postal_code,
       data.label,
@@ -123,7 +123,11 @@ interface UpdateAddressPayload {
   full_name: string;
   phone: string;
   country: string;
-  province: string;
+
+  region: string;
+  district?: string | null;
+  ward?: string | null;
+
   address_line: string;
   postal_code?: string | null;
   label?: "home" | "office" | "other";
@@ -141,20 +145,24 @@ export async function updateAddress(
       full_name = $1,
       phone = $2,
       country = $3,
-      province = $4,
-      address_line = $5,
-      postal_code = $6,
-      label = $7,
+      region = $4,
+      district = $5,
+      ward = $6,
+      address_line = $7,
+      postal_code = $8,
+      label = $9,
       updated_at = NOW()
-    WHERE id = $8
-      AND user_id = $9
+    WHERE id = $10
+      AND user_id = $11
     RETURNING *
     `,
     [
       data.full_name,
       data.phone,
       data.country,
-      data.province,
+      data.region,
+      data.district ?? null,
+      data.ward ?? null,
       data.address_line,
       data.postal_code ?? null,
       data.label ?? "home",
