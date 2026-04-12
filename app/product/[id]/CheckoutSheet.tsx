@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
+import { getPiAccessToken } from "@/lib/piAuth"; // ✅ FIX
 import useSWR from "swr";
 
-import type { Props, Region, ShippingInfo, Message } from "./checkout.types";
+import type {
+  Props,
+  Region,
+  ShippingInfo,
+  Message,
+  AddressApiResponse, // ✅ FIX
+} from "./checkout.types";
+
 import { previewFetcher } from "./checkout.api";
 import {
   getErrorKey,
@@ -24,8 +32,6 @@ function getCountryDisplay(country?: string) {
 /* ========================= */
 
 export default function CheckoutSheet({ open, onClose, product }: Props) {
-  console.log("PRODUCT DATA:", product);
-
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
@@ -67,9 +73,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
   }, [qtyDraft, maxStock]);
 
-  /* =========================
-     PREVIEW
-  ========================= */
+  /* ========================= */
 
   const previewKey =
     open && shipping?.country && zone && item
@@ -83,68 +87,58 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         ]
       : null;
 
-  const {
-    data: preview,
-    error: previewError,
-    isLoading: previewLoading,
-  } = useSWR(previewKey, previewFetcher, {
-    dedupingInterval: 3000,
-    revalidateOnFocus: false,
-  });
+  const { data: preview, error: previewError } = useSWR(
+    previewKey,
+    previewFetcher
+  );
 
   /* =========================
-     LOAD ADDRESS
+     LOAD ADDRESS (FIXED)
   ========================= */
 
   useEffect(() => {
-  async function loadAddress() {
-    try {
-      const token = await getPiAccessToken();
+    async function loadAddress() {
+      try {
+        const token = await getPiAccessToken();
 
-      const res = await fetch("/api/address", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+        const res = await fetch("/api/address", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (!res.ok) return;
+        if (!res.ok) return;
 
-      const data = await res.json();
+        const data: AddressApiResponse = await res.json();
 
-      const def = data.items?.find((a: any) => a.is_default);
-      if (!def) return;
+        const def = data.items?.find((a) => a.is_default);
+        if (!def) return;
 
-      setShipping({
-        name: def.full_name,
-        phone: def.phone,
-        address_line: def.address_line,
-        province: def.province,
-        country: def.country,
-        postal_code: def.postal_code ?? null,
-      });
-    } catch (err) {
-      console.error(err);
+        setShipping({
+          name: def.full_name,
+          phone: def.phone,
+          address_line: def.address_line,
+          province: def.province,
+          country: def.country,
+          postal_code: def.postal_code ?? null,
+        });
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }
 
-  if (open && user) loadAddress();
-}, [open, user]);
+    if (open && user) loadAddress();
+  }, [open, user]);
 
   /* ========================= */
 
   useEffect(() => {
     if (!previewError) return;
-
     const key = getErrorKey(previewError.message);
     showMessage(t[key] ?? key);
   }, [previewError]);
 
   /* ========================= */
 
-  const unitPrice = useMemo(() => {
-    if (!item) return 0;
-    return item.finalPrice ?? item.price;
-  }, [item]);
+  const unitPrice = item?.finalPrice ?? item?.price ?? 0;
 
   const availableRegions = useMemo(() => {
     if (!shipping?.country) return [];
@@ -157,14 +151,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     });
   }, [shipping?.country, product.shippingRates]);
 
-  const total = useMemo(() => {
-    if (preview) return preview.total;
-    return unitPrice * quantity;
-  }, [preview, unitPrice, quantity]);
+  const total = preview?.total ?? unitPrice * quantity;
 
-  /* =========================
-     VALIDATE
-  ========================= */
+  /* ========================= */
 
   const validate = () =>
     validateBeforePay({
@@ -179,10 +168,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       showMessage,
       t,
     });
-
-  /* =========================
-     PAY
-  ========================= */
 
   const handlePay = useCheckoutPay({
     item,
@@ -213,7 +198,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   return (
     <div className="fixed inset-0 z-[100]">
       {message && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200] bg-red-500 text-white">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded">
           {message.text}
         </div>
       )}
@@ -222,24 +207,25 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[65vh] flex flex-col">
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
+        {/* SCROLL */}
+        <div className="flex-1 overflow-y-auto px-4 py-3">
 
           {/* ADDRESS */}
           <div
-            className="border rounded-lg p-3 cursor-pointer mb-4"
+            className="border rounded-lg p-3 mb-4"
             onClick={() => router.push("/customer/address")}
           >
             {shipping ? (
               <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500">
+                <p>{shipping.name}</p>
+                <p>{shipping.phone}</p>
+                <p>{shipping.address_line}</p>
+                <p>
                   {shipping.province} – {getCountryDisplay(shipping.country)}
                 </p>
               </>
             ) : (
-              <p className="text-gray-500">➕ {t.add_shipping}</p>
+              <p>➕ {t.add_shipping}</p>
             )}
           </div>
 
@@ -261,71 +247,35 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           </div>
 
           {/* PRODUCT */}
-          <div className="flex items-center gap-3 border-b pb-3">
-  <img
-    src={item.thumbnail}
-    className="w-16 h-16 rounded object-cover"
-  />
+          <div className="flex items-center gap-3">
+            <img src={item.thumbnail} className="w-16 h-16 rounded" />
 
-  <div className="flex-1">
-    <p className="text-sm font-medium line-clamp-2">
-      {item.name}
-    </p>
+            <div className="flex-1">
+              <p>{item.name}</p>
 
-    {/* ✅ QUANTITY FIX */}
-    <div className="flex items-center gap-2 mt-1">
-      <button
-        onClick={() => {
-          const val = Math.max(1, quantity - 1);
-          setQtyDraft(String(val));
-        }}
-        disabled={quantity <= 1}
-        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-      >
-        -
-      </button>
+              {/* QUANTITY */}
+              <div className="flex gap-2 mt-1">
+                <button onClick={() => setQtyDraft(String(quantity - 1))}>
+                  -
+                </button>
 
-      <input
-        type="text"
-        inputMode="numeric"
-        value={qtyDraft}
-        onChange={(e) => {
-          if (!/^\d+$/.test(e.target.value)) return;
+                <input value={qtyDraft} className="w-12 text-center" />
 
-          const val = Number(e.target.value || "0");
-          if (val > maxStock) return;
+                <button onClick={() => setQtyDraft(String(quantity + 1))}>
+                  +
+                </button>
+              </div>
+            </div>
 
-          setQtyDraft(e.target.value);
-        }}
-        className="w-12 text-center border rounded py-1 text-sm"
-      />
+            <div>{formatPi(total)} π</div>
+          </div>
+        </div>
 
-      <button
-        onClick={() => {
-          const val = Math.min(maxStock, quantity + 1);
-          setQtyDraft(String(val));
-        }}
-        disabled={quantity >= maxStock}
-        className="w-8 h-8 border rounded text-lg disabled:opacity-30"
-      >
-        +
-      </button>
-    </div>
-  </div>
-
-  <div className="text-right">
-    <p className="font-semibold text-orange-600 text-lg">
-      {formatPi(total)} π
-    </p>
-  </div>
-</div>
-
-        {/* PAY */}
+        {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
             onClick={handlePay}
-            disabled={processing}
-            className="w-full py-3 bg-orange-600 text-white rounded-lg"
+            className="w-full py-3 bg-orange-600 text-white rounded"
           >
             {processing ? t.processing : t.pay_now}
           </button>
