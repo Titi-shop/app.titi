@@ -256,31 +256,35 @@ export function ProductView({
 
           <div className="flex gap-3 overflow-x-auto">
             {relatedProducts.map((p: any) => (
-              <div
-                key={p.id}
-                onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px] cursor-pointer"
-              >
-                <img
-                  src={p.thumbnail || "/placeholder.png"}
-                  className="w-full h-24 object-cover rounded"
-                />
+  <div
+    key={p.id}
+    onClick={async () => {
+      await prefetchProduct(p.id);
+      router.push(`/product/${p.id}`);
+    }}
+    onTouchStart={() => prefetchProduct(p.id)}
+    className="min-w-[140px] cursor-pointer"
+  >
+    <img
+      src={p.thumbnail || "/placeholder.png"}
+      className="w-full h-24 object-cover rounded"
+    />
 
-                <p className="text-xs mt-2 line-clamp-2">
-                  {p.name}
-                </p>
+    <p className="text-xs mt-2 line-clamp-2">
+      {p.name}
+    </p>
 
-                <p className="text-sm font-semibold text-orange-600">
-                  π {formatPi(p.finalPrice)}
-                </p>
+    <p className="text-sm font-semibold text-orange-600">
+      π {formatPi(p.finalPrice)}
+    </p>
 
-                {p.isSale && (
-                  <p className="text-xs text-gray-400 line-through">
-                    π {formatPi(p.price)}
-                  </p>
-                )}
-              </div>
-            ))}
+    {p.isSale && (
+      <p className="text-xs text-gray-400 line-through">
+        π {formatPi(p.price)}
+      </p>
+    )}
+  </div>
+))}
           </div>
         </div>
       )}
