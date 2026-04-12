@@ -181,6 +181,19 @@ export default function AddressForm({
           value={form.postal_code}
           onChange={handleChange("postal_code")}
         />
+        <input
+  className="w-full border p-2 rounded"
+  placeholder={t.district || "District"}
+  value={form.district}
+  onChange={handleChange("district")}
+/>
+
+<input
+  className="w-full border p-2 rounded"
+  placeholder={t.ward || "Ward"}
+  value={form.ward}
+  onChange={handleChange("ward")}
+/>
 
       </div>
     </div>
