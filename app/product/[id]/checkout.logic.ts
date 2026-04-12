@@ -1,23 +1,49 @@
+"use client";
+
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import useSWR from "swr";
-import { getErrorKey } from "./checkout.helpers";
+import type { Product } from "@/types/Product";
+import type {
+  Region,
+  ShippingInfo,
+  PreviewPayload,
+  PreviewResponse,
+} from "./checkout.types";
 
-export function useCheckout(product: any, open: boolean, onClose: () => void) {
+const previewFetcher = async (
+  [url, payload]: [string, PreviewPayload]
+): Promise<PreviewResponse> => {
+  const token = await getPiAccessToken();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) throw new Error(data?.error || "PREVIEW_FAILED");
+
+  return data;
+};
+
+export function useCheckout(product: Product & { variant_id?: string | null }, open: boolean, t: any) {
   const router = useRouter();
-  const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
 
   const processingRef = useRef(false);
 
-  const [shipping, setShipping] = useState<any>(null);
+  const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
-  const [message, setMessage] = useState<any>(null);
-  const [zone, setZone] = useState<any>(null);
+  const [zone, setZone] = useState<Region | null>(null);
 
   /* ================= ITEM ================= */
 
@@ -40,18 +66,36 @@ export function useCheckout(product: any, open: boolean, onClose: () => void) {
     return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
   }, [qtyDraft, maxStock]);
 
+  /* ================= PREVIEW ================= */
+
+  const previewKey =
+    open && shipping?.country && zone && item
+      ? [
+          "/api/orders/preview",
+          {
+            country: shipping.country.toUpperCase(),
+            zone,
+            items: [{ product_id: item.id, quantity }],
+          },
+        ]
+      : null;
+
+  const { data: preview, isLoading: previewLoading } = useSWR(
+    previewKey,
+    previewFetcher
+  );
+
   /* ================= ADDRESS ================= */
 
   useEffect(() => {
-    async function loadAddress() {
+    if (!open || !user) return;
+
+    (async () => {
       try {
         const token = await getPiAccessToken();
-
         const res = await fetch("/api/address", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (!res.ok) return;
 
         const data = await res.json();
         const def = data.items?.find((a: any) => a.is_default);
@@ -69,37 +113,28 @@ export function useCheckout(product: any, open: boolean, onClose: () => void) {
       } catch {
         setShipping(null);
       }
-    }
-
-    if (open && user) loadAddress();
+    })();
   }, [open, user]);
 
-  /* ================= PREVIEW ================= */
+  /* ================= REGION ================= */
 
-  const previewKey =
-    open && shipping?.country && zone && item
-      ? [
-          "/api/orders/preview",
-          {
-            country: shipping.country.toUpperCase(),
-            zone,
-            items: [
-              {
-                product_id: item.id,
-                quantity,
-              },
-            ],
-          },
-        ]
-      : null;
+  const availableRegions = useMemo(() => {
+    if (!shipping?.country) return [];
 
-  const { data: preview, error: previewError } = useSWR(previewKey);
+    const country = shipping.country.toUpperCase();
 
-  useEffect(() => {
-    if (!previewError) return;
-    const key = getErrorKey(previewError.message);
-    setMessage({ text: t[key] ?? key, type: "error" });
-  }, [previewError]);
+    return product.shippingRates.filter((r: any) => {
+      if (country === "VN") return r.zone === "domestic";
+      return true;
+    });
+  }, [shipping?.country, product.shippingRates]);
+
+  /* ================= PRICE ================= */
+
+  const unitPrice =
+    typeof item?.finalPrice === "number" ? item.finalPrice : item?.price ?? 0;
+
+  const total = preview?.total ?? unitPrice * quantity;
 
   /* ================= PAY ================= */
 
@@ -110,97 +145,79 @@ export function useCheckout(product: any, open: boolean, onClose: () => void) {
       return;
     }
 
-    if (!window.Pi || !piReady) return;
-    if (!shipping || !zone || !item) return;
-
-    if (processingRef.current) return;
+    if (!preview || processingRef.current) return;
 
     processingRef.current = true;
     setProcessing(true);
 
-    try {
-      await window.Pi?.createPayment(
-        {
-          amount: preview?.total ?? item.finalPrice,
-          memo: t.payment_memo_order,
-          metadata: {
-            shipping,
-            zone,
-            product: item,
-            quantity,
-          },
+    await window.Pi?.createPayment(
+      {
+        amount: total,
+        memo: "Order payment",
+        metadata: { shipping, zone, product: item, quantity },
+      },
+      {
+        onReadyForServerApproval: async (paymentId, callback) => {
+          const token = await getPiAccessToken();
+
+          await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId }),
+          });
+
+          callback();
         },
-        {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            const token = await getPiAccessToken();
 
-            await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ paymentId }),
-            });
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          const token = await getPiAccessToken();
 
-            callback();
-          },
+          await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentId,
+              txid,
+              product_id: item!.id,
+              variant_id: product.variant_id ?? null,
+              quantity,
+              shipping,
+              zone,
+            }),
+          });
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            const token = await getPiAccessToken();
-
-            await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-                product_id: item.id,
-                variant_id: product.variant_id ?? null,
-                quantity,
-                shipping,
-                zone,
-              }),
-            });
-
-            setProcessing(false);
-            processingRef.current = false;
-
-            onClose();
-            router.push("/customer/pending");
-          },
-
-          onCancel: () => {
-            setProcessing(false);
-            processingRef.current = false;
-          },
-
-          onError: () => {
-            setProcessing(false);
-            processingRef.current = false;
-          },
-        }
-      );
-    } catch {
-      setProcessing(false);
-      processingRef.current = false;
-    }
-  }, [item, quantity, shipping, zone, preview, user]);
+          processingRef.current = false;
+          setProcessing(false);
+          router.push("/customer/pending");
+        },
+      }
+    );
+  }, [user, preview, total, item, shipping, zone, quantity]);
 
   return {
     item,
     quantity,
+    qtyDraft,
     setQtyDraft,
     maxStock,
+
     shipping,
-    setZone,
     zone,
-    handlePay,
-    processing,
-    message,
+    setZone,
+    availableRegions,
+
     preview,
+    previewLoading,
+
+    total,
+    processing,
+
+    handlePay,
   };
 }
