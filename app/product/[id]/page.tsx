@@ -107,7 +107,9 @@ if (!product) return <div>{t.no_products}</div>;
 
   /* ================= LOGIC ================= */
 
-  const hasVariants = product.variants.length > 0;
+  const hasVariants =
+  Array.isArray(product.variants) &&
+  product.variants.length > 0;
 
   const availableVariants = product.variants.filter(
     (v: any) => (v.isActive ?? true) && v.optionValue
@@ -121,12 +123,13 @@ if (!product) return <div>{t.no_products}</div>;
     ? !!selectedVariant && selectedStock > 0
     : !(product.isOutOfStock ?? false);
 
-  const relatedProducts = products.filter(
+  const relatedProducts = products
+  .filter(
     (p) =>
       p.id !== product.id &&
-      p.categoryId &&
       p.categoryId === product.categoryId
-  );
+  )
+  .slice(0, 10);
 
   /* ================= ACTIONS ================= */
 
