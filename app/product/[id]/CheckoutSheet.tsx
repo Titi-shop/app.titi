@@ -230,21 +230,52 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           </div>
 
           {/* REGION */}
-          <div className="border rounded-xl p-3 mb-4">
-            <div className="flex gap-2 overflow-x-auto">
-              {availableRegions.map((r) => (
-                <button
-                  key={r.zone}
-                  onClick={() => setZone(r.zone as Region)}
-                  className={`px-3 py-2 rounded ${
-                    zone === r.zone ? "bg-orange-500 text-white" : "bg-gray-100"
-                  }`}
-                >
-                  {formatPi(r.price)} π
-                </button>
-              ))}
-            </div>
-          </div>
+                     {/* SHIPPING REGION */}
+<div className="border rounded-xl p-3 mb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 {t.select_region || "Select region"}
+  </p>
+
+ <div className="flex gap-2 overflow-x-auto">
+  {availableRegions.map((r) => {
+    const active = zone === r.zone;
+
+    const labelMap: Record<string, string> = {
+  domestic: t.region_domestic,
+  sea: t.region_sea,
+  asia: t.region_asia,
+  europe: t.region_europe,
+  north_america: t.region_us,
+  rest_of_world: t.region_global,
+};
+
+    return (
+      <button
+        key={r.zone}
+        onClick={() => {
+  if (!r.zone) return;
+  setZone(r.zone.toLowerCase() as Region);
+}}
+        className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
+          ${
+            active
+              ? "bg-orange-500 text-white border-orange-500"
+              : "bg-gray-50 border-gray-300"
+          }
+        `}
+      >
+        <div className="font-medium">
+          {labelMap[r.zone] ?? r.zone}
+        </div>
+
+        <div className="text-[11px] opacity-80">
+          {formatPi(r.price)} π
+        </div>
+      </button>
+    );
+  })}
+</div>
+</div>
 
           {/* PRODUCT */}
           <div className="flex items-center gap-3">
