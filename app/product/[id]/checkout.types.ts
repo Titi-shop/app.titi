@@ -48,8 +48,10 @@ export interface ShippingInfo {
   name: string;
   phone: string;
   address_line: string;
-  province: string;
-  country: string; 
+  region: string;
+  district?: string;
+  ward?: string;
+  country: string;
   postal_code?: string | null;
 }
 
@@ -58,38 +60,33 @@ export interface AddressApiItem {
   full_name: string;
   phone: string;
   address_line: string;
-  province: string;
-  country?: string;
+  region: string;
+  district?: string;
+  ward?: string;
+  country: string;
   postal_code?: string | null;
 }
-
 export interface AddressApiResponse {
   items?: AddressApiItem[];
 }
-
 export interface Message {
   text: string;
   type: "error" | "success";
 }
-
 export interface PreviewItem {
   product_id: string;
   quantity: number;
 }
-
+export interface PreviewPayload {
+  country: string;
+  zone: Region;
+  items: PreviewItem[];
+}
 export interface PreviewResponse {
   shipping_fee: number;
   total: number;
   currency?: string;
 }
-
-
-
-export interface PreviewResponse {
-  shipping_fee: number;
-  total: number;
-}
-
 export interface Props {
   open: boolean;
   onClose: () => void;
