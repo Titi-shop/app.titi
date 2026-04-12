@@ -1,7 +1,44 @@
 import { useCallback } from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
-import type { ShippingInfo, Region } from "./checkout.types";
 
+import type { ShippingInfo, Region } from "./checkout.types";
+/* =========================
+   PREVIEW DIRECT
+========================= */
+async function previewOrderDirect({
+  shipping,
+  zone,
+  item,
+  quantity,
+}: any) {
+  const token = await getPiAccessToken();
+
+  const res = await fetch("/api/orders/preview", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      country: shipping?.country?.toUpperCase(),
+      zone,
+      items: [
+        {
+          product_id: item.id,
+          quantity,
+        },
+      ],
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.error || "PREVIEW_FAILED");
+  }
+
+  return data;
+}
 /* =========================
    MESSAGE
 ========================= */
@@ -119,44 +156,6 @@ export function useCheckoutPay({
 if (!finalPreview) {
   try {
     console.log("🟡 FORCE PREVIEW BEFORE PAY");
-/* =========================
-   PREVIEW DIRECT (ADD HERE)
-========================= */
-
-async function previewOrderDirect({
-  shipping,
-  zone,
-  item,
-  quantity,
-}: any) {
-  const token = await getPiAccessToken();
-
-  const res = await fetch("/api/orders/preview", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      country: shipping?.country?.toUpperCase(),
-      zone,
-      items: [
-        {
-          product_id: item.id,
-          quantity,
-        },
-      ],
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data?.error || "PREVIEW_FAILED");
-  }
-
-  return data;
-}
     finalPreview = await previewOrderDirect({
       shipping,
       zone,
@@ -179,7 +178,7 @@ async function previewOrderDirect({
 
       await window.Pi?.createPayment(
         {
-          amount: total,
+          amount: finalPreview.total,
           memo: t.payment_memo_order || "Order payment",
           metadata: {
             shipping,
@@ -323,5 +322,7 @@ async function previewOrderDirect({
     zone,
     product?.variant_id,
     preview,
+    validate,
+    showMessage,
   ]);
 }
