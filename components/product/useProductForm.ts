@@ -14,7 +14,7 @@ export function useProductForm(initialData?: ProductPayload) {
 
   const [stock, setStock] = useState<number | "">(1);
   const [isActive, setIsActive] = useState(true);
-
+const [submitting, setSubmitting] = useState(false);
   const [detail, setDetail] = useState("");
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
