@@ -6,8 +6,8 @@ import { query, withTransaction } from "@/lib/db";
 export type ProductVariant = {
   id?: string;
 
-  optionName?: string;
-  optionValue: string;
+  optionName?: string;   // "Size"
+  optionValue: string;   // "XL"
 
   price?: number;
   salePrice?: number | null;
@@ -15,12 +15,14 @@ export type ProductVariant = {
   stock: number;
 
   sku?: string | null;
+  image?: string | null;
+
   sortOrder?: number;
   isActive?: boolean;
 };
 
 /* =========================
-   VALIDATE (STRICT)
+   VALIDATE
 ========================= */
 function validateVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
@@ -33,8 +35,8 @@ function validateVariants(input: unknown): ProductVariant[] {
         ? (v as ProductVariant).optionValue.trim()
         : "";
 
-    if (!value || value.length > 100) {
-      console.warn("❌ [VARIANT][INVALID]:", v);
+    if (!value) {
+      console.warn("❌ INVALID VARIANT:", v);
       return false;
     }
 
@@ -43,62 +45,60 @@ function validateVariants(input: unknown): ProductVariant[] {
 }
 
 /* =========================
-   NORMALIZE (SAFE)
+   NORMALIZE
 ========================= */
 function normalizeVariant(v: ProductVariant, index: number) {
-  const raw =
+  const value =
     typeof v.optionValue === "string"
       ? v.optionValue.trim()
       : "";
 
-  if (!raw) {
-    throw new Error("INVALID_VARIANT_OPTION");
+  if (!value) {
+    throw new Error("INVALID_OPTION_VALUE");
   }
 
+  const label =
+    typeof v.optionName === "string" && v.optionName.trim()
+      ? v.optionName.trim()
+      : "option";
+
   const price =
-    typeof v.price === "number" &&
-    !Number.isNaN(v.price) &&
-    v.price >= 0
+    typeof v.price === "number" && v.price >= 0
       ? v.price
       : 0;
 
   const salePrice =
     typeof v.salePrice === "number" &&
-    !Number.isNaN(v.salePrice) &&
     v.salePrice >= 0 &&
-    (price === 0 || v.salePrice < price)
+    v.salePrice < price
       ? v.salePrice
       : null;
 
   const finalPrice = salePrice ?? price;
 
   return {
-    option_1: raw,
-    option_label_1: v.optionName?.trim() || "option",
+    option_1: value,
+    option_label_1: label,
+
+    option_2: null,
+    option_label_2: null,
+
+    option_3: null,
+    option_label_3: null,
+
+    name: value, // 🔥 đơn giản
 
     price,
     sale_price: salePrice,
     final_price: finalPrice,
 
-    stock:
-      typeof v.stock === "number" && v.stock >= 0
-        ? v.stock
-        : 0,
+    stock: v.stock >= 0 ? v.stock : 0,
 
-    sku:
-      typeof v.sku === "string" && v.sku.trim()
-        ? v.sku.trim()
-        : null,
+    sku: v.sku ?? null,
+    image: v.image ?? "",
 
-    sort_order:
-      typeof v.sortOrder === "number"
-        ? v.sortOrder
-        : index,
-
-    is_active:
-      typeof v.isActive === "boolean"
-        ? v.isActive
-        : true,
+    sort_order: v.sortOrder ?? index,
+    is_active: v.isActive ?? true,
   };
 }
 
@@ -106,10 +106,6 @@ function normalizeVariant(v: ProductVariant, index: number) {
    GET
 ========================= */
 export async function getVariantsByProductId(productId: string) {
-  if (!productId || typeof productId !== "string") {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
   const res = await query(
     `
     SELECT
@@ -149,21 +145,15 @@ export async function getVariantsByProductId(productId: string) {
 }
 
 /* =========================
-   REPLACE (ATOMIC + SAFE)
+   REPLACE (ATOMIC)
 ========================= */
 export async function replaceVariantsByProductId(
   productId: string,
   input: unknown
 ) {
-  if (!productId || typeof productId !== "string") {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  console.log("🧩 [VARIANT][REPLACE] START:", productId);
+  console.log("🧩 REPLACE VARIANTS:", productId);
 
   const valid = validateVariants(input);
-
-  console.log("🧩 [VARIANT][VALID]:", valid.length);
 
   if (valid.length > 100) {
     throw new Error("TOO_MANY_VARIANTS");
@@ -176,34 +166,45 @@ export async function replaceVariantsByProductId(
       [productId]
     );
 
-    if (valid.length === 0) {
-      console.log("🧩 [VARIANT] NO VARIANTS");
-      return;
-    }
+    if (valid.length === 0) return;
 
     const normalized = valid.map(normalizeVariant);
 
-    console.log("🧩 [VARIANT][NORMALIZED]:", normalized);
+    console.log("🧩 NORMALIZED:", normalized);
 
     const values: unknown[] = [];
     const placeholders: string[] = [];
 
     normalized.forEach((v, i) => {
-      const idx = i * 10;
+      const idx = i * 16;
 
       placeholders.push(
-        `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7},$${idx + 8},$${idx + 9},$${idx + 10})`
+        `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7},$${idx + 8},$${idx + 9},$${idx + 10},$${idx + 11},$${idx + 12},$${idx + 13},$${idx + 14},$${idx + 15},$${idx + 16})`
       );
 
       values.push(
         productId,
+
         v.option_1,
         v.option_label_1,
+
+        v.option_2,
+        v.option_label_2,
+
+        v.option_3,
+        v.option_label_3,
+
+        v.name,
+
         v.price,
         v.sale_price,
         v.final_price,
+
         v.stock,
+
         v.sku,
+        v.image,
+
         v.sort_order,
         v.is_active
       );
@@ -214,13 +215,27 @@ export async function replaceVariantsByProductId(
       INSERT INTO product_variants
       (
         product_id,
+
         option_1,
         option_label_1,
+
+        option_2,
+        option_label_2,
+
+        option_3,
+        option_label_3,
+
+        name,
+
         price,
         sale_price,
         final_price,
+
         stock,
+
         sku,
+        image,
+
         sort_order,
         is_active
       )
@@ -229,6 +244,6 @@ export async function replaceVariantsByProductId(
       values
     );
 
-    console.log("✅ [VARIANT][INSERT DONE]");
+    console.log("✅ VARIANTS INSERTED");
   });
 }
