@@ -5,7 +5,6 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 import { useProductForm } from "./product/useProductForm";
-import ImageUpload from "./product/ImageUpload";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
 
@@ -36,74 +35,95 @@ export default function ProductForm({
   const { user, loading } = useAuth();
 
   const form = useProductForm(initialData);
-const uploadDetailImages = async (files: File[]) => {
- const handleUpload = async (files: File[]) => {
-  if (!files.length) return;
 
-  console.log("🚀 HANDLE UPLOAD START");
+  /* =========================
+     UPLOAD IMAGE (MAIN)
+  ========================= */
+  const handleUpload = async (files: File[]) => {
+    if (!files.length) return;
 
-  try {
-    const uploads = files.map(async (file) => {
-      console.log("📂 Uploading:", file.name);
+    console.log("🚀 HANDLE UPLOAD START");
 
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      const uploads = files.map(async (file) => {
+        console.log("📂 Uploading:", file.name);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          console.error("❌ Upload failed:", res.status);
+          throw new Error("UPLOAD_FAILED");
+        }
+
+        const data = await res.json();
+        console.log("✅ Uploaded:", data);
+
+        return data.url;
       });
 
-      if (!res.ok) {
-        console.error("❌ Upload failed:", res.status);
-        throw new Error("UPLOAD_FAILED");
-      }
+      const urls = await Promise.all(uploads);
 
-      const data = await res.json();
-      console.log("✅ Uploaded:", data);
+      console.log("🔥 FINAL URLS:", urls);
 
-      return data.url;
-    });
+      form.setImages((prev: string[]) => [...prev, ...urls]);
 
-    const urls = await Promise.all(uploads);
+    } catch (err) {
+      console.error("❌ HANDLE UPLOAD ERROR:", err);
+      alert("Upload failed");
+    }
+  };
 
-    console.log("🔥 FINAL URLS:", urls);
+  /* =========================
+     UPLOAD DETAIL IMAGE
+  ========================= */
+  const uploadDetailImages = async (files: File[]) => {
+    if (!files.length) return;
 
-    form.setImages((prev: string[]) => [...prev, ...urls]);
+    console.log("🖼️ DETAIL UPLOAD START");
 
-  } catch (err) {
-    console.error("❌ HANDLE UPLOAD ERROR:", err);
-    alert("Upload failed");
-  }
-};
-   if (!files.length) return;
+    try {
+      const uploads = files.map(async (file) => {
+        console.log("📂 Detail uploading:", file.name);
 
-  try {
-    const uploads = files.map(async (file) => {
-      const formData = new FormData();
-      formData.append("file", file);
+        const formData = new FormData();
+        formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          console.error("❌ Detail upload failed:", res.status);
+          throw new Error("UPLOAD_FAILED");
+        }
+
+        const data = await res.json();
+        console.log("✅ Detail uploaded:", data);
+
+        return data.url;
       });
 
-      const data = await res.json();
-      return data.url;
-    });
+      const urls = await Promise.all(uploads);
 
-    const urls = await Promise.all(uploads);
+      console.log("🔥 DETAIL URLS:", urls);
 
-    // 🔥 dùng form.setDetail (đúng với hook của bạn)
-    form.setDetail((prev: string) => {
-      const html = urls.map((url) => `<img src="${url}" />`).join("\n");
-      return prev + "\n" + html;
-    });
+      form.setDetail((prev: string) => {
+        const html = urls.map((url) => `<img src="${url}" />`).join("\n");
+        return prev + "\n" + html;
+      });
 
-  } catch (err) {
-    console.error("Upload detail error", err);
-  }
-};
+    } catch (err) {
+      console.error("❌ DETAIL UPLOAD ERROR:", err);
+    }
+  };
+
   if (loading || !user) {
     return <div className="text-center p-8">{t.loading}</div>;
   }
@@ -113,6 +133,8 @@ const uploadDetailImages = async (files: File[]) => {
   ========================= */
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    console.log("📤 SUBMIT START");
 
     if (!form.name || Number(form.price) <= 0 || !form.categoryId) {
       alert("Invalid input");
@@ -149,6 +171,8 @@ const uploadDetailImages = async (files: File[]) => {
       shippingRates: shipping_rates_array,
     };
 
+    console.log("📦 PAYLOAD:", payload);
+
     await onSubmit(payload);
   };
 
@@ -182,25 +206,31 @@ const uploadDetailImages = async (files: File[]) => {
         required
       />
 
-      {/* IMAGE */}
-     <div className="h-28">
-  <input
-    type="file"
-    accept="image/*"
-    multiple
-    onChange={(e) => {
-      const files = Array.from(e.target.files || []);
-      console.log("📥 FILE CHANGED:", files);
-      alert("FILE CHANGED"); // test
-      handleUpload(files);
-    }}
-    className="w-full h-full opacity-0 absolute cursor-pointer"
-  />
+      {/* IMAGE UPLOAD */}
+      <div className="relative h-28">
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            console.log("📥 FILE CHANGED:", files);
+            handleUpload(files);
+          }}
+          className="absolute inset-0 opacity-0 cursor-pointer"
+        />
 
-  <div className="flex items-center justify-center border-2 border-dashed rounded h-28">
-    ＋
-  </div>
-</div>
+        <div className="flex items-center justify-center border-2 border-dashed rounded h-28">
+          ＋
+        </div>
+      </div>
+
+      {/* PREVIEW */}
+      <div className="grid grid-cols-3 gap-2">
+        {form.images.map((img: string) => (
+          <img key={img} src={img} className="h-20 object-cover rounded" />
+        ))}
+      </div>
 
       {/* PRICE */}
       <input
@@ -273,22 +303,23 @@ const uploadDetailImages = async (files: File[]) => {
         placeholder="Detail"
         className="w-full border p-2 rounded"
       />
-     <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
-  + Thêm ảnh mô tả
-  <input
-    type="file"
-    accept="image/*"
-    hidden
-    multiple
-    onChange={(e) =>
-      uploadDetailImages(Array.from(e.target.files || []))
-    }
-  />
-</label>
+
+      {/* DETAIL IMAGE */}
+      <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
+        + Thêm ảnh mô tả
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          multiple
+          onChange={(e) =>
+            uploadDetailImages(Array.from(e.target.files || []))
+          }
+        />
+      </label>
+
       {/* SUBMIT */}
-      <button
-        className="w-full bg-orange-500 text-white py-3 rounded"
-      >
+      <button className="w-full bg-orange-500 text-white py-3 rounded">
         Submit
       </button>
     </form>
