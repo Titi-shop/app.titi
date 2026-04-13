@@ -386,3 +386,75 @@ export async function PATCH(
     );
   }
 }
+
+/* =========================================================
+   DELETE
+========================================================= */
+
+import { deleteProductById } from "@/lib/db/products";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  console.log("[PRODUCT][DELETE] start");
+
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
+  const id = params.id;
+
+  try {
+    /* ================= VALIDATE ================= */
+    if (!id || typeof id !== "string") {
+      return NextResponse.json(
+        { error: "INVALID_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= DB DELETE ================= */
+    const result = await deleteProductById(id, userId);
+
+    if (!result.ok) {
+      console.warn("[PRODUCT][DELETE] failed:", result.error);
+
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+
+    console.log("[PRODUCT][DELETE] paths:", result.paths.length);
+
+    /* ================= STORAGE DELETE ================= */
+    if (result.paths.length > 0) {
+      const { error } = await supabaseAdmin.storage
+        .from("products")
+        .remove(result.paths);
+
+      if (error) {
+        console.error("[PRODUCT][DELETE] storage error:", error.message);
+        // ❗ KHÔNG throw → tránh rollback DB
+      } else {
+        console.log("[PRODUCT][DELETE] storage cleaned");
+      }
+    }
+
+    console.log("[PRODUCT][DELETE] success");
+
+    return NextResponse.json({
+      success: true,
+    });
+
+  } catch (err) {
+    console.error("[PRODUCT][DELETE] ERROR:", err);
+
+    return NextResponse.json(
+      { error: "FAILED_TO_DELETE_PRODUCT" },
+      { status: 500 }
+    );
+  }
+}
