@@ -91,10 +91,10 @@ if (!product) {
 }
 
   const updateProduct = async (payload: ProductPayload) => {
-    const res = await apiAuthFetch(`/api/products/${payload.id}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
+  const res = await apiAuthFetch(`/api/products/${id}`, { // 🔥 dùng id từ params
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 
     if (!res.ok) {
       throw new Error("PATCH_FAILED");
