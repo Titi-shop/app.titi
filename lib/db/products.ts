@@ -319,15 +319,16 @@ export async function updateProductBySeller(
   sellerId: string,
   productId: string,
   data: UpdateProductInput
-): Promise<boolean> {
+): Promise<ProductRecord | null> {
   console.log("[DB][PRODUCT][UPDATE] start", {
     sellerId,
     productId,
+    data,
   });
 
   if (!sellerId || !productId) {
     console.warn("[DB][PRODUCT][UPDATE] invalid ids");
-    return false;
+    return null;
   }
 
   const fields: string[] = [];
@@ -355,26 +356,28 @@ export async function updateProductBySeller(
 
     if (value === undefined) continue;
 
-    if (key === "price") {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    console.warn("[DB][PRODUCT][UPDATE] invalid price");
-    continue;
-  }
-}
+    /* ================= VALIDATE ================= */
 
-if (key === "sale_price") {
-  if (
-    value !== null &&
-    (typeof value !== "number" || Number.isNaN(value))
-  ) {
-    console.warn("[DB][PRODUCT][UPDATE] invalid sale_price");
-    continue;
-  }
-}
+    if (key === "price") {
+      if (typeof value !== "number" || Number.isNaN(value)) {
+        console.warn("[DB][UPDATE] invalid price");
+        continue;
+      }
+    }
+
+    if (key === "sale_price") {
+      if (
+        value !== null &&
+        (typeof value !== "number" || Number.isNaN(value))
+      ) {
+        console.warn("[DB][UPDATE] invalid sale_price");
+        continue;
+      }
+    }
 
     if (key === "stock") {
       if (typeof value !== "number" || value < 0) {
-        console.warn("[DB][PRODUCT][UPDATE] invalid stock");
+        console.warn("[DB][UPDATE] invalid stock");
         continue;
       }
     }
@@ -384,29 +387,35 @@ if (key === "sale_price") {
   }
 
   if (!fields.length) {
-    console.warn("[DB][PRODUCT][UPDATE] no fields to update");
-    return false;
+    console.warn("[DB][UPDATE] no fields");
+    return null;
   }
 
   try {
-    const { rowCount } = await query(
+    const { rows } = await query<ProductRow>(
       `
       UPDATE products
       SET ${fields.join(", ")},
           updated_at = NOW()
       WHERE id = $${idx}
         AND seller_id = $${idx + 1}
+      RETURNING *
       `,
       [...values, productId, sellerId]
     );
 
-    console.log("[DB][PRODUCT][UPDATE] rowCount:", rowCount);
+    if (!rows.length) {
+      console.warn("[DB][UPDATE] not found");
+      return null;
+    }
 
-    return (rowCount ?? 0) > 0;
+    console.log("[DB][UPDATE] success");
+
+    return toAppProduct(rows[0]);
+
   } catch (err) {
-    console.error("[DB][PRODUCT][UPDATE] ERROR");
-
-    return false;
+    console.error("[DB][UPDATE] ERROR:", err);
+    return null;
   }
 }
 /* =========================================================
