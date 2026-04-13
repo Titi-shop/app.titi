@@ -180,14 +180,25 @@ export async function GET(req: Request) {
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
+  console.log("🚀 [PRODUCT][POST] START");
+
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+
+  console.log("🔐 [AUTH RESULT]:", auth);
+
+  if (!auth.ok) {
+    console.error("❌ [AUTH FAILED]");
+    return auth.response;
+  }
 
   const userId = auth.userId;
 
   try {
     const body = await req.json();
 
+    console.log("📦 [BODY]:", JSON.stringify(body, null, 2));
+
+    /* ================= PRICE ================= */
     const price =
       typeof body.price === "number" && !Number.isNaN(body.price)
         ? body.price
@@ -197,13 +208,17 @@ export async function POST(req: Request) {
       typeof body.salePrice === "number" ? body.salePrice : null;
 
     if (salePrice !== null && salePrice >= price) {
+      console.warn("⚠️ INVALID SALE PRICE");
       return NextResponse.json(
         { error: "INVALID_SALE_PRICE" },
         { status: 400 }
       );
     }
 
+    /* ================= VARIANTS ================= */
     const variants = normalizeVariants(body.variants);
+
+    console.log("🧩 VARIANTS:", variants);
 
     const finalStock =
       variants.length > 0
@@ -212,11 +227,16 @@ export async function POST(req: Request) {
         ? body.stock
         : 0;
 
+    /* ================= CATEGORY FIX ================= */
     const categoryId =
-      typeof body.categoryId === "string"
+      typeof body.categoryId === "string" &&
+      !Number.isNaN(Number(body.categoryId))
         ? Number(body.categoryId)
         : null;
 
+    console.log("📂 CATEGORY:", categoryId);
+
+    /* ================= CREATE PRODUCT ================= */
     const product = await createProduct(userId, {
       name: String(body.name || "").trim(),
       price,
@@ -238,31 +258,43 @@ export async function POST(req: Request) {
       sold: 0,
     });
 
-    await Promise.all([
-      Array.isArray(body.shippingRates)
-        ? upsertShippingRates({
-            productId: product.id,
-            rates: body.shippingRates,
-          })
-        : Promise.resolve(),
+    console.log("✅ PRODUCT CREATED:", product.id);
 
-      variants.length > 0
-  ? replaceVariantsByProductId(product.id, variants)
-  : Promise.resolve(),
-    ]);
+    /* ================= SHIPPING ================= */
+    if (Array.isArray(body.shippingRates)) {
+      console.log("🚚 SHIPPING:", body.shippingRates);
+
+      await upsertShippingRates({
+        productId: product.id,
+        rates: body.shippingRates,
+      });
+    }
+
+    /* ================= VARIANTS INSERT ================= */
+    if (variants.length > 0) {
+      console.log("🧩 INSERT VARIANTS START");
+
+      await replaceVariantsByProductId(product.id, variants);
+
+      console.log("🧩 INSERT VARIANTS DONE");
+    }
+
+    console.log("🎉 [PRODUCT][POST] SUCCESS");
 
     return NextResponse.json({
       success: true,
       data: { id: product.id },
     });
-  } catch {
+
+  } catch (err) {
+    console.error("💥 [PRODUCT][POST ERROR FULL]:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
     );
   }
 }
-
 /* ================= PUT ================= */
 
 export async function PUT(req: Request) {
