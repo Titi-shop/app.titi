@@ -212,6 +212,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   console.log("🚀 [PRODUCT][POST] START");
 
+  /* ================= AUTH ================= */
   const auth = await requireSeller();
 
   if (!auth.ok) {
@@ -233,14 +234,12 @@ export async function POST(req: Request) {
         : null;
 
     if (!key) {
-      console.warn("⚠️ MISSING IDEMPOTENCY KEY");
       return NextResponse.json(
         { error: "MISSING_IDEMPOTENCY_KEY" },
         { status: 400 }
       );
     }
 
-    /* 🔥 cache đơn giản (production nên dùng Redis) */
     globalThis.__PRODUCT_KEYS__ =
       globalThis.__PRODUCT_KEYS__ || new Map();
 
@@ -253,7 +252,20 @@ export async function POST(req: Request) {
       });
     }
 
-    globalThis.__PRODUCT_KEYS__.set(key, true);
+    /* ================= VALIDATE INPUT ================= */
+    if (!body.name || typeof body.name !== "string") {
+      return NextResponse.json(
+        { error: "INVALID_NAME" },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(body.images) || body.images.length === 0) {
+      return NextResponse.json(
+        { error: "IMAGE_REQUIRED" },
+        { status: 400 }
+      );
+    }
 
     /* ================= PRICE ================= */
     const price =
@@ -274,12 +286,33 @@ export async function POST(req: Request) {
     /* ================= VARIANTS ================= */
     const variants = normalizeVariants(body.variants);
 
-    const finalStock =
-      variants.length > 0
-        ? variants.reduce((s, v) => s + v.stock, 0)
-        : typeof body.stock === "number"
-        ? body.stock
-        : 0;
+    console.log("🧩 VALID VARIANTS:", variants);
+
+    const hasVariants = variants.length > 0;
+
+    const finalStock = hasVariants
+      ? variants.reduce((s, v) => s + v.stock, 0)
+      : typeof body.stock === "number"
+      ? body.stock
+      : 0;
+
+    /* ================= STOCK VALIDATION ================= */
+    if (hasVariants) {
+      const productStock =
+        typeof body.stock === "number" ? body.stock : 0;
+
+      console.log("📦 STOCK CHECK:", {
+        productStock,
+        variantTotal: finalStock,
+      });
+
+      if (finalStock !== productStock) {
+        return NextResponse.json(
+          { error: "INVALID_STOCK" },
+          { status: 400 }
+        );
+      }
+    }
 
     /* ================= CATEGORY ================= */
     const categoryId =
@@ -287,87 +320,68 @@ export async function POST(req: Request) {
       !Number.isNaN(Number(body.categoryId))
         ? Number(body.categoryId)
         : null;
-    /* ================= STOCK VALIDATION ================= */
-
-const hasVariants = variants.length > 0;
-
-if (hasVariants) {
-  const variantTotal = variants.reduce((sum, v) => sum + v.stock, 0);
-
-  const productStock =
-    typeof body.stock === "number" ? body.stock : 0;
-
-  console.log("📦 STOCK CHECK:", {
-    productStock,
-    variantTotal,
-  });
-
-  if (variantTotal !== productStock) {
-    console.error("❌ STOCK MISMATCH");
-
-    return NextResponse.json(
-      {
-        error: "INVALID_STOCK",
-        detail: "Variant stock must equal product stock",
-      },
-      { status: 400 }
-    );
-  }
-}
 
     /* ================= CREATE PRODUCT ================= */
     let product;
 
     try {
       product = await createProduct(userId, {
-        name: String(body.name || "").trim(),
+        name: body.name.trim(),
         price,
         description: body.description ?? "",
         detail: body.detail ?? "",
-        images: Array.isArray(body.images)
-          ? body.images.filter((i: unknown): i is string => typeof i === "string")
-          : [],
+        images: body.images,
         thumbnail:
-          typeof body.thumbnail === "string" ? body.thumbnail : null,
+          typeof body.thumbnail === "string"
+            ? body.thumbnail
+            : body.images[0],
         category_id: categoryId,
         sale_price: salePrice,
         sale_start: body.saleStart || null,
         sale_end: body.saleEnd || null,
         stock: finalStock,
         is_active:
-          typeof body.isActive === "boolean" ? body.isActive : true,
+          typeof body.isActive === "boolean"
+            ? body.isActive
+            : true,
         views: 0,
         sold: 0,
       });
 
     } catch (err: any) {
-      console.error("💥 CREATE PRODUCT ERROR:", err);
+      console.error("💥 CREATE PRODUCT ERROR:", err?.code);
 
-      /* 🔥 FIX DUPLICATE SLUG */
+      /* 🔥 RETRY SLUG */
       if (err?.code === "23505") {
         console.warn("⚠️ DUPLICATE SLUG → RETRY");
 
         product = await createProduct(userId, {
-          name: String(body.name || "").trim() + "-" + Date.now(),
+          name:
+            body.name.trim() +
+            "-" +
+            Date.now() +
+            "-" +
+            Math.random().toString(36).slice(2, 6),
           price,
           description: body.description ?? "",
           detail: body.detail ?? "",
-          images: Array.isArray(body.images)
-            ? body.images.filter((i: unknown): i is string => typeof i === "string")
-            : [],
+          images: body.images,
           thumbnail:
-            typeof body.thumbnail === "string" ? body.thumbnail : null,
+            typeof body.thumbnail === "string"
+              ? body.thumbnail
+              : body.images[0],
           category_id: categoryId,
           sale_price: salePrice,
           sale_start: body.saleStart || null,
           sale_end: body.saleEnd || null,
           stock: finalStock,
           is_active:
-            typeof body.isActive === "boolean" ? body.isActive : true,
+            typeof body.isActive === "boolean"
+              ? body.isActive
+              : true,
           views: 0,
           sold: 0,
         });
-
       } else {
         throw err;
       }
@@ -384,11 +398,18 @@ if (hasVariants) {
     }
 
     /* ================= VARIANTS ================= */
-    if (variants.length > 0) {
+    if (hasVariants) {
       await replaceVariantsByProductId(product.id, variants);
     }
 
-    console.log("🎉 SUCCESS");
+    /* ================= IDEMPOTENCY SAVE ================= */
+    globalThis.__PRODUCT_KEYS__.set(key, true);
+
+    setTimeout(() => {
+      globalThis.__PRODUCT_KEYS__.delete(key);
+    }, 60 * 1000);
+
+    console.log("🎉 [PRODUCT][POST] SUCCESS");
 
     return NextResponse.json({
       success: true,
@@ -396,7 +417,7 @@ if (hasVariants) {
     });
 
   } catch (err) {
-    console.error("💥 [PRODUCT][POST ERROR FULL]:", err);
+    console.error("💥 [PRODUCT][POST ERROR]:", err);
 
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
