@@ -53,9 +53,7 @@ export default function ProductForm({
   ): Promise<void> =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-
       xhr.open("PUT", url);
-
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const percent = Math.round((e.loaded / e.total) * 100);
@@ -77,7 +75,6 @@ export default function ProductForm({
   ========================= */
   const getSignedUrl = async () => {
     const token = await getPiAccessToken();
-
     const res = await fetch("/api/upload-url", {
       method: "POST",
       headers: {
@@ -92,9 +89,7 @@ export default function ProductForm({
     }
 
     const data = await res.json();
-
     if (!data.url) throw new Error("NO_URL");
-
     return data;
   };
 
@@ -109,20 +104,16 @@ export default function ProductForm({
 
       const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!baseUrl) throw new Error("ENV_ERROR");
-
       const uploads = files.map(async (file, i) => {
         const compressed = await compressImage(file);
         const { url, path } = await getSignedUrl();
-
         await uploadWithProgress(url, compressed, i);
 
         return `${baseUrl}/storage/v1/object/public/products/${path}`;
       });
 
       const urls = await Promise.all(uploads);
-
       form.setImages((prev: string[]) => [...prev, ...urls]);
-
     } catch (err) {
       console.error("💥 UPLOAD ERROR:", err);
       alert("Upload failed");
@@ -140,7 +131,6 @@ export default function ProductForm({
     try {
       const uploads = files.map(async (file) => {
         const path = `products/${user.id}/detail-${Date.now()}.jpg`;
-
         const { error } = await supabase.storage
           .from("products")
           .upload(path, file);
@@ -150,7 +140,6 @@ export default function ProductForm({
         const { data } = supabase.storage
           .from("products")
           .getPublicUrl(path);
-
         return data.publicUrl;
       });
 
@@ -184,6 +173,7 @@ export default function ProductForm({
     setSubmitting(true);
 
     try {
+        const hasVariants = form.variants.length > 0;
       if (!form.name) {
   alert("Invalid name");
   return;
@@ -198,7 +188,6 @@ if (!hasVariants && Number(form.price) <= 0) {
         alert("Need image");
         return;
       }
-       const hasVariants = form.variants.length > 0;
 
 const payload = {
   name: form.name,
@@ -207,13 +196,10 @@ const payload = {
   detail: form.detail,
   images: form.images,
   thumbnail: form.images[0],
-
   isActive: form.isActive,
-
   price: hasVariants ? undefined : Number(form.price),
   stock: hasVariants ? undefined : Number(form.stock || 0),
   salePrice: hasVariants ? undefined : (form.salePrice || null),
-
   saleStart: form.saleStart || null,
   saleEnd: form.saleEnd || null,
 
@@ -308,18 +294,7 @@ const payload = {
         </label>
 
       </div>
-
-      {/* PRICE */}
-      <input
-        type="number"
-        value={form.price}
-        onChange={(e) =>
-          form.setPrice(e.target.value ? Number(e.target.value) : "")
-        }
-        className="w-full border p-2 rounded"
-      />
-
-      {/* STOCK (ONLY WHEN NO VARIANTS) */}
+       {/* STOCK (ONLY WHEN NO VARIANTS) */}
 {form.variants.length === 0 && (
   <input
     type="number"
@@ -331,6 +306,19 @@ const payload = {
     className="w-full border p-2 rounded"
   />
   )}
+
+      {/* PRICE (ONLY WHEN NO VARIANTS) */}
+{form.variants.length === 0 && (
+  <input
+    type="number"
+    value={form.price}
+    onChange={(e) =>
+      form.setPrice(e.target.value ? Number(e.target.value) : "")
+    }
+    placeholder="Price"
+    className="w-full border p-2 rounded"
+  />
+)}
    
       {/* SALE */}
       <input
