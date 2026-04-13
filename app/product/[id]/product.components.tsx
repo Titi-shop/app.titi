@@ -179,21 +179,51 @@ console.log("[UI] product render:", product);
 )}
 
       {/* ===== INFO ===== */}
-      <div className="bg-white p-4 flex justify-between items-start">
-        <h2 className="text-lg font-medium">{product.name}</h2>
+<div className="bg-white p-4 flex justify-between items-start">
+  <h2 className="text-lg font-medium">{product.name}</h2>
 
-        <div className="text-right">
+  <div className="text-right">
+    {/* ================= PRICE LOGIC ================= */}
+    {hasVariants ? (
+      selectedVariant ? (
+        /* ✅ ĐÃ CHỌN VARIANT */
+        <>
           <p className="text-xl font-bold text-orange-600">
-            π {formatPi(product.finalPrice)}
+            π {formatPi(selectedVariant.finalPrice ?? selectedVariant.price)}
           </p>
 
-          {product.isSale && (
+          {selectedVariant.salePrice && (
             <p className="text-sm text-gray-400 line-through">
-              π {formatPi(product.price)}
+              π {formatPi(selectedVariant.price)}
             </p>
           )}
-        </div>
-      </div>
+        </>
+      ) : (
+        /* ✅ CHƯA CHỌN VARIANT */
+        <>
+          <p className="text-xl font-bold text-orange-600">
+            {product.minPrice === product.maxPrice
+              ? `π ${formatPi(product.minPrice)}`
+              : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
+          </p>
+        </>
+      )
+    ) : (
+      /* ✅ PRODUCT KHÔNG CÓ VARIANT */
+      <>
+        <p className="text-xl font-bold text-orange-600">
+          π {formatPi(product.finalPrice)}
+        </p>
+
+        {product.isSale && (
+          <p className="text-sm text-gray-400 line-through">
+            π {formatPi(product.price)}
+          </p>
+        )}
+      </>
+    )}
+  </div>
+</div>
 
       {/* ===== META ===== */}
       <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
@@ -212,18 +242,23 @@ console.log("[UI] product render:", product);
         </span>
       </div>
 
-      {/* ===== STOCK ===== */}
-      <div className="bg-white px-4 pb-2 text-sm">
-        {canBuy ? (
-          <span className="text-green-600">
-            ✅ {t.in_stock} {selectedStock}
-          </span>
-        ) : (
-          <span className="text-red-500">
-            ❌ {t.out_of_stock}
-          </span>
-        )}
-      </div>
+{/* ===== STOCK ===== */}
+<div className="bg-white px-4 pb-2 text-sm">
+  {canBuy ? (
+    <span className="text-green-600">
+      ✅ {t.in_stock}{" "}
+      {hasVariants
+        ? selectedVariant
+          ? selectedVariant.stock
+          : product.stock
+        : product.stock}
+    </span>
+  ) : (
+    <span className="text-red-500">
+      ❌ {t.out_of_stock}
+    </span>
+  )}
+</div>
 
       {/* ===== VARIANTS ===== */}
       {hasVariants && (
