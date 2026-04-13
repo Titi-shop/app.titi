@@ -5,9 +5,20 @@ export interface Category {
 }
 
 export interface ProductVariant {
-  optionValue: string;
+  id?: string;
+
+  option1?: string; // Red / 10ml
+  option2?: string; // XL
+  option3?: string;
+  optionLabel1?: string; // Color / Volume
+  optionLabel2?: string; // Size
+  optionLabel3?: string;
+  price?: number | null;
+  salePrice?: number | null;
   stock: number;
   sku?: string | null;
+  image?: string;
+  isActive?: boolean;
 }
 
 /* =========================
