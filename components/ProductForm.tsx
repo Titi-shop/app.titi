@@ -176,8 +176,16 @@ export default function ProductForm({
      SUBMIT
   ========================= */
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
+  if (submitting) {
+    console.log("⚠️ BLOCK DOUBLE SUBMIT");
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
     if (!form.name || Number(form.price) <= 0) {
       alert("Invalid input");
       return;
@@ -189,34 +197,41 @@ export default function ProductForm({
     }
 
     const payload = {
-  name: form.name,
-  price: Number(form.price),
-  categoryId: form.categoryId,
-  description: form.description,
-  detail: form.detail,
-  images: form.images,
-  thumbnail: form.images[0],
-  stock: Number(form.stock || 0),
-  isActive: form.isActive, // ✅ đã có
+      name: form.name,
+      price: Number(form.price),
+      categoryId: form.categoryId,
+      description: form.description,
+      detail: form.detail,
+      images: form.images,
+      thumbnail: form.images[0],
+      stock: Number(form.stock || 0),
+      isActive: form.isActive,
 
-  /* 🔥 THÊM */
-  salePrice: form.salePrice || null,
-  saleStart: form.saleStart || null,
-  saleEnd: form.saleEnd || null,
+      salePrice: form.salePrice || null,
+      saleStart: form.saleStart || null,
+      saleEnd: form.saleEnd || null,
 
-  variants: form.variants,
-  shippingRates: Object.entries(form.shippingRates).map(
-    ([zone, price]) => ({
-      zone,
-      price: Number(price),
-    })
-  ),
-};
+      variants: form.variants,
+      shippingRates: Object.entries(form.shippingRates).map(
+        ([zone, price]) => ({
+          zone,
+          price: Number(price),
+        })
+      ),
+    };
 
     console.log("📦 SUBMIT:", payload);
 
     await onSubmit(payload);
-  };
+
+    console.log("✅ SUBMIT DONE");
+
+  } catch (err) {
+    console.error("💥 SUBMIT ERROR:", err);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   /* =========================
      UI
