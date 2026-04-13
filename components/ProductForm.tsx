@@ -359,27 +359,29 @@ export default function ProductForm({
         setVariants={form.setVariants}
       />
 
-      {/* DESCRIPTION */}
-      <textarea
-        value={form.description}
-        onChange={(e) => form.setDescription(e.target.value)}
-        className="border p-2 rounded"
-      />
-
-      {/* DETAIL */}
+           {/* DETAIL */}
       <textarea
         value={form.detail}
         onChange={(e) => form.setDetail(e.target.value)}
-        className="border p-2 rounded"
+        className="w-full border p-2 rounded"
       />
 
+      {/* DETAIL IMAGE */}
+      <label className="border-2 border-dashed h-20 flex items-center justify-center rounded cursor-pointer">
+        + Detail Image
+        <input
+          type="file"
+          hidden
+          multiple
+          onChange={(e) =>
+            uploadDetailImages(Array.from(e.target.files || []))
+          }
+        />
+      </label>
+
       {/* SUBMIT */}
-      <button
-        disabled={submitting}
-        style={{ touchAction: "manipulation" }}
-        className="w-full bg-orange-500 text-white py-3 rounded disabled:opacity-50"
-      >
-        {submitting ? "Posting..." : "Submit"}
+      <button className="w-full bg-orange-500 text-white py-3 rounded">
+        Submit
       </button>
     </form>
   );
