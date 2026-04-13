@@ -140,15 +140,18 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     const rawVariants = await getVariantsByProductId(id);
 
     const variants = rawVariants.map((v) => {
-      const finalPrice = isSale
-        ? (v.salePrice ?? v.price)
-        : v.price;
+  const finalPrice =
+    typeof v.salePrice === "number"
+      ? v.salePrice
+      : v.price;
 
-      return {
-        ...v,
-        finalPrice,
-      };
-    });
+  return {
+    ...v,
+    finalPrice,
+  };
+});
+
+    
 
     console.log("🧩 VARIANTS:", variants.length);
 
