@@ -210,7 +210,6 @@ const payload = {
 
   isActive: form.isActive,
 
-  // ✅ chỉ gửi khi KHÔNG có variant
   price: hasVariants ? undefined : Number(form.price),
   stock: hasVariants ? undefined : Number(form.stock || 0),
   salePrice: hasVariants ? undefined : (form.salePrice || null),
@@ -227,12 +226,8 @@ const payload = {
     })
   ),
 
-  // ✅ CHỈ ĐỂ 1 LẦN Ở ĐÂY
   idempotencyKey: generateKey(),
 };
-        /* 🔥 ANTI-SPAM */
-        idempotencyKey: generateKey(),
-      };
 
       console.log("📦 SUBMIT:", payload);
 
