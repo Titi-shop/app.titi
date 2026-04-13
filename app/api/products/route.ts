@@ -24,7 +24,8 @@ export const dynamic = "force-dynamic";
 
 /* ================= NORMALIZE ================= */
 
-function normalizeVariants(input: unknown): ProductVariant[] {
+
+    function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
   return input
@@ -42,25 +43,40 @@ function normalizeVariants(input: unknown): ProductVariant[] {
 
       return {
         id: typeof row.id === "string" ? row.id : undefined,
+
         optionName:
           typeof row.optionName === "string" && row.optionName.trim()
             ? row.optionName.trim()
-            : "size",
+            : "option",
+
         optionValue,
+
+        price:
+          typeof row.price === "number" &&
+          !Number.isNaN(row.price)
+            ? row.price
+            : 0,
+
+        salePrice:
+          typeof row.salePrice === "number"
+            ? row.salePrice
+            : null,
+
         stock:
-          typeof row.stock === "number" &&
-          !Number.isNaN(row.stock) &&
-          row.stock >= 0
+          typeof row.stock === "number" && row.stock >= 0
             ? row.stock
             : 0,
+
         sku:
           typeof row.sku === "string" && row.sku.trim()
             ? row.sku.trim()
             : null,
+
         sortOrder:
           typeof row.sortOrder === "number"
             ? row.sortOrder
             : index,
+
         isActive:
           typeof row.isActive === "boolean"
             ? row.isActive
