@@ -157,11 +157,6 @@ const isSale =
   now <= end;
 console.log("[API] product:", p);
     const hasVariants = variants.length > 0;
-
-const totalStock = hasVariants
-  ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-  : p.stock ?? 0;
-    const hasVariants = variants.length > 0;
   const totalStock = hasVariants
   ? variants.reduce((s, v) => s + (v.stock || 0), 0)
   : p.stock ?? 0;
