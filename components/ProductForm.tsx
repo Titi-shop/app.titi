@@ -1,14 +1,12 @@
-"use client";
 
 "use client";
 
 import { FormEvent } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch"; // ✅ ĐẶT Ở ĐÂY
+import { supabase } from "@/lib/supabase/client";
 
 import { useProductForm } from "./product/useProductForm";
-import ImageUpload from "./product/ImageUpload";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
 
@@ -41,47 +39,51 @@ export default function ProductForm({
   const form = useProductForm(initialData);
 
   /* =========================
-     UPLOAD IMAGE (MAIN)
+     UPLOAD IMAGE (SUPABASE DIRECT)
   ========================= */
   const handleUpload = async (files: File[]) => {
-  if (!files.length) return;
+    if (!files.length) return;
 
-  console.log("🚀 HANDLE UPLOAD START");
+    console.log("🚀 CLIENT UPLOAD START");
 
-  try {
-    const uploads = files.map(async (file) => {
-      console.log("📂 Uploading:", file.name);
+    try {
+      const uploads = files.map(async (file) => {
+        console.log("📂 Uploading:", file.name);
 
-      const formData = new FormData();
-      formData.append("file", file);
+        const ext = file.name.split(".").pop();
+        const filePath = `products/${Date.now()}-${Math.random()}.${ext}`;
 
-      const res = await apiAuthFetch("/api/upload", {
-        method: "POST",
-        body: formData,
+        console.log("📁 Path:", filePath);
+
+        const { error } = await supabase.storage
+          .from("products")
+          .upload(filePath, file);
+
+        if (error) {
+          console.error("❌ Upload error:", error);
+          throw error;
+        }
+
+        const { data } = supabase.storage
+          .from("products")
+          .getPublicUrl(filePath);
+
+        console.log("🌍 URL:", data.publicUrl);
+
+        return data.publicUrl;
       });
 
-      if (!res.ok) {
-        console.error("❌ Upload failed:", res.status);
-        throw new Error("UPLOAD_FAILED");
-      }
+      const urls = await Promise.all(uploads);
 
-      const data = await res.json();
-      console.log("✅ Uploaded:", data);
+      console.log("🔥 FINAL URLS:", urls);
 
-      return data.url;
-    });
+      form.setImages((prev: string[]) => [...prev, ...urls]);
 
-    const urls = await Promise.all(uploads);
-
-    console.log("🔥 FINAL URLS:", urls);
-
-    form.setImages((prev: string[]) => [...prev, ...urls]);
-
-  } catch (err) {
-    console.error("❌ HANDLE UPLOAD ERROR:", err);
-    alert("Upload failed");
-  }
-};
+    } catch (err) {
+      console.error("💥 CLIENT UPLOAD ERROR:", err);
+      alert("Upload failed");
+    }
+  };
 
   /* =========================
      UPLOAD DETAIL IMAGE
@@ -95,23 +97,23 @@ export default function ProductForm({
       const uploads = files.map(async (file) => {
         console.log("📂 Detail uploading:", file.name);
 
-        const formData = new FormData();
-        formData.append("file", file);
+        const ext = file.name.split(".").pop();
+        const filePath = `products/detail-${Date.now()}-${Math.random()}.${ext}`;
 
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+        const { error } = await supabase.storage
+          .from("products")
+          .upload(filePath, file);
 
-        if (!res.ok) {
-          console.error("❌ Detail upload failed:", res.status);
-          throw new Error("UPLOAD_FAILED");
+        if (error) {
+          console.error("❌ Detail upload error:", error);
+          throw error;
         }
 
-        const data = await res.json();
-        console.log("✅ Detail uploaded:", data);
+        const { data } = supabase.storage
+          .from("products")
+          .getPublicUrl(filePath);
 
-        return data.url;
+        return data.publicUrl;
       });
 
       const urls = await Promise.all(uploads);
@@ -124,7 +126,7 @@ export default function ProductForm({
       });
 
     } catch (err) {
-      console.error("❌ DETAIL UPLOAD ERROR:", err);
+      console.error("💥 DETAIL UPLOAD ERROR:", err);
     }
   };
 
@@ -223,7 +225,6 @@ export default function ProductForm({
           }}
           className="absolute inset-0 opacity-0 cursor-pointer"
         />
-
         <div className="flex items-center justify-center border-2 border-dashed rounded h-28">
           ＋
         </div>
