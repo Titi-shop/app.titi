@@ -144,6 +144,10 @@ const isSale =
   now >= start &&
   now <= end;
 console.log("[API] product:", p);
+    const hasVariants = variants.length > 0;
+  const totalStock = hasVariants
+  ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+  : p.stock ?? 0;
     return NextResponse.json({
   id: p.id,
   sellerId: p.seller_id,
@@ -156,11 +160,7 @@ console.log("[API] product:", p);
   images: p.images ?? [],
   detailImages: p.detail_images ?? [],
   videoUrl: p.video_url ?? "",
-  price: p.price ?? 0,
-  salePrice: p.sale_price ?? null,
-  finalPrice: isSale ? p.sale_price ?? p.price : p.price,
   currency: p.currency ?? "PI",
-  stock: p.stock ?? 0,
   isUnlimited: p.is_unlimited ?? false,
   sold: p.sold ?? 0,
   views: p.views ?? 0,
@@ -262,12 +262,29 @@ export async function PATCH(
     const normalizedVariants = normalizeVariants(body.variants);
     const hasVariants = normalizedVariants.length > 0;
 
-    const finalStock = hasVariants
-      ? getTotalVariantStock(normalizedVariants)
-      : typeof body.stock === "number" && body.stock >= 0
-      ? body.stock
-      : 0;
 
+    if (hasVariants) {
+  if (body.stock !== undefined) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_STOCK_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
+
+  if (body.price !== undefined) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
+
+  if (body.salePrice !== undefined) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_SALE_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
+}
     /* ================= CATEGORY ================= */
     const categoryId =
       typeof body.categoryId === "string"
@@ -306,14 +323,16 @@ export async function PATCH(
 
       category_id: categoryId,
 
-      price,
-
-      sale_price: salePrice,
+      price: hasVariants ? 0 : price,
+sale_price: hasVariants ? null : salePrice,
+stock: hasVariants ? 0 : (
+  typeof body.stock === "number" && body.stock >= 0
+    ? body.stock
+    : undefined
+),
 
       sale_start: saleStart,
       sale_end: saleEnd,
-
-      stock: finalStock,
 
       is_active:
         typeof body.isActive === "boolean"
@@ -360,22 +379,21 @@ export async function PATCH(
       now >= start &&
       now <= end;
 
-    const finalPrice = isSale
-      ? salePrice ?? price ?? 0
-      : price ?? 0;
+    const totalStock = hasVariants
+  ? normalizedVariants.reduce((s, v) => s + (v.stock || 0), 0)
+  : updated.stock ?? 0;
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
-      success: true,
-      data: {
-        id,
-        name: updated.name,
-        price: updated.price,
-        salePrice: updated.sale_price,
-        finalPrice,
-        stock: updated.stock,
-      },
-    });
+  success: true,
+  data: {
+    id,
+    name: updated.name,
+    price: hasVariants ? null : updated.price,
+    salePrice: hasVariants ? null : updated.sale_price,
+    stock: totalStock,
+  },
+});
 
   } catch (err) {
     console.error("[PRODUCT][PATCH] ERROR:", err);
