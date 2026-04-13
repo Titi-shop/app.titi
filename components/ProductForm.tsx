@@ -35,6 +35,13 @@ export default function ProductForm({
   const form = useProductForm(initialData);
 
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  /* =========================
+     IDEMPOTENCY KEY
+  ========================= */
+  const generateKey = () =>
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   /* =========================
      UPLOAD PROGRESS
@@ -66,7 +73,7 @@ export default function ProductForm({
     });
 
   /* =========================
-     GET SIGNED URL (FIX 401)
+     GET SIGNED URL
   ========================= */
   const getSignedUrl = async () => {
     const token = await getPiAccessToken();
@@ -97,8 +104,6 @@ export default function ProductForm({
   const handleUpload = async (files: File[]) => {
     if (!files.length) return;
 
-    console.log("🚀 UPLOAD START");
-
     try {
       setUploading(true);
 
@@ -106,19 +111,12 @@ export default function ProductForm({
       if (!baseUrl) throw new Error("ENV_ERROR");
 
       const uploads = files.map(async (file, i) => {
-        console.log(`📂 [${i}]`, file.name);
-
         const compressed = await compressImage(file);
-
         const { url, path } = await getSignedUrl();
 
         await uploadWithProgress(url, compressed, i);
 
-        const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
-
-        console.log("✅ DONE:", publicUrl);
-
-        return publicUrl;
+        return `${baseUrl}/storage/v1/object/public/products/${path}`;
       });
 
       const urls = await Promise.all(uploads);
@@ -134,7 +132,7 @@ export default function ProductForm({
   };
 
   /* =========================
-     DETAIL IMAGE (simple)
+     DETAIL IMAGE
   ========================= */
   const uploadDetailImages = async (files: File[]) => {
     if (!files.length) return;
@@ -176,62 +174,66 @@ export default function ProductForm({
      SUBMIT
   ========================= */
   const handleSubmit = async (e: FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (submitting) {
-    console.log("⚠️ BLOCK DOUBLE SUBMIT");
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    if (!form.name || Number(form.price) <= 0) {
-      alert("Invalid input");
+    if (submitting) {
+      console.log("⚠️ BLOCK DOUBLE SUBMIT");
       return;
     }
 
-    if (!form.images.length) {
-      alert("Need image");
-      return;
+    setSubmitting(true);
+
+    try {
+      if (!form.name || Number(form.price) <= 0) {
+        alert("Invalid input");
+        return;
+      }
+
+      if (!form.images.length) {
+        alert("Need image");
+        return;
+      }
+
+      const payload = {
+        name: form.name,
+        price: Number(form.price),
+        categoryId: form.categoryId,
+        description: form.description,
+        detail: form.detail,
+        images: form.images,
+        thumbnail: form.images[0],
+        stock: Number(form.stock || 0),
+        isActive: form.isActive,
+
+        salePrice: form.salePrice || null,
+        saleStart: form.saleStart || null,
+        saleEnd: form.saleEnd || null,
+
+        variants: form.variants,
+        shippingRates: Object.entries(form.shippingRates).map(
+          ([zone, price]) => ({
+            zone,
+            price: Number(price),
+          })
+        ),
+
+        /* 🔥 ANTI-SPAM */
+        idempotencyKey: generateKey(),
+      };
+
+      console.log("📦 SUBMIT:", payload);
+
+      await onSubmit(payload);
+
+      console.log("✅ SUBMIT DONE");
+
+    } catch (err) {
+      console.error("💥 SUBMIT ERROR:", err);
+      alert("Submit failed");
+    } finally {
+      setSubmitting(false);
     }
-
-    const payload = {
-      name: form.name,
-      price: Number(form.price),
-      categoryId: form.categoryId,
-      description: form.description,
-      detail: form.detail,
-      images: form.images,
-      thumbnail: form.images[0],
-      stock: Number(form.stock || 0),
-      isActive: form.isActive,
-
-      salePrice: form.salePrice || null,
-      saleStart: form.saleStart || null,
-      saleEnd: form.saleEnd || null,
-
-      variants: form.variants,
-      shippingRates: Object.entries(form.shippingRates).map(
-        ([zone, price]) => ({
-          zone,
-          price: Number(price),
-        })
-      ),
-    };
-
-    console.log("📦 SUBMIT:", payload);
-
-    await onSubmit(payload);
-
-    console.log("✅ SUBMIT DONE");
-
-  } catch (err) {
-    console.error("💥 SUBMIT ERROR:", err);
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   /* =========================
      UI
@@ -262,7 +264,6 @@ export default function ProductForm({
       {/* IMAGE */}
       <div className="space-y-2">
 
-        {/* PREVIEW */}
         <div className="grid grid-cols-3 gap-2">
           {form.images.map((img: string, i: number) => (
             <div key={img} className="relative group">
@@ -285,8 +286,7 @@ export default function ProductForm({
           ))}
         </div>
 
-        {/* UPLOAD BUTTON */}
-        <label className="flex flex-col items-center justify-center border-2 border-dashed h-28 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+        <label className="flex flex-col items-center justify-center border-2 border-dashed h-28 rounded-xl cursor-pointer hover:bg-gray-50">
           {uploading ? "Uploading..." : "＋ Upload Image"}
           <input
             type="file"
@@ -310,49 +310,48 @@ export default function ProductForm({
         }
         className="w-full border p-2 rounded"
       />
-       {/* SALE PRICE */}
-<input
-  type="number"
-  value={form.salePrice || ""}
-  onChange={(e) =>
-    form.setSalePrice(e.target.value ? Number(e.target.value) : "")
-  }
-  placeholder="Sale price"
-  className="w-full border p-2 rounded"
-/>
 
-{/* SALE DATE RANGE */}
-<div className="grid grid-cols-2 gap-2">
-  <input
-    type="datetime-local"
-    value={form.saleStart || ""}
-    onChange={(e) => form.setSaleStart(e.target.value)}
-    className="w-full border p-2 rounded"
-  />
+      {/* SALE */}
+      <input
+        type="number"
+        value={form.salePrice || ""}
+        onChange={(e) =>
+          form.setSalePrice(e.target.value ? Number(e.target.value) : "")
+        }
+        placeholder="Sale price"
+        className="w-full border p-2 rounded"
+      />
 
-  <input
-    type="datetime-local"
-    value={form.saleEnd || ""}
-    onChange={(e) => form.setSaleEnd(e.target.value)}
-    className="w-full border p-2 rounded"
-  />
-</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="datetime-local"
+          value={form.saleStart || ""}
+          onChange={(e) => form.setSaleStart(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <input
+          type="datetime-local"
+          value={form.saleEnd || ""}
+          onChange={(e) => form.setSaleEnd(e.target.value)}
+          className="border p-2 rounded"
+        />
+      </div>
 
       {/* SHIPPING */}
       <ShippingRates
         shippingRates={form.shippingRates}
         setShippingRates={form.setShippingRates}
       />
-       {/* ACTIVE TOGGLE */}
-<label className="flex items-center justify-between border p-3 rounded">
-  <span className="text-sm font-medium">Active</span>
 
-  <input
-    type="checkbox"
-    checked={form.isActive}
-    onChange={(e) => form.setIsActive(e.target.checked)}
-  />
-</label>
+      {/* ACTIVE */}
+      <label className="flex justify-between border p-3 rounded">
+        <span>Active</span>
+        <input
+          type="checkbox"
+          checked={form.isActive}
+          onChange={(e) => form.setIsActive(e.target.checked)}
+        />
+      </label>
 
       {/* VARIANT */}
       <VariantEditor
@@ -364,32 +363,23 @@ export default function ProductForm({
       <textarea
         value={form.description}
         onChange={(e) => form.setDescription(e.target.value)}
-        className="w-full border p-2 rounded"
+        className="border p-2 rounded"
       />
 
       {/* DETAIL */}
       <textarea
         value={form.detail}
         onChange={(e) => form.setDetail(e.target.value)}
-        className="w-full border p-2 rounded"
+        className="border p-2 rounded"
       />
 
-      {/* DETAIL IMAGE */}
-      <label className="border-2 border-dashed h-20 flex items-center justify-center rounded cursor-pointer">
-        + Detail Image
-        <input
-          type="file"
-          hidden
-          multiple
-          onChange={(e) =>
-            uploadDetailImages(Array.from(e.target.files || []))
-          }
-        />
-      </label>
-
       {/* SUBMIT */}
-      <button className="w-full bg-orange-500 text-white py-3 rounded">
-        Submit
+      <button
+        disabled={submitting}
+        style={{ touchAction: "manipulation" }}
+        className="w-full bg-orange-500 text-white py-3 rounded disabled:opacity-50"
+      >
+        {submitting ? "Posting..." : "Submit"}
       </button>
     </form>
   );
