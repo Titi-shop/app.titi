@@ -38,22 +38,18 @@ export async function processPiPayment(params: {
     ========================================================= */
 
     const paymentRes = await client.query(
-      `
-      SELECT id, status
-      FROM pi_payments
-      WHERE pi_payment_id = $1
-      FOR UPDATE
-      `,
-      [params.paymentId]
-    );
+  `
+  INSERT INTO pi_payments (user_id, pi_payment_id, status)
+  VALUES ($1, $2, 'pending')
+  ON CONFLICT (pi_payment_id) DO NOTHING
+  `,
+  [params.userId, params.paymentId]
+);
 
-    if (paymentRes.rows.length > 0) {
-      const payment = paymentRes.rows[0];
-
-      if (payment.status === "completed") {
-        const existing = await client.query(
-          `SELECT id FROM orders WHERE pi_payment_id = $1 LIMIT 1`,
-          [params.paymentId]
+const existing = await client.query(
+  `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
+  [params.paymentId]
+);
         );
 
         return {
@@ -280,10 +276,8 @@ export async function processPiPayment(params: {
       [
         params.userId,
         product.seller_id,
-
         params.paymentId,
         params.txid,
-
         subtotal,
         subtotal,
         0,
@@ -291,7 +285,6 @@ export async function processPiPayment(params: {
         0,
         total,
         "PI",
-
         params.shipping.name,
         params.shipping.phone,
         params.shipping.address_line,
