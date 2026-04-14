@@ -17,13 +17,13 @@ export async function getSellerOrderCounts(sellerId: string) {
   );
 
   const result = {
-    pending: 0,
-    confirmed: 0,
-    shipping: 0,
-    completed: 0,
-    returned: 0,
-    cancelled: 0,
-  };
+  pending: 0,
+  confirmed: 0,
+  shipping: 0,
+  completed: 0,
+  cancelled: 0,
+  refunded: 0, // ✅ đúng DB
+};
 
   for (const r of rows) {
     if (r.status in result) {
