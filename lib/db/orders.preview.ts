@@ -1,9 +1,11 @@
 import { query } from "@/lib/db";
 
+/* ================= TYPES ================= */
+
 type PreviewItemInput = {
   product_id: string;
   quantity: number;
-  variant_id?: string | null; // ✅ FIX
+  variant_id?: string | null;
 };
 
 type PreviewOrderInput = {
@@ -26,16 +28,63 @@ type PreviewOrderResult = {
   total: number;
 };
 
+/* ================= HELPERS ================= */
+
+function isUUID(v: unknown): v is string {
+  return typeof v === "string" &&
+    /^[0-9a-f-]{36}$/i.test(v);
+}
+
+function safeQty(q: unknown): number {
+  const n = Number(q);
+  if (!Number.isInteger(n) || n <= 0) return 1;
+  if (n > 100) return 100;
+  return n;
+}
+
+/* ================= MAIN ================= */
+
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
+
+  console.log("🟡 [ORDER][PREVIEW] START", input);
+
   const { userId, items, country, zone } = input;
 
-  console.log("🚀 [PREVIEW] START", input);
+  /* ================= VALIDATE ================= */
 
   if (!userId) throw new Error("INVALID_USER");
+
   if (!country) throw new Error("MISSING_COUNTRY");
+
   if (!zone) throw new Error("MISSING_REGION");
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("INVALID_ITEMS");
+  }
+
+  /* ================= CLEAN ITEMS ================= */
+
+  const cleanItems = items.map((i) => {
+    if (!isUUID(i.product_id)) {
+      throw new Error("INVALID_PRODUCT_ID");
+    }
+
+    if (i.variant_id && !isUUID(i.variant_id)) {
+      throw new Error("INVALID_VARIANT_ID");
+    }
+
+    return {
+      product_id: i.product_id,
+      variant_id: i.variant_id ?? null,
+      quantity: safeQty(i.quantity),
+    };
+  });
+
+  console.log("🧾 [ORDER][PREVIEW] CLEAN ITEMS:", cleanItems);
+
+  const productIds = cleanItems.map((i) => i.product_id);
 
   /* ================= CHECK ZONE ================= */
 
@@ -54,15 +103,11 @@ export async function previewOrder(
 
   const realZone = zoneRows[0].code;
 
-  if (zone !== realZone) throw new Error("INVALID_REGION");
-
-  /* ================= VALIDATE ITEMS ================= */
-
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error("INVALID_ITEMS");
+  if (realZone !== zone) {
+    throw new Error("INVALID_REGION");
   }
 
-  const productIds = items.map((i) => i.product_id);
+  console.log("🟢 [ORDER][PREVIEW] ZONE OK:", realZone);
 
   /* ================= LOAD PRODUCTS ================= */
 
@@ -86,7 +131,7 @@ export async function previewOrder(
 
   /* ================= LOAD VARIANTS ================= */
 
-  const variantIds = items
+  const variantIds = cleanItems
     .map((i) => i.variant_id)
     .filter(Boolean);
 
@@ -109,7 +154,7 @@ export async function previewOrder(
 
   const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-  console.log("🧩 VARIANTS:", variants);
+  console.log("🧩 [ORDER][PREVIEW] VARIANTS:", variants);
 
   /* ================= CALCULATE ================= */
 
@@ -117,11 +162,10 @@ export async function previewOrder(
 
   let subtotal = 0;
 
-  const previewItems = items.map((item) => {
+  const previewItems = cleanItems.map((item) => {
     const p = productMap.get(item.product_id);
-    if (!p) throw new Error("INVALID_PRODUCT");
 
-    const qty = item.quantity > 0 ? item.quantity : 1;
+    if (!p) throw new Error("INVALID_PRODUCT");
 
     let price = Number(p.price);
 
@@ -136,9 +180,9 @@ export async function previewOrder(
           ? Number(v.sale_price)
           : Number(v.price);
 
-      console.log("🎯 USING VARIANT PRICE:", price);
+      console.log("🎯 [PREVIEW] VARIANT PRICE:", price);
     } else {
-      /* ================= PRODUCT SALE ================= */
+      /* ================= SALE ================= */
 
       const start = p.sale_start
         ? new Date(p.sale_start).getTime()
@@ -159,10 +203,10 @@ export async function previewOrder(
         ? Number(p.sale_price)
         : Number(p.price);
 
-      console.log("💰 USING PRODUCT PRICE:", price);
+      console.log("💰 [PREVIEW] PRODUCT PRICE:", price);
     }
 
-    const total = price * qty;
+    const total = price * item.quantity;
 
     subtotal += total;
 
@@ -170,66 +214,70 @@ export async function previewOrder(
       product_id: p.id,
       name: p.name,
       price,
-      quantity: qty,
+      quantity: item.quantity,
       total,
     };
   });
 
-  /* ================= SHIPPING ================= */
+  console.log("🧾 [ORDER][PREVIEW] SUBTOTAL:", subtotal);
 
   /* ================= SHIPPING ================= */
 
-const { rows: shippingRows } = await query<{
-  product_id: string;
-  shipping_price: number;
-}>(
-  `
-  SELECT 
-    p.id AS product_id,
+  const { rows: shippingRows } = await query<{
+    product_id: string;
+    shipping_price: number;
+  }>(
+    `
+    SELECT 
+      p.id AS product_id,
+      sr.price AS shipping_price
+    FROM products p
+    JOIN shipping_rates sr
+      ON sr.product_id = p.id
+    JOIN shipping_zones sz
+      ON sz.id = sr.zone_id
+      AND sz.code = $2
+    WHERE p.id = ANY($1::uuid[])
+    `,
+    [productIds, realZone]
+  );
 
-    sr.price AS shipping_price
+  const shippingMap = new Map(
+    shippingRows.map((r) => [
+      r.product_id,
+      Number(r.shipping_price),
+    ])
+  );
 
-  FROM products p
+  let shippingFee = 0;
 
-  JOIN shipping_rates sr
-    ON sr.product_id = p.id
+  for (const item of cleanItems) {
+    const fee = shippingMap.get(item.product_id);
 
-  JOIN shipping_zones sz
-    ON sz.id = sr.zone_id
-    AND sz.code = $2
+    if (fee === undefined) {
+      console.error("❌ [PREVIEW] SHIPPING MISSING", item.product_id);
+      throw new Error("SHIPPING_NOT_AVAILABLE");
+    }
 
-  WHERE p.id = ANY($1::uuid[])
-  `,
-  [productIds, realZone]
-);
-
-const shippingMap = new Map(
-  shippingRows.map((r) => [
-    r.product_id,
-    Number(r.shipping_price),
-  ])
-);
-
-let shippingFee = 0;
-
-for (const item of items) {
-  const fee = shippingMap.get(item.product_id);
-
-  if (fee === undefined) {
-    throw new Error("SHIPPING_NOT_AVAILABLE");
+    shippingFee += fee;
   }
 
-  shippingFee += fee;
-}
-
-console.log("🚚 SHIPPING TOTAL:", shippingFee);
+  console.log("🚚 [ORDER][PREVIEW] SHIPPING:", shippingFee);
 
   /* ================= RESULT ================= */
+
+  const total = subtotal + shippingFee;
+
+  console.log("🟢 [ORDER][PREVIEW] SUCCESS", {
+    subtotal,
+    shippingFee,
+    total,
+  });
 
   return {
     items: previewItems,
     subtotal,
     shipping_fee: shippingFee,
-    total: subtotal + shippingFee,
+    total,
   };
 }
