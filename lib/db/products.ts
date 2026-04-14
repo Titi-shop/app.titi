@@ -170,19 +170,17 @@ export async function getSellerProducts(
 ): Promise<ProductRecord[]> {
   const { rows } = await query(
     `
-    SELECT
+    SELECT DISTINCT ON (p.id)
       p.*,
 
       /* 🔥 MIN VARIANT PRICE */
-      COALESCE(MIN(v.price), p.price) AS min_price,
+      COALESCE(v.price, p.price) AS price,
 
-      /* 🔥 MIN VARIANT SALE */
-      MIN(
-        CASE
-          WHEN v.sale_price IS NOT NULL AND v.sale_price > 0
-          THEN v.sale_price
-        END
-      ) AS min_sale_price
+      /* 🔥 SALE */
+      CASE
+        WHEN v.sale_price > 0 THEN v.sale_price
+        ELSE p.sale_price
+      END AS sale_price
 
     FROM products p
 
@@ -193,9 +191,10 @@ export async function getSellerProducts(
     WHERE p.seller_id = $1
       AND p.deleted_at IS NULL
 
-    GROUP BY p.id
+    ORDER BY 
+      p.id,
+      v.price ASC NULLS LAST
 
-    ORDER BY p.created_at DESC
     `,
     [sellerId]
   );
