@@ -95,25 +95,37 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
+    console.log("🚀 [API][PRODUCTS] START");
+
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
 
     let products: ProductRecord[] = [];
 
+    /* ================= LOAD PRODUCTS ================= */
     if (ids) {
       const idArray = ids.split(",").map((i) => i.trim()).filter(Boolean);
+
+      console.log("📦 IDS:", idArray);
+
       if (!idArray.length) return NextResponse.json([]);
+
       products = await getProductsByIds(idArray);
     } else {
       products = await getAllProducts();
     }
 
+    console.log("📦 PRODUCTS:", products.length);
+
     const productIds = products.map((p) => p.id);
 
+    /* ================= SHIPPING ================= */
     const shippingRows =
       productIds.length > 0
         ? await getShippingRatesByProducts(productIds)
         : [];
+
+    console.log("🚚 SHIPPING ROWS:", shippingRows);
 
     const shippingMap = new Map<
       string,
@@ -124,80 +136,115 @@ export async function GET(req: Request) {
       if (!shippingMap.has(r.product_id)) {
         shippingMap.set(r.product_id, []);
       }
+
       shippingMap.get(r.product_id)!.push({
         zone: r.zone,
         price: r.price,
       });
     }
 
+    console.log("🚚 SHIPPING MAP:", shippingMap.size);
+
     const now = Date.now();
 
+    /* ================= ENRICH ================= */
     const enriched = await Promise.all(
-  products.map(async (p) => {
-    const variants = await getVariantsByProductId(p.id);
+      products.map(async (p) => {
+        console.log("🔍 PRODUCT:", p.id);
 
-    const start = p.sale_start
-      ? new Date(p.sale_start).getTime()
-      : null;
+        const variants = await getVariantsByProductId(p.id);
 
-    const end = p.sale_end
-      ? new Date(p.sale_end).getTime()
-      : null;
+        console.log("🧩 VARIANTS:", variants.length);
 
-    const isSale =
-      typeof p.sale_price === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
+        const start = p.sale_start
+          ? new Date(p.sale_start).getTime()
+          : null;
 
-    /* 🔥 FIX: CALC VARIANT PRICE */
-    const enrichedVariants = variants.map((v) => {
-      const basePrice =
-        typeof v.price === "number" && v.price > 0
-          ? v.price
-          : p.price;
+        const end = p.sale_end
+          ? new Date(p.sale_end).getTime()
+          : null;
 
-      const finalPrice = isSale
-        ? v.salePrice ?? basePrice
-        : basePrice;
+        const isSale =
+          typeof p.sale_price === "number" &&
+          start !== null &&
+          end !== null &&
+          now >= start &&
+          now <= end;
 
-      return {
-        ...v,
-        finalPrice,
-      };
-    });
+        /* ================= VARIANT FIX ================= */
+        const enrichedVariants = variants.map((v) => {
+          const basePrice =
+            typeof v.price === "number" && v.price > 0
+              ? v.price
+              : p.price;
 
-    const finalStock =
-      enrichedVariants.length > 0
-        ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
-        : p.stock ?? 0;
+          const finalPrice =
+            typeof v.salePrice === "number" && v.salePrice > 0
+              ? v.salePrice
+              : basePrice;
 
-    return {
-      id: p.id,
-      sellerId: p.seller_id,
-      name: p.name,
+          return {
+            ...v,
+            finalPrice,
+          };
+        });
 
-      price: p.price ?? 0,
-      salePrice: p.sale_price ?? null,
+        /* ================= STOCK ================= */
+        const finalStock =
+          enrichedVariants.length > 0
+            ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
+            : p.stock ?? 0;
 
-      /* 🔥 PRODUCT FINAL PRICE */
-      finalPrice: isSale ? p.sale_price ?? p.price : p.price,
+        /* ================= PRODUCT FINAL PRICE ================= */
+        const productFinalPrice =
+          typeof p.sale_price === "number" && isSale
+            ? p.sale_price
+            : p.price;
 
-      stock: finalStock,
-      thumbnail: p.thumbnail ?? "",
-      images: p.images ?? [],
-      categoryId: p.category_id ?? null,
+        console.log("💰 PRODUCT PRICE:", productFinalPrice);
 
-      /* 🔥 RETURN FIXED VARIANTS */
-      variants: enrichedVariants,
+        /* ================= PRICE RANGE ================= */
+        let minPrice: number | null = null;
+        let maxPrice: number | null = null;
 
-      shippingRates: shippingMap.get(p.id) ?? [],
-    };
-  })
-);
+        if (enrichedVariants.length > 0) {
+          const prices = enrichedVariants.map((v) => v.finalPrice);
+
+          minPrice = Math.min(...prices);
+          maxPrice = Math.max(...prices);
+        }
+
+        return {
+          id: p.id,
+          sellerId: p.seller_id,
+          name: p.name,
+
+          price: p.price ?? 0,
+          salePrice: p.sale_price ?? null,
+          finalPrice: productFinalPrice,
+
+          minPrice,
+          maxPrice,
+
+          stock: finalStock,
+
+          thumbnail: p.thumbnail ?? "",
+          images: p.images ?? [],
+          categoryId: p.category_id ?? null,
+
+          variants: enrichedVariants,
+
+          shippingRates: shippingMap.get(p.id) ?? [],
+        };
+      })
+    );
+
+    console.log("🎉 [API][PRODUCTS] SUCCESS");
+
     return NextResponse.json(enriched);
-  } catch {
+  } catch (err) {
+    console.error("💥 [API][PRODUCTS] ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
