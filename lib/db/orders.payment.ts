@@ -80,21 +80,23 @@ export async function processPiPayment(params: {
     await client.query(
       `
       INSERT INTO pi_payments (
-        user_id,
-        pi_payment_id,
-        txid,
-        status,
-        country,
-        zone,
-        verified_amount
-      )
-      VALUES ($1,$2,$3,'verified',$4,$5,$6)
+  user_id,
+  pi_payment_id,
+  txid,
+  amount,
+  status,
+  country,
+  zone,
+  verified_amount
+    )
+     VALUES ($1,$2,$3,$4,'verified',$5,$6,$7)
       ON CONFLICT (pi_payment_id) DO NOTHING
       `,
       [
         params.userId,
         params.paymentId,
         params.txid,
+        params.verifiedAmount,
         country,
         zone,
         params.verifiedAmount,
