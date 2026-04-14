@@ -177,31 +177,19 @@ export async function previewOrder(
 
   /* ================= SHIPPING ================= */
 
-  const { rows } = await query(
+  /* ================= SHIPPING ================= */
+
+const { rows: shippingRows } = await query<{
+  product_id: string;
+  shipping_price: number;
+}>(
   `
   SELECT 
-    p.id,
-    p.name,
-
-    /* 🔥 PRICE LOGIC */
-    COALESCE(
-      MIN(
-        CASE 
-          WHEN v.sale_price > 0 THEN v.sale_price
-        END
-      ),
-      MIN(v.price),
-      p.sale_price,
-      p.price
-    ) AS price,
+    p.id AS product_id,
 
     sr.price AS shipping_price
 
   FROM products p
-
-  LEFT JOIN product_variants v
-    ON v.product_id = p.id
-    AND (v.is_active = TRUE OR v.is_active IS NULL)
 
   JOIN shipping_rates sr
     ON sr.product_id = p.id
@@ -211,29 +199,30 @@ export async function previewOrder(
     AND sz.code = $2
 
   WHERE p.id = ANY($1::uuid[])
-
-  GROUP BY p.id, sr.price
   `,
   [productIds, realZone]
 );
 
-  const shippingMap = new Map(
-    shippingRows.map((r) => [r.product_id, Number(r.price)])
-  );
+const shippingMap = new Map(
+  shippingRows.map((r) => [
+    r.product_id,
+    Number(r.shipping_price),
+  ])
+);
 
-  let shippingFee = 0;
+let shippingFee = 0;
 
-  for (const item of items) {
-    const fee = shippingMap.get(item.product_id);
+for (const item of items) {
+  const fee = shippingMap.get(item.product_id);
 
-    if (fee === undefined) {
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
-
-    shippingFee += fee; // ✅ FIX: cộng tất cả
+  if (fee === undefined) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
   }
 
-  console.log("🚚 SHIPPING TOTAL:", shippingFee);
+  shippingFee += fee;
+}
+
+console.log("🚚 SHIPPING TOTAL:", shippingFee);
 
   /* ================= RESULT ================= */
 
