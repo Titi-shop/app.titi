@@ -203,54 +203,68 @@ const shippingPostalCode =
 
     /* ================= VERIFY PI ================= */
 
-    console.log("🟡 [PAYMENT][VERIFY_PI]");
+console.log("🟡 [PAYMENT][VERIFY_PI]");
 
-    const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
-      headers: { Authorization: `Key ${PI_KEY}` },
-      cache: "no-store",
-    });
-
-    if (!piRes.ok) {
-      console.error("❌ [PAYMENT][PI_NOT_FOUND]", paymentId);
-      return NextResponse.json(
-        { error: "PI_PAYMENT_NOT_FOUND" },
-        { status: 400 }
-      );
-    }
-
-    const payment = await piRes.json();
-    console.log("🟡 [PAYMENT][AMOUNT_CHECK]", {
-  amount: payment.amount,
+const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
+  headers: { Authorization: `Key ${PI_KEY}` },
+  cache: "no-store",
 });
-    if (!payment.amount || payment.amount <= 0) {
+
+if (!piRes.ok) {
+  console.error("❌ [PAYMENT][PI_NOT_FOUND]", paymentId);
+  return NextResponse.json(
+    { error: "PI_PAYMENT_NOT_FOUND" },
+    { status: 400 }
+  );
+}
+
+const payment = await piRes.json();
+
+/* ================= 🔥 CRITICAL FIX ================= */
+
+if (!payment.amount || payment.amount <= 0) {
   return NextResponse.json(
     { error: "INVALID_AMOUNT" },
     { status: 400 }
   );
 }
 
-    console.log("🟢 [PAYMENT][PI_DATA]", {
-      status: payment.status,
-      user_uid: payment.user_uid,
-    });
+/* 🔥 FIX 1: CHECK USER MATCH */
+if (payment.user_uid !== auth.pi_uid) {
+  console.error("❌ [PAYMENT][USER_MISMATCH]", {
+    pi: payment.user_uid,
+    auth: auth.pi_uid,
+  });
 
-    const status = payment.status;
+  return NextResponse.json(
+    { error: "INVALID_USER_PAYMENT" },
+    { status: 400 }
+  );
+}
 
-    if (
-      !status?.developer_approved ||
-      !status?.transaction_verified
-    ) {
-      console.error("❌ [PAYMENT][NOT_APPROVED]", status);
+console.log("🟢 [PAYMENT][PI_DATA]", {
+  status: payment.status,
+});
 
-      return NextResponse.json(
-        { error: "PAYMENT_NOT_APPROVED" },
-        { status: 400 }
-      );
-    }
+/* ================= STATUS CHECK ================= */
 
-   if (status?.developer_completed) {
-  console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
-} else {
+const status = payment.status;
+
+if (
+  !status?.developer_approved ||
+  !status?.transaction_verified
+) {
+  console.error("❌ [PAYMENT][NOT_APPROVED]", status);
+
+  return NextResponse.json(
+    { error: "PAYMENT_NOT_APPROVED" },
+    { status: 400 }
+  );
+}
+
+/* ================= COMPLETE PI ================= */
+
+if (!status?.developer_completed) {
   console.log("🟡 [PAYMENT][COMPLETE_PI]");
 
   const completeRes = await fetch(
@@ -264,6 +278,54 @@ const shippingPostalCode =
       body: JSON.stringify({ txid }),
     }
   );
+
+  const completeData = await completeRes.json().catch(() => null);
+
+  if (!completeRes.ok) {
+    console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
+
+    if (
+      completeData?.error?.includes?.("already") ||
+      completeData?.message?.includes?.("completed")
+    ) {
+      console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
+    } else {
+      return NextResponse.json(
+        { error: "PI_COMPLETE_FAILED" },
+        { status: 400 }
+      );
+    }
+  }
+}
+
+/* ================= DB ================= */
+
+console.log("🟡 [PAYMENT][DB_PROCESS]");
+
+const result = await processPiPayment({
+  userId,
+  productId,
+  variantId,
+  quantity,
+  paymentId,
+  txid,
+
+  country,
+  zone,
+
+  shipping: {
+    name: shippingName,
+    phone: shippingPhone,
+    address_line: shippingAddressLine,
+    ward: shippingWard,
+    district: shippingDistrict,
+    region: shippingRegion,
+    postal_code: shippingPostalCode,
+  },
+
+  /* 🔥 CRITICAL FIX */
+  verifiedAmount: Number(payment.amount),
+});
 
   const completeData = await completeRes.json().catch(() => null);
 
