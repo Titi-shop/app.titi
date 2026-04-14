@@ -118,12 +118,14 @@ console.log("🟣 SHIPPING STATE:", shipping);
           },
 
           items: [
-       {
-      product_id: item.id,
-     quantity,
-    variant_id: product.selectedVariant?.id ?? null, 
-   },
-   ],
+            {
+              product_id: item.id,
+              quantity,
+              variant_id: product?.selectedVariant?.id ?? null,
+            },
+          ],
+        },
+      ]
     : null;
 
   const { data: preview, error: previewError } = useSWR(
