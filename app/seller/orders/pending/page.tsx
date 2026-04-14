@@ -36,10 +36,10 @@ interface Order {
 
   shipping_name: string;
   shipping_phone: string;
-  shipping_address: string;
-
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
+  shipping_address_line: string;
+  shipping_ward?: string | null;
+  shipping_district?: string | null;
+  shipping_region?: string | null;
   shipping_postal_code?: string | null;
 
   order_items: OrderItem[];
@@ -73,7 +73,54 @@ const fetcher = async (): Promise<Order[]> => {
 
     const data: unknown = await res.json();
 
-    return Array.isArray(data) ? (data as Order[]) : [];
+    const fetcher = async (): Promise<Order[]> => {
+  try {
+    const res = await apiAuthFetch(
+      "/api/seller/orders?status=pending",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+
+    if (!Array.isArray(data)) return [];
+
+    return data.map((o: any) => ({
+      id: o.id,
+      order_number: o.order_number,
+      status: o.status,
+
+      total: Number(o.total ?? 0),
+      created_at: o.created_at,
+
+      shipping_name: o.shipping_name ?? "",
+      shipping_phone: o.shipping_phone ?? "",
+
+      shipping_address_line: o.shipping_address_line ?? "",
+      shipping_ward: o.shipping_ward ?? null,
+      shipping_district: o.shipping_district ?? null,
+      shipping_region: o.shipping_region ?? null,
+
+      shipping_country: o.shipping_country ?? null,
+      shipping_postal_code: o.shipping_postal_code ?? null,
+
+      order_items: (o.order_items || []).map((i: any) => ({
+        id: i.id,
+        product_id: i.product_id ?? null,
+        product_name: i.product_name ?? "",
+        thumbnail: i.thumbnail ?? "",
+        images: i.images ?? [],
+        quantity: Number(i.quantity ?? 0),
+        unit_price: Number(i.unit_price ?? 0),
+        total_price: Number(i.total_price ?? 0),
+        status: i.status ?? "pending",
+      })),
+    }));
+  } catch {
+    return [];
+  }
+};
   } catch {
     return [];
   }
@@ -292,9 +339,15 @@ const { user, loading: authLoading } = useAuth();
                 </p>
 
                 <p className="text-gray-600 text-xs">
-                  {o.shipping_address}
-                </p>
-
+               {[
+             o.shipping_address_line,
+            o.shipping_ward,
+           o.shipping_district,
+             o.shipping_region,
+             ]
+              .filter(Boolean)
+             .join(", ")}
+            </p>
                 {(o.shipping_provider ||
                   o.shipping_country ||
                   o.shipping_postal_code) && (
@@ -346,6 +399,12 @@ const { user, loading: authLoading } = useAuth();
                         x{item.quantity} · π
                         {formatPi(item.unit_price)}
                       </p>
+                      <p className="text-xs mt-1">
+                    Status:{" "}
+                <span className="font-medium text-orange-600">
+              {item.status}
+                </span>
+                   </p>
                     </div>
                   </div>
                 ))}
