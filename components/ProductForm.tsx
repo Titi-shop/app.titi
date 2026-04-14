@@ -397,9 +397,19 @@ const payload = {
       </label>
 
       {/* SUBMIT */}
-      <button className="w-full bg-orange-500 text-white py-3 rounded">
-        Submit
-      </button>
+      <button
+  type="submit"
+  disabled={submitting}
+  className={`w-full py-3 rounded text-white transition-all duration-200
+    ${
+      submitting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-orange-500 active:scale-95"
+    }
+  `}
+>
+  {submitting ? "Đang đăng..." : "Đăng sản phẩm"}
+</button>
     </form>
   );
 }
