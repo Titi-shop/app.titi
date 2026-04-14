@@ -1,5 +1,4 @@
 "use client";
-
 import type { Product as DBProduct } from "@/types/Product";
 import { Plus, Upload } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
@@ -9,12 +8,11 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
-import { isNowInRange } from "@/lib/utils/time";
+import { isNowInRange } from "@/lib/utils/time"; // ✅ FIX
 
 /* =========================
    TYPES
 ========================= */
-
 type SellerProduct = Pick<
   DBProduct,
   | "id"
@@ -28,21 +26,10 @@ type SellerProduct = Pick<
   | "sold"
   | "ratingAvg"
   | "isActive"
->;
-
-interface RawProduct {
-  id: unknown;
-  name: unknown;
-  price: unknown;
-  sale_price?: unknown;
-  sale_start?: unknown;
-  sale_end?: unknown;
-  thumbnail?: unknown;
-  stock?: unknown;
-  sold?: unknown;
-  rating_avg?: unknown;
-  is_active?: unknown;
-}
+> & {
+  min_price?: number;
+  min_sale_price?: number | null;
+};
 
 interface Message {
   text: string;
@@ -60,52 +47,31 @@ interface ShopProfile {
 }
 
 /* =========================
-   HELPERS
+   HELPERS (FIX)
 ========================= */
+function getDisplayPrice(p: SellerProduct) {
+  // ✅ ưu tiên variant price
+  const basePrice =
+    typeof p.min_price === "number" && p.min_price > 0
+      ? p.min_price
+      : p.price;
 
-function normalizeProduct(p: Record<string, unknown>): SellerProduct {
-  const price = Number(p.price ?? 0);
+  const baseSale =
+    typeof p.min_sale_price === "number" && p.min_sale_price > 0
+      ? p.min_sale_price
+      : p.salePrice;
 
-  const salePrice =
-    typeof p.sale_price === "number" && p.sale_price > 0
-      ? Number(p.sale_price)
-      : null;
-
-  const saleStart =
-    typeof p.sale_start === "string" && p.sale_start
-      ? new Date(p.sale_start).toISOString()
-      : null;
-
-  const saleEnd =
-    typeof p.sale_end === "string" && p.sale_end
-      ? new Date(p.sale_end).toISOString()
-      : null;
+  const isSale = isNowInRange(p.saleStart, p.saleEnd);
 
   return {
-    id: String(p.id ?? ""),
-    name: String(p.name ?? "Unnamed"),
-    price,
-    salePrice,
-    saleStart,
-    saleEnd,
-    thumbnail:
-      typeof p.thumbnail === "string" ? p.thumbnail : "",
-    stock: Number(p.stock ?? 0),
-    sold: Number(p.sold ?? 0),
-    ratingAvg: Number(p.rating_avg ?? 0),
-    isActive: Boolean(p.is_active),
+    price: basePrice,
+    salePrice: isSale ? baseSale : null,
   };
-}
-
-function isProductOnSale(p: SellerProduct): boolean {
-  if (!p.salePrice || p.salePrice <= 0) return false;
-  return isNowInRange(p.saleStart, p.saleEnd);
 }
 
 /* =========================
    PAGE
 ========================= */
-
 export default function SellerStockPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -129,8 +95,7 @@ export default function SellerStockPage() {
     total_sales: null,
   });
 
-  /* ================= LOAD PRODUCTS ================= */
-
+  /* ================= LOAD ================= */
   const loadProducts = useCallback(async () => {
     try {
       const res = await apiAuthFetch("/api/seller/products", {
@@ -149,9 +114,40 @@ export default function SellerStockPage() {
         return;
       }
 
-      const mapped = raw.map((item) =>
-        normalizeProduct(item as Record<string, unknown>)
-      );
+      const mapped: SellerProduct[] = raw.map((item) => {
+        const p = item as Record<string, unknown>;
+
+        return {
+          id: String(p.id ?? ""),
+          name: String(p.name ?? "Unnamed"),
+
+          price: Number(p.price ?? 0),
+          salePrice:
+            typeof p.sale_price === "number" ? p.sale_price : null,
+
+          // ✅ FIX DATE
+          saleStart:
+            typeof p.sale_start === "string" ? p.sale_start : null,
+          saleEnd:
+            typeof p.sale_end === "string" ? p.sale_end : null,
+
+          // ✅ NEW (variant)
+          min_price:
+            typeof p.min_price === "number" ? p.min_price : undefined,
+          min_sale_price:
+            typeof p.min_sale_price === "number"
+              ? p.min_sale_price
+              : null,
+
+          thumbnail:
+            typeof p.thumbnail === "string" ? p.thumbnail : "",
+
+          stock: Number(p.stock ?? 0),
+          sold: Number(p.sold ?? 0),
+          ratingAvg: Number(p.rating_avg ?? 0),
+          isActive: Boolean(p.is_active),
+        };
+      });
 
       setProducts(mapped);
     } catch {
@@ -160,8 +156,6 @@ export default function SellerStockPage() {
       setPageLoading(false);
     }
   }, [t]);
-
-  /* ================= LOAD PROFILE ================= */
 
   const loadProfile = useCallback(async () => {
     try {
@@ -194,7 +188,6 @@ export default function SellerStockPage() {
   }, [authLoading, loadProducts, loadProfile]);
 
   /* ================= DELETE ================= */
-
   const handleDelete = async (id: string) => {
     if (!confirm(t.confirm_delete)) return;
 
@@ -215,128 +208,91 @@ export default function SellerStockPage() {
     }
   };
 
-  const now = Date.now();
-
   /* ================= UI ================= */
-
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
 
-      {/* HEADER */}
-      <div className="relative mb-10">
-
-        <div className="relative w-full h-40 rounded-xl overflow-hidden">
-          <Image
-            src={shop.shop_banner || "/banners/default-shop.png"}
-            alt="Shop banner"
-            fill
-            priority
-            className="object-cover"
-          />
-
-          <button
-            onClick={() => router.push("/seller/post")}
-            className="absolute top-3 right-3 bg-orange-500 text-white rounded-full w-11 h-11 flex items-center justify-center"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
-
-        <div className="absolute left-4 -bottom-12 w-24 h-24 rounded-full overflow-hidden border-4 border-white">
-          <Image
-            src={shop.avatar_url || "/avatar.png"}
-            alt="avatar"
-            fill
-            className="object-cover"
-          />
-        </div>
-      </div>
-
-      {/* PRODUCTS */}
+      {/* LIST */}
       <div className="space-y-4">
-
-        {pageLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded-xl animate-pulse" />
-          ))
-        ) : (
-          products.map((product) => {
-            const isSale = isProductOnSale(product);
-            const isOut = (product.stock ?? 0) <= 0;
-
-            return (
-              <div
-                key={product.id}
-                onClick={() => router.push(`/product/${product.id}`)}
-                className="flex gap-3 p-3 bg-white rounded-xl shadow cursor-pointer"
-              >
-                <div className="w-24 h-24 relative rounded-lg overflow-hidden">
-                  <Image
-                    src={product.thumbnail || "/placeholder.png"}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                <div className="flex-1">
-
-                  <h3 className="font-semibold text-sm line-clamp-2">
-                    {product.name}
-                  </h3>
-
-                  {/* PRICE */}
-                  <div className="mt-1">
-                    {isSale ? (
-                      <>
-                        <p className="text-xs text-gray-400 line-through">
-                          {formatPi(product.price)} π
-                        </p>
-                        <p className="text-orange-600 font-bold">
-                          {formatPi(product.salePrice ?? 0)} π
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-orange-600 font-bold">
-                        {formatPi(product.price)} π
-                      </p>
-                    )}
-                  </div>
-
-                  {/* INFO */}
-                  <div className="text-xs text-gray-500 mt-2 flex gap-3">
-                    <span>📦 {product.stock ?? 0}</span>
-                    <span>🛒 {product.sold ?? 0}</span>
-                  </div>
-
-                  {/* ACTION */}
-                  <div className="flex gap-3 mt-2 text-xs">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/seller/edit/${product.id}`);
-                      }}
-                      className="text-green-600"
-                    >
-                      {t.edit}
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(product.id);
-                      }}
-                      className="text-red-600"
-                    >
-                      {t.delete}
-                    </button>
-                  </div>
-
+        {pageLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-3 p-3 bg-white rounded-xl shadow animate-pulse">
+                <div className="w-24 h-24 bg-gray-200 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-4 bg-gray-200 rounded w-1/2" />
                 </div>
               </div>
-            );
-          })
-        )}
+            ))
+          : products.map((product) => {
+              const display = getDisplayPrice(product);
+
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => router.push(`/product/${product.id}`)}
+                  className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
+                >
+                  <div className="w-24 h-24 relative rounded-lg overflow-hidden">
+                    <Image
+                      src={product.thumbnail || "/placeholder.png"}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm line-clamp-2">
+                      {product.name}
+                    </h3>
+
+                    {/* ✅ FIX PRICE */}
+                    <div className="mt-1">
+                      {display.salePrice ? (
+                        <>
+                          <p className="text-xs text-gray-400 line-through">
+                            {formatPi(display.price)} π
+                          </p>
+                          <p className="text-[#ff6600] font-bold">
+                            {formatPi(display.salePrice)} π
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[#ff6600] font-bold">
+                          {formatPi(display.price)} π
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 text-xs mt-2">
+                      <span>📦 {product.stock ?? 0}</span>
+                      <span>🛒 {product.sold ?? 0}</span>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/seller/edit/${product.id}`);
+                        }}
+                        className="text-green-600"
+                      >
+                        {t.edit}
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(product.id);
+                        }}
+                        className="text-red-600"
+                      >
+                        {t.delete}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
       </div>
     </main>
   );
