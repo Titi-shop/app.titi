@@ -1,10 +1,9 @@
-// lib/db/orders.preview.ts
-
 import { query } from "@/lib/db";
 
 type PreviewItemInput = {
   product_id: string;
   quantity: number;
+  variant_id?: string | null; // ✅ FIX
 };
 
 type PreviewOrderInput = {
@@ -32,9 +31,13 @@ export async function previewOrder(
 ): Promise<PreviewOrderResult> {
   const { userId, items, country, zone } = input;
 
+  console.log("🚀 [PREVIEW] START", input);
+
   if (!userId) throw new Error("INVALID_USER");
   if (!country) throw new Error("MISSING_COUNTRY");
   if (!zone) throw new Error("MISSING_REGION");
+
+  /* ================= CHECK ZONE ================= */
 
   const { rows: zoneRows } = await query<{ code: string }>(
     `
@@ -47,15 +50,13 @@ export async function previewOrder(
     [country.toUpperCase()]
   );
 
-  if (!zoneRows.length) {
-    throw new Error("INVALID_COUNTRY");
-  }
+  if (!zoneRows.length) throw new Error("INVALID_COUNTRY");
 
   const realZone = zoneRows[0].code;
 
-  if (zone !== realZone) {
-    throw new Error("INVALID_REGION");
-  }
+  if (zone !== realZone) throw new Error("INVALID_REGION");
+
+  /* ================= VALIDATE ITEMS ================= */
 
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("INVALID_ITEMS");
@@ -63,49 +64,118 @@ export async function previewOrder(
 
   const productIds = items.map((i) => i.product_id);
 
+  /* ================= LOAD PRODUCTS ================= */
+
   const { rows: products } = await query<{
     id: string;
     name: string;
     price: number;
+    sale_price: number | null;
+    sale_start: string | null;
+    sale_end: string | null;
   }>(
     `
-    SELECT id, name, price
+    SELECT id, name, price, sale_price, sale_start, sale_end
     FROM products
     WHERE id = ANY($1::uuid[])
     `,
     [productIds]
   );
 
-  if (!products.length) {
-    throw new Error("PRODUCT_NOT_FOUND");
-  }
-
   const productMap = new Map(products.map((p) => [p.id, p]));
+
+  /* ================= LOAD VARIANTS ================= */
+
+  const variantIds = items
+    .map((i) => i.variant_id)
+    .filter(Boolean);
+
+  const { rows: variants } =
+    variantIds.length > 0
+      ? await query<{
+          id: string;
+          product_id: string;
+          price: number;
+          sale_price: number | null;
+        }>(
+          `
+          SELECT id, product_id, price, sale_price
+          FROM product_variants
+          WHERE id = ANY($1::uuid[])
+          `,
+          [variantIds]
+        )
+      : { rows: [] };
+
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+  console.log("🧩 VARIANTS:", variants);
+
+  /* ================= CALCULATE ================= */
+
+  const now = Date.now();
 
   let subtotal = 0;
 
   const previewItems = items.map((item) => {
     const p = productMap.get(item.product_id);
-
     if (!p) throw new Error("INVALID_PRODUCT");
 
-    const qty =
-      typeof item.quantity === "number" && item.quantity > 0
-        ? item.quantity
-        : 1;
+    const qty = item.quantity > 0 ? item.quantity : 1;
 
-    const total = Number(p.price) * qty;
+    let price = Number(p.price);
+
+    /* ================= VARIANT ================= */
+    if (item.variant_id) {
+      const v = variantMap.get(item.variant_id);
+
+      if (!v) throw new Error("INVALID_VARIANT");
+
+      price =
+        v.sale_price && v.sale_price > 0
+          ? Number(v.sale_price)
+          : Number(v.price);
+
+      console.log("🎯 USING VARIANT PRICE:", price);
+    } else {
+      /* ================= PRODUCT SALE ================= */
+
+      const start = p.sale_start
+        ? new Date(p.sale_start).getTime()
+        : null;
+
+      const end = p.sale_end
+        ? new Date(p.sale_end).getTime()
+        : null;
+
+      const isSale =
+        p.sale_price &&
+        start &&
+        end &&
+        now >= start &&
+        now <= end;
+
+      price = isSale
+        ? Number(p.sale_price)
+        : Number(p.price);
+
+      console.log("💰 USING PRODUCT PRICE:", price);
+    }
+
+    const total = price * qty;
 
     subtotal += total;
 
     return {
       product_id: p.id,
       name: p.name,
-      price: Number(p.price),
+      price,
       quantity: qty,
       total,
     };
   });
+
+  /* ================= SHIPPING ================= */
 
   const { rows: shippingRows } = await query<{
     product_id: string;
@@ -121,23 +191,25 @@ export async function previewOrder(
     [productIds, realZone]
   );
 
-  if (!shippingRows.length) {
-    throw new Error("SHIPPING_NOT_AVAILABLE");
-  }
-
   const shippingMap = new Map(
     shippingRows.map((r) => [r.product_id, Number(r.price)])
   );
 
-  const firstItem = items[0];
+  let shippingFee = 0;
 
-  const shippingPrice = shippingMap.get(firstItem.product_id);
+  for (const item of items) {
+    const fee = shippingMap.get(item.product_id);
 
-  if (shippingPrice === undefined) {
-    throw new Error("SHIPPING_NOT_AVAILABLE");
+    if (fee === undefined) {
+      throw new Error("SHIPPING_NOT_AVAILABLE");
+    }
+
+    shippingFee += fee; // ✅ FIX: cộng tất cả
   }
 
-  const shippingFee = shippingPrice;
+  console.log("🚚 SHIPPING TOTAL:", shippingFee);
+
+  /* ================= RESULT ================= */
 
   return {
     items: previewItems,
