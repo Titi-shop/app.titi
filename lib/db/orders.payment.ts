@@ -328,7 +328,7 @@ const total = itemsTotal + shippingFee;
   pi_payment_id,
   pi_txid,
 
-  itemsTotal,
+  items_total,
   subtotal,
   discount,
   shipping_fee,
@@ -370,7 +370,7 @@ const total = itemsTotal + shippingFee;
   product.seller_id,
   params.paymentId,
   params.txid,
-  subtotal,      // items_total ✅
+  itemsTotal,   // ✅ FIX
   subtotal,      // subtotal ✅
   0,             // discount
   shippingFee,
