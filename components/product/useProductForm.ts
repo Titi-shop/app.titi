@@ -137,7 +137,10 @@ export function useProductForm(initialData?: ProductPayload) {
 
     console.log("🎉 [FORM] INIT DONE");
   }, [initialData]);
-
+   
+useEffect(() => {
+  console.log("📡 [FORM] SHIPPING STATE UPDATED:", shippingRates);
+}, [shippingRates]);
   /* =========================================================
      RETURN
   ========================================================= */
