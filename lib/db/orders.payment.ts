@@ -320,33 +320,37 @@ const address = addressRes.rows[0];
     const orderRes = await client.query(
       `
       INSERT INTO orders (
-        order_number,
-        buyer_id,
-        seller_id,
-        pi_payment_id,
-        pi_txid,
-        items_total,
-        subtotal,
-        discount,
-        shipping_fee,
-        tax,
-        total,
-        currency,
-        payment_status,
-        paid_at,
-        status,
-        shipping_name,
-        shipping_phone,
-        shipping_address_line,
-        shipping_ward,
-        shipping_district,
-        shipping_region,
-        shipping_country,
-        shipping_postal_code,
-        shipping_zone,
-        total_items,
-        total_quantity
-      )
+  order_number,
+  buyer_id,
+  seller_id,
+  pi_payment_id,
+  pi_txid,
+
+  items_total,
+  subtotal,
+  discount,
+  shipping_fee,
+  tax,
+  total,
+  currency,
+
+  payment_status,
+  paid_at,
+  status,
+
+  shipping_name,
+  shipping_phone,
+  shipping_address_line,
+  shipping_ward,
+  shipping_district,
+  shipping_region,
+  shipping_country,
+  shipping_postal_code,
+  shipping_zone,
+
+  total_items,
+  total_quantity
+)
       VALUES (
         gen_random_uuid()::text,
         $1,$2,
@@ -359,29 +363,32 @@ const address = addressRes.rows[0];
       )
       RETURNING id
       `,
-      [
-        params.userId,
-        product.seller_id,
-        params.paymentId,
-        params.txid,
-        subtotal,
-        subtotal,
-        0,
-        shippingFee,
-        0,
-        total,
-        "PI",
-        address.full_name,
-        address.phone,
-        address.address_line,
-        address.ward ?? null,
-        address.district ?? null,
-        address.region ?? null,
-        address.country,
-        address.postal_code ?? null,
-        realZone,
-        quantity,
-      ]
+     [
+  params.userId,
+  product.seller_id,
+  params.paymentId,
+  params.txid,
+  subtotal,      // items_total ✅
+  subtotal,      // subtotal ✅
+  0,             // discount
+  shippingFee,
+  0,             // tax
+  total,
+  "PI",
+
+  address.full_name,
+  address.phone,
+  address.address_line,
+  address.ward ?? null,
+  address.district ?? null,
+  address.region ?? null,
+  address.country,
+  address.postal_code ?? null,
+  realZone,
+
+  1,             // total_items ❗
+  quantity,      // total_quantity ❗
+   ]
     );
 
     const orderId = orderRes.rows[0].id;
