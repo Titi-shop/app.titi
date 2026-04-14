@@ -223,10 +223,9 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     return NextResponse.json({
       id: p.id,
       sellerId: p.seller_id,
-
       name: p.name,
+      selectedPrice: null,
       slug: p.slug ?? "",
-
       shortDescription: p.short_description ?? "",
       description: p.description ?? "",
       detail: p.detail ?? "",
@@ -390,7 +389,14 @@ finalPrice = prices.length > 0 ? Math.min(...prices) : 1;
 
 finalSalePrice =
   salePrices.length > 0 ? Math.min(...salePrices) : null;
+  if (
+  finalSalePrice !== null &&
+  finalSalePrice >= finalPrice
+) {
+  console.warn("⚠️ AUTO FIX SALE PRICE");
 
+  finalSalePrice = null;
+}
       finalStock = normalizedVariants.reduce(
         (s, v) => s + (v.stock || 0),
         0
