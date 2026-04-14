@@ -200,7 +200,6 @@ const shippingPostalCode =
     const userId = auth.userId;
 
     console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
-
     /* ================= VERIFY PI ================= */
 
 console.log("🟡 [PAYMENT][VERIFY_PI]");
@@ -325,53 +324,6 @@ const result = await processPiPayment({
 
   /* 🔥 CRITICAL FIX */
   verifiedAmount: Number(payment.amount),
-});
-
-  const completeData = await completeRes.json().catch(() => null);
-
-  console.log("🟡 [PAYMENT][COMPLETE_RESPONSE]", completeData);
-
-  if (!completeRes.ok) {
-    console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
-
-    if (
-      completeData?.error?.includes?.("already") ||
-      completeData?.message?.includes?.("completed")
-    ) {
-      console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
-    } else {
-      return NextResponse.json(
-        { error: "PI_COMPLETE_FAILED" },
-        { status: 400 }
-      );
-    }
-  }
-}
-
-    /* ================= DB ================= */
-
-    console.log("🟡 [PAYMENT][DB_PROCESS]");
-
-    const result = await processPiPayment({
-  userId,
-  productId,
-  variantId,
-  quantity,
-  paymentId,
-  txid,
-
-  country,
-  zone,
-
-  shipping: {
-    name: shippingName,
-    phone: shippingPhone,
-    address_line: shippingAddressLine,
-    ward: shippingWard,
-    district: shippingDistrict,
-    region: shippingRegion,
-    postal_code: shippingPostalCode,
-  },
 });
 
     console.log("🟢 [PAYMENT][SUCCESS]", result);
