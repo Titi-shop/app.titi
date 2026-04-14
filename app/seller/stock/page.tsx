@@ -510,21 +510,21 @@ const now = new Date();
                 {product.name}
               </h3>
              <div className="mt-1">
-  {display.salePrice ? (
-    <>
-      <p className="text-xs text-gray-400 line-through">
-        {formatPi(display.price)} π
-      </p>
-      <p className="text-[#ff6600] font-bold">
-        {formatPi(display.salePrice)} π
-      </p>
-    </>
-  ) : (
-    <p className="text-[#ff6600] font-bold">
-      {formatPi(display.price)} π
+           {isSale && product.salePrice ? (
+       <>
+    <p className="text-xs text-gray-400 line-through">
+      {formatPi(product.price)} π
     </p>
-  )}
-</div>
+    <p className="text-[#ff6600] font-bold">
+      {formatPi(product.salePrice)} π
+    </p>
+  </>
+     ) : (
+  <p className="text-[#ff6600] font-bold">
+    {formatPi(product.price)} π
+        </p>
+          )}
+           </div>
               <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
                 <span>⭐ {product.ratingAvg ?? 0}</span>
                 <span>📦 {product.stock ?? 0}</span>
