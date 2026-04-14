@@ -56,43 +56,63 @@ export async function getSellerOrders(
   const { rows } = await query(
     `
     SELECT
-      o.id,
-      o.order_number,
-      o.created_at,
+  o.id,
+  o.order_number,
+  o.created_at,
 
-      o.shipping_name,
-      o.shipping_phone,
-      o.shipping_address_line,
+  o.shipping_name,
+  o.shipping_phone,
+  o.shipping_address_line,
 
-      COALESCE(
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'thumbnail', oi.thumbnail,
-            'quantity', oi.quantity,
-            'unit_price', oi.unit_price,
-            'total_price', oi.total_price,
-            'status', oi.status
-          )
-        ) FILTER (WHERE oi.id IS NOT NULL),
-        '[]'
-      ) AS order_items,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id', oi.id,
+        'product_id', oi.product_id,
 
-      SUM(oi.total_price)::float AS total
+        'product_name', oi.product_name,
+        'product_slug', oi.product_slug,
 
-    FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
+        'thumbnail', oi.thumbnail,
+        'images', oi.images,
 
-    WHERE oi.seller_id = $1
-    ${statusFilter}
+        'variant_name', oi.variant_name,
+        'variant_value', oi.variant_value,
 
-    GROUP BY o.id
-    ORDER BY o.created_at DESC
+        'unit_price', oi.unit_price,
+        'quantity', oi.quantity,
+        'total_price', oi.total_price,
+        'currency', oi.currency,
 
-    LIMIT $${status ? 3 : 2}
-    OFFSET $${status ? 4 : 3}
+        'status', oi.status,
+
+        'tracking_code', oi.tracking_code,
+        'shipping_provider', oi.shipping_provider,
+
+        'shipped_at', oi.shipped_at,
+        'delivered_at', oi.delivered_at,
+
+        'created_at', oi.created_at,
+
+        'snapshot', oi.snapshot
+      )
+    ) FILTER (WHERE oi.id IS NOT NULL),
+    '[]'
+  ) AS order_items,
+
+  SUM(oi.total_price)::float AS total
+
+FROM orders o
+JOIN order_items oi ON oi.order_id = o.id
+
+WHERE oi.seller_id = $1
+${statusFilter}
+
+GROUP BY o.id
+ORDER BY o.created_at DESC
+
+LIMIT $${status ? 3 : 2}
+OFFSET $${status ? 4 : 3}
     `,
     params
   );
