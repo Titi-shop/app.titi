@@ -239,32 +239,23 @@ function getTotalVariantStock(variants: ProductVariant[]) {
       finalPrice: hasVariants ? null : finalPrice,
       minPrice,
       maxPrice,
-
       stock: totalStock,
-
       currency: p.currency ?? "PI",
       isUnlimited: p.is_unlimited ?? false,
-
       sold: p.sold ?? 0,
       views: p.views ?? 0,
 
       ratingAvg: p.rating_avg ?? 0,
       ratingCount: p.rating_count ?? 0,
-
       isActive: p.is_active ?? true,
       isFeatured: p.is_featured ?? false,
       isDigital: p.is_digital ?? false,
-
       status: p.status ?? "active",
-
       categoryId: p.category_id ?? null,
-
       saleStart: p.sale_start ?? null,
       saleEnd: p.sale_end ?? null,
-
       metaTitle: p.meta_title ?? "",
       metaDescription: p.meta_description ?? "",
-
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       deletedAt: p.deleted_at ?? null,
