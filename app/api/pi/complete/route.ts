@@ -200,6 +200,33 @@ const shippingPostalCode =
     const userId = auth.userId;
 
     console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
+
+    console.log("🟡 [PAYMENT][VERIFY_TOKEN_USER]");
+
+const meRes = await fetch("https://api.minepi.com/v2/me", {
+  headers: {
+    Authorization: req.headers.get("authorization") || "",
+  },
+  cache: "no-store",
+});
+
+if (!meRes.ok) {
+  return NextResponse.json(
+    { error: "INVALID_TOKEN" },
+    { status: 401 }
+  );
+}
+
+const me = await meRes.json();
+
+if (!me?.uid) {
+  return NextResponse.json(
+    { error: "INVALID_PI_USER" },
+    { status: 401 }
+  );
+}
+
+const piUidFromToken = me.uid;
     /* ================= VERIFY PI ================= */
 
 console.log("🟡 [PAYMENT][VERIFY_PI]");
@@ -228,11 +255,10 @@ if (!payment.amount || payment.amount <= 0) {
   );
 }
 
-/* 🔥 FIX 1: CHECK USER MATCH */
-if (payment.user_uid !== auth.pi_uid) {
+if (payment.user_uid !== piUidFromToken) {
   console.error("❌ [PAYMENT][USER_MISMATCH]", {
     pi: payment.user_uid,
-    auth: auth.pi_uid,
+    token: piUidFromToken,
   });
 
   return NextResponse.json(
