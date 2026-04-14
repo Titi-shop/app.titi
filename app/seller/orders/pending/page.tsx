@@ -40,7 +40,9 @@ interface Order {
   shipping_ward?: string | null;
   shipping_district?: string | null;
   shipping_region?: string | null;
-  shipping_postal_code?: string | null;
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+shipping_postal_code?: string | null;
 
   order_items: OrderItem[];
 }
@@ -117,11 +119,8 @@ const fetcher = async (): Promise<Order[]> => {
         status: i.status ?? "pending",
       })),
     }));
-  } catch {
-    return [];
-  }
-};
-  } catch {
+  } catch (err) {
+    console.error("FETCH ERROR", err);
     return [];
   }
 };
