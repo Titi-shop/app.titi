@@ -441,5 +441,6 @@ export default function SellerStockPage() {
         })}
       </div>
     </div>
-  </main>
-);
+    </main>
+  );
+}
