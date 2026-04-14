@@ -23,3 +23,25 @@ export function formatDisplayTime(date?: string | null) {
     timeStyle: "short",
   }).format(new Date(date));
 }
+/* ================= SALE TIME ================= */
+
+export function toTimestamp(date?: string | null): number | null {
+  if (!date) return null;
+
+  const t = new Date(date).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+export function isNowInRange(
+  start?: string | null,
+  end?: string | null
+): boolean {
+  const now = Date.now();
+
+  const s = toTimestamp(start);
+  const e = toTimestamp(end);
+
+  if (!s || !e) return false;
+
+  return now >= s && now <= e;
+}
