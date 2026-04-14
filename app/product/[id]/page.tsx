@@ -174,8 +174,12 @@ if (!product) return <div>{t.no_products}</div>;
         hasVariants && selectedVariant
           ? `${product.name} - ${selectedVariant.optionValue}`
           : product.name,
-      price: product.price,
-      sale_price: product.finalPrice,
+           price: selectedVariant?.price ?? product.price,
+
+          sale_price:
+          selectedVariant?.salePrice ??
+          product.salePrice ??
+         null,
       thumbnail: product.thumbnail,
       quantity: 1,
     });
@@ -222,18 +226,23 @@ if (!product) return <div>{t.no_products}</div>;
       open={openCheckout}
       onClose={() => setOpenCheckout(false)}
       product={{
-        id: product.id,
-        variant_id: selectedVariant?.id ?? null,
-        name:
-          hasVariants && selectedVariant
-            ? `${product.name} - ${selectedVariant.optionValue}`
-            : product.name,
-        price: product.price,
-        finalPrice: product.finalPrice,
-        thumbnail: product.thumbnail,
-        stock: selectedStock,
-        shippingRates: product.shippingRates,
-      }}
+  id: product.id,
+
+  /* 🔥 QUAN TRỌNG */
+  selectedVariant,
+
+  name:
+    hasVariants && selectedVariant
+      ? `${product.name} - ${selectedVariant.optionValue}`
+      : product.name,
+
+       price: product.price,
+       salePrice: product.salePrice,
+      finalPrice: product.finalPrice,
+      thumbnail: product.thumbnail,
+    stock: selectedStock,
+  shippingRates: product.shippingRates,
+   }}
     />
   </>
 );
