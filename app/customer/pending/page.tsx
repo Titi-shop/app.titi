@@ -314,7 +314,7 @@ export default function PendingOrdersPage() {
 </div>
 
                 {/* FOOTER */}
-                <div className="flex justify-between items-center px-4 py-3 border-t">
+               <div className="flex justify-between items-center px-4 py-3 border-t">
 
   <span className="text-sm font-semibold">
     {t.total}: π{formatPi(o.total)}
@@ -322,12 +322,12 @@ export default function PendingOrdersPage() {
 
   <div className="flex gap-2">
 
-    {/* ✅ NÚT CHI TIẾT */}
+    {/* DETAIL */}
     <button
       onClick={() => router.push(`/customer/orders/${o.id}`)}
       className="border px-3 py-1 text-xs rounded"
     >
-      Chi tiết
+      {t.order_detail ?? "Chi tiết"}
     </button>
 
     {/* CANCEL */}
