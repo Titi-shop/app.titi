@@ -14,7 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 
 type OrderStatus =
   | "pending"
-  | "pickup"
+  | "confirmed" 
   | "shipping"
   | "completed"
   | "cancelled"
@@ -72,9 +72,9 @@ export default function CustomerPickupPage() {
   /* ================= FILTER ================= */
 
   const orders = useMemo(
-    () => allOrders.filter((o: Order) => o.status === "pickup"),
-    [allOrders]
-  );
+  () => allOrders.filter((o: Order) => o.status === "confirmed"),
+  [allOrders]
+);
 
   const totalPi = useMemo(
     () => orders.reduce((sum, o) => sum + Number(o.total), 0),
@@ -106,7 +106,7 @@ export default function CustomerPickupPage() {
         ) : orders.length === 0 ? (
           <div className="flex flex-col items-center mt-20 text-gray-400">
             <div className="w-24 h-24 bg-gray-200 rounded-full mb-4" />
-            <p>{t.no_pickup_orders}</p>
+            <p>{t.no_confirmed_orders}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -120,7 +120,7 @@ export default function CustomerPickupPage() {
                     #{o.order_number}
                   </span>
                   <span className="text-orange-500 text-sm">
-                    {t.order_status_pickup}
+                    {t.order_status_confirmed}
                   </span>
                 </div>
 
