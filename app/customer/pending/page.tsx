@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
-
+import { useRouter } from "next/navigation";
 /* ================= TYPES ================= */
 
 interface OrderItem {
@@ -113,7 +113,7 @@ const fetcher = async (url: string): Promise<Order[]> => {
 export default function PendingOrdersPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
+  const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
@@ -314,89 +314,89 @@ export default function PendingOrdersPage() {
   ))}
 </div>
 
-                {/* FOOTER */}
-                <div className="flex justify-between px-4 py-3 border-t">
-                  <span className="text-sm font-semibold">
-                    {t.total}: π{formatPi(o.total)}
-                  </span>
-                   <div className="flex gap-2">
-           <button
-      onClick={() => router.push(`/orders/${o.id}`)}
-      className="px-3 py-1 text-xs border rounded"
-          >
-             Chi tiết
-               </button>
+                {/* FOOTER */}<div className="px-4 py-3 border-t">
 
-                  <button
-                    onClick={() => setShowCancelFor(o.id)}
-                    disabled={processingId === o.id}
-                    className="border border-red-500 text-red-500 px-3 py-1 rounded disabled:opacity-50"
-                  >
-                    {processingId === o.id
-                      ? t.canceling || "Đang huỷ..."
-                      : t.cancel_order}
-                  </button>
-                </div>
+  <div className="flex justify-between items-center">
+    <span className="text-sm font-semibold">
+      {t.total}: π{formatPi(o.total)}
+    </span>
 
-                {/* CANCEL BOX */}
-                {showCancelFor === o.id && (
-                  <div className="p-4 space-y-3">
+    <div className="flex gap-2">
+      <button
+        onClick={() => router.push(`/orders/${o.id}`)}
+        className="px-3 py-1 text-xs border rounded"
+      >
+        Chi tiết
+      </button>
 
-                    {CANCEL_REASON_KEYS.map((key) => (
-                      <label key={key} className="flex gap-2 text-sm">
-                        <input
-                          type="radio"
-                          checked={selectedReason === key}
-                          onChange={() => setSelectedReason(key)}
-                        />
-                        {t[key] || key}
-                      </label>
-                    ))}
+      <button
+        onClick={() => setShowCancelFor(o.id)}
+        disabled={processingId === o.id}
+        className="border border-red-500 text-red-500 px-3 py-1 rounded disabled:opacity-50"
+      >
+        {processingId === o.id
+          ? t.canceling || "Đang huỷ..."
+          : t.cancel_order}
+      </button>
+    </div>
+  </div>
 
-                    {selectedReason === "cancel_reason_other" && (
-                      <textarea
-                        value={customReason}
-                        onChange={(e) => setCustomReason(e.target.value)}
-                        placeholder={t.enter_cancel_reason}
-                        className="w-full border p-2 rounded"
-                      />
-                    )}
+  {/* CANCEL BOX */}
+  {showCancelFor === o.id && (
+    <div className="mt-3 space-y-3">
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const reason =
-                            selectedReason === "cancel_reason_other"
-                              ? customReason
-                              : selectedReason;
+      {CANCEL_REASON_KEYS.map((key) => (
+        <label key={key} className="flex gap-2 text-sm">
+          <input
+            type="radio"
+            checked={selectedReason === key}
+            onChange={() => setSelectedReason(key)}
+          />
+          {t[key] || key}
+        </label>
+      ))}
 
-                          if (!reason) {
-                            showMessage(
-                              t.select_cancel_reason,
-                              "error"
-                            );
-                            return;
-                          }
+      {selectedReason === "cancel_reason_other" && (
+        <textarea
+          value={customReason}
+          onChange={(e) => setCustomReason(e.target.value)}
+          placeholder={t.enter_cancel_reason}
+          className="w-full border p-2 rounded"
+        />
+      )}
 
-                          handleCancel(o.id, reason);
-                        }}
-                        className="bg-red-500 text-white px-4 py-2 rounded"
-                      >
-                        {t.confirm_cancel}
-                      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            const reason =
+              selectedReason === "cancel_reason_other"
+                ? customReason
+                : selectedReason;
 
-                      <button
-                        onClick={resetCancelState}
-                        className="border px-4 py-2 rounded"
-                      >
-                        {t.cancel}
-                      </button>
-                    </div>
+            if (!reason) {
+              showMessage(t.select_cancel_reason, "error");
+              return;
+            }
 
-                  </div>
-                )}
+            handleCancel(o.id, reason);
+          }}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          {t.confirm_cancel}
+        </button>
 
-              </div>
+        <button
+          onClick={resetCancelState}
+          className="border px-4 py-2 rounded"
+        >
+          {t.cancel}
+        </button>
+      </div>
+
+    </div>
+  )}
+
+</div>
             ))}
 
           </div>
