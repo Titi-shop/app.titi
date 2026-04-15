@@ -40,20 +40,17 @@ export async function getOrdersByBuyer(userId: string) {
           json_build_object(
             'id', oi.id,
             'product_id', oi.product_id,
-
             'product_name', oi.product_name,
             'product_slug', oi.product_slug,
-
             'thumbnail', oi.thumbnail,
             'images', oi.images,
-
             'variant_name', oi.variant_name,
             'variant_value', oi.variant_value,
-
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
-
+            'seller_message', oi.seller_message,
+            'seller_cancel_reason', oi.seller_cancel_reason,
             'currency', oi.currency,
             'status', oi.status
           )
@@ -163,7 +160,8 @@ export async function getOrderByBuyerId(
 
             'currency', oi.currency,
             'status', oi.status,
-
+           'seller_message', oi.seller_message,
+           'seller_cancel_reason', oi.seller_cancel_reason,
             'tracking_code', oi.tracking_code,
             'shipping_provider', oi.shipping_provider,
 
