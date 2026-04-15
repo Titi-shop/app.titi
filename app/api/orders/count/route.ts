@@ -21,10 +21,26 @@ export async function GET() {
 
   try {
     /* ================= DB ================= */
-    const counts = await getBuyerOrderCounts(userId);
+    const data = await getBuyerOrderCounts(userId);
+
+    /* ================= NORMALIZE ================= */
+    const counts = {
+      pending: Number(data?.pending ?? 0),
+
+      // 🔥 QUAN TRỌNG: pickup -> confirmed
+      confirmed: Number(
+        data?.confirmed ?? data?.pickup ?? 0
+      ),
+
+      shipping: Number(data?.shipping ?? 0),
+      completed: Number(data?.completed ?? 0),
+      cancelled: Number(data?.cancelled ?? 0),
+    };
 
     return NextResponse.json(counts);
-  } catch {
+  } catch (err) {
+    console.error("GET /orders/count error:", err);
+
     /* ================= SAFE FALLBACK ================= */
     return NextResponse.json(
       {
