@@ -1,7 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -115,7 +115,7 @@ const fetcher = async (url: string): Promise<Order[]> => {
 export default function PendingOrdersPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
+  const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
@@ -314,21 +314,35 @@ export default function PendingOrdersPage() {
 </div>
 
                 {/* FOOTER */}
-                <div className="flex justify-between px-4 py-3 border-t">
-                  <span className="text-sm font-semibold">
-                    {t.total}: π{formatPi(o.total)}
-                  </span>
+                <div className="flex justify-between items-center px-4 py-3 border-t">
 
-                  <button
-                    onClick={() => setShowCancelFor(o.id)}
-                    disabled={processingId === o.id}
-                    className="border border-red-500 text-red-500 px-3 py-1 rounded disabled:opacity-50"
-                  >
-                    {processingId === o.id
-                      ? t.canceling || "Đang huỷ..."
-                      : t.cancel_order}
-                  </button>
-                </div>
+  <span className="text-sm font-semibold">
+    {t.total}: π{formatPi(o.total)}
+  </span>
+
+  <div className="flex gap-2">
+
+    {/* ✅ NÚT CHI TIẾT */}
+    <button
+      onClick={() => router.push(`/customer/orders/${o.id}`)}
+      className="border px-3 py-1 text-xs rounded"
+    >
+      Chi tiết
+    </button>
+
+    {/* CANCEL */}
+    <button
+      onClick={() => setShowCancelFor(o.id)}
+      disabled={processingId === o.id}
+      className="border border-red-500 text-red-500 px-3 py-1 rounded disabled:opacity-50"
+    >
+      {processingId === o.id
+        ? t.canceling || "Đang huỷ..."
+        : t.cancel_order}
+    </button>
+
+  </div>
+</div>
 
                 {/* CANCEL BOX */}
                 {showCancelFor === o.id && (
