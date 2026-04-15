@@ -216,9 +216,6 @@ export default function CustomerPickupPage() {
       {t.order_detail ?? "Chi tiết"}
     </button>
 
-  </div>
-</div>
-
                 </div>
 
               </div>
