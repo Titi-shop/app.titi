@@ -11,7 +11,6 @@ export async function getOrdersByBuyer(userId: string) {
       o.order_number,
       o.status,
       o.payment_status,
-
       o.total,
       o.currency,
       o.items_total,
