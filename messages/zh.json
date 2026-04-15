@@ -1,5 +1,6 @@
 {
   
+  "order_detail": "详情",
   "order_completed": "完成",
   "order_pending": "待确认",
   "order_pickup": "待取货",
