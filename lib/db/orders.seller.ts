@@ -242,16 +242,42 @@ export async function cancelOrderBySeller(
   sellerId: string,
   reason: string | null
 ) {
-  const res = await query(
-    `
-    UPDATE order_items
-    SET status='cancelled', seller_cancel_reason=$3
-    WHERE order_id=$1 AND seller_id=$2
-    `,
-    [orderId, sellerId, reason]
-  );
+  try {
+    /* ================= UPDATE ORDER ITEMS ================= */
+    await query(
+      `
+      UPDATE order_items
+      SET
+        status = 'cancelled',
+        seller_cancel_reason = COALESCE($3, seller_cancel_reason),
+        updated_at = NOW()
+      WHERE order_id = $1
+        AND seller_id = $2
+      `,
+      [orderId, sellerId, reason]
+    );
 
-  return res.rowCount > 0;
+    /* ================= UPDATE ORDER ================= */
+    await query(
+      `
+      UPDATE orders
+      SET
+        status = 'cancelled',
+        cancel_reason = COALESCE($3, cancel_reason),
+        cancelled_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+        AND seller_id = $2
+      `,
+      [orderId, sellerId, reason]
+    );
+
+    return true;
+
+  } catch (err) {
+    console.error("cancelOrderBySeller error:", err);
+    throw new Error("DB_ERROR");
+  }
 }
 export async function confirmOrderBySeller(
   orderId: string,
@@ -276,18 +302,19 @@ export async function confirmOrderBySeller(
 
     /* ================= UPDATE ORDER ITEMS ================= */
     await query(
-      `
-      UPDATE order_items
-      SET
-        status = 'confirmed',
-        confirmed_at = NOW(),
-        seller_message = COALESCE($3, seller_message),
-        updated_at = NOW()
-      WHERE order_id = $1
-        AND seller_id = $2
-      `,
-      [orderId, sellerId, sellerMessage]
-    );
+  `
+  UPDATE order_items
+  SET
+    status = 'confirmed',
+    confirmed_at = NOW(),
+    seller_message = COALESCE($3, seller_message),
+    updated_at = NOW()
+  WHERE order_id = $1
+    AND seller_id = $2
+    AND status = 'pending'
+  `,
+  [orderId, sellerId, sellerMessage]
+);
 
     return orderRes.rowCount > 0;
 
