@@ -22,6 +22,7 @@ type OrderStatus =
 interface OrderItem {
   id: string;
   product_name: string;
+  product_id: string; // 
   thumbnail: string;
   quantity: number;
   unit_price: number;
@@ -78,7 +79,7 @@ shipping_district: data.shipping_district ?? null,
 shipping_region: data.shipping_region ?? null,
 shipping_country: data.shipping_country ?? null,
 shipping_postal_code: data.shipping_postal_code ?? null,
-
+      product_id: i.product_id,
       seller_message: data.seller_message ?? null,
       seller_cancel_reason: data.seller_cancel_reason ?? null,
 
@@ -270,22 +271,22 @@ export default function OrderDetailPage() {
       {/* ACTION */}
       <div className="p-4 space-y-3">
 
-        {order.status === "completed" && (
-          <button
-            onClick={() =>
-              router.push(`/customer/orders/${order.id}/return`)
-            }
-            className="w-full py-2 bg-red-500 text-white rounded-lg"
-          >
-            {t.request_return ?? "Yêu cầu hoàn hàng"}
-          </button>
-       <button
-  onClick={() => router.push(`/product/${order.order_items[0]?.product_id}`)}
-  className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
->
-  {t.buy_again ?? "Mua lại"}
-</button>
-        )}
+        {order.status === "cancelled" && (
+  <div className="space-y-2">
+    <button className="w-full py-2 border rounded-lg">
+      {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
+    </button>
+
+    <button
+      onClick={() =>
+        router.push(`/product/${order.order_items[0]?.product_id}`)
+      }
+      className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
+    >
+      {t.buy_again ?? "Mua lại"}
+    </button>
+  </div>
+)}
 
       </div>
 
