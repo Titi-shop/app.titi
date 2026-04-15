@@ -58,48 +58,54 @@ const CANCEL_REASON_KEYS = [
 
 /* ================= FETCHER ================= */
 
-const fetcher = async (url: string) => {
-  const token = await getPiAccessToken();
-  if (!token) return [];
+const fetcher = async (url: string): Promise<Order[]> => {
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return [];
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return [];
+    if (!res.ok) return [];
 
-  const data = await res.json();
+    const data = await res.json();
 
-if (!Array.isArray(data)) return [];
+    if (!Array.isArray(data)) return [];
 
-return data.map((o: any) => ({
-  id: o.id,
-  order_number: o.order_number,
-  status: o.status,
-  total: Number(o.total ?? 0),
-  created_at: o.created_at,
+    return data.map((o: any) => ({
+      id: o.id,
+      order_number: o.order_number,
+      status: o.status,
+      total: Number(o.total ?? 0),
+      created_at: o.created_at,
 
-  shipping_name: o.shipping_name ?? "",
-  shipping_phone: o.shipping_phone ?? "",
+      shipping_name: o.shipping_name ?? "",
+      shipping_phone: o.shipping_phone ?? "",
 
-  shipping_address_line: o.shipping_address_line ?? "",
-  shipping_ward: o.shipping_ward ?? null,
-  shipping_district: o.shipping_district ?? null,
-  shipping_region: o.shipping_region ?? null,
+      shipping_address_line: o.shipping_address_line ?? "",
+      shipping_ward: o.shipping_ward ?? null,
+      shipping_district: o.shipping_district ?? null,
+      shipping_region: o.shipping_region ?? null,
 
-  shipping_country: o.shipping_country ?? null,
-  shipping_postal_code: o.shipping_postal_code ?? null,
+      shipping_country: o.shipping_country ?? null,
+      shipping_postal_code: o.shipping_postal_code ?? null,
 
-  order_items: (o.order_items || []).map((i: any) => ({
-    product_name: i.product_name ?? "",
-    thumbnail: i.thumbnail ?? "",
-    quantity: Number(i.quantity ?? 0),
-    unit_price: Number(i.unit_price ?? 0),
-    total_price: Number(i.total_price ?? 0),
-    status: i.status ?? "pending",
-  })),
-}));
+      order_items: (o.order_items || []).map((i: any) => ({
+        product_name: i.product_name ?? "",
+        thumbnail: i.thumbnail ?? "",
+        quantity: Number(i.quantity ?? 0),
+        unit_price: Number(i.unit_price ?? 0),
+        total_price: Number(i.total_price ?? 0),
+        status: i.status ?? "pending",
+      })),
+    }));
+  } catch (err) {
+    console.error("FETCH ERROR", err);
+    return [];
+  }
+};
 
 /* ================= PAGE ================= */
 
