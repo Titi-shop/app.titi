@@ -156,11 +156,15 @@ export default function CustomerPickupPage() {
                 </div>
 
                 {/* FOOTER */}
-                <div className="flex justify-between items-center px-4 py-3 border-t">
 
-                  <span className="text-sm font-semibold">
-                    {t.total}: π{formatPi(o.total)}
-                  </span>
+                   <div className="flex justify-between items-center px-4 py-3 border-t">
+
+  <span className="text-sm font-semibold">
+    {t.total}: π{formatPi(o.total)}
+  </span>
+
+  <div className="flex gap-2">
+
 
                   <button
                     onClick={() =>
