@@ -79,12 +79,13 @@ shipping_district: data.shipping_district ?? null,
 shipping_region: data.shipping_region ?? null,
 shipping_country: data.shipping_country ?? null,
 shipping_postal_code: data.shipping_postal_code ?? null,
-      product_id: i.product_id,
+     
       seller_message: data.seller_message ?? null,
       seller_cancel_reason: data.seller_cancel_reason ?? null,
 
       order_items: (data.order_items || []).map((i: any) => ({
         id: i.id,
+        product_id: i.product_id ?? "", 
         product_name: i.product_name ?? "",
         thumbnail: i.thumbnail ?? "",
         quantity: Number(i.quantity ?? 0),
