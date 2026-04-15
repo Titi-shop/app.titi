@@ -29,7 +29,7 @@ export async function GET() {
     return NextResponse.json(
       {
         pending: 0,
-        pickup: 0,
+        confirmed: 0,
         shipping: 0,
         completed: 0,
         cancelled: 0,
