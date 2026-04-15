@@ -78,17 +78,24 @@ export async function getBuyerOrderCounts(userId: string) {
     `
     SELECT
       COUNT(*) FILTER (WHERE status='pending')::int AS pending,
-      COUNT(*) FILTER (WHERE status='pickup')::int AS pickup,
+      COUNT(*) FILTER (WHERE status='confirmed')::int AS confirmed,
       COUNT(*) FILTER (WHERE status='shipping')::int AS shipping,
       COUNT(*) FILTER (WHERE status='completed')::int AS completed,
       COUNT(*) FILTER (WHERE status='cancelled')::int AS cancelled
     FROM orders
-    WHERE buyer_id=$1
+    WHERE buyer_id = $1
+      AND deleted_at IS NULL
     `,
     [userId]
   );
 
-  return rows[0];
+  return rows[0] ?? {
+    pending: 0,
+    confirmed: 0,
+    shipping: 0,
+    completed: 0,
+    cancelled: 0,
+  };
 }
 
 /* =========================================================
