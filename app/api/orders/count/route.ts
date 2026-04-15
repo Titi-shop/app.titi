@@ -11,7 +11,6 @@ export async function GET() {
 
   const userId = auth.userId;
 
-  /* ================= VALIDATE ================= */
   if (!userId || typeof userId !== "string") {
     return NextResponse.json(
       { error: "INVALID_USER_ID" },
@@ -20,28 +19,20 @@ export async function GET() {
   }
 
   try {
-    /* ================= DB ================= */
     const data = await getBuyerOrderCounts(userId);
 
-    /* ================= NORMALIZE ================= */
-    const counts = {
+    /* ✅ CLEAN + ĐỒNG BỘ DB */
+    return NextResponse.json({
       pending: Number(data?.pending ?? 0),
-
-      // 🔥 QUAN TRỌNG: pickup -> confirmed
-      confirmed: Number(
-        data?.confirmed ?? data?.pickup ?? 0
-      ),
-
+      confirmed: Number(data?.confirmed ?? 0),
       shipping: Number(data?.shipping ?? 0),
       completed: Number(data?.completed ?? 0),
       cancelled: Number(data?.cancelled ?? 0),
-    };
+    });
 
-    return NextResponse.json(counts);
   } catch (err) {
     console.error("GET /orders/count error:", err);
 
-    /* ================= SAFE FALLBACK ================= */
     return NextResponse.json(
       {
         pending: 0,
