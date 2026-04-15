@@ -197,27 +197,43 @@ export async function startShippingBySeller(
   orderId: string,
   sellerId: string
 ) {
-  const supabase = createClient();
+  try {
+    /* ================= UPDATE ORDER ================= */
+    const orderRes = await query(
+      `
+      UPDATE orders
+      SET
+        status = 'shipping',
+        shipped_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+        AND seller_id = $2
+        AND status = 'confirmed'
+      `,
+      [orderId, sellerId]
+    );
 
-  console.log("🚀 startShippingBySeller", { orderId, sellerId });
+    /* ================= UPDATE ORDER ITEMS ================= */
+    await query(
+      `
+      UPDATE order_items
+      SET
+        status = 'shipping',
+        shipped_at = NOW(),
+        updated_at = NOW()
+      WHERE order_id = $1
+        AND seller_id = $2
+        AND status = 'confirmed'
+      `,
+      [orderId, sellerId]
+    );
 
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ status: "shipping" })
-    .eq("id", orderId)
-    .eq("seller_id", sellerId)
-    .eq("status", "confirmed") // ⚠️ rất quan trọng
-    .select()
-    .single();
+    return orderRes.rowCount > 0;
 
-  if (error) {
-    console.error("❌ UPDATE ERROR", error);
-    return null;
+  } catch (err) {
+    console.error("startShippingBySeller error:", err);
+    throw new Error("DB_ERROR");
   }
-
-  console.log("✅ UPDATED:", data);
-
-  return data;
 }
 
 
@@ -277,48 +293,6 @@ export async function confirmOrderBySeller(
 
   } catch (err) {
     console.error("confirmOrderBySeller error:", err);
-    throw new Error("DB_ERROR");
-  }
-}
-export async function startShippingBySeller(
-  orderId: string,
-  sellerId: string
-) {
-  try {
-    /* ================= UPDATE ORDER ================= */
-    const orderRes = await query(
-      `
-      UPDATE orders
-      SET
-        status = 'shipping',
-        shipped_at = NOW(),
-        updated_at = NOW()
-      WHERE id = $1
-        AND seller_id = $2
-        AND status = 'confirmed'
-      `,
-      [orderId, sellerId]
-    );
-
-    /* ================= UPDATE ORDER ITEMS ================= */
-    await query(
-      `
-      UPDATE order_items
-      SET
-        status = 'shipping',
-        shipped_at = NOW(),
-        updated_at = NOW()
-      WHERE order_id = $1
-        AND seller_id = $2
-        AND status = 'confirmed'
-      `,
-      [orderId, sellerId]
-    );
-
-    return orderRes.rowCount > 0;
-
-  } catch (err) {
-    console.error("startShippingBySeller error:", err);
     throw new Error("DB_ERROR");
   }
 }
