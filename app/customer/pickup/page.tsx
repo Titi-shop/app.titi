@@ -1,7 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useMemo } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -64,7 +64,7 @@ const fetcher = async (url: string) => {
 export default function CustomerPickupPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
+  const router = useRouter();
   /* ================= SWR ================= */
 
   const { data: allOrders = [], isLoading } = useSWR(
@@ -162,48 +162,36 @@ export default function CustomerPickupPage() {
                 {/* PRODUCTS */}
                 <div className="px-4 py-3 space-y-3">
 
-                  {o.order_items
-                    ?.filter(
-                      (item) =>
-                        item.status === "confirmed"
-                    )
-                    .map((item, idx) => (
+                  <div className="space-y-3 px-4 py-3">
+  {o.order_items?.map((item, idx) => (
+    <div key={idx} className="flex gap-3">
 
-                      <div
-                        key={idx}
-                        className="flex gap-3 items-center"
-                      >
+      <img
+        src={item.thumbnail || "/placeholder.png"}
+        className="w-16 h-16 rounded object-cover border"
+      />
 
-                        <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
-                          <img
-                            src={item.thumbnail || "/placeholder.png"}
-                            alt={item.product_name}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
+      <div className="flex-1">
+        <p className="text-sm font-medium line-clamp-2">
+          {item.product_name}
+        </p>
 
-                        <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500 mt-1">
+          x{item.quantity} · π{formatPi(item.unit_price)}
+        </p>
 
-                          <p className="text-sm font-medium line-clamp-1">
-                            {item.product_name}
-                          </p>
+        <p className="text-xs mt-1">
+          Status:{" "}
+          <span className="font-medium text-orange-600">
+            {item.status}
+          </span>
+        </p>
+      </div>
 
-                          <p className="text-xs text-gray-500">
-                            x{item.quantity} · π
-                            {formatPi(
-                              Number(item.total_price) /
-                              Number(item.quantity || 1)
-                            )}
-                          </p>
+    </div>
+  ))}
+</div>
 
-                        </div>
-
-                      </div>
-
-                    ))}
-
-                </div>
 
                 {/* FOOTER */}
                 <div className="flex justify-between items-center px-4 py-3 border-t">
@@ -212,9 +200,24 @@ export default function CustomerPickupPage() {
                     {t.total}: π{formatPi(o.total)}
                   </p>
 
-                  <button className="px-4 py-1.5 text-sm border border-orange-400 text-orange-500 rounded hover:bg-orange-500 hover:text-white transition">
-                    {t.buy_now}
-                  </button>
+                  <div className="flex justify-between items-center px-4 py-3 border-t">
+
+  <span className="text-sm font-semibold">
+    {t.total}: π{formatPi(o.total)}
+  </span>
+
+  <div className="flex gap-2">
+
+    {/* DETAIL */}
+    <button
+      onClick={() => router.push(`/customer/orders/${o.id}`)}
+      className="border px-3 py-1 text-xs rounded"
+    >
+      {t.order_detail ?? "Chi tiết"}
+    </button>
+
+  </div>
+</div>
 
                 </div>
 
