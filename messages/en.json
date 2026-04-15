@@ -1,5 +1,6 @@
 {
   
+  "order_confirmed": "Confirmed",
   "order_detail": "Details",
   "order_completed": "completed",
   "order_pending": "Pending ",
