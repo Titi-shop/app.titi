@@ -345,20 +345,18 @@ export async function cancelOrderByBuyer(
 
       /* ================= UPDATE ORDER ================= */
       await client.query(
-        `
-        await client.query(
   `
   UPDATE orders
   SET 
     status = 'cancelled',
-    cancel_reason = $2,
+    cancel_reason = $3,
     cancelled_at = NOW(),
     updated_at = NOW()
   WHERE id = $1
     AND buyer_id = $2
     AND status = 'pending'
   `,
-  [orderId, reason ?? null]
+  [orderId, userId, reason ?? null]
 );
 
       /* ================= UPDATE ITEMS ================= */
