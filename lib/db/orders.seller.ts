@@ -267,20 +267,3 @@ export async function confirmOrderBySeller(
   }
 }
 
-    /* ================= UPDATE ITEMS ================= */
-    await query(
-      `
-      UPDATE order_items
-      SET status = 'confirmed'
-      WHERE order_id = $1
-        AND status = 'pending'
-      `,
-      [orderId]
-    );
-
-    return true;
-  } catch (err) {
-    console.error("confirmOrderBySeller error:", err);
-    return false;
-  }
-}
