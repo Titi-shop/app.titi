@@ -26,6 +26,16 @@ interface Order {
   total: number;
   created_at: string;
   status: string;
+
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address_line: string;
+  shipping_ward?: string | null;
+  shipping_district?: string | null;
+  shipping_region?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
+
   order_items: OrderItem[];
 }
 
@@ -60,8 +70,36 @@ const fetcher = async (url: string) => {
   if (!res.ok) return [];
 
   const data = await res.json();
-  return data.orders ?? [];
-};
+
+if (!Array.isArray(data)) return [];
+
+return data.map((o: any) => ({
+  id: o.id,
+  order_number: o.order_number,
+  status: o.status,
+  total: Number(o.total ?? 0),
+  created_at: o.created_at,
+
+  shipping_name: o.shipping_name ?? "",
+  shipping_phone: o.shipping_phone ?? "",
+
+  shipping_address_line: o.shipping_address_line ?? "",
+  shipping_ward: o.shipping_ward ?? null,
+  shipping_district: o.shipping_district ?? null,
+  shipping_region: o.shipping_region ?? null,
+
+  shipping_country: o.shipping_country ?? null,
+  shipping_postal_code: o.shipping_postal_code ?? null,
+
+  order_items: (o.order_items || []).map((i: any) => ({
+    product_name: i.product_name ?? "",
+    thumbnail: i.thumbnail ?? "",
+    quantity: Number(i.quantity ?? 0),
+    unit_price: Number(i.unit_price ?? 0),
+    total_price: Number(i.total_price ?? 0),
+    status: i.status ?? "pending",
+  })),
+}));
 
 /* ================= PAGE ================= */
 
@@ -236,6 +274,38 @@ export default function PendingOrdersPage() {
                     {t.status_pending || "Chờ xác nhận"}
                   </span>
                 </div>
+                {/* SHIPPING */}
+<div className="px-4 py-3 border-b text-sm space-y-1">
+  <p>
+    <span className="text-gray-500">Receiver:</span>{" "}
+    {o.shipping_name}
+  </p>
+
+  <p>
+    <span className="text-gray-500">Phone:</span>{" "}
+    {o.shipping_phone}
+  </p>
+
+  <p className="text-xs text-gray-600">
+    {[
+      o.shipping_address_line,
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+    ]
+      .filter(Boolean)
+      .join(", ")}
+  </p>
+
+  {(o.shipping_country || o.shipping_postal_code) && (
+    <p className="text-xs text-gray-500">
+      {o.shipping_country && <span>{o.shipping_country}</span>}
+      {o.shipping_postal_code && (
+        <span> · {o.shipping_postal_code}</span>
+      )}
+    </p>
+  )}
+</div>
 
                 {/* PRODUCTS */}
                 <div className="space-y-3 px-4 py-3">
@@ -255,6 +325,12 @@ export default function PendingOrdersPage() {
                         <p className="text-xs text-gray-500">
                           x{item.quantity} · π{formatPi(item.unit_price)}
                         </p>
+                        <p className="text-xs mt-1">
+                      Status:{" "}
+                <span className="font-medium text-orange-600">
+               {item.status}
+              </span>
+                </p>
                       </div>
 
                     </div>
