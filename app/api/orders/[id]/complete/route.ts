@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { completeOrderByBuyer } from "@/lib/db/orders.buyer";
 
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function isValidId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -20,7 +23,9 @@ export async function PATCH(
     /* ================= PARAMS ================= */
     const orderId = context?.params?.id;
 
-    if (!orderId) {
+    if (!isValidId(orderId)) {
+      console.warn("[ORDER][COMPLETE][INVALID_ID]", { orderId });
+
       return NextResponse.json(
         { error: "INVALID_ORDER_ID" },
         { status: 400 }
@@ -34,20 +39,31 @@ export async function PATCH(
     );
 
     if (!success) {
+      console.warn("[ORDER][COMPLETE][FAILED]", {
+        orderId,
+        userId,
+      });
+
       return NextResponse.json(
-        { error: "INVALID_STATUS_OR_NOT_FOUND" },
+        { error: "ORDER_CANNOT_COMPLETE" },
         { status: 400 }
       );
     }
 
-    /* ================= RESPONSE ================= */
+    /* ================= SUCCESS ================= */
+    console.log("[ORDER][COMPLETE][SUCCESS]", {
+      orderId,
+    });
+
     return NextResponse.json({
       success: true,
       message: "ORDER_COMPLETED",
     });
 
   } catch (err) {
-    console.error("ORDER COMPLETE ERROR:", err);
+    console.error("[ORDER][COMPLETE][ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
