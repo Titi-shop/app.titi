@@ -1,5 +1,6 @@
 {
   
+  "order_detail": "Chi tiết",
   "order_completed": "hoàn thành",
   "order_pending": "chờ xác nhận",
   "order_pickup": "lấy hàng",
