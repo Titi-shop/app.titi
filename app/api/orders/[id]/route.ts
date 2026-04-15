@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
-import { getOrderByBuyerId } from "@/lib/db/orders.buyer";
+
+/* ✅ IMPORT TỪ BARREL */
+import { getOrderByBuyerId } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* ================= VALIDATE ================= */
 function isValidId(v: unknown): v is string {
   return typeof v === "string" && v.length > 0;
 }
 
 export async function GET(
   req: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     /* ================= AUTH ================= */
@@ -20,10 +23,9 @@ export async function GET(
 
     const userId = auth.userId;
 
-    /* ================= PARAMS ================= */
-    const orderId = context?.params?.id;
+    /* ================= PARAM ================= */
+    const orderId = params?.id;
 
-    /* ================= VALIDATION ================= */
     if (!isValidId(orderId)) {
       return NextResponse.json(
         { error: "INVALID_ORDER_ID" },
@@ -32,7 +34,7 @@ export async function GET(
     }
 
     /* ================= DB ================= */
-    const order = await getOrderByBuyerId(orderId, userId);
+    const order = await getBuyerOrderById(orderId, userId);
 
     if (!order) {
       return NextResponse.json(
@@ -41,7 +43,6 @@ export async function GET(
       );
     }
 
-    /* ================= RESPONSE ================= */
     return NextResponse.json(order);
 
   } catch (err) {
