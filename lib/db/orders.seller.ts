@@ -280,3 +280,45 @@ export async function confirmOrderBySeller(
     throw new Error("DB_ERROR");
   }
 }
+export async function startShippingBySeller(
+  orderId: string,
+  sellerId: string
+) {
+  try {
+    /* ================= UPDATE ORDER ================= */
+    const orderRes = await query(
+      `
+      UPDATE orders
+      SET
+        status = 'shipping',
+        shipped_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+        AND seller_id = $2
+        AND status = 'confirmed'
+      `,
+      [orderId, sellerId]
+    );
+
+    /* ================= UPDATE ORDER ITEMS ================= */
+    await query(
+      `
+      UPDATE order_items
+      SET
+        status = 'shipping',
+        shipped_at = NOW(),
+        updated_at = NOW()
+      WHERE order_id = $1
+        AND seller_id = $2
+        AND status = 'confirmed'
+      `,
+      [orderId, sellerId]
+    );
+
+    return orderRes.rowCount > 0;
+
+  } catch (err) {
+    console.error("startShippingBySeller error:", err);
+    throw new Error("DB_ERROR");
+  }
+}
