@@ -244,24 +244,28 @@ export async function confirmOrderBySeller(
   sellerMessage?: string | null
 ) {
   try {
-    /* ================= UPDATE ORDER ================= */
-    const orderRes = await query(
+    const { rowCount } = await query(
       `
       UPDATE orders
-      SET 
+      SET
         status = 'confirmed',
-        confirmed_at = NOW(),
         seller_message = COALESCE($3, seller_message),
+        confirmed_at = NOW(),
         updated_at = NOW()
       WHERE id = $1
         AND seller_id = $2
         AND status = 'pending'
-      RETURNING id
       `,
       [orderId, sellerId, sellerMessage]
     );
 
-    if (orderRes.rowCount === 0) return false;
+    return rowCount > 0;
+
+  } catch (err) {
+    console.error("confirmOrderBySeller error:", err);
+    throw new Error("DB_ERROR");
+  }
+}
 
     /* ================= UPDATE ITEMS ================= */
     await query(
