@@ -1,5 +1,7 @@
 {
+
   
+  "order_confirmed": "Đã xác nhận",
   "order_detail": "Chi tiết",
   "order_completed": "hoàn thành",
   "order_pending": "chờ xác nhận",
