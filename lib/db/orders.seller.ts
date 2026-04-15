@@ -198,17 +198,29 @@ export async function startShippingBySeller(
   orderId: string,
   sellerId: string
 ) {
-  const res = await query(
-    `
-    UPDATE order_items
-    SET status='shipping', shipped_at=NOW()
-    WHERE order_id=$1 AND seller_id=$2 AND status='confirmed'
-    `,
-    [orderId, sellerId]
-  );
+  const supabase = createClient();
 
-  return res.rowCount > 0;
+  console.log("🚀 startShippingBySeller", { orderId, sellerId });
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status: "shipping" })
+    .eq("id", orderId)
+    .eq("seller_id", sellerId)
+    .eq("status", "confirmed") // ⚠️ rất quan trọng
+    .select()
+    .single();
+
+  if (error) {
+    console.error("❌ UPDATE ERROR", error);
+    return null;
+  }
+
+  console.log("✅ UPDATED:", data);
+
+  return data;
 }
+
 
 export async function cancelOrderBySeller(
   orderId: string,
@@ -267,30 +279,4 @@ export async function confirmOrderBySeller(
     console.error("confirmOrderBySeller error:", err);
     return false;
   }
-}
-export async function startShippingBySeller(
-  orderId: string,
-  sellerId: string
-) {
-  const supabase = createClient();
-
-  console.log("🚀 startShippingBySeller", { orderId, sellerId });
-
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ status: "shipping" })
-    .eq("id", orderId)
-    .eq("seller_id", sellerId)
-    .eq("status", "confirmed") // ⚠️ rất quan trọng
-    .select()
-    .single();
-
-  if (error) {
-    console.error("❌ UPDATE ERROR", error);
-    return null;
-  }
-
-  console.log("✅ UPDATED:", data);
-
-  return data;
 }
