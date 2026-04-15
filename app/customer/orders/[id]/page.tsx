@@ -278,14 +278,16 @@ export default function OrderDetailPage() {
       {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
     </button>
 
-    <button
-      onClick={() =>
-        router.push(`/product/${order.order_items[0]?.product_id}`)
-      }
-      className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
-    >
-      {t.buy_again ?? "Mua lại"}
-    </button>
+    {order.order_items?.length > 0 && (
+  <button
+    onClick={() =>
+      router.push(`/product/${order.order_items[0]?.product_id}`)
+    }
+    className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
+  >
+    {t.buy_again ?? "Mua lại"}
+  </button>
+)}
   </div>
 )}
 
