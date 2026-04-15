@@ -256,3 +256,46 @@ export async function completeOrderByBuyer(
     return true;
   });
 }
+
+export async function cancelOrderByBuyer(
+  orderId: string,
+  userId: string,
+  reason?: string
+) {
+  try {
+    /* ================= UPDATE ORDER ================= */
+    const res = await query(
+      `
+      UPDATE orders
+      SET 
+        status = 'cancelled',
+        cancel_reason = $3,
+        cancelled_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+        AND buyer_id = $2
+        AND status = 'pending'
+      RETURNING id
+      `,
+      [orderId, userId, reason || null]
+    );
+
+    if (res.rowCount === 0) return false;
+
+    /* ================= UPDATE ITEMS ================= */
+    await query(
+      `
+      UPDATE order_items
+      SET status = 'cancelled'
+      WHERE order_id = $1
+      `,
+      [orderId]
+    );
+
+    return true;
+
+  } catch (err) {
+    console.error("cancelOrderByBuyer error:", err);
+    return false;
+  }
+}
