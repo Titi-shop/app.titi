@@ -43,6 +43,7 @@ interface Order {
   id: string;
   order_number: string;
   created_at: string;
+   status: OrderStatus; 
   shipping_name?: string;
   shipping_phone?: string;
   shipping_address?: string;
@@ -87,28 +88,11 @@ export default function SellerOrdersPage() {
     dedupingInterval: 5000,
   }
 );
-
-  /* ================= LOAD ================= */
-
-  
-
-  /* ================= FILTER ================= */
-
   const filteredOrders = useMemo(() => {
+  if (activeTab === "all") return orders;
 
-    if (activeTab === "all") return orders;
-
-    return orders.filter((o) =>
-      o.order_items?.some(
-        (i) => i.status === activeTab
-      )
-    );
-
-  }, [orders, activeTab]);
-
-  /* ================= COUNT ================= */
-
-    
+  return orders.filter((o) => o.status === activeTab);
+}, [orders, activeTab]);
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
@@ -131,16 +115,10 @@ export default function SellerOrdersPage() {
   };
 
   for (const o of orders) {
-    const seen = new Set<OrderStatus>();
-
-    for (const i of o.order_items ?? []) {
-      if (!seen.has(i.status)) {
-        map[i.status]++;
-        seen.add(i.status);
-      }
-    }
+  if (map[o.status] !== undefined) {
+    map[o.status]++;
   }
-
+}
   return map;
 }, [orders]);
 const goDetail = useCallback(
