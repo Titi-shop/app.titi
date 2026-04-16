@@ -16,14 +16,9 @@ import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
 
-type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "cancelled"
-  | "shipping"
-  | "completed";
+type OrderStatus = "pending" | "confirmed" | "cancelled";
 
-type RawOrderItem = {
+interface RawOrderItem {
   id: string;
   product_id?: string | null;
   product_name?: string;
@@ -33,9 +28,9 @@ type RawOrderItem = {
   unit_price?: number;
   total_price?: number;
   status?: string;
-};
+}
 
-type RawOrder = {
+interface RawOrder {
   id: string;
   order_number: string;
   status: OrderStatus;
@@ -55,18 +50,14 @@ type RawOrder = {
   shipping_postal_code?: string | null;
 
   order_items?: RawOrderItem[];
-};
+}
 
 interface OrderItem {
   id: string;
-  product_id: string | null;
   product_name: string;
   thumbnail: string;
-  images: string[] | null;
   quantity: number;
   unit_price: number;
-  total_price: number;
-  status: OrderStatus;
 }
 
 interface Order {
@@ -78,15 +69,6 @@ interface Order {
 
   shipping_name: string;
   shipping_phone: string;
-
-  shipping_address_line: string;
-  shipping_ward?: string | null;
-  shipping_district?: string | null;
-  shipping_region?: string | null;
-
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
 
   order_items: OrderItem[];
 }
@@ -112,32 +94,18 @@ const fetcher = async (): Promise<Order[]> => {
         id: order.id,
         order_number: order.order_number,
         status: order.status,
-
         total: Number(order.total ?? 0),
         created_at: order.created_at,
 
         shipping_name: order.shipping_name ?? "",
         shipping_phone: order.shipping_phone ?? "",
 
-        shipping_address_line: order.shipping_address_line ?? "",
-        shipping_ward: order.shipping_ward ?? null,
-        shipping_district: order.shipping_district ?? null,
-        shipping_region: order.shipping_region ?? null,
-
-        shipping_provider: order.shipping_provider ?? null,
-        shipping_country: order.shipping_country ?? null,
-        shipping_postal_code: order.shipping_postal_code ?? null,
-
         order_items: (order.order_items ?? []).map((i) => ({
           id: i.id,
-          product_id: i.product_id ?? null,
           product_name: i.product_name ?? "",
           thumbnail: i.thumbnail ?? "",
-          images: i.images ?? [],
           quantity: Number(i.quantity ?? 0),
           unit_price: Number(i.unit_price ?? 0),
-          total_price: Number(i.total_price ?? 0),
-          status: (i.status as OrderStatus) ?? "pending",
         })),
       };
     });
@@ -164,13 +132,13 @@ export default function SellerPendingOrdersPage() {
 
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
-  const [sellerMessage, setSellerMessage] = useState<string>("");
+  const [sellerMessage, setSellerMessage] = useState("");
 
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<string>("");
-  const [customReason, setCustomReason] = useState<string>("");
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
 
-  const SELLER_CANCEL_REASONS: string[] = [
+  const SELLER_CANCEL_REASONS = [
     t.cancel_reason_out_of_stock ?? "Out of stock",
     t.cancel_reason_discontinued ?? "Discontinued",
     t.cancel_reason_wrong_price ?? "Wrong price",
@@ -180,7 +148,7 @@ export default function SellerPendingOrdersPage() {
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
-    () => orders.reduce((s, o) => s + Number(o.total), 0),
+    () => orders.reduce((s, o) => s + o.total, 0),
     [orders]
   );
 
@@ -191,8 +159,8 @@ export default function SellerPendingOrdersPage() {
 
     try {
       setProcessingId(orderId);
-      const prev = orders;
 
+      const prev = orders;
       await mutate(
         orders.filter((o) => o.id !== orderId),
         false
@@ -230,8 +198,8 @@ export default function SellerPendingOrdersPage() {
 
     try {
       setProcessingId(orderId);
-      const prev = orders;
 
+      const prev = orders;
       await mutate(
         orders.filter((o) => o.id !== orderId),
         false
@@ -263,14 +231,13 @@ export default function SellerPendingOrdersPage() {
   /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
-    return <p className="text-center mt-10 text-gray-400">Loading...</p>;
+    return <p className="text-center mt-10">{t.loading ?? "Loading..."}</p>;
   }
 
   /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-
       {/* HEADER */}
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
@@ -286,22 +253,14 @@ export default function SellerPendingOrdersPage() {
         {orders.map((o) => (
           <div key={o.id}>
 
-            {/* CARD */}
             <OrderCard
               order={{
                 id: o.id,
                 order_number: o.order_number,
                 created_at: o.created_at,
-                status: o.status,
                 shipping_name: o.shipping_name,
                 total: o.total,
-                order_items: o.order_items.map((i) => ({
-                  id: i.id,
-                  product_name: i.product_name,
-                  thumbnail: i.thumbnail,
-                  quantity: i.quantity,
-                  unit_price: i.unit_price,
-                })),
+                order_items: o.order_items,
               }}
               onClick={() => router.push(`/seller/orders/${o.id}`)}
               actions={
@@ -313,7 +272,7 @@ export default function SellerPendingOrdersPage() {
                     router.push(`/seller/orders/${o.id}`)
                   }
                   onConfirm={() => {
-                    setSellerMessage("Thank you for your order");
+                    setSellerMessage("Thank you");
                     setShowConfirmFor(o.id);
                     setShowCancelFor(null);
                   }}
@@ -325,7 +284,7 @@ export default function SellerPendingOrdersPage() {
               }
             />
 
-            {/* CONFIRM UI */}
+            {/* CONFIRM */}
             {showConfirmFor === o.id && (
               <div className="bg-white p-3 rounded-lg border mt-2">
                 <textarea
@@ -333,7 +292,6 @@ export default function SellerPendingOrdersPage() {
                   onChange={(e) => setSellerMessage(e.target.value)}
                   className="w-full border p-2"
                 />
-
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => handleConfirm(o.id)}
@@ -341,7 +299,6 @@ export default function SellerPendingOrdersPage() {
                   >
                     OK
                   </button>
-
                   <button
                     onClick={() => setShowConfirmFor(null)}
                     className="px-3 py-1 border rounded"
@@ -352,7 +309,7 @@ export default function SellerPendingOrdersPage() {
               </div>
             )}
 
-            {/* CANCEL UI */}
+            {/* CANCEL */}
             {showCancelFor === o.id && (
               <div className="bg-white p-3 rounded-lg border mt-2">
                 {SELLER_CANCEL_REASONS.map((r) => (
