@@ -246,11 +246,13 @@ export default function SellerPendingOrdersPage() {
       </header>
 
       {/* LIST */}
-      <OrdersList
-        orders={orders}
-        onClick={() => {}}
-        initialTab="pending"
-        renderActions={(o) => (
+      <section className="mt-6 px-4 space-y-4">
+  {orders.map((o) => (
+    <div key={o.id}>
+      
+      <OrderCard
+        order={o}
+        actions={
           <OrderActions
             status={o.status}
             orderId={o.id}
@@ -268,19 +270,20 @@ export default function SellerPendingOrdersPage() {
               setShowConfirmFor(null);
             }}
           />
-        )}
+        }
       />
 
-      {/* CONFIRM FORM */}
-      {showConfirmFor && (
-        <div className="p-4">
+      {/* ✅ CONFIRM đúng vị trí */}
+      {showConfirmFor === o.id && (
+        <div className="bg-white p-3 rounded-lg border mt-2">
           <textarea
             value={sellerMessage}
             onChange={(e) => setSellerMessage(e.target.value)}
             className="w-full border p-2"
           />
+
           <button
-            onClick={() => handleConfirm(showConfirmFor)}
+            onClick={() => handleConfirm(o.id)}
             className="mt-2 px-3 py-1 bg-green-600 text-white rounded"
           >
             OK
@@ -288,29 +291,35 @@ export default function SellerPendingOrdersPage() {
         </div>
       )}
 
-      {/* CANCEL FORM */}
-      {showCancelFor && (
-        <div className="p-4">
+      {/* ✅ CANCEL đúng vị trí */}
+      {showCancelFor === o.id && (
+        <div className="bg-white p-3 rounded-lg border mt-2">
           {SELLER_CANCEL_REASONS.map((r) => (
             <label key={r} className="block">
               <input
                 type="radio"
                 value={r}
                 checked={selectedReason === r}
-                onChange={(e) => setSelectedReason(e.target.value)}
+                onChange={(e) =>
+                  setSelectedReason(e.target.value)
+                }
               />
               {r}
             </label>
           ))}
 
           <button
-            onClick={() => handleCancel(showCancelFor)}
+            onClick={() => handleCancel(o.id)}
             className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
           >
             OK
           </button>
         </div>
       )}
+
+    </div>
+  ))}
+</section>
     </main>
   );
 }
