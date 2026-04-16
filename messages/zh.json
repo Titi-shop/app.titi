@@ -542,7 +542,11 @@
   "phone": "电话",
   "total": "总计",
   "start_shipping": "开始发货",
-  "status_confirmed": "已确认"
+  "status_confirmed": "已确认",
+  "completed_orders": "已完成订单",
+  "no_completed_orders": "暂无完成订单",
+  "search_order": "搜索订单号"
+
 
 
 
