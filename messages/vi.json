@@ -549,7 +549,8 @@
   "ok": "OK",
   "processing": "Đang xử lý...",
   "shipping_failed": "Chuyển đơn thất bại",
-  "network_error": "Lỗi mạng"
+  "network_error": "Lỗi mạng",
+  "detail": "Chi tiết"
 
 
       
