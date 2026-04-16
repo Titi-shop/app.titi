@@ -97,7 +97,7 @@ export default function SellerOrdersPage() {
 
   const [selectedReason, setSelectedReason] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-
+const [sellerMessage, setSellerMessage] = useState("");
   const SELLER_CANCEL_REASONS = [
     t.cancel_reason_out_of_stock ?? "Out of stock",
     t.cancel_reason_discontinued ?? "Discontinued",
@@ -199,9 +199,13 @@ export default function SellerOrdersPage() {
               router.push(`/seller/orders/${o.id}`)
             }
 
-            onConfirm={() =>
-              setModal({ type: "confirm", orderId: o.id })
-            }
+            onConfirm={() => {
+  setSellerMessage(
+    t.order_thank_you_message ??
+    "Thank you for your order ❤️ We will process it soon!"
+  );
+  setModal({ type: "confirm", orderId: o.id });
+}}
 
             onCancel={() =>
               setModal({ type: "cancel", orderId: o.id })
@@ -225,20 +229,17 @@ export default function SellerOrdersPage() {
               {modal.type === "shipping" && (t.confirm_shipping ?? "Start shipping?")}
             </p>
 
-            {modal.type === "cancel" && (
-              <div className="space-y-2 mb-3">
-                {SELLER_CANCEL_REASONS.map((r) => (
-                  <label key={r} className="flex gap-2 text-sm">
-                    <input
-                      type="radio"
-                      checked={selectedReason === r}
-                      onChange={() => setSelectedReason(r)}
-                    />
-                    {r}
-                  </label>
-                ))}
-              </div>
-            )}
+            {modal.type === "confirm" && (
+  <div className="mb-3">
+    <textarea
+      value={sellerMessage}
+      onChange={(e) => setSellerMessage(e.target.value)}
+      className="w-full border rounded-lg p-2 text-sm"
+      rows={3}
+      placeholder={t.enter_message ?? "Enter message to customer"}
+    />
+  </div>
+)}
 
             <div className="flex gap-2">
               <button
