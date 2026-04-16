@@ -144,8 +144,17 @@ export async function getSellerOrderById(
     SELECT
       o.id,
       o.order_number,
+      o.status,
+      o.payment_status,
       o.created_at,
 
+      /* 🔥 TIMELINE (QUAN TRỌNG) */
+      o.confirmed_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.cancelled_at,
+
+      /* SHIPPING */
       o.shipping_name,
       o.shipping_phone,
       o.shipping_address_line,
@@ -155,6 +164,7 @@ export async function getSellerOrderById(
       o.shipping_country,
       o.shipping_postal_code,
 
+      /* ITEMS */
       COALESCE(
         json_agg(
           json_build_object(
@@ -162,6 +172,8 @@ export async function getSellerOrderById(
             'product_id', oi.product_id,
             'product_name', oi.product_name,
             'thumbnail', oi.thumbnail,
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
@@ -171,14 +183,33 @@ export async function getSellerOrderById(
         '[]'
       ) AS order_items,
 
+      /* TOTAL */
       SUM(oi.total_price)::float AS total
 
     FROM orders o
     JOIN order_items oi ON oi.order_id = o.id
 
-    WHERE o.id = $1 AND oi.seller_id = $2
+    WHERE o.id = $1
+      AND oi.seller_id = $2
 
-    GROUP BY o.id
+    GROUP BY 
+      o.id,
+      o.order_number,
+      o.status,
+      o.payment_status,
+      o.created_at,
+      o.confirmed_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.cancelled_at,
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+      o.shipping_country,
+      o.shipping_postal_code
     `,
     [orderId, sellerId]
   );
