@@ -9,12 +9,18 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
-import OrderCard from "@/components/OrderCard";
+
 import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
-
+type Props = {
+  orders: Order[];
+  onClick: (id: string) => void;
+  initialTab?: OrderTab;
+  renderActions?: (order: Order) => React.ReactNode;
+  renderExtra?: (order: Order) => React.ReactNode; // ✅ THÊM DÒNG NÀY
+};
 type OrderStatus =
   | "pending"
   | "confirmed"
