@@ -122,7 +122,12 @@ export default function SellerOrdersPage() {
   const [selectedReason, setSelectedReason] = useState("");
 
   const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
-
+ const SELLER_CANCEL_REASONS = [
+    t.cancel_reason_out_of_stock ?? "Out of stock",
+    t.cancel_reason_discontinued ?? "Discontinued",
+    t.cancel_reason_wrong_price ?? "Wrong price",
+    t.cancel_reason_other ?? "Other",
+  ];
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
