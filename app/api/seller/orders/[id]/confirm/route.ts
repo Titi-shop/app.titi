@@ -1,45 +1,44 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-import { confirmOrderBySeller } from "@/lib/db/orders.seller";
+import { confirmOrderBySeller } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Body = {
-  seller_message?: string;
-};
+function isValidId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 10;
+}
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    /* ================= AUTH ================= */
     const auth = await requireSeller();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-    const orderId = params.id;
+    const orderId = params?.id;
 
-    if (!orderId) {
+    if (!isValidId(orderId)) {
       return NextResponse.json(
-        { error: "MISSING_ORDER_ID" },
+        { error: "INVALID_ORDER_ID" },
         { status: 400 }
       );
     }
 
-    /* ================= BODY ================= */
-    let body: Body = {};
-    try {
-      body = (await req.json()) as Body;
-    } catch {}
+    const body = await req.json().catch(() => ({}));
 
     const sellerMessage =
-      typeof body.seller_message === "string"
+      typeof body?.seller_message === "string"
         ? body.seller_message.trim()
         : null;
 
-    /* ================= DB ================= */
+    console.log("[ORDER][SELLER][CONFIRM][INPUT]", {
+      orderId,
+      userId,
+    });
+
     const success = await confirmOrderBySeller(
       orderId,
       userId,
@@ -53,14 +52,15 @@ export async function PATCH(
       );
     }
 
+    console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", { orderId });
+
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("CONFIRM ORDER ERROR", err);
+    console.error("[ORDER][SELLER][CONFIRM][ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
-    return NextResponse.json(
-      { error: "FAILED" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "FAILED" }, { status: 500 });
   }
 }
