@@ -1,5 +1,4 @@
 "use client";
-
 import { formatPi } from "@/lib/pi";
 import Image from "next/image";
 
