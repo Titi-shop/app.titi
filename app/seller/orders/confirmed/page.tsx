@@ -296,11 +296,43 @@ async function startShipping(orderId: string) {
               </div>
 
             </div>
-
           ))
         )}
-
       </section>
+
+{/* 🔥 CONFIRM MODAL */}
+{confirmId && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white p-4 rounded-xl w-80 shadow">
+
+      <p className="text-sm mb-4 text-center">
+        Xác nhận chuyển đơn sang Shipping?
+      </p>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setConfirmId(null)}
+          className="flex-1 py-2 border rounded-lg"
+        >
+          Hủy
+        </button>
+
+        <button
+          onClick={() => {
+            const id = confirmId;
+            setConfirmId(null);
+            if (id) startShipping(id);
+          }}
+          className="flex-1 py-2 bg-gray-800 text-white rounded-lg"
+        >
+          OK
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
     </main>
   );
 }
