@@ -251,22 +251,43 @@ export default function SellerPendingOrdersPage() {
 
   renderActions={(o) => (
     <OrderActions
-      status={o.status}
-      orderId={o.id}
-      loading={processingId === o.id}
-      onDetail={() =>
-        router.push(`/seller/orders/${o.id}`)
-      }
-      onConfirm={() => {
-        setSellerMessage("Thank you");
-        setShowConfirmFor(o.id);
-        setShowCancelFor(null);
-      }}
-      onCancel={() => {
-        setShowCancelFor(o.id);
-        setShowConfirmFor(null);
-      }}
-    />
+  status={o.status}
+  orderId={o.id}
+  loading={processingId === o.id}
+
+  onDetail={() =>
+    router.push(`/seller/orders/${o.id}`)
+  }
+
+  onConfirm={() => {
+    setSellerMessage("Thank you");
+    setShowConfirmFor(o.id);
+    setShowCancelFor(null);
+  }}
+
+  onCancel={() => {
+    setShowCancelFor(o.id);
+    setShowConfirmFor(null);
+  }}
+
+  // ✅ THÊM ĐOẠN NÀY
+  onShipping={async () => {
+    try {
+      setProcessingId(o.id);
+
+      const res = await apiAuthFetch(
+        `/api/seller/orders/${o.id}/shipping`,
+        { method: "PATCH" }
+      );
+
+      if (!res.ok) return;
+
+      mutate();
+    } finally {
+      setProcessingId(null);
+    }
+  }}
+/>
   )}
 
   renderExtra={(o) => (
