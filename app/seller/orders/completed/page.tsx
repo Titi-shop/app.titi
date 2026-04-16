@@ -166,7 +166,7 @@ export default function SellerCompletedOrdersPage() {
 
         {/* SEARCH */}
         <input
-          placeholder="🔍 Search order ID"
+          placeholder={t.search_order ?? "Search order ID"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full p-2 rounded border"
@@ -203,13 +203,10 @@ export default function SellerCompletedOrdersPage() {
           filteredOrders.map((order) => (
 
             <div
-              key={order.id}
-              onDoubleClick={() =>
-                router.push(`/seller/orders/${order.id}`)
-              }
-              className="bg-white rounded-xl shadow-sm overflow-hidden border"
-            >
-
+      key={order.id}
+     onClick={() => router.push(`/seller/orders/${order.id}`)}
+        className="bg-white rounded-xl shadow-sm overflow-hidden border cursor-pointer active:scale-[0.98] transition"
+           >
               {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
 
@@ -291,11 +288,25 @@ export default function SellerCompletedOrdersPage() {
 
               {/* FOOTER */}
 
-              <div className="px-4 py-3 border-t bg-gray-50">
-                <span className="font-semibold">
-                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
-                </span>
-              </div>
+              <div
+  className="px-4 py-3 border-t bg-gray-50"
+  onClick={(e) => e.stopPropagation()}
+>
+  <div className="flex justify-between items-center">
+
+    <span className="font-semibold">
+      {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
+    </span>
+
+    <button
+      onClick={() => router.push(`/seller/orders/${order.id}`)}
+      className="px-3 py-1.5 text-xs border rounded-lg"
+    >
+      {t.detail ?? "Detail"}
+    </button>
+
+  </div>
+</div>
 
             </div>
 
