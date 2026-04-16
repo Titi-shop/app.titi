@@ -122,14 +122,14 @@ async function startShipping(orderId: string) {
     );
 
     if (!res.ok) {
-      alert("❌ Shipping failed");
+      alert(t.shipping_failed ?? "Shipping failed");
       return;
     }
 
     await mutate(); // sync lại list
 
   } catch {
-    alert("❌ Network error");
+    alert(t.network_error ?? "Network error");
   } finally {
     setProcessingId(null);
   }
@@ -287,8 +287,8 @@ async function startShipping(orderId: string) {
   className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
 >
   {processingId === order.id
-    ? "Processing..."
-    : t.start_shipping ?? "Start shipping"}
+  ? t.processing ?? "Processing..."
+  : t.start_shipping ?? "Start shipping"}
 </button>
 
                 </div>
@@ -306,15 +306,15 @@ async function startShipping(orderId: string) {
     <div className="bg-white p-4 rounded-xl w-80 shadow">
 
       <p className="text-sm mb-4 text-center">
-        Xác nhận chuyển đơn sang Shipping?
-      </p>
+  {t.confirm_shipping ?? "Confirm shipping this order?"}
+</p>
 
       <div className="flex gap-2">
         <button
           onClick={() => setConfirmId(null)}
           className="flex-1 py-2 border rounded-lg"
         >
-          Hủy
+          {t.cancel ?? "Cancel"}
         </button>
 
         <button
@@ -325,7 +325,7 @@ async function startShipping(orderId: string) {
           }}
           className="flex-1 py-2 bg-gray-800 text-white rounded-lg"
         >
-          OK
+          {t.ok ?? "OK"}
         </button>
       </div>
 
