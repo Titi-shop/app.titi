@@ -5,34 +5,39 @@ import { cancelOrderBySeller } from "@/lib/db/orders";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function isValidId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 10;
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    /* ================= AUTH ================= */
     const auth = await requireSeller();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-    const orderId = params.id;
+    const orderId = params?.id;
 
-    if (!orderId) {
-      return NextResponse.json(
-        { error: "MISSING_ORDER_ID" },
-        { status: 400 }
-      );
+    if (!isValidId(orderId)) {
+      console.warn("[ORDER][SELLER][CANCEL][INVALID_ID]", { orderId });
+      return NextResponse.json({ error: "INVALID_ORDER_ID" }, { status: 400 });
     }
 
-    /* ================= BODY ================= */
     const body = await req.json().catch(() => ({}));
 
-    const cancelReason: string | null =
+    const cancelReason =
       typeof body?.cancel_reason === "string"
         ? body.cancel_reason.trim()
         : null;
 
-    /* ================= DB ================= */
+    console.log("[ORDER][SELLER][CANCEL][INPUT]", {
+      orderId,
+      userId,
+      cancelReason,
+    });
+
     const updated = await cancelOrderBySeller(
       orderId,
       userId,
@@ -46,15 +51,15 @@ export async function PATCH(
       );
     }
 
-    /* ================= DONE ================= */
+    console.log("[ORDER][SELLER][CANCEL][SUCCESS]", { orderId });
+
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("❌ SELLER CANCEL ERROR:", err);
+    console.error("[ORDER][SELLER][CANCEL][ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
-    return NextResponse.json(
-      { error: "FAILED" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "FAILED" }, { status: 500 });
   }
 }
