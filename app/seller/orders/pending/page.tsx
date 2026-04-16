@@ -62,7 +62,7 @@ interface Order {
 const fetcher = async (): Promise<Order[]> => {
   try {
     const res = await apiAuthFetch(
-      "/api/seller/orders?status=pending",
+      "/api/seller/orders",
       { cache: "no-store" }
     );
 
