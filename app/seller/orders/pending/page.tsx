@@ -236,32 +236,6 @@ export default function SellerPendingOrdersPage() {
         </div>
       </header>
 
-      {/* LIST */}
-      <OrdersList
-        orders={orders}
-        onClick={(id) => router.push(`/seller/orders/${id}`)}
-        initialTab="pending"
-        renderActions={(o) => (
-          <OrderActions
-            status={o.status}
-            orderId={o.id}
-            loading={processingId === o.id}
-            onDetail={() =>
-              router.push(`/seller/orders/${o.id}`)
-            }
-            onConfirm={() => {
-              setSellerMessage("Thank you");
-              setShowConfirmFor(o.id);
-              setShowCancelFor(null);
-            }}
-            onCancel={() => {
-              setShowCancelFor(o.id);
-              setShowConfirmFor(null);
-            }}
-          />
-        )}
-      />
-
       {/* FORM (GLOBAL - không dùng o nữa) */}
       {showConfirmFor && (
         <div className="p-4">
