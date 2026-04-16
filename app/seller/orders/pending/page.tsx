@@ -14,13 +14,6 @@ import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
-type Props = {
-  orders: Order[];
-  onClick: (id: string) => void;
-  initialTab?: OrderTab;
-  renderActions?: (order: Order) => React.ReactNode;
-  renderExtra?: (order: Order) => React.ReactNode; // ✅ THÊM DÒNG NÀY
-};
 type OrderStatus =
   | "pending"
   | "confirmed"
