@@ -1,4 +1,5 @@
 "use client";
+
 import { formatPi } from "@/lib/pi";
 import Image from "next/image";
 
@@ -39,9 +40,10 @@ function formatDate(date: string) {
 type Props = {
   order: Order;
   onClick?: () => void;
+  actions?: React.ReactNode; // ✅ THÊM
 };
 
-export default function OrderCard({ order, onClick }: Props) {
+export default function OrderCard({ order, onClick, actions }: Props) {
   return (
     <div
       onClick={onClick}
@@ -95,12 +97,24 @@ export default function OrderCard({ order, onClick }: Props) {
         ))}
       </div>
 
-      {/* FOOTER */}
-      <div className="px-4 py-3 border-t bg-gray-50 text-sm">
+      {/* TOTAL */}
+      <div className="px-4 py-3 border-t bg-gray-50 text-sm flex justify-between items-center">
         <span className="font-semibold">
           Total: π{formatPi(order.total)}
         </span>
       </div>
+
+      {/* ACTIONS (🔥 QUAN TRỌNG) */}
+      {actions && (
+        <div
+          className="px-4 py-3 border-t bg-gray-50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-end">
+            {actions}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
