@@ -10,8 +10,8 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
+
 import OrdersList from "@/components/OrdersList";
-import OrderCard from "@/components/OrderCard";
 import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
@@ -20,14 +20,10 @@ type OrderStatus = "pending" | "confirmed" | "cancelled";
 
 interface RawOrderItem {
   id: string;
-  product_id?: string | null;
   product_name?: string;
   thumbnail?: string;
-  images?: string[];
   quantity?: number;
   unit_price?: number;
-  total_price?: number;
-  status?: string;
 }
 
 interface RawOrder {
@@ -36,19 +32,8 @@ interface RawOrder {
   status: OrderStatus;
   total: number | string;
   created_at: string;
-
   shipping_name?: string;
   shipping_phone?: string;
-
-  shipping_address_line?: string;
-  shipping_ward?: string | null;
-  shipping_district?: string | null;
-  shipping_region?: string | null;
-
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
-
   order_items?: RawOrderItem[];
 }
 
@@ -66,10 +51,8 @@ interface Order {
   status: OrderStatus;
   total: number;
   created_at: string;
-
   shipping_name: string;
   shipping_phone: string;
-
   order_items: OrderItem[];
 }
 
@@ -96,10 +79,8 @@ const fetcher = async (): Promise<Order[]> => {
         status: order.status,
         total: Number(order.total ?? 0),
         created_at: order.created_at,
-
         shipping_name: order.shipping_name ?? "",
         shipping_phone: order.shipping_phone ?? "",
-
         order_items: (order.order_items ?? []).map((i) => ({
           id: i.id,
           product_name: i.product_name ?? "",
@@ -161,10 +142,7 @@ export default function SellerPendingOrdersPage() {
       setProcessingId(orderId);
 
       const prev = orders;
-      await mutate(
-        orders.filter((o) => o.id !== orderId),
-        false
-      );
+      await mutate(orders.filter((o) => o.id !== orderId), false);
 
       const res = await apiAuthFetch(
         `/api/seller/orders/${orderId}/confirm`,
@@ -200,10 +178,7 @@ export default function SellerPendingOrdersPage() {
       setProcessingId(orderId);
 
       const prev = orders;
-      await mutate(
-        orders.filter((o) => o.id !== orderId),
-        false
-      );
+      await mutate(orders.filter((o) => o.id !== orderId), false);
 
       const res = await apiAuthFetch(
         `/api/seller/orders/${orderId}/cancel`,
@@ -235,30 +210,10 @@ export default function SellerPendingOrdersPage() {
   }
 
   /* ================= UI ================= */
-<OrdersList
-  orders={orders}
-  onClick={(id) => router.push(`/seller/orders/${id}`)}
-  initialTab="pending"
-  renderActions={(o) => (
-    <OrderActions
-      status={o.status}
-      orderId={o.id}
-      loading={processingId === o.id}
-      onDetail={() => router.push(`/seller/orders/${o.id}`)}
-      onConfirm={() => {
-        setSellerMessage("Thank you");
-        setShowConfirmFor(o.id);
-        setShowCancelFor(null);
-      }}
-      onCancel={() => {
-        setShowCancelFor(o.id);
-        setShowConfirmFor(null);
-      }}
-    />
-  )}
-/>
+
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
+
       {/* HEADER */}
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
@@ -269,72 +224,71 @@ export default function SellerPendingOrdersPage() {
         </div>
       </header>
 
-      <section className="mt-6 px-4 space-y-4">
-            {/* CONFIRM */}
-            {showConfirmFor === o.id && (
-              <div className="bg-white p-3 rounded-lg border mt-2">
-                <textarea
-                  value={sellerMessage}
-                  onChange={(e) => setSellerMessage(e.target.value)}
-                  className="w-full border p-2"
-                />
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => handleConfirm(o.id)}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    OK
-                  </button>
-                  <button
-                    onClick={() => setShowConfirmFor(null)}
-                    className="px-3 py-1 border rounded"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+      {/* LIST */}
+      <OrdersList
+        orders={orders}
+        onClick={(id) => router.push(`/seller/orders/${id}`)}
+        initialTab="pending"
+        renderActions={(o) => (
+          <OrderActions
+            status={o.status}
+            orderId={o.id}
+            loading={processingId === o.id}
+            onDetail={() =>
+              router.push(`/seller/orders/${o.id}`)
+            }
+            onConfirm={() => {
+              setSellerMessage("Thank you");
+              setShowConfirmFor(o.id);
+              setShowCancelFor(null);
+            }}
+            onCancel={() => {
+              setShowCancelFor(o.id);
+              setShowConfirmFor(null);
+            }}
+          />
+        )}
+      />
 
-            {/* CANCEL */}
-            {showCancelFor === o.id && (
-              <div className="bg-white p-3 rounded-lg border mt-2">
-                {SELLER_CANCEL_REASONS.map((r) => (
-                  <label key={r} className="block text-sm">
-                    <input
-                      type="radio"
-                      value={r}
-                      checked={selectedReason === r}
-                      onChange={(e) =>
-                        setSelectedReason(e.target.value)
-                      }
-                    />
-                    {r}
-                  </label>
-                ))}
+      {/* FORM (GLOBAL - không dùng o nữa) */}
+      {showConfirmFor && (
+        <div className="p-4">
+          <textarea
+            value={sellerMessage}
+            onChange={(e) => setSellerMessage(e.target.value)}
+            className="w-full border p-2"
+          />
+          <button
+            onClick={() => handleConfirm(showConfirmFor)}
+            className="mt-2 px-3 py-1 bg-green-600 text-white rounded"
+          >
+            OK
+          </button>
+        </div>
+      )}
 
-                {selectedReason === "Other" && (
-                  <textarea
-                    value={customReason}
-                    onChange={(e) =>
-                      setCustomReason(e.target.value)
-                    }
-                    className="w-full border p-2 mt-2"
-                  />
-                )}
+      {showCancelFor && (
+        <div className="p-4">
+          {SELLER_CANCEL_REASONS.map((r) => (
+            <label key={r} className="block">
+              <input
+                type="radio"
+                value={r}
+                checked={selectedReason === r}
+                onChange={(e) => setSelectedReason(e.target.value)}
+              />
+              {r}
+            </label>
+          ))}
 
-                <button
-                  onClick={() => handleCancel(o.id)}
-                  className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
-                >
-                  OK
-                </button>
-              </div>
-            )}
-
-          </div>
-        ))}
-
-      </section>
+          <button
+            onClick={() => handleCancel(showCancelFor)}
+            className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
+          >
+            OK
+          </button>
+        </div>
+      )}
     </main>
   );
 }
