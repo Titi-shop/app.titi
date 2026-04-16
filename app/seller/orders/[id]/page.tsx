@@ -127,31 +127,51 @@ const fetcher = async (url: string): Promise<Order | null> => {
 };
 function OrderTimeline(order: Order) {
   const steps = [
-    { label: "Pending", time: order.created_at },
-    { label: "Confirmed", time: order.confirmed_at },
-    { label: "Shipping", time: order.shipped_at },
-    { label: "Completed", time: order.delivered_at },
-    { label: "Cancelled", time: order.cancelled_at },
+    { key: "pending", label: "Pending", time: order.created_at },
+    { key: "confirmed", label: "Confirmed", time: order.confirmed_at },
+    { key: "shipping", label: "Shipping", time: order.shipped_at },
+    { key: "completed", label: "Completed", time: order.delivered_at },
+    { key: "cancelled", label: "Cancelled", time: order.cancelled_at },
   ];
+
+  const current =
+    order.cancelled_at
+      ? "cancelled"
+      : order.delivered_at
+      ? "completed"
+      : order.shipped_at
+      ? "shipping"
+      : order.confirmed_at
+      ? "confirmed"
+      : "pending";
 
   return (
     <div className="mb-4 p-3 bg-gray-50 rounded border">
       <h2 className="font-semibold mb-2">Order Timeline</h2>
 
       <div className="space-y-3">
-        {steps.map((s, i) => {
+        {steps.map((s) => {
           const active = !!s.time;
+          const isCurrent = current === s.key;
 
           return (
-            <div key={i} className="flex items-center gap-3">
+            <div key={s.key} className="flex items-center gap-3">
               <div
                 className={`w-3 h-3 rounded-full ${
-                  active ? "bg-green-500" : "bg-gray-300"
+                  isCurrent
+                    ? "bg-blue-600 scale-125"
+                    : active
+                    ? "bg-green-500"
+                    : "bg-gray-300"
                 }`}
               />
 
               <div>
-                <div className="text-sm font-medium">
+                <div
+                  className={`text-sm font-medium ${
+                    isCurrent ? "text-blue-600" : ""
+                  }`}
+                >
                   {s.label}
                 </div>
 
@@ -292,7 +312,6 @@ export default function SellerOrderDetailPage() {
         className="bg-white p-4 border shadow max-w-xl mx-auto"
       >
         <h1 className="text-lg font-bold text-center mb-3">
-          <h1 className="text-lg font-bold text-center mb-3">
   DELIVERY NOTE
 </h1>
 
@@ -304,8 +323,6 @@ export default function SellerOrderDetailPage() {
 
 {/* 🔥 TIMELINE */}
 {OrderTimeline(order)}
-          DELIVERY NOTE
-        </h1>
 
         {qr && (
           <div className="flex justify-center mb-3">
