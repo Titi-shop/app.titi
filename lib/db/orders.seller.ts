@@ -197,54 +197,46 @@ export async function startShippingBySeller(
   sellerId: string
 ) {
   try {
-    /* ================= UPDATE ORDER ITEMS ================= */
-    const itemsRes = await query(
-      `
-      UPDATE order_items
-      SET
-        status = 'shipping',
-        shipped_at = NOW(),
-        updated_at = NOW()
-      WHERE order_id = $1
-        AND seller_id = $2
-        AND status = 'confirmed'
-      `,
-      [orderId, sellerId]
-    );
+    return await withTransaction(async (client) => {
 
-    /* ================= CHECK: còn item confirmed không ================= */
-    const { rows } = await query(
-      `
-      SELECT COUNT(*)::int AS remaining
-      FROM order_items
-      WHERE order_id = $1
-        AND status != 'shipping'
-      `,
-      [orderId]
-    );
-
-    const remaining = rows[0]?.remaining ?? 0;
-
-    /* ================= UPDATE ORDER ================= */
-    if (remaining === 0) {
-      await query(
+      /* ================= UPDATE ITEMS ================= */
+      const itemsRes = await client.query(
         `
-        UPDATE orders
+        UPDATE order_items
         SET
           status = 'shipping',
           shipped_at = NOW(),
           updated_at = NOW()
-        WHERE id = $1
+        WHERE order_id = $1
+          AND seller_id = $2
           AND status = 'confirmed'
         `,
-        [orderId]
+        [orderId, sellerId]
       );
-    }
 
-    return itemsRes.rowCount > 0;
+      if (itemsRes.rowCount === 0) {
+        console.warn("[ORDER][SELLER][SHIP][NO_ITEMS]", {
+          orderId,
+          sellerId,
+        });
+        return false;
+      }
+
+      /* ================= SYNC ORDER ================= */
+      await syncOrderStatus(client, orderId);
+
+      console.log("[ORDER][SELLER][SHIP][SUCCESS]", {
+        orderId,
+      });
+
+      return true;
+    });
 
   } catch (err) {
-    console.error("startShippingBySeller error:", err);
+    console.error("[ORDER][SELLER][SHIP][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
+
     throw new Error("DB_ERROR");
   }
 }
@@ -254,39 +246,44 @@ export async function cancelOrderBySeller(
   reason: string | null
 ) {
   try {
-    /* ================= UPDATE ORDER ITEMS ================= */
-    await query(
-      `
-      UPDATE order_items
-      SET
-        status = 'cancelled',
-        seller_cancel_reason = COALESCE($3, seller_cancel_reason),
-        updated_at = NOW()
-      WHERE order_id = $1
-        AND seller_id = $2
-      `,
-      [orderId, sellerId, reason]
-    );
+    return await withTransaction(async (client) => {
 
-    /* ================= UPDATE ORDER ================= */
-    await query(
-      `
-      UPDATE orders
-      SET
-        status = 'cancelled',
-        cancel_reason = COALESCE($3, cancel_reason),
-        cancelled_at = NOW(),
-        updated_at = NOW()
-      WHERE id = $1
-        AND seller_id = $2
-      `,
-      [orderId, sellerId, reason]
-    );
+      /* ================= UPDATE ITEMS ================= */
+      const itemsRes = await client.query(
+        `
+        UPDATE order_items
+        SET
+          status = 'cancelled',
+          seller_cancel_reason = COALESCE($3, seller_cancel_reason),
+          updated_at = NOW()
+        WHERE order_id = $1
+          AND seller_id = $2
+        `,
+        [orderId, sellerId, reason]
+      );
 
-    return true;
+      if (itemsRes.rowCount === 0) {
+        console.warn("[ORDER][SELLER][CANCEL][NO_ITEMS]", {
+          orderId,
+        });
+        return false;
+      }
+
+      /* ================= SYNC ================= */
+      await syncOrderStatus(client, orderId);
+
+      console.log("[ORDER][SELLER][CANCEL][SUCCESS]", {
+        orderId,
+      });
+
+      return true;
+    });
 
   } catch (err) {
-    console.error("cancelOrderBySeller error:", err);
+    console.error("[ORDER][SELLER][CANCEL][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
+
     throw new Error("DB_ERROR");
   }
 }
@@ -296,41 +293,46 @@ export async function confirmOrderBySeller(
   sellerMessage?: string | null
 ) {
   try {
-    /* ================= UPDATE ORDER ================= */
-    const orderRes = await query(
-      `
-      UPDATE orders
-      SET
-        status = 'confirmed',
-        confirmed_at = NOW(),
-        updated_at = NOW()
-      WHERE id = $1
-        AND seller_id = $2
-        AND status = 'pending'
-      `,
-      [orderId, sellerId]
-    );
+    return await withTransaction(async (client) => {
 
-    /* ================= UPDATE ORDER ITEMS ================= */
-    await query(
-  `
-  UPDATE order_items
-  SET
-    status = 'confirmed',
-    confirmed_at = NOW(),
-    seller_message = COALESCE($3, seller_message),
-    updated_at = NOW()
-  WHERE order_id = $1
-    AND seller_id = $2
-    AND status = 'pending'
-  `,
-  [orderId, sellerId, sellerMessage]
-);
+      /* ================= UPDATE ITEMS ================= */
+      const itemsRes = await client.query(
+        `
+        UPDATE order_items
+        SET
+          status = 'confirmed',
+          confirmed_at = NOW(),
+          seller_message = COALESCE($3, seller_message),
+          updated_at = NOW()
+        WHERE order_id = $1
+          AND seller_id = $2
+          AND status = 'pending'
+        `,
+        [orderId, sellerId, sellerMessage]
+      );
 
-    return orderRes.rowCount > 0;
+      if (itemsRes.rowCount === 0) {
+        console.warn("[ORDER][SELLER][CONFIRM][NO_ITEMS]", {
+          orderId,
+        });
+        return false;
+      }
+
+      /* ================= SYNC ================= */
+      await syncOrderStatus(client, orderId);
+
+      console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", {
+        orderId,
+      });
+
+      return true;
+    });
 
   } catch (err) {
-    console.error("confirmOrderBySeller error:", err);
+    console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
+
     throw new Error("DB_ERROR");
   }
 }
