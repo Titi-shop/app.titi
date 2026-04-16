@@ -99,7 +99,7 @@ export default function SellerConfirmedOrdersPage() {
   );
 
   const [processingId, setProcessingId] = useState<string | null>(null);
-
+ const [confirmId, setConfirmId] = useState<string | null>(null);
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
@@ -112,36 +112,29 @@ export default function SellerConfirmedOrdersPage() {
   );
 
   /* ================= SHIPPING (OPTIMISTIC) ================= */
+async function startShipping(orderId: string) {
+  try {
+    setProcessingId(orderId);
 
-  async function startShipping(orderId: string) {
-    try {
-      setProcessingId(orderId);
+    const res = await apiAuthFetch(
+      `/api/seller/orders/${orderId}/shipping`,
+      { method: "PATCH" }
+    );
 
-      const previous = orders;
-
-      // 🚀 optimistic remove khỏi list confirmed
-      await mutate(
-        orders.filter((o) => o.id !== orderId),
-        false
-      );
-
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/shipping`,
-        { method: "PATCH" }
-      );
-
-      if (!res.ok) {
-        // 🔴 rollback
-        await mutate(previous, false);
-        return;
-      }
-
-      mutate(); // sync lại server
-    } finally {
-      setProcessingId(null);
+    if (!res.ok) {
+      alert("❌ Shipping failed");
+      return;
     }
-  }
 
+    await mutate(); // sync lại list
+
+  } catch {
+    alert("❌ Network error");
+  } finally {
+    setProcessingId(null);
+  }
+}
+  
   /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
@@ -286,12 +279,17 @@ export default function SellerConfirmedOrdersPage() {
   {t.detail ?? "Detail"}
 </button>
                   <button
-                    disabled={processingId === order.id}
-                    onClick={() => startShipping(order.id)}
-                    className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-                  >
-                    {t.start_shipping ?? "Start shipping"}
-                  </button>
+  disabled={processingId === order.id}
+  onClick={(e) => {
+    e.stopPropagation();
+    setConfirmId(order.id);
+  }}
+  className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
+>
+  {processingId === order.id
+    ? "Processing..."
+    : t.start_shipping ?? "Start shipping"}
+</button>
 
                 </div>
 
