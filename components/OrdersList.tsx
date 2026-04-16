@@ -141,13 +141,19 @@ export default function OrdersList({
           </p>
         ) : (
           filtered.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onClick={() => onClick(order.id)}
-              actions={renderActions?.(order)} // 🔥 CHÍNH LÀ DÒNG QUAN TRỌNG
-            />
-          ))
+  <div key={order.id} className="space-y-2">
+    
+    <OrderCard
+      order={order}
+      onClick={() => onClick(order.id)}
+      actions={renderActions?.(order)}
+    />
+
+    {/* 👇 FORM HIỂN THỊ NGAY DƯỚI ORDER */}
+    {renderExtra?.(order)}
+
+  </div>
+))
         )}
       </div>
 
