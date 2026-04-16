@@ -246,34 +246,34 @@ export default function SellerPendingOrdersPage() {
       </header>
 
       {/* LIST */}
-      <section className="mt-6 px-4 space-y-4">
-  {orders.map((o) => (
-    <div key={o.id}>
-      
-      <OrderCard
-        order={o}
-        actions={
-          <OrderActions
-            status={o.status}
-            orderId={o.id}
-            loading={processingId === o.id}
-            onDetail={() =>
-              router.push(`/seller/orders/${o.id}`)
-            }
-            onConfirm={() => {
-              setSellerMessage("Thank you");
-              setShowConfirmFor(o.id);
-              setShowCancelFor(null);
-            }}
-            onCancel={() => {
-              setShowCancelFor(o.id);
-              setShowConfirmFor(null);
-            }}
-          />
-        }
-      />
+<OrdersList
+  orders={orders}
+  onClick={(id) => router.push(`/seller/orders/${id}`)}
+  initialTab="pending"
 
-      {/* ✅ CONFIRM đúng vị trí */}
+  renderActions={(o) => (
+    <OrderActions
+      status={o.status}
+      orderId={o.id}
+      loading={processingId === o.id}
+      onDetail={() =>
+        router.push(`/seller/orders/${o.id}`)
+      }
+      onConfirm={() => {
+        setSellerMessage("Thank you");
+        setShowConfirmFor(o.id);
+        setShowCancelFor(null);
+      }}
+      onCancel={() => {
+        setShowCancelFor(o.id);
+        setShowConfirmFor(null);
+      }}
+    />
+  )}
+
+  renderExtra={(o) => (
+    <>
+      {/* CONFIRM */}
       {showConfirmFor === o.id && (
         <div className="bg-white p-3 rounded-lg border mt-2">
           <textarea
@@ -291,7 +291,7 @@ export default function SellerPendingOrdersPage() {
         </div>
       )}
 
-      {/* ✅ CANCEL đúng vị trí */}
+      {/* CANCEL */}
       {showCancelFor === o.id && (
         <div className="bg-white p-3 rounded-lg border mt-2">
           {SELLER_CANCEL_REASONS.map((r) => (
@@ -316,10 +316,9 @@ export default function SellerPendingOrdersPage() {
           </button>
         </div>
       )}
-
-    </div>
-  ))}
-</section>
+    </>
+  )}
+/>
     </main>
   );
 }
