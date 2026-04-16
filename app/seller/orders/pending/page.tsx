@@ -24,6 +24,7 @@ interface RawOrderItem {
   thumbnail?: string;
   quantity?: number;
   unit_price?: number;
+  status?: string; 
 }
 
 interface RawOrder {
@@ -73,7 +74,19 @@ const fetcher = async (): Promise<Order[]> => {
       return {
   id: order.id,
         order_number: order.order_number,
-        status: String(order.status).toLowerCase().trim() as OrderStatus,
+        const itemStatuses = (order.order_items ?? []).map((i) =>
+  String((i as any).status ?? "").toLowerCase().trim()
+);
+
+const status: OrderStatus =
+  itemStatuses.includes("pending")
+    ? "pending"
+    : itemStatuses.includes("confirmed")
+    ? "confirmed"
+    : itemStatuses.includes("cancelled")
+    ? "cancelled"
+    : "pending";
+        status,
         total: Number(order.total ?? 0),
         created_at: order.created_at,
         shipping_name: order.shipping_name ?? "",
