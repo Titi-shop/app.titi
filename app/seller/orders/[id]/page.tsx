@@ -333,13 +333,6 @@ export default function SellerOrderDetailPage() {
 
 {/* 🔥 TIMELINE */}
 {OrderTimeline(order)}
-
-        {qr && (
-          <div className="flex justify-center mb-3">
-            <img src={qr} alt="QR" />
-          </div>
-        )}
-
         <div className="text-sm space-y-1 mb-4">
           <p><b>Receiver:</b> {order.shipping_name}</p>
           <p><b>Phone:</b> {order.shipping_phone}</p>
