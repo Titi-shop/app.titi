@@ -10,7 +10,7 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
-
+import OrdersList from "@/components/OrdersList";
 import OrderCard from "@/components/OrderCard";
 import OrderActions from "@/components/OrderActions";
 
@@ -235,7 +235,28 @@ export default function SellerPendingOrdersPage() {
   }
 
   /* ================= UI ================= */
-
+<OrdersList
+  orders={orders}
+  onClick={(id) => router.push(`/seller/orders/${id}`)}
+  initialTab="pending"
+  renderActions={(o) => (
+    <OrderActions
+      status={o.status}
+      orderId={o.id}
+      loading={processingId === o.id}
+      onDetail={() => router.push(`/seller/orders/${o.id}`)}
+      onConfirm={() => {
+        setSellerMessage("Thank you");
+        setShowConfirmFor(o.id);
+        setShowCancelFor(null);
+      }}
+      onCancel={() => {
+        setShowCancelFor(o.id);
+        setShowConfirmFor(null);
+      }}
+    />
+  )}
+/>
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* HEADER */}
@@ -249,41 +270,6 @@ export default function SellerPendingOrdersPage() {
       </header>
 
       <section className="mt-6 px-4 space-y-4">
-
-        {orders.map((o) => (
-          <div key={o.id}>
-
-            <OrderCard
-              order={{
-                id: o.id,
-                order_number: o.order_number,
-                created_at: o.created_at,
-                shipping_name: o.shipping_name,
-                total: o.total,
-                order_items: o.order_items,
-              }}
-              onClick={() => router.push(`/seller/orders/${o.id}`)}
-              actions={
-                <OrderActions
-                  status={o.status}
-                  orderId={o.id}
-                  loading={processingId === o.id}
-                  onDetail={() =>
-                    router.push(`/seller/orders/${o.id}`)
-                  }
-                  onConfirm={() => {
-                    setSellerMessage("Thank you");
-                    setShowConfirmFor(o.id);
-                    setShowCancelFor(null);
-                  }}
-                  onCancel={() => {
-                    setShowCancelFor(o.id);
-                    setShowConfirmFor(null);
-                  }}
-                />
-              }
-            />
-
             {/* CONFIRM */}
             {showConfirmFor === o.id && (
               <div className="bg-white p-3 rounded-lg border mt-2">
