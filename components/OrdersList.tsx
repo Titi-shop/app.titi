@@ -51,6 +51,7 @@ type Props = {
 
   renderActions?: (order: Order) => React.ReactNode;
   renderExtra?: (order: Order) => React.ReactNode; // ✅ THÊM DÒNG NÀY
+  onTabChange?: (tab: OrderTab) => void;
 };
 
 /* ================= COMPONENT ================= */
@@ -119,6 +120,7 @@ export default function OrdersList({
             <button
               key={key}
               onClick={() => setTab(key)}
+              onTabChange?.(key);
               className={`pb-2 border-b-2 transition ${
                 tab === key
                   ? "border-black font-semibold"
