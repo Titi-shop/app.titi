@@ -4,7 +4,7 @@
 export default function SplashScreen() {
   return (
     <div className="fixed inset-0 z-[9999] bg-white flex items-center justify-center transition-opacity duration-500">
-      
+    
       <div className="relative w-24 h-24 flex items-center justify-center">
         
         {/* vòng quay */}
