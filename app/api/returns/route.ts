@@ -1,208 +1,242 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { requireAuth } from "@/lib/auth/guard";
-import { createReturn, getReturnsByBuyer } from "@/lib/db/orders";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const dynamic = "force-dynamic";
+import {
+  getReturnsByBuyer,
+  createReturn,
+} from "@/lib/db/returns";
 
-/* =========================================================
-   POST — CREATE RETURN
-========================================================= */
-export async function POST(req: NextRequest) {
-  try {
-    console.log("🟡 [RETURN POST] START");
+export const runtime = "nodejs";
 
-    /* ================= AUTH ================= */
-    const auth = await requireAuth();
+/* =====================================================
+   TYPES
+===================================================== */
 
-    if (!auth.ok) {
-      console.log("🔴 [RETURN POST] UNAUTHORIZED");
-      return auth.response;
-    }
+type CreateReturnBody = {
+  orderId?: string;
+  orderItemId?: string;
+  reason?: string;
+  description?: string;
+  images?: string[];
+};
 
-    const userId = auth.userId;
-    console.log("🟢 [RETURN POST] USER:", userId);
+/* =====================================================
+   HELPERS
+===================================================== */
 
-    /* ================= PARSE ================= */
-    const contentType = req.headers.get("content-type") ?? "";
-    console.log("🟡 [RETURN POST] CONTENT-TYPE:", contentType);
+function isValidUuid(
+  value: string
+): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
 
-    let orderId: string | null = null;
-    let orderItemId: string | null = null;
-    let reason: string | null = null;
-    let description: string | null = null;
-    let images: string[] = [];
+function errorJson(
+  code: string,
+  status = 400
+) {
+  return NextResponse.json(
+    { error: code },
+    { status }
+  );
+}
 
-    /* ================= MULTIPART ================= */
-    if (contentType.includes("multipart/form-data")) {
-      console.log("🟡 [RETURN POST] PARSE FORM DATA");
+function mapError(
+  error: unknown
+) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "INTERNAL_ERROR";
 
-      const form = await req.formData();
-
-      orderId = form.get("order_id") as string;
-      orderItemId = form.get("order_item_id") as string;
-      reason = (form.get("reason") as string)?.trim();
-      description = (form.get("description") as string)?.trim();
-
-      const files = form.getAll("images");
-
-      console.log("🟡 [RETURN POST] FILE COUNT:", files.length);
-
-      for (const file of files) {
-        if (!(file instanceof File)) continue;
-
-        console.log("🟡 [RETURN POST] FILE:", file.name, file.size);
-
-        if (file.size > 2 * 1024 * 1024) {
-          console.log("🔴 IMAGE TOO LARGE");
-          return NextResponse.json(
-            { error: "IMAGE_TOO_LARGE" },
-            { status: 400 }
-          );
-        }
-
-        const buffer = Buffer.from(await file.arrayBuffer());
-
-        const fileName = `returns/${userId}/${Date.now()}-${file.name}`;
-
-        console.log("🟡 [UPLOAD] START:", fileName);
-
-        const { error } = await supabaseAdmin.storage
-          .from("returns")
-          .upload(fileName, buffer, {
-            contentType: file.type,
-          });
-
-        if (error) {
-          console.error("❌ [UPLOAD ERROR]:", error);
-          return NextResponse.json(
-     { error: "UPLOAD_FAILED" },
-      { status: 500 }
-       );
-        }
-
-        const { data } = supabaseAdmin.storage
-          .from("returns")
-          .getPublicUrl(fileName);
-
-        console.log("🟢 [UPLOAD DONE]:", data.publicUrl);
-
-        images.push(data.publicUrl);
-      }
-    }
-
-    /* ================= JSON FALLBACK ================= */
-    else {
-      console.log("🟡 [RETURN POST] PARSE JSON");
-
-      const body = await req.json();
-
-      orderId = body.order_id;
-      orderItemId = body.order_item_id;
-      reason = body.reason?.trim();
-      description = body.description?.trim();
-    }
-
-    console.log("🟡 [RETURN POST] DATA:", {
-      orderId,
-      orderItemId,
-      reason,
-      imageCount: images.length,
-    });
-
-    /* ================= VALIDATE ================= */
-    if (!orderId || !orderItemId || !reason) {
-      console.log("🔴 INVALID PAYLOAD");
-
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
+  switch (message) {
+    case "ORDER_NOT_FOUND":
+      return errorJson(
+        message,
+        404
       );
-    }
 
-    if (images.length === 0) {
-      console.log("🔴 IMAGE REQUIRED");
-
-      return NextResponse.json(
-        { error: "IMAGE_REQUIRED" },
-        { status: 400 }
+    case "ITEM_NOT_FOUND":
+      return errorJson(
+        message,
+        404
       );
-    }
 
-    if (images.length > 3) {
-      console.log("🔴 TOO MANY IMAGES");
-
-      return NextResponse.json(
-        { error: "MAX_3_IMAGES" },
-        { status: 400 }
+    case "RETURN_EXISTS":
+      return errorJson(
+        message,
+        409
       );
-    }
 
-    /* ================= DB ================= */
-    console.log("🟡 [DB] CREATE RETURN");
-
-    await createReturn(
-      userId, // ✅ UUID đúng rule
-      orderId,
-      orderItemId,
-      reason,
-      description,
-      images
-    );
-
-    console.log("🟢 [RETURN POST] SUCCESS");
-
-    return NextResponse.json({
-      success: true,
-    });
-
-  } catch (err) {
-    console.error("❌ [RETURN POST ERROR]:", err);
-
-    if (err instanceof Error) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
+    case "ORDER_NOT_RETURNABLE":
+      return errorJson(
+        message,
+        400
       );
-    }
 
-    return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
-      { status: 500 }
-    );
+    case "INVALID_INPUT":
+      return errorJson(
+        message,
+        400
+      );
+
+    default:
+      return errorJson(
+        "INTERNAL_ERROR",
+        500
+      );
   }
 }
 
-/* =========================================================
-   GET — BUYER RETURNS
-========================================================= */
+/* =====================================================
+   GET /api/returns
+===================================================== */
+
 export async function GET() {
   try {
-    console.log("🟡 [RETURN GET] START");
-
-    const auth = await requireAuth();
+    const auth =
+      await requireAuth();
 
     if (!auth.ok) {
-      console.log("🔴 [RETURN GET] UNAUTHORIZED");
       return auth.response;
     }
 
-    const userId = auth.userId;
+    const userId =
+      auth.userId;
 
-    console.log("🟢 [RETURN GET] USER:", userId);
+    const items =
+      await getReturnsByBuyer(
+        userId
+      );
 
-    const data = await getReturnsByBuyer(userId);
+    return NextResponse.json({
+      items,
+    });
+  } catch (error) {
+    return mapError(error);
+  }
+}
 
-    console.log("🟢 [RETURN GET] COUNT:", data.length);
+/* =====================================================
+   POST /api/returns
+===================================================== */
 
-    return NextResponse.json(data);
+export async function POST(
+  req: NextRequest
+) {
+  try {
+    const auth =
+      await requireAuth();
 
-  } catch (err) {
-    console.error("❌ [RETURN GET ERROR]:", err);
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const userId =
+      auth.userId;
+
+    const body =
+      (await req.json()) as CreateReturnBody;
+
+    const orderId =
+      body.orderId?.trim() ?? "";
+
+    const orderItemId =
+      body.orderItemId?.trim() ??
+      "";
+
+    const reason =
+      body.reason?.trim() ?? "";
+
+    const description =
+      body.description?.trim() ??
+      "";
+
+    const images = Array.isArray(
+      body.images
+    )
+      ? body.images.filter(
+          (
+            value
+          ): value is string =>
+            typeof value ===
+              "string" &&
+            value.trim()
+              .length > 0
+        )
+      : [];
+
+    /* ================= VALIDATE ================= */
+
+    if (
+      !orderId ||
+      !orderItemId ||
+      !reason
+    ) {
+      return errorJson(
+        "INVALID_INPUT",
+        400
+      );
+    }
+
+    if (
+      !isValidUuid(orderId) ||
+      !isValidUuid(orderItemId)
+    ) {
+      return errorJson(
+        "INVALID_UUID",
+        400
+      );
+    }
+
+    if (
+      reason.length > 120
+    ) {
+      return errorJson(
+        "INVALID_REASON",
+        400
+      );
+    }
+
+    if (
+      description.length >
+      2000
+    ) {
+      return errorJson(
+        "INVALID_DESCRIPTION",
+        400
+      );
+    }
+
+    if (
+      images.length > 10
+    ) {
+      return errorJson(
+        "TOO_MANY_IMAGES",
+        400
+      );
+    }
+
+    const returnId =
+      await createReturn(
+        userId,
+        orderId,
+        orderItemId,
+        reason,
+        description,
+        images
+      );
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
-      { status: 500 }
+      {
+        success: true,
+        id: returnId,
+      },
+      { status: 201 }
     );
+  } catch (error) {
+    return mapError(error);
   }
 }
