@@ -232,20 +232,7 @@ const SELLER_CANCEL_REASONS = [
   }
 
   /* ================= UI ================= */
-
-  return (
-    <main className="min-h-screen bg-gray-100 pb-24">
-
-      {/* HEADER */}
-      <header className="bg-gray-600 text-white px-4 py-4">
-        <div className="bg-gray-500 rounded-lg p-4">
-          <p>
-       t[`${currentTab}_orders` as keyof typeof t] ??
-currentTab.toUpperCase()
-     </p>
-
-      <p className="text-xs">
-  {const currentList =
+const currentList =
   filteredOrders.length ? filteredOrders : orders;
 
 const headerStats = currentList.filter(
@@ -255,11 +242,25 @@ const headerStats = currentList.filter(
 const headerTotal = headerStats.reduce(
   (s, o) => s + o.total,
   0
-);.count} · π
-  {formatPi(statsByStatus[currentTab].total)}
-       </p>
-        </div>
-      </header>
+);
+  return (
+    <main className="min-h-screen bg-gray-100 pb-24">
+
+      {/* HEADER */}
+      <header className="bg-gray-600 text-white px-4 py-4">
+  <div className="bg-gray-500 rounded-lg p-4">
+    
+    <p>
+      {t[`${currentTab}_orders` as keyof typeof t] ??
+        currentTab.toUpperCase()}
+    </p>
+
+    <p className="text-xs">
+      {headerStats.length} · π{formatPi(headerTotal)}
+    </p>
+
+  </div>
+</header>
 <OrderFilterBar
   orders={orders}
   onFiltered={setFilteredOrders}
@@ -267,7 +268,7 @@ const headerTotal = headerStats.reduce(
       <OrdersList
         orders={filteredOrders.length ? filteredOrders : orders}
         onClick={() => {}}
-        initialTab="pending"
+        initialTab={currentTab}
        onTabChange={(tab) => setCurrentTab(tab)}
         renderActions={(o) => (
           <OrderActions
