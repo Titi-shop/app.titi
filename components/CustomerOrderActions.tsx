@@ -4,9 +4,14 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
   status: string;
+
   onDetail: () => void;
+
   onCancel?: () => void;
   onReceived?: () => void;
+  onReview?: () => void;
+
+  reviewed?: boolean;
 };
 
 export default function CustomerOrderActions({
@@ -14,8 +19,17 @@ export default function CustomerOrderActions({
   onDetail,
   onCancel,
   onReceived,
+  onReview,
+  reviewed,
 }: Props) {
   const { t } = useTranslation();
+
+  function stop(
+    e: React.MouseEvent<HTMLButtonElement>
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 
   return (
     <div
@@ -26,8 +40,7 @@ export default function CustomerOrderActions({
       <button
         type="button"
         onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+          stop(e);
           onDetail();
         }}
         className="px-3 py-1.5 border rounded-lg text-sm"
@@ -35,34 +48,61 @@ export default function CustomerOrderActions({
         {t.detail ?? "Detail"}
       </button>
 
-      {/* CANCEL */}
-      {status === "pending" && onCancel && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onCancel();
-          }}
-          className="px-3 py-1.5 border border-red-500 text-red-500 rounded-lg text-sm"
-        >
-          {t.cancel_order ?? "Cancel"}
-        </button>
-      )}
+      {/* PENDING */}
+      {status === "pending" &&
+        onCancel && (
+          <button
+            type="button"
+            onClick={(e) => {
+              stop(e);
+              onCancel();
+            }}
+            className="px-3 py-1.5 border border-red-500 text-red-500 rounded-lg text-sm"
+          >
+            {t.cancel_order ??
+              "Cancel"}
+          </button>
+        )}
 
-      {/* RECEIVED */}
-      {status === "shipping" && onReceived && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onReceived();
-          }}
-          className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm"
-        >
-          {t.received ?? "Received"}
-        </button>
+      {/* SHIPPING */}
+      {status === "shipping" &&
+        onReceived && (
+          <button
+            type="button"
+            onClick={(e) => {
+              stop(e);
+              onReceived();
+            }}
+            className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm"
+          >
+            {t.received ??
+              "Received"}
+          </button>
+        )}
+
+      {/* COMPLETED */}
+      {status === "completed" && (
+        reviewed ? (
+          <button
+            disabled
+            className="px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg text-sm"
+          >
+            {t.reviewed ??
+              "Reviewed"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              stop(e);
+              onReview?.();
+            }}
+            className="px-3 py-1.5 border border-orange-500 text-orange-500 rounded-lg text-sm"
+          >
+            {t.review_orders ??
+              "Review"}
+          </button>
+        )
       )}
     </div>
   );
