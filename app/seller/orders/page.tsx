@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
 import {
+  Suspense,
   useEffect,
   useMemo,
   useState,
@@ -226,7 +227,7 @@ const fetcher = async (): Promise<
    PAGE
 ====================================================== */
 
-export default function SellerOrdersPage() {
+function SellerOrdersContent() {
   const router = useRouter();
   const searchParams =
     useSearchParams();
@@ -929,5 +930,23 @@ export default function SellerOrdersPage() {
         )}
       />
     </main>
+  );
+}
+export default function SellerOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-100 p-4 space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-28 rounded-xl bg-white animate-pulse"
+            />
+          ))}
+        </main>
+      }
+    >
+      <SellerOrdersContent />
+    </Suspense>
   );
 }
