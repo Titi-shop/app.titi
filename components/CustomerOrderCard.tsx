@@ -4,16 +4,45 @@ import { formatPi } from "@/lib/pi";
 import CustomerOrderActions from "./CustomerOrderActions";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =======================================================
+   TYPES
+======================================================= */
+
+type OrderItem = {
+  id?: string;
+  product_id?: string;
+  product_name?: string;
+  thumbnail?: string | null;
+  images?: string[] | null;
+  quantity?: number;
+  unit_price?: number;
+  seller_message?: string | null;
+  seller_cancel_reason?: string | null;
+};
+
+type Order = {
+  id: string;
+  order_number?: string | null;
+  status: string;
+  total?: number;
+  order_items?: OrderItem[];
+};
+
 type Props = {
-  order: any;
+  order: Order;
 
   onDetail: () => void;
   onCancel?: () => void;
   onReceived?: () => void;
   onBuyAgain?: () => void;
   onReview?: () => void;
+
   reviewed?: boolean;
 };
+
+/* =======================================================
+   COMPONENT
+======================================================= */
 
 export default function CustomerOrderCard({
   order,
@@ -22,88 +51,155 @@ export default function CustomerOrderCard({
   onReceived,
   onBuyAgain,
   onReview,
-  reviewed,
+  reviewed = false,
 }: Props) {
   const { t } = useTranslation();
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+  const items =
+    order.order_items ?? [];
 
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       {/* HEADER */}
-      <div className="flex justify-between px-4 py-3 border-b bg-gray-50 text-sm">
-        <span className="font-medium">
-          #{order.order_number}
+      <div className="flex items-center justify-between gap-3 border-b bg-gray-50 px-4 py-3 text-sm">
+        <span className="truncate font-semibold text-gray-800">
+          #
+          {order.order_number ??
+            order.id.slice(
+              0,
+              8
+            )}
         </span>
 
-        <span className="text-orange-500 font-medium">
-          {t[`order_${order.status}`] ?? order.status}
+        <span className="shrink-0 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
+          {t[
+            `order_${order.status}`
+          ] ??
+            order.status}
         </span>
       </div>
 
       {/* ITEMS */}
-      <div className="divide-y">
-        {order.order_items?.map(
-          (item: any, idx: number) => (
-            <div
-              key={idx}
-              className="flex gap-3 p-4"
-            >
-              <img
-                src={
-                  item.thumbnail ||
-                  item.images?.[0] ||
-                  "/placeholder.png"
+      <div className="divide-y divide-gray-100">
+        {items.map(
+          (
+            item,
+            index
+          ) => {
+            const image =
+              item.thumbnail ||
+              item.images?.[0] ||
+              "/placeholder.png";
+
+            return (
+              <div
+                key={
+                  item.id ??
+                  `${order.id}-${index}`
                 }
-                className="w-16 h-16 rounded-lg object-cover bg-gray-100"
-              />
+                className="flex gap-3 px-4 py-4"
+              >
+                {/* IMAGE */}
+                <img
+                  src={image}
+                  alt={
+                    item.product_name ??
+                    "Product"
+                  }
+                  loading="lazy"
+                  className="h-16 w-16 shrink-0 rounded-xl bg-gray-100 object-cover"
+                />
 
-              <div className="flex-1 min-w-0">
-                <p className="text-sm line-clamp-2">
-                  {item.product_name}
-                </p>
-
-                <p className="text-xs text-gray-500 mt-1">
-                  x{item.quantity} · π
-                  {formatPi(item.unit_price)}
-                </p>
-
-                {item.seller_message && (
-                  <p className="text-xs text-green-600 mt-1">
-                    💌 {item.seller_message}
+                {/* INFO */}
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-medium text-gray-800">
+                    {item.product_name ??
+                      "Product"}
                   </p>
-                )}
 
-                {item.seller_cancel_reason &&
-                  order.status === "cancelled" && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {item.seller_cancel_reason}
+                  <p className="mt-1 text-xs text-gray-500">
+                    x
+                    {item.quantity ??
+                      0}{" "}
+                    · π
+                    {formatPi(
+                      Number(
+                        item.unit_price ??
+                          0
+                      )
+                    )}
+                  </p>
+
+                  {item.seller_message && (
+                    <p className="mt-1 line-clamp-2 text-xs text-green-600">
+                      💌{" "}
+                      {
+                        item.seller_message
+                      }
                     </p>
                   )}
+
+                  {order.status ===
+                    "cancelled" &&
+                    item.seller_cancel_reason && (
+                      <p className="mt-1 line-clamp-2 text-xs text-red-500">
+                        {
+                          item.seller_cancel_reason
+                        }
+                      </p>
+                    )}
+                </div>
               </div>
-            </div>
-          )
+            );
+          }
         )}
       </div>
 
       {/* FOOTER */}
       <div
-        className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center gap-3"
-        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col gap-3 border-t bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
-        <span className="text-sm">
-          {t.total ?? "Total"}:{" "}
-          <b>π{formatPi(order.total)}</b>
+        <span className="text-sm text-gray-700">
+          {t.total ??
+            "Total"}
+          :{" "}
+          <b className="text-gray-900">
+            π
+            {formatPi(
+              Number(
+                order.total ??
+                  0
+              )
+            )}
+          </b>
         </span>
 
         <CustomerOrderActions
-  status={order.status}
-  reviewed={reviewed}
-  onDetail={onDetail}
-  onCancel={onCancel}
-  onReceived={onReceived}
-  onBuyAgain={onBuyAgain}
-  onReview={onReview}
-/>
+          status={
+            order.status
+          }
+          reviewed={
+            reviewed
+          }
+          onDetail={
+            onDetail
+          }
+          onCancel={
+            onCancel
+          }
+          onReceived={
+            onReceived
+          }
+          onBuyAgain={
+            onBuyAgain
+          }
+          onReview={
+            onReview
+          }
+        />
       </div>
     </div>
   );
