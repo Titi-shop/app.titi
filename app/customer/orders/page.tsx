@@ -50,41 +50,63 @@ const fetcher = async () => {
   }
 };
 
+/* ================= PAGE ================= */
+
 export default function CustomerOrdersPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading } = useAuth();
 
-  const { data: orders = [], isLoading, mutate } = useSWR(
+  const {
+    data: orders = [],
+    isLoading,
+    mutate,
+  } = useSWR(
     user ? "/api/orders" : null,
     fetcher
   );
 
   /* ================= STATE ================= */
 
-  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState("");
-  const [customReason, setCustomReason] = useState("");
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [toast, setToast] = useState("");
- const [activeReviewId, setActiveReviewId] =
-  useState<string | null>(null);
+  const [toast, setToast] =
+    useState("");
+
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
+
+  /* cancel */
+  const [showCancelFor, setShowCancelFor] =
+    useState<string | null>(null);
+
+  const [selectedReason, setSelectedReason] =
+    useState("");
+
+  const [customReason, setCustomReason] =
+    useState("");
+
+  /* review */
+  const [activeReviewId, setActiveReviewId] =
+    useState<string | null>(null);
 
   const [rating, setRating] =
-  useState(5);
+    useState(5);
 
   const [comment, setComment] =
-  useState("");
+    useState("");
 
   const [reviewedMap, setReviewedMap] =
-  useState<Record<string, boolean>>({});
+    useState<Record<string, boolean>>(
+      {}
+    );
+
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
     () =>
       orders.reduce(
         (sum: number, o: any) =>
-          sum + Number(o.total ?? 0),
+          sum +
+          Number(o.total ?? 0),
         0
       ),
     [orders]
@@ -92,120 +114,192 @@ export default function CustomerOrdersPage() {
 
   /* ================= HELPERS ================= */
 
+  function showToast(text: string) {
+    setToast(text);
+
+    setTimeout(() => {
+      setToast("");
+    }, 2500);
+  }
+
   function resetCancel() {
     setShowCancelFor(null);
     setSelectedReason("");
     setCustomReason("");
   }
 
-  function showToast(text: string) {
-    setToast(text);
-    setTimeout(() => setToast(""), 2500);
+  function resetReview() {
+    setActiveReviewId(null);
+    setRating(5);
+    setComment("");
   }
 
   /* ================= CANCEL ================= */
 
-  async function handleReview(order: any) {
-  try {
-    setProcessingId(order.id);
+  async function handleCancel(
+    orderId: string
+  ) {
+    const reason =
+      selectedReason ===
+      "cancel_reason_other"
+        ? customReason
+        : selectedReason;
 
-    const token =
-      await getPiAccessToken();
-
-    const productId =
-      order.order_items?.[0]?.product_id;
-
-    const res = await fetch(
-      "/api/reviews",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          order_id: order.id,
-          product_id: productId,
-          rating,
-          comment:
-            comment.trim() ||
-            t.default_review_comment ||
-            "Good product",
-        }),
-      }
-    );
-    async function handleCancel(orderId: string) {
-  const reason =
-    selectedReason === "cancel_reason_other"
-      ? customReason
-      : selectedReason;
-
-  if (!reason.trim()) {
-    showToast("Select reason");
-    return;
-  }
-
-  try {
-    setProcessingId(orderId);
-
-    const token = await getPiAccessToken();
-
-    await fetch(`/api/orders/${orderId}/cancel`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        cancel_reason: reason,
-      }),
-    });
-
-    await mutate();
-    resetCancel();
-
-    showToast("Cancelled");
-  } finally {
-    setProcessingId(null);
-  }
-}
-
-    if (!res.ok) {
-      throw new Error();
+    if (!reason.trim()) {
+      showToast(
+        t.select_cancel_reason ??
+          "Select reason"
+      );
+      return;
     }
 
-    /* đánh dấu đã review */
-    setReviewedMap((prev) => ({
-      ...prev,
-      [order.id]: true,
-    }));
+    try {
+      setProcessingId(orderId);
 
-    /* reset popup */
-    setActiveReviewId(null);
-    setRating(5);
-    setComment("");
+      const token =
+        await getPiAccessToken();
 
-    showToast(
-      t.review_success ??
-        "Review success"
-    );
-  } catch {
-    showToast(
-      t.review_failed ??
-        "Review failed"
-    );
-  } finally {
-    setProcessingId(null);
+      await fetch(
+        `/api/orders/${orderId}/cancel`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            cancel_reason: reason,
+          }),
+        }
+      );
+
+      await mutate();
+
+      resetCancel();
+
+      showToast(
+        t.cancel_success ??
+          "Cancelled"
+      );
+    } catch {
+      showToast(
+        t.cancel_failed ??
+          "Cancel failed"
+      );
+    } finally {
+      setProcessingId(null);
+    }
   }
-}
+
+  /* ================= RECEIVED ================= */
+
+  async function handleReceived(
+    orderId: string
+  ) {
+    try {
+      setProcessingId(orderId);
+
+      const token =
+        await getPiAccessToken();
+
+      await fetch(
+        `/api/orders/${orderId}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      await mutate();
+
+      showToast(
+        t.received_success ??
+          "Completed"
+      );
+    } catch {
+      showToast(
+        t.action_failed ??
+          "Failed"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  /* ================= REVIEW ================= */
+
+  async function handleReview(
+    order: any
+  ) {
+    try {
+      setProcessingId(order.id);
+
+      const token =
+        await getPiAccessToken();
+
+      const productId =
+        order.order_items?.[0]
+          ?.product_id;
+
+      const res = await fetch(
+        "/api/reviews",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            order_id: order.id,
+            product_id: productId,
+            rating,
+            comment:
+              comment.trim() ||
+              t.default_review_comment ||
+              "Good product",
+          }),
+        }
+      );
+
+      if (!res.ok)
+        throw new Error();
+
+      setReviewedMap((prev) => ({
+        ...prev,
+        [order.id]: true,
+      }));
+
+      resetReview();
+
+      showToast(
+        t.review_success ??
+          "Review success"
+      );
+    } catch {
+      showToast(
+        t.review_failed ??
+          "Review failed"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  }
 
   /* ================= LOADING ================= */
 
   if (loading || isLoading) {
     return (
       <main className="min-h-screen bg-gray-100 p-4 space-y-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({
+          length: 4,
+        }).map((_, i) => (
           <div
             key={i}
             className="h-28 bg-white rounded-xl animate-pulse"
@@ -222,7 +316,7 @@ export default function CustomerOrdersPage() {
 
       {/* TOAST */}
       {toast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-black text-white text-sm px-4 py-2 rounded-full shadow-lg animate-bounce">
+        <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2 bg-black text-white text-sm px-4 py-2 rounded-full shadow-xl">
           {toast}
         </div>
       )}
@@ -231,7 +325,8 @@ export default function CustomerOrdersPage() {
       <header className="bg-orange-500 text-white px-4 py-4 shadow">
         <div className="bg-orange-400 rounded-xl p-4">
           <p className="text-sm">
-            {t.orders ?? "Orders"}
+            {t.orders ??
+              "Orders"}
           </p>
 
           <p className="text-xs mt-1">
@@ -242,77 +337,49 @@ export default function CustomerOrdersPage() {
       </header>
 
       {/* LIST */}
-<CustomerOrdersList
-  orders={orders}
-
-  reviewedMap={reviewedMap}
-
-  onDetail={(id) =>
-    router.push(`/customer/orders/${id}`)
-  }
-
-  onCancel={(id) =>
-    setShowCancelFor(id)
-  }
-
-  onReceived={async (id) => {
-    try {
-      const token =
-        await getPiAccessToken();
-
-      await fetch(
-        `/api/orders/${id}/complete`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
+      <CustomerOrdersList
+        orders={orders}
+        reviewedMap={
+          reviewedMap
         }
-      );
+        onDetail={(id) =>
+          router.push(
+            `/customer/orders/${id}`
+          )
+        }
+        onCancel={(id) =>
+          setShowCancelFor(id)
+        }
+        onReceived={
+          handleReceived
+        }
+        onReview={(id) =>
+          setActiveReviewId(id)
+        }
+      />
 
-      mutate();
-    } catch {}
-  }}
-
-  onReview={(id) =>
-    setActiveReviewId(id)
-  }
-/>
-
-      {/* PREMIUM POPUP */}
+      {/* CANCEL POPUP */}
       {showCancelFor && (
         <div className="fixed inset-0 z-50">
-
-          {/* overlay */}
           <div
-            onClick={resetCancel}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={
+              resetCancel
+            }
+            className="absolute inset-0 bg-black/40"
           />
 
-          {/* sheet */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 shadow-2xl animate-[slideUp_.25s_ease]">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5">
 
-            {/* handle */}
             <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
 
-            <h3 className="text-center font-semibold text-lg">
+            <h3 className="text-lg font-semibold text-center">
               {t.cancel_order ??
                 "Cancel Order"}
             </h3>
 
-            <p className="text-center text-xs text-gray-500 mt-1 mb-5">
-              {t.choose_reason ??
-                "Choose a reason"}
-            </p>
-
-            {/* reasons */}
-            <div className="space-y-2 max-h-72 overflow-y-auto">
-              {CANCEL_REASON_KEYS.map((key) => {
-                const active =
-                  selectedReason === key;
-
-                return (
+            <div className="space-y-2 mt-5 max-h-72 overflow-y-auto">
+              {CANCEL_REASON_KEYS.map(
+                (key) => (
                   <button
                     key={key}
                     onClick={() =>
@@ -320,44 +387,51 @@ export default function CustomerOrdersPage() {
                         key
                       )
                     }
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition ${
-                      active
+                    className={`w-full text-left px-4 py-3 rounded-xl border ${
+                      selectedReason ===
+                      key
                         ? "border-orange-500 bg-orange-50 text-orange-600"
                         : "border-gray-200"
                     }`}
                   >
-                    {t[key] ?? key}
+                    {t[key] ??
+                      key}
                   </button>
-                );
-              })}
+                )
+              )}
             </div>
 
-            {/* other */}
             {selectedReason ===
               "cancel_reason_other" && (
               <textarea
-                value={customReason}
-                onChange={(e) =>
+                rows={3}
+                value={
+                  customReason
+                }
+                onChange={(
+                  e
+                ) =>
                   setCustomReason(
                     e.target.value
                   )
                 }
-                rows={3}
                 placeholder={
                   t.enter_cancel_reason ??
                   "Enter reason"
                 }
-                className="w-full mt-3 border rounded-xl p-3 text-sm"
+                className="w-full border rounded-xl p-3 mt-3"
               />
             )}
 
-            {/* buttons */}
             <div className="grid grid-cols-2 gap-3 mt-5">
               <button
-                onClick={resetCancel}
-                className="py-3 rounded-xl border font-medium"
+                onClick={
+                  resetCancel
+                }
+                className="py-3 border rounded-xl"
               >
-                {t.close ?? "Close"}
+                {t.close ??
+                  "Close"}
               </button>
 
               <button
@@ -370,31 +444,119 @@ export default function CustomerOrdersPage() {
                     showCancelFor
                   )
                 }
-                className="py-3 rounded-xl bg-orange-500 text-white font-medium disabled:opacity-50"
+                className="py-3 bg-orange-500 text-white rounded-xl disabled:opacity-50"
               >
-                {processingId ===
-                showCancelFor
-                  ? t.processing ??
-                    "Processing..."
-                  : t.confirm_cancel ??
-                    "Confirm"}
+                {t.confirm ??
+                  "Confirm"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* animation */}
-      <style jsx global>{`
-        @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      {/* REVIEW POPUP */}
+      {activeReviewId && (
+        <div className="fixed inset-0 z-50">
+          <div
+            onClick={
+              resetReview
+            }
+            className="absolute inset-0 bg-black/40"
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5">
+
+            <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+
+            <h3 className="text-lg font-semibold text-center">
+              {t.review_orders ??
+                "Review"}
+            </h3>
+
+            {/* stars */}
+            <div className="flex justify-center gap-2 mt-5">
+              {[1,2,3,4,5].map(
+                (star) => (
+                  <button
+                    key={
+                      star
+                    }
+                    onClick={() =>
+                      setRating(
+                        star
+                      )
+                    }
+                    className={
+                      star <=
+                      rating
+                        ? "text-3xl text-yellow-500"
+                        : "text-3xl text-gray-300"
+                    }
+                  >
+                    ★
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* comment */}
+            <textarea
+              rows={4}
+              value={comment}
+              onChange={(e) =>
+                setComment(
+                  e.target.value
+                )
+              }
+              placeholder={
+                t.default_review_comment ??
+                "Write review..."
+              }
+              className="w-full border rounded-xl p-3 mt-4"
+            />
+
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <button
+                onClick={
+                  resetReview
+                }
+                className="py-3 border rounded-xl"
+              >
+                {t.close ??
+                  "Close"}
+              </button>
+
+              <button
+                disabled={
+                  processingId ===
+                  activeReviewId
+                }
+                onClick={() => {
+                  const order =
+                    orders.find(
+                      (
+                        x: any
+                      ) =>
+                        x.id ===
+                        activeReviewId
+                    );
+
+                  if (order)
+                    handleReview(
+                      order
+                    );
+                }}
+                className="py-3 bg-orange-500 text-white rounded-xl disabled:opacity-50"
+              >
+                {t.submit_review ??
+                  "Submit"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
