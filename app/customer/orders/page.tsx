@@ -313,7 +313,7 @@ const [confirmReceivedFor, setConfirmReceivedFor] =
   /* ================= UI ================= */
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-24">
+   <main className="min-h-screen bg-gray-100 pb-32">
 
       {/* TOAST */}
       {toast && (
