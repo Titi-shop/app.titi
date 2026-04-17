@@ -12,7 +12,6 @@ import CustomerMenu from "@/components/customerMenu";
 export default function AccountPage() {
   const { t } = useTranslation();
   const { user, loading, pilogin, logout, piReady } = useAuth();
-
   const [agreed, setAgreed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
