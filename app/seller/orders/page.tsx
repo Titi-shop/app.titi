@@ -4,8 +4,15 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
@@ -28,36 +35,36 @@ type OrderStatus =
   | "returned"
   | "cancelled";
 
-type TabType = OrderStatus | "all";
+type OrderTab = "all" | OrderStatus;
 
-interface RawOrderItem {
-  id: string;
+type RawOrderItem = {
+  id?: string;
   product_name?: string;
   thumbnail?: string;
-  quantity?: number;
-  unit_price?: number;
+  quantity?: number | string;
+  unit_price?: number | string;
   status?: string;
-}
+};
 
-interface RawOrder {
-  id: string;
-  order_number: string;
-  total: number | string;
-  created_at: string;
+type RawOrder = {
+  id?: string;
+  order_number?: string;
+  total?: number | string;
+  created_at?: string;
   shipping_name?: string;
   shipping_phone?: string;
   order_items?: RawOrderItem[];
-}
+};
 
-interface OrderItem {
+type OrderItem = {
   id: string;
   product_name: string;
   thumbnail: string;
   quantity: number;
   unit_price: number;
-}
+};
 
-interface Order {
+type Order = {
   id: string;
   order_number: string;
   status: OrderStatus;
@@ -66,61 +73,153 @@ interface Order {
   shipping_name: string;
   shipping_phone: string;
   order_items: OrderItem[];
+};
+
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function normalizeStatus(
+  value: string
+): OrderStatus {
+  const v = value
+    .toLowerCase()
+    .trim();
+
+  if (
+    v === "pending" ||
+    v === "confirmed" ||
+    v === "shipping" ||
+    v === "completed" ||
+    v === "returned" ||
+    v === "cancelled"
+  ) {
+    return v;
+  }
+
+  return "pending";
+}
+
+function getOrderStatus(
+  items: RawOrderItem[]
+): OrderStatus {
+  const statuses = items.map((i) =>
+    normalizeStatus(
+      String(i.status ?? "")
+    )
+  );
+
+  if (
+    statuses.includes("shipping")
+  )
+    return "shipping";
+
+  if (
+    statuses.includes("completed")
+  )
+    return "completed";
+
+  if (
+    statuses.includes("returned")
+  )
+    return "returned";
+
+  if (
+    statuses.includes("confirmed")
+  )
+    return "confirmed";
+
+  if (
+    statuses.includes("cancelled")
+  )
+    return "cancelled";
+
+  return "pending";
+}
+
+function showError(
+  res: Response
+): Promise<void> {
+  if (res.ok) return Promise.resolve();
+  throw new Error("REQUEST_FAILED");
 }
 
 /* ======================================================
    FETCHER
 ====================================================== */
 
-const fetcher = async (): Promise<Order[]> => {
-  const res = await apiAuthFetch("/api/seller/orders", {
-    cache: "no-store",
-  });
+const fetcher = async (): Promise<
+  Order[]
+> => {
+  const res =
+    await apiAuthFetch(
+      "/api/seller/orders",
+      {
+        cache: "no-store",
+      }
+    );
 
   if (!res.ok) return [];
 
-  const data: unknown = await res.json();
+  const data =
+    (await res.json()) as unknown;
 
-  if (!Array.isArray(data)) return [];
+  if (!Array.isArray(data))
+    return [];
 
-  return data.map((row) => {
-    const o = row as RawOrder;
+  return data.map(
+    (raw: RawOrder): Order => {
+      const items =
+        raw.order_items ?? [];
 
-    const itemStatuses = (o.order_items ?? []).map((item) =>
-      String(item.status ?? "").toLowerCase().trim()
-    );
-
-    let status: OrderStatus = "pending";
-
-    if (itemStatuses.includes("shipping")) {
-      status = "shipping";
-    } else if (itemStatuses.includes("completed")) {
-      status = "completed";
-    } else if (itemStatuses.includes("returned")) {
-      status = "returned";
-    } else if (itemStatuses.includes("confirmed")) {
-      status = "confirmed";
-    } else if (itemStatuses.includes("cancelled")) {
-      status = "cancelled";
+      return {
+        id: String(raw.id ?? ""),
+        order_number: String(
+          raw.order_number ?? ""
+        ),
+        status:
+          getOrderStatus(items),
+        total: Number(
+          raw.total ?? 0
+        ),
+        created_at: String(
+          raw.created_at ?? ""
+        ),
+        shipping_name: String(
+          raw.shipping_name ??
+            ""
+        ),
+        shipping_phone: String(
+          raw.shipping_phone ??
+            ""
+        ),
+        order_items:
+          items.map((i) => ({
+            id: String(
+              i.id ?? ""
+            ),
+            product_name:
+              String(
+                i.product_name ??
+                  ""
+              ),
+            thumbnail:
+              String(
+                i.thumbnail ??
+                  ""
+              ),
+            quantity: Number(
+              i.quantity ?? 0
+            ),
+            unit_price:
+              Number(
+                i.unit_price ??
+                  0
+              ),
+          })),
+      };
     }
-
-    return {
-      id: o.id,
-      order_number: o.order_number,
-      status,
-      total: Number(o.total ?? 0),
-      created_at: o.created_at,
-      shipping_name: o.shipping_name ?? "",
-      shipping_phone: o.shipping_phone ?? "",
-      order_items: (o.order_items ?? []).map((item) => ({
-        id: item.id,
-        product_name: item.product_name ?? "",
-        thumbnail: item.thumbnail ?? "",
-        quantity: Number(item.quantity ?? 0),
-        unit_price: Number(item.unit_price ?? 0),
-      })),
-    };
-  });
+  );
 };
 
 /* ======================================================
@@ -129,187 +228,352 @@ const fetcher = async (): Promise<Order[]> => {
 
 export default function SellerOrdersPage() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { user, loading: authLoading } = useAuth();
+  const searchParams =
+    useSearchParams();
+
+  const { t } =
+    useTranslation();
+
+  const {
+    user,
+    loading:
+      authLoading,
+  } = useAuth();
+
+  const tabFromUrl =
+    (searchParams.get(
+      "tab"
+    ) as OrderTab) ||
+    "pending";
 
   const {
     data: orders = [],
     isLoading,
     mutate,
   } = useSWR(
-    !authLoading && user ? "/api/seller/orders" : null,
+    !authLoading && user
+      ? "/api/seller/orders"
+      : null,
     fetcher
   );
 
-  /* ======================================================
-     STATE
-  ====================================================== */
+  /* ================= STATE ================= */
 
-  const [currentTab, setCurrentTab] =
-    useState<TabType>("pending");
-
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
-
-  const [showConfirmFor, setShowConfirmFor] =
-    useState<string | null>(null);
-
-  const [showCancelFor, setShowCancelFor] =
-    useState<string | null>(null);
-
-  const [confirmShippingId, setConfirmShippingId] =
-    useState<string | null>(null);
-
-  const [sellerMessage, setSellerMessage] =
-    useState("");
-
-  const [selectedReason, setSelectedReason] =
-    useState("");
-
-  const [customReason, setCustomReason] =
-    useState("");
-
-  /* ======================================================
-     CANCEL REASONS
-  ====================================================== */
-
-  const sellerCancelReasons = [
-    t.cancel_reason_out_of_stock ??
-      "Out of stock",
-    t.cancel_reason_discontinued ??
-      "Discontinued",
-    t.cancel_reason_wrong_price ??
-      "Wrong price",
-    t.cancel_reason_other ??
-      "Other",
-  ];
-
-  /* ======================================================
-     FILTERED LIST
-  ====================================================== */
-
-  const tabOrders = useMemo(() => {
-    if (currentTab === "all") {
-      return orders;
-    }
-
-    return orders.filter(
-      (order) => order.status === currentTab
+  const [
+    currentTab,
+    setCurrentTab,
+  ] =
+    useState<OrderTab>(
+      tabFromUrl
     );
-  }, [orders, currentTab]);
 
-  /* ======================================================
-     TOTAL
-  ====================================================== */
+  const [
+    filteredOrders,
+    setFilteredOrders,
+  ] = useState<Order[]>(
+    []
+  );
 
-  const headerTotal = useMemo(() => {
-    return tabOrders.reduce(
-      (sum, order) => sum + order.total,
-      0
+  const [
+    processingId,
+    setProcessingId,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    showConfirmFor,
+    setShowConfirmFor,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    showCancelFor,
+    setShowCancelFor,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    confirmShippingId,
+    setConfirmShippingId,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    sellerMessage,
+    setSellerMessage,
+  ] = useState("");
+
+  const [
+    selectedReason,
+    setSelectedReason,
+  ] = useState("");
+
+  const [
+    customReason,
+    setCustomReason,
+  ] = useState("");
+
+  const [
+    toast,
+    setToast,
+  ] = useState("");
+
+  /* ================= URL TAB ================= */
+
+  useEffect(() => {
+    setCurrentTab(
+      tabFromUrl
     );
-  }, [tabOrders]);
+  }, [tabFromUrl]);
+
+  /* ================= TOAST ================= */
+
+  function showToast(
+    text: string
+  ) {
+    setToast(text);
+
+    window.setTimeout(() => {
+      setToast("");
+    }, 2200);
+  }
+
+  /* ================= REASONS ================= */
+
+  const cancelReasons =
+    useMemo(
+      () => [
+        t.cancel_reason_out_of_stock ??
+          "Out of stock",
+        t.cancel_reason_discontinued ??
+          "Discontinued",
+        t.cancel_reason_wrong_price ??
+          "Wrong price",
+        t.cancel_reason_other ??
+          "Other",
+      ],
+      [t]
+    );
+
+  /* ================= FILTER ================= */
+
+  const baseOrders =
+    filteredOrders.length >
+      0 ||
+    filteredOrders.length ===
+      orders.length
+      ? filteredOrders
+      : orders;
+
+  const visibleOrders =
+    useMemo(() => {
+      if (
+        currentTab === "all"
+      )
+        return baseOrders;
+
+      return baseOrders.filter(
+        (o) =>
+          o.status ===
+          currentTab
+      );
+    }, [
+      baseOrders,
+      currentTab,
+    ]);
+
+  const headerTotal =
+    useMemo(
+      () =>
+        visibleOrders.reduce(
+          (
+            sum,
+            o
+          ) =>
+            sum +
+            o.total,
+          0
+        ),
+      [visibleOrders]
+    );
 
   /* ======================================================
      ACTIONS
   ====================================================== */
 
   async function handleConfirm(
-    orderId: string
+    id: string
   ) {
-    if (!sellerMessage.trim()) return;
+    if (
+      !sellerMessage.trim()
+    )
+      return;
 
     try {
-      setProcessingId(orderId);
+      setProcessingId(id);
 
-      await apiAuthFetch(
-        `/api/seller/orders/${orderId}/confirm`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            seller_message:
-              sellerMessage.trim(),
-          }),
-        }
+      const res =
+        await apiAuthFetch(
+          `/api/seller/orders/${id}/confirm`,
+          {
+            method:
+              "PATCH",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify(
+              {
+                seller_message:
+                  sellerMessage.trim(),
+              }
+            ),
+          }
+        );
+
+      await showError(
+        res
       );
 
-      setShowConfirmFor(null);
-      setSellerMessage("");
+      setShowConfirmFor(
+        null
+      );
+      setSellerMessage(
+        ""
+      );
 
       await mutate();
+
+      showToast(
+        t.confirm_success ??
+          "Confirmed"
+      );
+    } catch {
+      showToast(
+        t.action_failed ??
+          "Failed"
+      );
     } finally {
-      setProcessingId(null);
+      setProcessingId(
+        null
+      );
     }
   }
 
   async function handleCancel(
-    orderId: string
+    id: string
   ) {
-    const otherText =
-      t.cancel_reason_other ??
-      "Other";
-
     const reason =
-      selectedReason === otherText
+      selectedReason ===
+      (t.cancel_reason_other ??
+        "Other")
         ? customReason.trim()
         : selectedReason.trim();
 
     if (!reason) {
-      alert(
+      showToast(
         t.select_reason ??
-          "Please select reason"
+          "Select reason"
       );
       return;
     }
 
     try {
-      setProcessingId(orderId);
+      setProcessingId(id);
 
-      await apiAuthFetch(
-        `/api/seller/orders/${orderId}/cancel`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            cancel_reason: reason,
-          }),
-        }
+      const res =
+        await apiAuthFetch(
+          `/api/seller/orders/${id}/cancel`,
+          {
+            method:
+              "PATCH",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify(
+              {
+                cancel_reason:
+                  reason,
+              }
+            ),
+          }
+        );
+
+      await showError(
+        res
       );
 
-      setShowCancelFor(null);
-      setSelectedReason("");
-      setCustomReason("");
+      setShowCancelFor(
+        null
+      );
+      setSelectedReason(
+        ""
+      );
+      setCustomReason(
+        ""
+      );
 
       await mutate();
+
+      showToast(
+        t.cancel_success ??
+          "Cancelled"
+      );
+    } catch {
+      showToast(
+        t.action_failed ??
+          "Failed"
+      );
     } finally {
-      setProcessingId(null);
+      setProcessingId(
+        null
+      );
     }
   }
 
   async function handleShipping(
-    orderId: string
+    id: string
   ) {
     try {
-      setProcessingId(orderId);
+      setProcessingId(id);
 
-      await apiAuthFetch(
-        `/api/seller/orders/${orderId}/shipping`,
-        {
-          method: "PATCH",
-        }
+      const res =
+        await apiAuthFetch(
+          `/api/seller/orders/${id}/shipping`,
+          {
+            method:
+              "PATCH",
+          }
+        );
+
+      await showError(
+        res
       );
 
-      setConfirmShippingId(null);
+      setConfirmShippingId(
+        null
+      );
 
       await mutate();
+
+      showToast(
+        t.shipping_started ??
+          "Shipping started"
+      );
+    } catch {
+      showToast(
+        t.action_failed ??
+          "Failed"
+      );
     } finally {
-      setProcessingId(null);
+      setProcessingId(
+        null
+      );
     }
   }
 
@@ -317,14 +581,19 @@ export default function SellerOrdersPage() {
      LOADING
   ====================================================== */
 
-  if (authLoading || isLoading) {
+  if (
+    authLoading ||
+    isLoading
+  ) {
     return (
       <main className="min-h-screen bg-gray-100 p-4 space-y-4">
-        {Array.from({ length: 5 }).map(
+        {Array.from({
+          length: 4,
+        }).map(
           (_, i) => (
             <div
               key={i}
-              className="h-28 rounded-2xl bg-white animate-pulse"
+              className="h-28 rounded-xl bg-white animate-pulse"
             />
           )
         )}
@@ -333,75 +602,102 @@ export default function SellerOrdersPage() {
   }
 
   /* ======================================================
-     LABEL
-  ====================================================== */
-
-  const titleMap: Record<TabType, string> =
-    {
-      all:
-        t.all_orders ??
-        "All Orders",
-      pending:
-        t.pending_orders ??
-        "Pending",
-      confirmed:
-        t.confirmed_orders ??
-        "Confirmed",
-      shipping:
-        t.shipping_orders ??
-        "Shipping",
-      completed:
-        t.completed_orders ??
-        "Completed",
-      returned:
-        t.returned_orders ??
-        "Returned",
-      cancelled:
-        t.cancelled_orders ??
-        "Cancelled",
-    };
-
-  /* ======================================================
      UI
   ====================================================== */
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-28">
+    <main className="min-h-screen bg-gray-100 pb-32">
+      {/* TOAST */}
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-black text-white text-sm px-4 py-2 rounded-full shadow-xl">
+          {toast}
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="bg-gray-700 text-white px-4 py-4 shadow">
         <div className="bg-gray-600 rounded-2xl p-4">
-          <p className="text-sm font-medium">
-            {titleMap[currentTab]}
+          <p className="text-sm">
+            {
+              {
+                all:
+                  t.all_orders ??
+                  "All Orders",
+                pending:
+                  t.pending_orders ??
+                  "Pending",
+                confirmed:
+                  t.confirmed_orders ??
+                  "Confirmed",
+                shipping:
+                  t.shipping_orders ??
+                  "Shipping",
+                completed:
+                  t.completed_orders ??
+                  "Completed",
+                returned:
+                  t.returned_orders ??
+                  "Returned",
+                cancelled:
+                  t.cancelled_orders ??
+                  "Cancelled",
+              }[
+                currentTab
+              ]
+            }
           </p>
 
-          <p className="text-xs mt-1 opacity-90">
-            {tabOrders.length} · π
-            {formatPi(headerTotal)}
+          <p className="text-xs mt-1">
+            {
+              visibleOrders.length
+            }{" "}
+            · π
+            {formatPi(
+              headerTotal
+            )}
           </p>
         </div>
       </header>
 
-      {/* SEARCH / FILTER */}
+      {/* FILTER */}
       <OrderFilterBar
         orders={orders}
-        onFiltered={() => {
-          /* giữ nguyên component cũ */
-        }}
+        onFiltered={
+          setFilteredOrders
+        }
       />
 
       {/* LIST */}
       <OrdersList
-        orders={tabOrders}
-        initialTab={currentTab}
-        onTabChange={(tab) =>
-          setCurrentTab(tab as TabType)
+        orders={baseOrders}
+        onClick={(id) =>
+          router.push(
+            `/seller/orders/${id}`
+          )
         }
-        onClick={() => {}}
-        renderActions={(order) => (
+        initialTab={
+          currentTab
+        }
+        onTabChange={(
+          tab
+        ) =>
+          setCurrentTab(
+            tab
+          )
+        }
+        renderActions={(
+          order
+        ) => (
           <OrderActions
-            status={order.status}
+            orderId={
+              order.id
+            }
+            status={
+              order.status
+            }
             loading={
-              processingId === order.id
+              processingId ===
+              order.id
             }
             onDetail={() =>
               router.push(
@@ -409,31 +705,29 @@ export default function SellerOrdersPage() {
               )
             }
             onConfirm={() => {
-              setSellerMessage(
-                t.order_thank_you_message ??
-                  "Thank you for your order ❤️"
-              );
-
               setShowConfirmFor(
                 order.id
               );
               setShowCancelFor(
                 null
               );
+              setSellerMessage(
+                t.order_thank_you_message ??
+                  "Thank you ❤️"
+              );
             }}
             onCancel={() => {
+              setShowCancelFor(
+                order.id
+              );
+              setShowConfirmFor(
+                null
+              );
               setSelectedReason(
                 ""
               );
               setCustomReason(
                 ""
-              );
-
-              setShowCancelFor(
-                order.id
-              );
-              setShowConfirmFor(
-                null
               );
             }}
             onShipping={() =>
@@ -443,108 +737,102 @@ export default function SellerOrdersPage() {
             }
           />
         )}
-        renderExtra={(order) => (
+        renderExtra={(
+          order
+        ) => (
           <>
             {/* CONFIRM */}
             {showConfirmFor ===
               order.id && (
-              <div className="bg-white border rounded-2xl p-4 mt-3 space-y-4 shadow-sm">
-                <p className="text-sm font-medium">
+              <div className="mt-3 bg-white border rounded-2xl p-4 shadow-sm space-y-3">
+                <p className="text-sm font-semibold">
                   {t.confirm_order ??
-                    "Confirm order"}
+                    "Confirm Order"}
                 </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    t.quick_thank_you ??
-                      "Thank you ❤️",
-                    t.quick_ship_soon ??
-                      "We will ship soon 🚚",
-                    t.quick_have_nice_day ??
-                      "Have a nice day 🌟",
-                  ].map((msg) => (
-                    <button
-                      key={msg}
-                      type="button"
-                      onClick={() =>
-                        setSellerMessage(
-                          msg
-                        )
-                      }
-                      className="px-3 py-1.5 text-xs rounded-lg border active:scale-95"
-                    >
-                      {msg}
-                    </button>
-                  ))}
-                </div>
 
                 <textarea
                   rows={3}
                   value={
                     sellerMessage
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setSellerMessage(
-                      e.target.value
+                      e
+                        .target
+                        .value
                     )
                   }
                   className="w-full border rounded-xl p-3 text-sm"
-                  placeholder={
-                    t.enter_message ??
-                    "Enter message"
-                  }
                 />
 
-                <button
-                  type="button"
-                  disabled={
-                    !sellerMessage.trim()
-                  }
-                  onClick={() =>
-                    handleConfirm(
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() =>
+                      setShowConfirmFor(
+                        null
+                      )
+                    }
+                    className="py-2 border rounded-xl"
+                  >
+                    {t.close ??
+                      "Close"}
+                  </button>
+
+                  <button
+                    disabled={
+                      processingId ===
                       order.id
-                    )
-                  }
-                  className="w-full py-3 rounded-xl bg-green-600 text-white disabled:opacity-50"
-                >
-                  {t.confirm ??
-                    "Confirm"}
-                </button>
+                    }
+                    onClick={() =>
+                      handleConfirm(
+                        order.id
+                      )
+                    }
+                    className="py-2 bg-green-600 text-white rounded-xl disabled:opacity-50"
+                  >
+                    {t.confirm ??
+                      "Confirm"}
+                  </button>
+                </div>
               </div>
             )}
 
             {/* CANCEL */}
             {showCancelFor ===
               order.id && (
-              <div className="bg-white border rounded-2xl p-4 mt-3 space-y-4 shadow-sm">
-                <p className="text-sm font-medium">
+              <div className="mt-3 bg-white border rounded-2xl p-4 shadow-sm space-y-3">
+                <p className="text-sm font-semibold">
                   {t.cancel_order ??
-                    "Cancel order"}
+                    "Cancel Order"}
                 </p>
 
                 <div className="space-y-2">
-                  {sellerCancelReasons.map(
-                    (reason) => (
-                      <label
+                  {cancelReasons.map(
+                    (
+                      reason
+                    ) => (
+                      <button
                         key={
                           reason
                         }
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <input
-                          type="radio"
-                          checked={
-                            selectedReason ===
+                        onClick={() =>
+                          setSelectedReason(
                             reason
-                          }
-                          onChange={() =>
-                            setSelectedReason(
-                              reason
-                            )
-                          }
-                        />
-                        {reason}
-                      </label>
+                          )
+                        }
+                        className={`w-full text-left px-3 py-2 rounded-xl border ${
+                          selectedReason ===
+                          reason
+                            ? "border-red-500 bg-red-50 text-red-600"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        {
+                          reason
+                        }
+                      </button>
                     )
                   )}
                 </div>
@@ -560,41 +848,42 @@ export default function SellerOrdersPage() {
                       e
                     ) =>
                       setCustomReason(
-                        e.target.value
+                        e
+                          .target
+                          .value
                       )
                     }
-                    className="w-full border rounded-xl p-3 text-sm"
                     placeholder={
                       t.enter_reason ??
                       "Enter reason"
                     }
+                    className="w-full border rounded-xl p-3 text-sm"
                   />
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    type="button"
                     onClick={() =>
                       setShowCancelFor(
                         null
                       )
                     }
-                    className="py-3 border rounded-xl"
+                    className="py-2 border rounded-xl"
                   >
                     {t.close ??
                       "Close"}
                   </button>
 
                   <button
-                    type="button"
                     onClick={() =>
                       handleCancel(
                         order.id
                       )
                     }
-                    className="py-3 rounded-xl bg-red-500 text-white"
+                    className="py-2 bg-red-500 text-white rounded-xl"
                   >
-                    {t.ok ?? "OK"}
+                    {t.ok ??
+                      "OK"}
                   </button>
                 </div>
               </div>
@@ -603,36 +892,35 @@ export default function SellerOrdersPage() {
             {/* SHIPPING */}
             {confirmShippingId ===
               order.id && (
-              <div className="bg-white border rounded-2xl p-4 mt-3 shadow-sm">
-                <p className="text-sm font-medium">
-                  {t.confirm_shipping ??
-                    "Confirm shipping?"}
+              <div className="mt-3 bg-white border rounded-2xl p-4 shadow-sm space-y-3">
+                <p className="text-sm font-semibold">
+                  {t.start_shipping ??
+                    "Start shipping?"}
                 </p>
 
-                <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    type="button"
                     onClick={() =>
                       setConfirmShippingId(
                         null
                       )
                     }
-                    className="py-3 border rounded-xl"
+                    className="py-2 border rounded-xl"
                   >
                     {t.cancel ??
                       "Cancel"}
                   </button>
 
                   <button
-                    type="button"
                     onClick={() =>
                       handleShipping(
                         order.id
                       )
                     }
-                    className="py-3 rounded-xl bg-gray-800 text-white"
+                    className="py-2 bg-blue-600 text-white rounded-xl"
                   >
-                    {t.ok ?? "OK"}
+                    {t.ok ??
+                      "OK"}
                   </button>
                 </div>
               </div>
