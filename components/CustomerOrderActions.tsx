@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 type Props = {
   status: string;
   onDetail: () => void;
