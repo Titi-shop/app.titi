@@ -209,6 +209,9 @@ export default function CustomerOrdersPage() {
       {/* LIST */}
 <CustomerOrdersList
   orders={orders}
+
+  reviewedMap={reviewedMap}
+
   onDetail={(id) =>
     router.push(`/customer/orders/${id}`)
   }
@@ -227,7 +230,8 @@ export default function CustomerOrdersPage() {
         {
           method: "PATCH",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization:
+              `Bearer ${token}`,
           },
         }
       );
@@ -235,6 +239,10 @@ export default function CustomerOrdersPage() {
       mutate();
     } catch {}
   }}
+
+  onReview={(id) =>
+    setActiveReviewId(id)
+  }
 />
 
       {/* PREMIUM POPUP */}
