@@ -321,7 +321,7 @@ export default function CustomerOrdersPage() {
 
       {/* LIST */}
       <CustomerOrdersList
- initialTab={tabFromUrl}
+         initialTab="all"
         orders={orders}
         reviewedMap={reviewedMap}
         onDetail={(id) =>
