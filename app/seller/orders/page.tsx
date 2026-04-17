@@ -308,8 +308,9 @@ const SELLER_CANCEL_REASONS = [
 
             {/* CANCEL */}
             {showCancelFor === o.id && (
-  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-3">
+  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4">
 
+    {/* TITLE */}
     <p className="text-sm font-medium">
       {t.cancel_order ?? "Cancel order"}
     </p>
@@ -329,7 +330,7 @@ const SELLER_CANCEL_REASONS = [
       ))}
     </div>
 
-    {/* CUSTOM INPUT */}
+    {/* CUSTOM */}
     {selectedReason === (t.cancel_reason_other ?? "Other") && (
       <input
         value={customReason}
@@ -339,14 +340,26 @@ const SELLER_CANCEL_REASONS = [
       />
     )}
 
-    {/* BUTTON */}
-    <button
-      onClick={() => handleCancel(o.id)}
-      disabled={!selectedReason}
-      className="w-full bg-red-500 text-white py-2 rounded-lg active:scale-95 disabled:opacity-50"
-    >
-      {t.cancel ?? "Cancel"}
-    </button>
+    {/* ✅ ACTION BUTTONS */}
+    <div className="flex gap-2">
+
+      {/* CANCEL BUTTON */}
+      <button
+        onClick={() => setShowCancelFor(null)}
+        className="flex-1 py-2 border rounded-lg active:scale-95"
+      >
+        {t.close ?? "Cancel"}
+      </button>
+
+      {/* OK BUTTON */}
+      <button
+        onClick={() => handleCancel(o.id)}
+        className="flex-1 py-2 bg-red-500 text-white rounded-lg active:scale-95"
+      >
+        {t.ok ?? "OK"}
+      </button>
+
+    </div>
 
   </div>
 )}
