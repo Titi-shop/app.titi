@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState ,useEffect} from "react";
 import CustomerOrderCard from "./CustomerOrderCard";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
+  
   orders: any[];
+  initialTab?: string;
   onDetail: (id: string) => void;
   onCancel?: (id: string) => void;
   onReceived?: (id: string) => void;
@@ -27,7 +29,8 @@ export default function CustomerOrdersList({
   reviewedMap,
 }: Props) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] =
+  useState(initialTab || "all");
 
   const tabs = [
     ["all", t.all ?? "All"],
