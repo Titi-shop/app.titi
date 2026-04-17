@@ -1,22 +1,26 @@
 "use client";
 
-import { useMemo, useState ,useEffect} from "react";
+import {
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
+import { useSearchParams } from "next/navigation";
+
 import CustomerOrderCard from "./CustomerOrderCard";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
-  
   orders: any[];
   initialTab?: string;
+
   onDetail: (id: string) => void;
   onCancel?: (id: string) => void;
   onReceived?: (id: string) => void;
   onBuyAgain?: (id: string) => void;
   onReview?: (id: string) => void;
-  reviewedMap?: Record<
-    string,
-    boolean
-  >;
+
+  reviewedMap?: Record<string, boolean>;
 };
 
 export default function CustomerOrdersList({
@@ -31,13 +35,23 @@ export default function CustomerOrdersList({
 }: Props) {
   const { t } = useTranslation();
 
-const [tab, setTab] =
- useState(initialTab);
+  /* ================= URL TAB ================= */
+  const searchParams = useSearchParams();
 
-useEffect(() => {
-  setTab(initialTab);
-}, [initialTab]);
+  const urlTab =
+    searchParams.get("tab") ||
+    initialTab ||
+    "all";
 
+  /* ================= TAB STATE ================= */
+  const [tab, setTab] =
+    useState(urlTab);
+
+  useEffect(() => {
+    setTab(urlTab);
+  }, [urlTab]);
+
+  /* ================= TABS ================= */
   const tabs = [
     ["all", t.all ?? "All"],
     ["pending", t.order_pending ?? "Pending"],
@@ -47,9 +61,9 @@ useEffect(() => {
     ["cancelled", t.order_cancelled ?? "Cancelled"],
   ];
 
-  /* COUNT */
+  /* ================= COUNTS ================= */
   const counts = useMemo(() => {
-    const map: any = {
+    const map: Record<string, number> = {
       all: orders.length,
       pending: 0,
       confirmed: 0,
@@ -67,7 +81,7 @@ useEffect(() => {
     return map;
   }, [orders]);
 
-  /* FILTER */
+  /* ================= FILTERED ================= */
   const filtered = useMemo(() => {
     if (tab === "all") return orders;
 
@@ -76,14 +90,16 @@ useEffect(() => {
     );
   }, [orders, tab]);
 
+  /* ================= UI ================= */
   return (
     <>
       {/* TABS */}
-      <div className="bg-white border-b sticky top-0 z-10 overflow-x-auto whitespace-nowrap">
+      <div className="sticky top-0 z-10 bg-white border-b overflow-x-auto whitespace-nowrap">
         <div className="flex min-w-max px-2">
           {tabs.map(([key, label]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setTab(key)}
               className={`px-4 py-3 border-b-2 text-sm transition ${
                 tab === key
@@ -91,7 +107,7 @@ useEffect(() => {
                   : "border-transparent text-gray-500"
               }`}
             >
-              {label} ({counts[key]})
+              {label} ({counts[key] ?? 0})
             </button>
           ))}
         </div>
@@ -100,39 +116,33 @@ useEffect(() => {
       {/* LIST */}
       <div className="p-4 space-y-4">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center text-gray-400 text-sm">
+          <div className="bg-white rounded-xl p-8 text-center text-sm text-gray-400">
             {t.no_orders ?? "No orders"}
           </div>
         ) : (
           filtered.map((order) => (
             <CustomerOrderCard
-  key={order.id}
-  order={order}
-
-  reviewed={
-    reviewedMap?.[order.id]
-  }
-
-  onDetail={() =>
-    onDetail(order.id)
-  }
-
-  onCancel={() =>
-    onCancel?.(order.id)
-  }
-
-  onReceived={() =>
-    onReceived?.(order.id)
-  }
-
-  onBuyAgain={() =>
-    onBuyAgain?.(order.id)
-  }
-
-  onReview={() =>
-    onReview?.(order.id)
-  }
-/>
+              key={order.id}
+              order={order}
+              reviewed={
+                reviewedMap?.[order.id]
+              }
+              onDetail={() =>
+                onDetail(order.id)
+              }
+              onCancel={() =>
+                onCancel?.(order.id)
+              }
+              onReceived={() =>
+                onReceived?.(order.id)
+              }
+              onBuyAgain={() =>
+                onBuyAgain?.(order.id)
+              }
+              onReview={() =>
+                onReview?.(order.id)
+              }
+            />
           ))
         )}
       </div>
