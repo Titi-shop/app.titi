@@ -1,18 +1,21 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
+
 import { getPiAccessToken } from "@/lib/piAuth";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 import {
   Clock3,
-  BadgeCheck,
+  PackageCheck,
   Truck,
-  Star,
+  CheckCircle2,
+  XCircle,
   RotateCcw,
+  ChevronRight,
 } from "lucide-react";
-
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =====================================================
    FETCHER
@@ -21,7 +24,6 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 const fetcher = async (url: string) => {
   try {
     const token = await getPiAccessToken();
-
     if (!token) return null;
 
     const res = await fetch(url, {
@@ -44,8 +46,8 @@ const fetcher = async (url: string) => {
 ===================================================== */
 
 export default function OrderSummary() {
-  const { t } = useTranslation();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const { data, isLoading } = useSWR(
     "/api/orders/count",
@@ -57,42 +59,49 @@ export default function OrderSummary() {
     }
   );
 
-  /* safe count */
   const counts = {
     pending: Number(data?.pending ?? 0),
     confirmed: Number(data?.confirmed ?? 0),
     shipping: Number(data?.shipping ?? 0),
     completed: Number(data?.completed ?? 0),
     cancelled: Number(data?.cancelled ?? 0),
+    returns: Number(data?.returns ?? 0),
   };
 
-  /* helper push status */
-  function go(status: string) {
-    router.push(
-      `/customer/orders?tab=${status}`
-    );
-  }
+  const go = (tab: string) => {
+    router.push(`/customer/orders?tab=${tab}`);
+  };
 
   return (
-    <section className="bg-white mx-4 mt-4 rounded-2xl border shadow-sm overflow-hidden">
+    <section className="mx-4 mt-4 overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-sm">
       {/* HEADER */}
-      <div
-        onClick={() =>
-          router.push("/customer/orders")
-        }
-        className="px-4 py-4 border-b flex items-center justify-between cursor-pointer active:bg-gray-50"
+      <button
+        type="button"
+        onClick={() => router.push("/customer/orders")}
+        className="w-full px-5 py-4 flex items-center justify-between active:bg-gray-50 transition"
       >
-        <h2 className="text-base font-semibold text-gray-800">
-          {t.orders ?? "Orders"}
-        </h2>
+        <div className="text-left">
+          <h2 className="text-[17px] font-semibold text-gray-900">
+            {t.orders ?? "Orders"}
+          </h2>
 
-        <span className="text-orange-500 font-bold text-lg">
-          →
-        </span>
-      </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {t.track_orders ??
+              "Track, manage and review purchases"}
+          </p>
+        </div>
 
-      {/* GRID */}
-      <div className="grid grid-cols-5 py-4">
+        <ChevronRight
+          size={18}
+          className="text-gray-400"
+        />
+      </button>
+
+      {/* DIVIDER */}
+      <div className="h-px bg-gray-100" />
+
+      {/* MAIN GRID */}
+      <div className="grid grid-cols-4 gap-y-5 px-3 py-5">
         <Item
           icon={<Clock3 size={20} />}
           label={
@@ -101,15 +110,11 @@ export default function OrderSummary() {
           }
           count={counts.pending}
           loading={isLoading}
-          onClick={() =>
-            go("pending")
-          }
+          onClick={() => go("pending")}
         />
 
         <Item
-          icon={
-            <BadgeCheck size={20} />
-          }
+          icon={<PackageCheck size={20} />}
           label={
             t.confirmed_orders ??
             "Confirmed"
@@ -129,13 +134,13 @@ export default function OrderSummary() {
           }
           count={counts.shipping}
           loading={isLoading}
-          onClick={() =>
-            go("shipping")
-          }
+          onClick={() => go("shipping")}
         />
 
         <Item
-          icon={<Star size={20} />}
+          icon={
+            <CheckCircle2 size={20} />
+          }
           label={
             t.completed_orders ??
             "Completed"
@@ -148,9 +153,7 @@ export default function OrderSummary() {
         />
 
         <Item
-          icon={
-            <RotateCcw size={20} />
-          }
+          icon={<XCircle size={20} />}
           label={
             t.cancelled_orders ??
             "Cancelled"
@@ -159,6 +162,21 @@ export default function OrderSummary() {
           loading={isLoading}
           onClick={() =>
             go("cancelled")
+          }
+        />
+
+        <Item
+          icon={
+            <RotateCcw size={20} />
+          }
+          label={
+            t.returns_orders ??
+            "Returns"
+          }
+          count={counts.returns}
+          loading={isLoading}
+          onClick={() =>
+            go("returns")
           }
         />
       </div>
@@ -187,19 +205,19 @@ function Item({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center justify-start h-[88px] px-1 active:scale-95 transition"
+      className="group flex flex-col items-center px-1 active:scale-95 transition-transform"
     >
       {/* ICON */}
-      <div className="relative flex items-center justify-center w-11 h-11 rounded-full bg-gray-100 shadow-sm mb-1 text-gray-700">
+      <div className="relative mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-gray-700 shadow-sm transition group-active:bg-orange-50">
         {icon}
 
         {/* BADGE */}
         {loading ? (
-          <span className="absolute -top-1 -right-1 w-[18px] h-[18px] rounded-full bg-gray-300 animate-pulse" />
+          <span className="absolute -right-1 -top-1 h-[18px] w-[18px] rounded-full bg-gray-300 animate-pulse" />
         ) : typeof count ===
             "number" &&
           count > 0 ? (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+          <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
             {count > 99
               ? "99+"
               : count}
@@ -208,7 +226,7 @@ function Item({
       </div>
 
       {/* TEXT */}
-      <span className="text-[11px] leading-tight text-center text-gray-700 line-clamp-2">
+      <span className="text-[11px] leading-tight text-center text-gray-700 font-medium line-clamp-2">
         {label}
       </span>
     </button>
