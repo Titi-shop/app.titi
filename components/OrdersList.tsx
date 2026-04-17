@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState ,useEffect} from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import OrderCard from "./OrderCard";
 
@@ -61,12 +61,15 @@ export default function OrdersList({
   onClick,
   initialTab = "all",
   renderActions,
-  renderExtra, // ✅ THÊM DÒNG NÀY
+  renderExtra,
+  onTabChange,
 }: Props) {
   const { t } = useTranslation();
 
   const [tab, setTab] = useState<OrderTab>(initialTab);
-
+useEffect(() => {
+  setTab(initialTab);
+}, [initialTab]);
   /* ================= FILTER ================= */
 
   const filtered = useMemo(() => {
