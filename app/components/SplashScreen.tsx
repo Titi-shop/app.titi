@@ -12,7 +12,7 @@ export default function SplashScreen() {
 
         {/* logo */}
         <img
-          src="/banners/E2377D9D-4E64-4623-A882-B62255CA0114.jpeg"
+          src="/banners/DBE94A15-CF90-4A70-A170-77575B8E68B2.png"
           alt="logo"
           className="w-12 h-12 object-contain animate-pulse"
         />
