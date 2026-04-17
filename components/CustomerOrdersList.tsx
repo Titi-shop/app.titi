@@ -6,11 +6,15 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
   orders: any[];
-
   onDetail: (id: string) => void;
   onCancel?: (id: string) => void;
   onReceived?: (id: string) => void;
   onBuyAgain?: (id: string) => void;
+  onReview?: (id: string) => void;
+  reviewedMap?: Record<
+    string,
+    boolean
+  >;
 };
 
 export default function CustomerOrdersList({
@@ -19,9 +23,10 @@ export default function CustomerOrdersList({
   onCancel,
   onReceived,
   onBuyAgain,
+  onReview,
+  reviewedMap,
 }: Props) {
   const { t } = useTranslation();
-
   const [tab, setTab] = useState("all");
 
   const tabs = [
@@ -92,21 +97,33 @@ export default function CustomerOrdersList({
         ) : (
           filtered.map((order) => (
             <CustomerOrderCard
-              key={order.id}
-              order={order}
-              onDetail={() =>
-                onDetail(order.id)
-              }
-              onCancel={() =>
-                onCancel?.(order.id)
-              }
-              onReceived={() =>
-                onReceived?.(order.id)
-              }
-              onBuyAgain={() =>
-                onBuyAgain?.(order.id)
-              }
-            />
+  key={order.id}
+  order={order}
+
+  reviewed={
+    reviewedMap?.[order.id]
+  }
+
+  onDetail={() =>
+    onDetail(order.id)
+  }
+
+  onCancel={() =>
+    onCancel?.(order.id)
+  }
+
+  onReceived={() =>
+    onReceived?.(order.id)
+  }
+
+  onBuyAgain={() =>
+    onBuyAgain?.(order.id)
+  }
+
+  onReview={() =>
+    onReview?.(order.id)
+  }
+/>
           ))
         )}
       </div>
