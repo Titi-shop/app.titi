@@ -553,7 +553,56 @@ const [confirmReceivedFor, setConfirmReceivedFor] =
                   "Submit"}
               </button>
             </div>
+{confirmReceivedFor && (
+  <div className="fixed inset-0 z-50">
+    <div
+      onClick={() =>
+        setConfirmReceivedFor(null)
+      }
+      className="absolute inset-0 bg-black/40"
+    />
 
+    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+
+      <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+
+      <h3 className="text-lg font-semibold text-center">
+        {t.received ?? "Received"}
+      </h3>
+
+      <p className="text-sm text-gray-500 text-center mt-2">
+        {t.confirm_received_order ??
+          "Confirm that you received this order?"}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 mt-6">
+
+        <button
+          onClick={() =>
+            setConfirmReceivedFor(null)
+          }
+          className="py-3 border rounded-xl font-medium"
+        >
+          {t.cancel ?? "Cancel"}
+        </button>
+
+        <button
+          onClick={async () => {
+            await handleReceived(
+              confirmReceivedFor
+            );
+
+            setConfirmReceivedFor(null);
+          }}
+          className="py-3 bg-green-600 text-white rounded-xl font-medium"
+        >
+          {t.ok ?? "OK"}
+        </button>
+
+      </div>
+    </div>
+  </div>
+)}
           </div>
         </div>
       )}
