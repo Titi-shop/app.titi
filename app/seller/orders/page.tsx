@@ -145,6 +145,7 @@ export default function SellerOrdersPage() {
 });
 
       setShowConfirmFor(null);
+      setSellerMessage("");
       mutate();
     } finally {
       setProcessingId(null);
