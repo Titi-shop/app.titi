@@ -135,6 +135,41 @@ export default function CustomerOrdersPage() {
         }),
       }
     );
+    async function handleCancel(orderId: string) {
+  const reason =
+    selectedReason === "cancel_reason_other"
+      ? customReason
+      : selectedReason;
+
+  if (!reason.trim()) {
+    showToast("Select reason");
+    return;
+  }
+
+  try {
+    setProcessingId(orderId);
+
+    const token = await getPiAccessToken();
+
+    await fetch(`/api/orders/${orderId}/cancel`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cancel_reason: reason,
+      }),
+    });
+
+    await mutate();
+    resetCancel();
+
+    showToast("Cancelled");
+  } finally {
+    setProcessingId(null);
+  }
+}
 
     if (!res.ok) {
       throw new Error();
