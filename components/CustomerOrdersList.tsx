@@ -29,8 +29,13 @@ export default function CustomerOrdersList({
   reviewedMap,
 }: Props) {
   const { t } = useTranslation();
-  const [tab, setTab] =
+
+const [tab, setTab] =
   useState(initialTab || "all");
+
+useEffect(() => {
+  setTab(initialTab || "all");
+}, [initialTab]);
 
   const tabs = [
     ["all", t.all ?? "All"],
