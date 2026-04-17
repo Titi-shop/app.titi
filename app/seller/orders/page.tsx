@@ -11,7 +11,7 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { formatPi } from "@/lib/pi";
-
+import OrderFilterBar from "@/components/OrderFilterBar";
 import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
 
@@ -120,7 +120,7 @@ const [customReason, setCustomReason] = useState("");
  const [currentTab, setCurrentTab] = useState<OrderStatus | "all">("pending");
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
-
+const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
 const SELLER_CANCEL_REASONS = [
   t.cancel_reason_out_of_stock ?? "Out of stock",
@@ -245,14 +245,27 @@ currentTab.toUpperCase()
      </p>
 
       <p className="text-xs">
-  {statsByStatus[currentTab].count} · π
+  {const currentList =
+  filteredOrders.length ? filteredOrders : orders;
+
+const headerStats = currentList.filter(
+  (o) => currentTab === "all" || o.status === currentTab
+);
+
+const headerTotal = headerStats.reduce(
+  (s, o) => s + o.total,
+  0
+);.count} · π
   {formatPi(statsByStatus[currentTab].total)}
        </p>
         </div>
       </header>
-
+<OrderFilterBar
+  orders={orders}
+  onFiltered={setFilteredOrders}
+/>
       <OrdersList
-        orders={orders}
+        orders={filteredOrders.length ? filteredOrders : orders}
         onClick={() => {}}
         initialTab="pending"
        onTabChange={(tab) => setCurrentTab(tab)}
