@@ -21,6 +21,7 @@ type Props = {
 
 export default function CustomerOrdersList({
   orders,
+  initialTab = "all",
   onDetail,
   onCancel,
   onReceived,
@@ -31,10 +32,10 @@ export default function CustomerOrdersList({
   const { t } = useTranslation();
 
 const [tab, setTab] =
-  useState(initialTab || "all");
+ useState(initialTab);
 
 useEffect(() => {
-  setTab(initialTab || "all");
+  setTab(initialTab);
 }, [initialTab]);
 
   const tabs = [
