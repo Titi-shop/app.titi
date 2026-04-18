@@ -139,8 +139,14 @@ export async function createReturn(
       }
 
       const refundAmount =
-        Number(item.unit_price) *
-        Number(item.quantity);
+  Number(item.unit_price) *
+  Number(item.quantity);
+
+console.log("[RETURN DEBUG]", {
+  unit_price: item.unit_price,
+  quantity: item.quantity,
+  refundAmount,
+});
 
       /* ================= CREATE CASE ================= */
       const returnNumber = `RET-${Date.now()}`;
