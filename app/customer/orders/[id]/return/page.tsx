@@ -86,9 +86,7 @@ export default function OrderReturnPage() {
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const list = e.target.files;
     if (!list) return;
-
     const selected = Array.from(list).slice(0, 3);
-
     for (const f of selected) {
       if (f.size > 2 * 1024 * 1024) {
         setError("Max 2MB/image");
@@ -113,7 +111,7 @@ export default function OrderReturnPage() {
 
   for (const file of files) {
     /* 1. lấy signed url */
-    const res = await apiAuthFetch("/api/upload-url", {
+    const res = await apiAuthFetch("/api/returns/upload-url", {
       method: "POST",
     });
 
@@ -176,10 +174,11 @@ export default function OrderReturnPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Submit failed");
-      return;
-    }
+  const data = await res.json().catch(() => null);
+  console.error("RETURN ERROR:", data);
+  setError(data?.error ?? "Submit failed");
+  return;
+}
 
     router.push("/customer/returns");
 
