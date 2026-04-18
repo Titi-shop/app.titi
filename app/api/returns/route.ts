@@ -123,111 +123,82 @@ export async function GET() {
    POST /api/returns
 ===================================================== */
 
-export async function POST(
-  req: NextRequest
-) {
+export async function POST(req: NextRequest) {
+  console.log("🚀 [RETURNS API] START");
+
   try {
-    const auth =
-      await requireAuth();
+    /* ================= AUTH ================= */
+    const auth = await requireAuth();
+
+    console.log("🔐 [RETURNS API] AUTH:", auth);
 
     if (!auth.ok) {
+      console.error("❌ [RETURNS API] UNAUTHORIZED");
       return auth.response;
     }
 
-    const userId =
-      auth.userId;
+    const userId = auth.userId;
 
-    const body =
-      (await req.json()) as CreateReturnBody;
+    console.log("👤 [RETURNS API] USER:", userId);
 
-    const orderId =
-      body.orderId?.trim() ?? "";
+    /* ================= BODY ================= */
+    let body: CreateReturnBody;
 
-    const orderItemId =
-      body.orderItemId?.trim() ??
-      "";
+    try {
+      body = (await req.json()) as CreateReturnBody;
+    } catch (err) {
+      console.error("❌ [RETURNS API] INVALID JSON");
+      return errorJson("INVALID_JSON", 400);
+    }
 
-    const reason =
-      body.reason?.trim() ?? "";
+    console.log("📦 [RETURNS API] BODY RAW:", body);
 
-    const description =
-      body.description?.trim() ??
-      "";
+    const orderId = body.orderId?.trim() ?? "";
+    const orderItemId = body.orderItemId?.trim() ?? "";
+    const reason = body.reason?.trim() ?? "";
+    const description = body.description?.trim() ?? "";
 
-    const images = Array.isArray(
-      body.images
-    )
+    const images = Array.isArray(body.images)
       ? body.images.filter(
-          (
-            value
-          ): value is string =>
-            typeof value ===
-              "string" &&
-            value.trim()
-              .length > 0
+          (v): v is string =>
+            typeof v === "string" && v.trim().length > 0
         )
       : [];
 
+    console.log("📦 [RETURNS API] PARSED:", {
+      orderId,
+      orderItemId,
+      reason,
+      description,
+      images,
+    });
+
     /* ================= VALIDATE ================= */
 
-    if (
-      !orderId ||
-      !orderItemId ||
-      !reason
-    ) {
-      return errorJson(
-        "INVALID_INPUT",
-        400
-      );
+    if (!orderId || !orderItemId || !reason) {
+      console.error("❌ [RETURNS API] INVALID_INPUT");
+      return errorJson("INVALID_INPUT", 400);
     }
 
-    if (
-      !isValidUuid(orderId) ||
-      !isValidUuid(orderItemId)
-    ) {
-      return errorJson(
-        "INVALID_UUID",
-        400
-      );
+    if (!isValidUuid(orderId) || !isValidUuid(orderItemId)) {
+      console.error("❌ [RETURNS API] INVALID_UUID");
+      return errorJson("INVALID_UUID", 400);
     }
 
-    if (
-      reason.length > 120
-    ) {
-      return errorJson(
-        "INVALID_REASON",
-        400
-      );
-    }
+    /* ================= CREATE ================= */
 
-    if (
-      description.length >
-      2000
-    ) {
-      return errorJson(
-        "INVALID_DESCRIPTION",
-        400
-      );
-    }
+    console.log("🟡 [RETURNS API] CALL createReturn");
 
-    if (
-      images.length > 10
-    ) {
-      return errorJson(
-        "TOO_MANY_IMAGES",
-        400
-      );
-    }
+    const returnId = await createReturn(
+      userId,
+      orderId,
+      orderItemId,
+      reason,
+      description,
+      images
+    );
 
-    const returnId =
-      await createReturn(
-        userId,
-        orderId,
-        orderItemId,
-        reason,
-        description,
-        images
-      );
+    console.log("🟢 [RETURNS API] SUCCESS:", returnId);
 
     return NextResponse.json(
       {
@@ -236,7 +207,10 @@ export async function POST(
       },
       { status: 201 }
     );
+
   } catch (error) {
+    console.error("💥 [RETURNS API] ERROR:", error);
+
     return mapError(error);
   }
 }
