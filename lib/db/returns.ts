@@ -186,42 +186,42 @@ export async function createReturn(
 
       /* ================= ITEM SNAPSHOT ================= */
       await client.query(
-        `
-        INSERT INTO return_items (
-          return_id,
-          order_item_id,
-          product_id,
-          variant_id,
-          product_name,
-          product_slug,
-          thumbnail,
-          unit_price,
-          quantity,
-          total_price,
-          return_quantity,
-          refund_amount,
-          reason
-        )
-        VALUES (
-          $1,$2,$3,$4,$5,$6,$7,
-          $8,$9,$10,$11,$12,$13
-        )
-        `,
-        [
-          returnId,
-          orderItemId,
-          item.product_id,
-          item.variant_id,
-          item.product_name,
-          item.product_slug,
-          item.thumbnail,
-          item.unit_price,
-          item.quantity,
-          refundAmount,
-          item.quantity,
-          refundAmount,
-          reason,
-        ]
+  `
+  INSERT INTO return_items (
+    return_id,
+    order_item_id,
+    product_id,
+    variant_id,
+    product_name,
+    product_slug,
+    thumbnail,
+    unit_price,
+    quantity,
+    total_price,
+    return_quantity,
+    refund_amount,
+    reason
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,$6,$7,
+    $8,$9,$10,$11,$12,$13
+  )
+  `,
+  [
+    returnId,
+    orderItemId,
+    item.product_id,
+    item.variant_id,
+    item.product_name,
+    item.product_slug,
+    item.thumbnail,
+    unitPrice,
+    quantity,
+    unitPrice * quantity, 
+    quantity,
+    refundAmount,
+    reason,
+  ]
       );
 
       return returnId;
