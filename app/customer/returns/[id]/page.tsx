@@ -68,41 +68,37 @@ const returnId = Array.isArray(params?.id)
   ========================= */
 
   async function loadReturn(): Promise<void> {
-    try {
-      const token = await getPiAccessToken();
+  try {
+    const token = await getPiAccessToken();
 
-if (!token) {
-  console.error("Pi token missing");
-  setLoading(false);
-  return;
-}
-
-      const res = fetch(`/api/returns/${returnId}`, {
-  method: "GET",
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-  cache: "no-store",
-});
-
-      if (!res.ok) {
-  console.error("Return API error:", res.status);
-  setData(null);
-  return;
-}
-
-      const list: ReturnRecord[] = await res.json();
-
-      const record = list.find((r) => r.id === returnId) ?? null;
-
-      setData(record);
-    } catch (err) {
-      console.error("Load return error:", err);
-      setData(null);
-    } finally {
+    if (!token) {
       setLoading(false);
+      return;
     }
+
+    const res = await fetch(`/api/returns/${returnId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      setData(null);
+      return;
+    }
+
+    const record: ReturnRecord = await res.json();
+
+    setData(record);
+
+  } catch {
+    setData(null);
+  } finally {
+    setLoading(false);
   }
+}
 
   /* =========================
   STATUS COLOR
