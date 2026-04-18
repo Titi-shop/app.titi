@@ -138,9 +138,13 @@ export async function createReturn(
         );
       }
 
-      const refundAmount =
-  Number(item.unit_price) *
-  Number(item.quantity);
+      const unitPrice = Number(item.unit_price);
+const quantity = Number(item.quantity);
+if (Number.isNaN(unitPrice) || Number.isNaN(quantity)) {
+  throw new Error("INVALID_NUMBER");
+}
+const totalPrice = unitPrice * quantity;
+const refundAmount = totalPrice;
 
 console.log("[RETURN DEBUG]", {
   unit_price: item.unit_price,
@@ -221,14 +225,15 @@ console.log("[RETURN DEBUG]", {
     item.product_name,
     item.product_slug,
     item.thumbnail,
-    unitPrice,
-    quantity,
-    unitPrice * quantity, 
-    quantity,
+
+    unitPrice,   // ✅ FIX
+    quantity,    // ✅ FIX
+    totalPrice,  // ✅ FIX
+    quantity,    // ✅ FIX
     refundAmount,
     reason,
   ]
-      );
+);
 
       return returnId;
     }
