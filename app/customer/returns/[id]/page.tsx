@@ -51,9 +51,7 @@ export default function ReturnDetailPage() {
 const returnId = Array.isArray(params?.id)
   ? params.id[0]
   : params?.id;
-
   const { user, loading: authLoading } = useAuth();
-
   const [data, setData] = useState<ReturnRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +77,7 @@ if (!token) {
   return;
 }
 
-      const res = await fetch("/api/returns", {
+      const res = fetch(`/api/returns/${returnId}`, {
   method: "GET",
   headers: {
     Authorization: `Bearer ${token}`,
