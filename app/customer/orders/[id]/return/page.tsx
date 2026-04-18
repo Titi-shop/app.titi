@@ -1,7 +1,6 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
 import useSWR from "swr";
 import { useState, ChangeEvent, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -110,75 +109,86 @@ export default function OrderReturnPage() {
   /* ================= UPLOAD ================= */
 
   async function uploadImages(): Promise<string[]> {
-    const urls: string[] = [];
+  const urls: string[] = [];
 
-    for (const file of files) {
-      const form = new FormData();
-      form.append("file", file);
+  for (const file of files) {
+    /* 1. lấy signed url */
+    const res = await apiAuthFetch("/api/upload-url", {
+      method: "POST",
+    });
 
-      const res = await apiAuthFetch("/api/upload", {
-        method: "POST",
-        body: form,
-      });
-
-      if (!res.ok) throw new Error("UPLOAD_FAILED");
-
-      const data = await res.json();
-      urls.push(data.url);
+    if (!res.ok) {
+      throw new Error("SIGNED_URL_FAILED");
     }
+    const data = await res.json();
+    const { uploadUrl, publicUrl } = data;
 
-    return urls;
+    /* 2. upload trực tiếp */
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+    if (!uploadRes.ok) {
+      throw new Error("UPLOAD_FAILED");
+    }
+    /* 3. lưu public url */
+    urls.push(publicUrl);
   }
+  return urls;
+}
 
   /* ================= SUBMIT ================= */
 
   async function handleSubmit() {
-    if (!orderItemId) {
-      setError("Order item not found");
-      return;
-    }
-
-    if (!reason.trim()) {
-      setError("Reason required");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setError(null);
-
-      /* upload first */
-      const imageUrls = await uploadImages();
-
-      /* send JSON */
-      const res = await apiAuthFetch("/api/returns", {
-        method: "POST",
-        body: JSON.stringify({
-          orderId,
-          orderItemId,
-          reason,
-          description,
-          images: imageUrls,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Submit failed");
-        return;
-      }
-
-      router.push("/customer/returns");
-    } catch (e) {
-      setError("System error");
-    } finally {
-      setSubmitting(false);
-    }
+  if (!orderItemId) {
+    setError("Order item not found");
+    return;
   }
 
+  if (!reason.trim()) {
+    setError("Reason required");
+    return;
+  }
+
+  try {
+    setSubmitting(true);
+    setError(null);
+
+    /* upload ảnh trước */
+    const imageUrls = await uploadImages();
+
+    /* gửi JSON */
+    const res = await apiAuthFetch("/api/returns", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        orderId,
+        orderItemId,
+        reason,
+        description,
+        images: imageUrls,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? "Submit failed");
+      return;
+    }
+
+    router.push("/customer/returns");
+
+  } catch {
+    setError("System error");
+  } finally {
+    setSubmitting(false);
+  }
+}
   /* ================= UI ================= */
 
   if (isLoading || authLoading) {
