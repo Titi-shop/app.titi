@@ -15,12 +15,12 @@ RETURN STATUS
 
 type ReturnStatus =
   | "pending"
-  | "seller_reviewing"
   | "approved"
+  | "rejected"
   | "shipping_back"
   | "received"
   | "refunded"
-  | "rejected";
+  | "cancelled";
 
 /* =========================
 TYPES
