@@ -104,27 +104,26 @@ const [initialScale, setInitialScale] = useState(1);
 
   /* ================= STATUS ================= */
 
-  function getStatusLabel(status: string) {
+  function getStatusColor(status: string) {
   switch (status) {
     case "pending":
-      return "Waiting approval";
+      return "bg-yellow-100 text-yellow-700";
     case "approved":
-      return "Approved";
+      return "bg-blue-100 text-blue-700";
     case "shipping_back":
-      return "Buyer returning";
+      return "bg-indigo-100 text-indigo-700";
     case "received":
-      return "Received";
+      return "bg-purple-100 text-purple-700";
     case "refund_pending":
-      return "Waiting buyer refund confirm";
+      return "bg-orange-100 text-orange-700";
     case "refunded":
-      return "Refunded";
+      return "bg-green-200 text-green-800";
     case "rejected":
-      return "Rejected";
+      return "bg-red-100 text-red-700";
     default:
-      return status;
+      return "bg-gray-100 text-gray-600";
   }
 }
-
   /* ================= IMAGE LIST ================= */
 
   const allImages: string[] = [
