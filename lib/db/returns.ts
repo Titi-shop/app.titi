@@ -69,11 +69,30 @@ export async function getReturnsByBuyer(
 
   const { rows } = await query<DbReturn>(
     `
-    SELECT id, return_number, status, refund_amount, currency, created_at
-    FROM returns
-    WHERE buyer_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
+    SELECT
+      r.id,
+      r.return_number,
+      r.status,
+      r.refund_amount,
+      r.currency,
+      r.created_at,
+
+      ri.product_name,
+      ri.thumbnail
+
+    FROM returns r
+
+    JOIN LATERAL (
+      SELECT product_name, thumbnail
+      FROM return_items
+      WHERE return_id = r.id
+      LIMIT 1
+    ) ri ON true
+
+    WHERE r.buyer_id = $1
+      AND r.deleted_at IS NULL
+
+    ORDER BY r.created_at DESC
     `,
     [buyerId]
   );
