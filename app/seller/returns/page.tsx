@@ -9,17 +9,23 @@ import { useAuth } from "@/context/AuthContext";
 
 /* ================= TYPES ================= */
 
-type ReturnRecord = {
+type ReturnStatus =
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refunded"
+  | "rejected";
+
+type ReturnItem = {
   id: string;
   return_number: string;
-  order_id: string;
-  status: string;
+  status: ReturnStatus;
   created_at: string;
 
-  /* NEW (API cần trả) */
-  product_name?: string;
-  thumbnail?: string;
-  quantity?: number;
+  product_name: string;
+  thumbnail: string;
+  quantity: number;
 };
 
 /* ================= PAGE ================= */
@@ -28,39 +34,43 @@ export default function SellerReturnsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  const [data, setData] = useState<ReturnRecord[]>([]);
+  const [items, setItems] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [tab, setTab] = useState<ReturnStatus | "all">("all");
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
     if (authLoading || !user) return;
     load();
-  }, [authLoading, user]);
+  }, [authLoading, user, tab]);
 
   async function load() {
     try {
-      console.log("🚀 [SELLER RETURNS] LOAD");
+      console.log("🚀 [RETURN DASHBOARD] LOAD:", tab);
 
-      const res = await apiAuthFetch("/api/seller/returns");
+      const url =
+        tab === "all"
+          ? "/api/seller/returns"
+          : `/api/seller/returns?status=${tab}`;
+
+      const res = await apiAuthFetch(url);
 
       if (!res.ok) {
-        console.error("❌ [SELLER RETURNS] API FAIL:", res.status);
+        console.error("❌ LOAD FAIL:", res.status);
         return;
       }
 
       const json = await res.json();
+      const list = json.items ?? [];
 
-      const list = Array.isArray(json)
-        ? json
-        : json.items ?? [];
+      console.log("📦 DATA:", list);
 
-      console.log("📦 [SELLER RETURNS] DATA:", list);
-
-      setData(list);
+      setItems(list);
 
     } catch (err) {
-      console.error("💥 [SELLER RETURNS] ERROR:", err);
+      console.error("💥 LOAD ERROR:", err);
     } finally {
       setLoading(false);
     }
@@ -68,112 +78,134 @@ export default function SellerReturnsPage() {
 
   /* ================= STATUS ================= */
 
-  function getColor(status: string) {
+  function getColor(status: ReturnStatus) {
     switch (status) {
       case "pending":
-        return "text-yellow-600";
+        return "bg-yellow-100 text-yellow-700";
       case "approved":
-        return "text-blue-600";
+        return "bg-blue-100 text-blue-700";
       case "shipping_back":
-        return "text-indigo-600";
+        return "bg-indigo-100 text-indigo-700";
       case "received":
-        return "text-purple-600";
+        return "bg-purple-100 text-purple-700";
       case "refunded":
-        return "text-green-600";
+        return "bg-green-100 text-green-700";
       case "rejected":
-        return "text-red-600";
+        return "bg-red-100 text-red-700";
       default:
-        return "text-gray-500";
+        return "bg-gray-100 text-gray-600";
     }
   }
 
-  function getStatusText(status: string) {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "approved":
-        return "Approved";
-      case "shipping_back":
-        return "Returning";
-      case "received":
-        return "Received";
-      case "refunded":
-        return "Refunded";
-      case "rejected":
-        return "Rejected";
-      default:
-        return status;
-    }
-  }
+  /* ================= TABS ================= */
+
+  const tabs: (ReturnStatus | "all")[] = [
+    "all",
+    "pending",
+    "approved",
+    "shipping_back",
+    "received",
+    "refunded",
+    "rejected",
+  ];
 
   /* ================= UI ================= */
 
-  if (loading) {
-    return <p className="p-4">Loading...</p>;
-  }
-
   return (
-    <main className="p-4 max-w-xl mx-auto space-y-4 bg-gray-100 min-h-screen">
+    <main className="min-h-screen bg-gray-100 pb-20">
 
-      <h1 className="text-lg font-bold">
-        🔄 Seller Returns
-      </h1>
+      {/* HEADER */}
+      <div className="bg-white px-4 py-3 border-b sticky top-0 z-10">
+        <h1 className="font-semibold text-lg">
+          🔄 Return Orders
+        </h1>
+      </div>
 
-      {data.length === 0 && (
-        <div className="text-center text-gray-500 bg-white p-6 rounded-xl">
-          No returns
+      {/* TABS */}
+      <div className="bg-white overflow-x-auto border-b">
+        <div className="flex gap-3 px-3 py-2 min-w-max">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1 text-sm rounded-full border ${
+                tab === t
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {data.map((r) => (
-        <div
-          key={r.id}
-          onClick={() => router.push(`/seller/returns/${r.id}`)}
-          className="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition flex gap-3"
-        >
-          {/* IMAGE */}
-          <div className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+      {/* LIST */}
+      <div className="p-3 space-y-3">
+
+        {loading && (
+          <p className="text-center text-gray-400">
+            Loading...
+          </p>
+        )}
+
+        {!loading && items.length === 0 && (
+          <div className="bg-white p-6 text-center text-gray-500 rounded-xl">
+            No return orders
+          </div>
+        )}
+
+        {items.map((item) => (
+          <div
+            key={item.id}
+            onClick={() =>
+              router.push(`/seller/returns/${item.id}`)
+            }
+            className="bg-white rounded-xl p-3 flex gap-3 shadow-sm hover:shadow-md transition cursor-pointer"
+          >
+            {/* IMAGE */}
             <img
-              src={r.thumbnail || "/placeholder.png"}
-              alt="product"
-              className="w-full h-full object-cover"
+              src={item.thumbnail || "/placeholder.png"}
+              className="w-20 h-20 object-cover rounded"
               onError={(e) => {
-                console.error("❌ IMAGE FAIL:", r.thumbnail);
                 e.currentTarget.src = "/placeholder.png";
               }}
             />
-          </div>
 
-          {/* INFO */}
-          <div className="flex-1 space-y-1">
+            {/* INFO */}
+            <div className="flex-1 flex flex-col justify-between">
 
-            <div className="flex justify-between">
-              <p className="text-sm font-semibold line-clamp-1">
-                {r.product_name || "Product"}
-              </p>
+              <div>
+                <p className="text-sm font-medium line-clamp-2">
+                  {item.product_name}
+                </p>
 
-              <span className={`text-xs font-medium ${getColor(r.status)}`}>
-                {getStatusText(r.status)}
-              </span>
+                <p className="text-xs text-gray-500 mt-1">
+                  Qty: {item.quantity}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-end mt-2">
+
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${getColor(
+                    item.status
+                  )}`}
+                >
+                  {item.status}
+                </span>
+
+                <span className="text-[10px] text-gray-400">
+                  {new Date(item.created_at).toLocaleString()}
+                </span>
+
+              </div>
+
             </div>
-
-            <p className="text-xs text-gray-500">
-              Qty: {r.quantity ?? 1}
-            </p>
-
-            <p className="text-[11px] text-gray-400">
-              #{r.return_number}
-            </p>
-
-            <p className="text-[10px] text-gray-400">
-              {new Date(r.created_at).toLocaleString()}
-            </p>
-
           </div>
+        ))}
 
-        </div>
-      ))}
-
+      </div>
     </main>
   );
 }
