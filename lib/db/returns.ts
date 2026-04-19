@@ -622,112 +622,24 @@ export async function updateReturnStatusBySeller(
     throw new Error("INVALID_STATE");
   }
 
-  // ❗ chống double refund
   if (ret.refunded_at) {
     throw new Error("ALREADY_REFUNDED");
   }
-
-  const amount = Number(ret.refund_amount);
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    throw new Error("INVALID_AMOUNT");
-  }
-
-  if (!ret.pi_payment_id) {
-    throw new Error("MISSING_PAYMENT_ID");
-  }
-
-  /* ================= LOAD ORDER ================= */
-
-  const { rows: orderRows } = await client.query<{
-    total: string;
-    buyer_id: string;
-  }>(
-    `
-    SELECT total, buyer_id
-    FROM orders
-    WHERE id = $1
-    LIMIT 1
-    `,
-    [ret.order_id]
-  );
-
-  const order = orderRows[0];
-
-  if (!order) {
-    throw new Error("ORDER_NOT_FOUND");
-  }
-
-  const originalAmount = Number(order.total);
-
-  if (Number.isNaN(originalAmount)) {
-    throw new Error("INVALID_ORDER_AMOUNT");
-  }
-
-  /* ================= SECURITY ================= */
-
-  if (amount > originalAmount) {
-    throw new Error("INVALID_REFUND_AMOUNT");
-  }
-
-  const { rows: buyerRows } = await client.query<{ buyer_id: string }>(
-    `
-    SELECT buyer_id
-    FROM returns
-    WHERE id = $1
-    LIMIT 1
-    `,
-    [returnId]
-  );
-
-  if (!buyerRows[0] || buyerRows[0].buyer_id !== order.buyer_id) {
-    throw new Error("PAYMENT_MISMATCH");
-  }
-
-  console.log("💰 [REFUND START]", {
-    returnId,
-    amount,
-  });
-
-  /* ================= CALL PI ================= */
-
-  const refundTxId = await refundPiPayment({
-    paymentId: ret.pi_payment_id,
-    amount,
-  });
-
-  /* ================= UPDATE RETURN ================= */
 
   await client.query(
     `
     UPDATE returns
     SET
-      status = 'refunded',
-      refunded_at = now(),
-      refund_txid = $1,
-      updated_at = now()
-    WHERE id = $2
-    `,
-    [refundTxId, returnId]
-  );
-
-  /* ================= UPDATE ORDER ================= */
-
-  await client.query(
-    `
-    UPDATE orders
-    SET
-      payment_status = 'refunded',
-      refunded_at = now(),
+      status = 'refund_pending',
+      received_at = now(),
       updated_at = now()
     WHERE id = $1
     `,
-    [ret.order_id]
+    [returnId]
   );
 
-  console.log("🟢 [REFUND SUCCESS]", {
+  console.log("🟡 [RETURN] WAITING BUYER REFUND APPROVAL", {
     returnId,
-    refundTxId,
   });
 
   return;
