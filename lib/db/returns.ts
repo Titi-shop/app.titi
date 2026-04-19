@@ -573,26 +573,27 @@ export async function updateReturnStatusBySeller(
     /* ================= LOCK RETURN ================= */
 
     const { rows } = await client.query<{
-      status: string;
-      refund_amount: string;
-      order_id: string;
-      pi_payment_id: string | null;
-      refunded_at: string | null;
-    }>(
-      `
-      SELECT
-        status,
-        refund_amount,
-        order_id,
-        pi_payment_id,
-        refunded_at
-      FROM returns
-      WHERE id = $1
-        AND seller_id = $2
-      FOR UPDATE
-      `,
-      [returnId, sellerId]
-    );
+  status: string;
+  refund_amount: string;
+  order_id: string;
+  pi_payment_id: string | null;
+  refunded_at: string | null;
+}>(
+  `
+  SELECT
+    r.status,
+    r.refund_amount,
+    r.order_id,
+    r.refunded_at,
+    o.pi_payment_id
+  FROM returns r
+  JOIN orders o ON o.id = r.order_id
+  WHERE r.id = $1
+    AND r.seller_id = $2
+  FOR UPDATE
+  `,
+  [returnId, sellerId]
+);
 
     const ret = rows[0];
 
