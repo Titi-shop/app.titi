@@ -48,7 +48,6 @@ const [dragging, setDragging] = useState(false);
 const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   useEffect(() => {
     load();
@@ -64,11 +63,8 @@ const [initialScale, setInitialScale] = useState(1);
         console.error("❌ API ERROR:", res.status);
         return;
       }
-
       const json = await res.json();
-
       console.log("📦 RETURN DATA:", json);
-
       setData(json);
     } catch (err) {
       console.error("💥 LOAD ERROR", err);
@@ -117,9 +113,7 @@ const [initialScale, setInitialScale] = useState(1);
   /* ================= UI ================= */
 
   if (loading) return <p className="p-4">Loading...</p>;
-
   if (!data) return <p className="p-4 text-red-500">Not found</p>;
-
   return (
     <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
 
@@ -198,7 +192,11 @@ const [initialScale, setInitialScale] = useState(1);
               <img
                 key={i}
                 src={src}
-                onClick={() => setPreviewIndex(i)}
+                onClick={() => {
+            setZoomImage(src);
+           setScale(1);
+            setPosition({ x: 0, y: 0 });
+              }}
                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                 className="w-24 h-24 object-cover rounded border cursor-pointer"
               />
@@ -264,10 +262,8 @@ const [initialScale, setInitialScale] = useState(1);
           setInitialDistance(distance);
           setInitialScale(scale);
         }
-
         if (e.touches.length === 1) {
-          const touch = e.touches[0;
-
+          const touch = e.touches[0];
           setDragging(true);
           setStart({
             x: touch.clientX - position.x,
