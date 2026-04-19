@@ -367,7 +367,12 @@ export async function getReturnByIdForSeller(
       reason,
       description,
       evidence_images,
-      created_at
+      created_at,
+      approved_at,
+      rejected_at,
+      shipped_back_at,
+      received_at,
+      refunded_at
     FROM returns
     WHERE id = $1
       AND seller_id = $2
@@ -379,9 +384,9 @@ export async function getReturnByIdForSeller(
 
   const ret = returnRows[0];
 
-  console.log("📦 RETURN RAW:", ret);
-
   if (!ret) return null;
+
+  console.log("📦 RETURN RAW:", ret);
 
   /* ================= ITEMS ================= */
 
@@ -400,15 +405,66 @@ export async function getReturnByIdForSeller(
 
   console.log("📦 ITEMS RAW:", itemRows);
 
-  /* ================= NORMALIZE ================= */
+  /* ================= FIX IMAGE ================= */
 
-  const evidenceImages = Array.isArray(ret.evidence_images)
-    ? ret.evidence_images
-    : [];
+  let evidenceImages: string[] = [];
+
+  if (Array.isArray(ret.evidence_images)) {
+    evidenceImages = ret.evidence_images.filter(
+      (url) =>
+        typeof url === "string" &&
+        url.startsWith("http")
+    );
+  }
+
+  console.log("🖼 CLEAN IMAGES:", evidenceImages);
+
+  /* ================= TIMELINE ================= */
+
+  const timeline = [
+    {
+      key: "created",
+      label: "Request created",
+      time: ret.created_at,
+    },
+    ret.approved_at && {
+      key: "approved",
+      label: "Seller approved",
+      time: ret.approved_at,
+    },
+    ret.rejected_at && {
+      key: "rejected",
+      label: "Rejected",
+      time: ret.rejected_at,
+    },
+    ret.shipped_back_at && {
+      key: "shipping_back",
+      label: "Buyer shipped back",
+      time: ret.shipped_back_at,
+    },
+    ret.received_at && {
+      key: "received",
+      label: "Seller received",
+      time: ret.received_at,
+    },
+    ret.refunded_at && {
+      key: "refunded",
+      label: "Refund completed",
+      time: ret.refunded_at,
+    },
+  ].filter(Boolean);
 
   return {
-    ...ret,
+    id: ret.id,
+    return_number: ret.return_number,
+    status: ret.status,
+    reason: ret.reason,
+    description: ret.description,
+
     evidence_images: evidenceImages,
+
+    timeline,
+
     items: itemRows.map((i) => ({
       product_name: i.product_name,
       thumbnail: i.thumbnail,
