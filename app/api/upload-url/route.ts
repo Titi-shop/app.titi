@@ -1,43 +1,43 @@
-app/api/upload-url/route.ts
-
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireSeller } from "@/lib/auth/guard";
 
-export const runtime = "nodejs"; // 🔥 đảm bảo dùng Node (crypto OK)
+export const runtime = "nodejs";
 
-export async function POST() {
+/* =====================================================
+   POST /api/upload-url (PRODUCT IMAGE)
+===================================================== */
+
+export async function POST(): Promise<NextResponse> {
+  console.log("🚀 [UPLOAD][PRODUCT] START");
+
   try {
-    console.log("🚀 CREATE SIGNED URL");
-
     /* ================= AUTH ================= */
     const auth = await requireSeller();
 
-    if (!auth?.ok) {
-      console.error("❌ AUTH FAILED");
-      return auth.response ?? NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+    if (!auth.ok) {
+      console.error("❌ [UPLOAD][PRODUCT] UNAUTHORIZED");
+      return auth.response;
     }
 
     const userId = auth.userId;
 
-    if (!userId) {
-      console.error("❌ NO USER ID");
+    console.log("👤 [UPLOAD][PRODUCT] USER:", userId);
+
+    /* ================= VALIDATE ================= */
+    if (!userId || typeof userId !== "string") {
+      console.error("❌ [UPLOAD][PRODUCT] INVALID_USER_ID");
       return NextResponse.json(
-        { error: "NO_USER" },
-        { status: 401 }
+        { error: "INVALID_USER" },
+        { status: 400 }
       );
     }
-
-    console.log("👤 USER:", userId);
 
     /* ================= PATH ================= */
     const fileName = `${Date.now()}-${crypto.randomUUID()}.jpg`;
     const filePath = `products/${userId}/${fileName}`;
 
-    console.log("📂 PATH:", filePath);
+    console.log("📂 [UPLOAD][PRODUCT] PATH:", filePath);
 
     /* ================= SIGNED URL ================= */
     const { data, error } = await supabaseAdmin.storage
@@ -45,23 +45,37 @@ export async function POST() {
       .createSignedUploadUrl(filePath);
 
     if (error || !data?.signedUrl) {
-      console.error("❌ SIGNED URL ERROR:", error);
+      console.error("❌ [UPLOAD][PRODUCT] SIGNED_URL_FAILED", error);
       return NextResponse.json(
         { error: "SIGNED_URL_FAILED" },
         { status: 500 }
       );
     }
 
-    console.log("✅ SIGNED URL CREATED");
+    /* ================= PUBLIC URL ================= */
+    const { data: publicData } = supabaseAdmin.storage
+      .from("products")
+      .getPublicUrl(filePath);
 
-    /* ================= RESPONSE ================= */
+    const publicUrl = publicData?.publicUrl;
+
+    if (!publicUrl) {
+      console.error("❌ [UPLOAD][PRODUCT] PUBLIC_URL_FAILED");
+      return NextResponse.json(
+        { error: "PUBLIC_URL_FAILED" },
+        { status: 500 }
+      );
+    }
+
+    console.log("🌍 [UPLOAD][PRODUCT] URL:", publicUrl);
+
     return NextResponse.json({
-      url: data.signedUrl,
-      path: filePath,
+      uploadUrl: data.signedUrl,
+      publicUrl,
     });
 
-  } catch (err: any) {
-    console.error("💥 API ERROR:", err?.message || err);
+  } catch (err) {
+    console.error("💥 [UPLOAD][PRODUCT] ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
