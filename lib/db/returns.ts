@@ -300,10 +300,8 @@ export async function createReturn(
 
     const unitPrice = toNumberSafe(item.unit_price, "unit_price");
     const quantity = toNumberSafe(item.quantity, "quantity");
-
     const totalPrice = unitPrice * quantity;
     const refundAmount = totalPrice;
-
     console.log("🟡 [RETURN][CALC]", {
       unitPrice,
       quantity,
@@ -312,7 +310,6 @@ export async function createReturn(
     });
 
     /* ================= CREATE RETURN ================= */
-
     const returnNumber = `RET-${Date.now()}`;
 
     const { rows: returnRows } = await client.query<{ id: string }>(
@@ -344,9 +341,7 @@ export async function createReturn(
     );
 
     const returnId = returnRows[0].id;
-
     console.log("🟢 [RETURN] CREATED RETURN:", returnId);
-
     /* ================= DEBUG PARAM ================= */
 
     const params = [
@@ -366,7 +361,6 @@ export async function createReturn(
     ];
 
     console.log("🧪 [RETURN] PARAM ARRAY:", params);
-
     /* ================= INSERT ITEM ================= */
 
     await client.query(
@@ -624,99 +618,120 @@ export async function updateReturnStatusBySeller(
     /* ================= RECEIVED → REFUND ================= */
 
     if (action === "received") {
-      if (ret.status !== "shipping_back") {
-        throw new Error("INVALID_STATE");
-      }
+  if (ret.status !== "shipping_back") {
+    throw new Error("INVALID_STATE");
+  }
 
-      // ❗ chống double refund
-      if (ret.refunded_at) {
-        throw new Error("ALREADY_REFUNDED");
-      }
+  // ❗ chống double refund
+  if (ret.refunded_at) {
+    throw new Error("ALREADY_REFUNDED");
+  }
 
-      const amount = Number(ret.refund_amount);
-/* ================= LOAD ORDER ================= */
+  const amount = Number(ret.refund_amount);
 
-const { rows: orderRows } = await client.query<{
-  total_amount: string;
-  buyer_id: string;
-}>(
-  `
-  SELECT total_amount, buyer_id
-  FROM orders
-  WHERE id = $1
-  LIMIT 1
-  `,
-  [ret.order_id]
-);
+  if (Number.isNaN(amount) || amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
 
-const order = orderRows[0];
+  if (!ret.pi_payment_id) {
+    throw new Error("MISSING_PAYMENT_ID");
+  }
 
-if (!order) {
-  throw new Error("ORDER_NOT_FOUND");
+  /* ================= LOAD ORDER ================= */
+
+  const { rows: orderRows } = await client.query<{
+    total: string;
+    buyer_id: string;
+  }>(
+    `
+    SELECT total, buyer_id
+    FROM orders
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [ret.order_id]
+  );
+
+  const order = orderRows[0];
+
+  if (!order) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
+  const originalAmount = Number(order.total);
+
+  if (Number.isNaN(originalAmount)) {
+    throw new Error("INVALID_ORDER_AMOUNT");
+  }
+
+  /* ================= SECURITY ================= */
+
+  if (amount > originalAmount) {
+    throw new Error("INVALID_REFUND_AMOUNT");
+  }
+
+  const { rows: buyerRows } = await client.query<{ buyer_id: string }>(
+    `
+    SELECT buyer_id
+    FROM returns
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [returnId]
+  );
+
+  if (!buyerRows[0] || buyerRows[0].buyer_id !== order.buyer_id) {
+    throw new Error("PAYMENT_MISMATCH");
+  }
+
+  console.log("💰 [REFUND START]", {
+    returnId,
+    amount,
+  });
+
+  /* ================= CALL PI ================= */
+
+  const refundTxId = await refundPiPayment({
+    paymentId: ret.pi_payment_id,
+    amount,
+  });
+
+  /* ================= UPDATE RETURN ================= */
+
+  await client.query(
+    `
+    UPDATE returns
+    SET
+      status = 'refunded',
+      refunded_at = now(),
+      refund_txid = $1,
+      updated_at = now()
+    WHERE id = $2
+    `,
+    [refundTxId, returnId]
+  );
+
+  /* ================= UPDATE ORDER ================= */
+
+  await client.query(
+    `
+    UPDATE orders
+    SET
+      payment_status = 'refunded',
+      refunded_at = now(),
+      updated_at = now()
+    WHERE id = $1
+    `,
+    [ret.order_id]
+  );
+
+  console.log("🟢 [REFUND SUCCESS]", {
+    returnId,
+    refundTxId,
+  });
+
+  return;
 }
-
-const originalAmount = Number(order.total_amount);
-
-// ❗ chống refund quá số tiền
-if (amount > originalAmount) {
-  throw new Error("INVALID_REFUND_AMOUNT");
-}
-
-// ❗ đảm bảo đúng buyer
-const { rows: returnRows } = await client.query<{ buyer_id: string }>(
-  `
-  SELECT buyer_id
-  FROM returns
-  WHERE id = $1
-  LIMIT 1
-  `,
-  [returnId]
-);
-
-if (!returnRows[0] || returnRows[0].buyer_id !== order.buyer_id) {
-  throw new Error("PAYMENT_MISMATCH");
-}
-      if (Number.isNaN(amount) || amount <= 0) {
-        throw new Error("INVALID_AMOUNT");
-      }
-
-      if (!ret.pi_payment_id) {
-        throw new Error("MISSING_PAYMENT_ID");
-      }
-
-      console.log("💰 [REFUND START]", {
-        returnId,
-        amount,
-      });
-
-      /* ================= CALL PI REFUND ================= */
-
-      const refundTxId = await refundPiPayment({
-         paymentId: ret.pi_payment_id,
-            amount,
-            });
-      /* ================= UPDATE REFUNDED ================= */
-
-      await client.query(
-        `
-        UPDATE returns
-        SET
-          status = 'refunded',
-          refunded_at = now(),
-          refund_txid = $1,
-          updated_at = now()
-        WHERE id = $2
-        `,
-        [refundTxId, returnId]
-      );
-
-      console.log("🟢 [REFUND SUCCESS]", {
-        returnId,
-        refundTxId,
-      });
-
-      return;
-    }
 
     /* ================= NORMAL UPDATE ================= */
 
