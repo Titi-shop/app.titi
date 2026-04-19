@@ -76,10 +76,8 @@ export async function getReturnsByBuyer(
       r.refund_amount,
       r.currency,
       r.created_at,
-
       ri.product_name,
       ri.thumbnail
-
     FROM returns r
 
     JOIN LATERAL (
@@ -275,11 +273,8 @@ export async function createReturn(
       `,
       [orderItemId, orderId]
     );
-
     const item = itemRows[0];
-
     console.log("📦 [RETURN] ITEM RAW:", item);
-
     if (!item) error("ITEM_NOT_FOUND");
 
     /* ================= DUPLICATE ================= */
@@ -442,9 +437,9 @@ export async function getReturnByIdForSeller(
   returnId: string,
   sellerId: string
 ) {
-  if (!returnId || !sellerId) {
-    throw new Error("INVALID_INPUT");
-  }
+  if (!isValidUuid(returnId) || !isValidUuid(sellerId)) {
+  throw new Error("INVALID_INPUT");
+}
 
   console.log("🚀 [DB][RETURN DETAIL]", {
     returnId,
@@ -638,7 +633,48 @@ export async function updateReturnStatusBySeller(
       }
 
       const amount = Number(ret.refund_amount);
+/* ================= LOAD ORDER ================= */
 
+const { rows: orderRows } = await client.query<{
+  total_amount: string;
+  buyer_id: string;
+}>(
+  `
+  SELECT total_amount, buyer_id
+  FROM orders
+  WHERE id = $1
+  LIMIT 1
+  `,
+  [ret.order_id]
+);
+
+const order = orderRows[0];
+
+if (!order) {
+  throw new Error("ORDER_NOT_FOUND");
+}
+
+const originalAmount = Number(order.total_amount);
+
+// ❗ chống refund quá số tiền
+if (amount > originalAmount) {
+  throw new Error("INVALID_REFUND_AMOUNT");
+}
+
+// ❗ đảm bảo đúng buyer
+const { rows: returnRows } = await client.query<{ buyer_id: string }>(
+  `
+  SELECT buyer_id
+  FROM returns
+  WHERE id = $1
+  LIMIT 1
+  `,
+  [returnId]
+);
+
+if (!returnRows[0] || returnRows[0].buyer_id !== order.buyer_id) {
+  throw new Error("PAYMENT_MISMATCH");
+}
       if (Number.isNaN(amount) || amount <= 0) {
         throw new Error("INVALID_AMOUNT");
       }
@@ -654,9 +690,10 @@ export async function updateReturnStatusBySeller(
 
       /* ================= CALL PI REFUND ================= */
 
-      // ⚠️ chỗ này bạn sẽ gọi Pi API thật
-      const refundTxId = await fakeRefund(ret.pi_payment_id, amount);
-
+      const refundTxId = await refundPiPayment({
+         paymentId: ret.pi_payment_id,
+            amount,
+            });
       /* ================= UPDATE REFUNDED ================= */
 
       await client.query(
@@ -752,17 +789,13 @@ export async function shipReturnByBuyer(params: {
     `,
     [returnId, buyerId]
   );
-
   const item = rows[0];
-
   if (!item) {
     throw new Error("NOT_FOUND");
   }
-
   if (item.status !== "approved") {
     throw new Error("INVALID_STATE");
   }
-
   /* ================= UPDATE ================= */
 
   await query(
@@ -788,14 +821,11 @@ async function refundPiPayment(params: {
   amount: number;
 }): Promise<string> {
   const { paymentId, amount } = params;
-
   const apiKey = process.env.PI_API_KEY;
   const baseUrl = process.env.PI_API_URL;
-
   if (!apiKey || !baseUrl) {
     throw new Error("PI_CONFIG_MISSING");
   }
-
   console.log("💰 [PI][REFUND REQUEST]", {
     paymentId,
     amount,
