@@ -154,6 +154,11 @@ const [initialScale, setInitialScale] = useState(1);
             {getStatusLabel(data.status)}
           </span>
         </div>
+        {(data as any).return_tracking_code && (
+      <div className="text-xs text-blue-600">
+    Tracking: {(data as any).return_tracking_code}
+     </div>
+     )}
       </div>
 
       {/* PRODUCTS */}
@@ -175,7 +180,6 @@ const [initialScale, setInitialScale] = useState(1);
               <p className="text-xs text-gray-500 mt-1">
                 Qty: {item.quantity}
               </p>
-
               <p className="text-sm font-semibold mt-2">
                 π{item.unit_price}
               </p>
@@ -307,9 +311,7 @@ const [initialScale, setInitialScale] = useState(1);
 
           let newScale =
             initialScale * (distance / initialDistance);
-
           newScale = Math.max(1, Math.min(newScale, 6));
-
           setScale(newScale);
         }
 
@@ -335,6 +337,11 @@ const [initialScale, setInitialScale] = useState(1);
     />
   </div>
 )}
+      {data.status === "refund_pending" && (
+  <div className="bg-yellow-50 text-yellow-700 text-sm p-3 mx-4 rounded">
+    Waiting for buyer to confirm refund in Pi Wallet
+  </div>
+)}
 
       {/* ACTIONS */}
       <div className="p-4 space-y-2">
@@ -358,7 +365,9 @@ const [initialScale, setInitialScale] = useState(1);
 
         {data.status === "shipping_back" && (
           <button
-            onClick={() => action("received")}
+            <button
+         disabled={acting}
+          onClick={() => action("received")}
             className="w-full bg-blue-500 text-white py-3 rounded-lg"
           >
             Mark as Received
