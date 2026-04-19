@@ -1,57 +1,40 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-import { query } from "@/lib/db";
+import { getReturnsBySeller } from "@/lib/db/returns";
 
 export const runtime = "nodejs";
 
 /* =====================================================
-   GET SELLER RETURNS
+   GET /api/seller/returns
 ===================================================== */
 
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   console.log("🚀 [SELLER RETURNS API] START");
 
   try {
     /* ================= AUTH ================= */
     const auth = await requireSeller();
 
-    console.log("🔐 AUTH:", auth);
-
     if (!auth.ok) {
+      console.error("❌ [SELLER RETURNS] UNAUTHORIZED");
       return auth.response;
     }
 
     const sellerId = auth.userId;
 
-    console.log("👤 SELLER:", sellerId);
+    console.log("👤 [SELLER RETURNS] USER:", sellerId);
 
-    /* ================= QUERY ================= */
+    /* ================= DB ================= */
+    const items = await getReturnsBySeller(sellerId);
 
-    const { rows } = await query(
-      `
-      SELECT
-        id,
-        return_number,
-        order_id,
-        status,
-        refund_amount,
-        created_at
-      FROM returns
-      WHERE seller_id = $1
-        AND deleted_at IS NULL
-      ORDER BY created_at DESC
-      `,
-      [sellerId]
-    );
-
-    console.log("📦 RETURNS COUNT:", rows.length);
+    console.log("📦 [SELLER RETURNS] COUNT:", items.length);
 
     return NextResponse.json({
-      items: rows,
+      items,
     });
 
   } catch (err) {
-    console.error("💥 API ERROR:", err);
+    console.error("💥 [SELLER RETURNS] ERROR:", err);
 
     return NextResponse.json(
       { error: "INTERNAL_ERROR" },
