@@ -349,15 +349,27 @@ export async function getReturnByIdForSeller(
 ) {
   const { rows } = await query(
     `
-    SELECT *
-    FROM returns
-    WHERE id = $1
-      AND seller_id = $2
-      AND deleted_at IS NULL
+    SELECT
+      r.*,
+
+      ri.product_name,
+      ri.thumbnail,
+      ri.quantity
+
+    FROM returns r
+    JOIN return_items ri
+      ON ri.return_id = r.id
+
+    WHERE r.id = $1
+      AND r.seller_id = $2
+      AND r.deleted_at IS NULL
+
     LIMIT 1
     `,
     [returnId, sellerId]
   );
+
+  console.log("🧪 [SELLER RETURN RAW]:", rows[0]);
 
   return rows[0] ?? null;
 }
