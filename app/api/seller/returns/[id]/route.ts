@@ -28,7 +28,7 @@ export async function GET(
   const returnId = params.id;
 
   const data = await getReturnByIdForSeller(returnId, sellerId);
-
+console.log("📤 API RETURN:", data);
   if (!data) return errorJson("NOT_FOUND", 404);
 
   return NextResponse.json(data);
