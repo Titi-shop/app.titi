@@ -622,11 +622,71 @@ export async function updateReturnStatusBySeller(
     throw new Error("INVALID_STATE");
   }
 
+  const amount = Number(ret.refund_amount);
+
+  if (!amount || amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  /* ================= GET BUYER ================= */
+
+  const { rows: orderRows } = await client.query<{
+    buyer_id: string;
+  }>(
+    `SELECT buyer_id FROM orders WHERE id = $1`,
+    [ret.order_id]
+  );
+
+  const buyerId = orderRows[0]?.buyer_id;
+
+  if (!buyerId) throw new Error("BUYER_NOT_FOUND");
+
+  /* ================= WALLET UPDATE ================= */
+
+  // 1. đảm bảo wallet tồn tại
+  await client.query(
+    `
+    INSERT INTO wallets (user_id, balance)
+    VALUES ($1, 0)
+    ON CONFLICT (user_id) DO NOTHING
+    `,
+    [buyerId]
+  );
+
+  // 2. cộng tiền
+  await client.query(
+    `
+    UPDATE wallets
+    SET balance = balance + $1,
+        updated_at = now()
+    WHERE user_id = $2
+    `,
+    [amount, buyerId]
+  );
+
+  // 3. log transaction
+  await client.query(
+    `
+    INSERT INTO wallet_transactions (
+      user_id,
+      type,
+      amount,
+      reference_type,
+      reference_id
+    )
+    VALUES ($1, 'credit', $2, 'refund', $3)
+    `,
+    [buyerId, amount, returnId]
+  );
+
+  /* ================= UPDATE RETURN ================= */
+
   await client.query(
     `
     UPDATE returns
     SET
-      status = 'refund_pending',
+      status = 'refunded',
+      refunded_at = now(),
       received_at = now(),
       updated_at = now()
     WHERE id = $1
@@ -634,8 +694,13 @@ export async function updateReturnStatusBySeller(
     [returnId]
   );
 
+  console.log("🟢 [REFUND INTERNAL SUCCESS]", {
+    returnId,
+    buyerId,
+    amount,
+  });
+
   return;
-}
 }
 
     /* ================= NORMAL UPDATE ================= */
