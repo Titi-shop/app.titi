@@ -457,35 +457,29 @@ export async function updateReturnStatusBySeller(
   });
 }
 export async function getReturnsBySeller(
-  sellerId: string
+  sellerId: string,
+  status?: string | null
 ) {
-  if (!sellerId || typeof sellerId !== "string") {
-    throw new Error("INVALID_SELLER");
-  }
+  console.log("🚀 [DB][SELLER RETURNS]", { sellerId, status });
 
   const { rows } = await query(
     `
     SELECT
       r.id,
       r.return_number,
-      r.order_id,
       r.status,
       r.created_at,
-
       ri.product_name,
       ri.thumbnail,
       ri.quantity
-
     FROM returns r
-    LEFT JOIN return_items ri
-      ON ri.return_id = r.id
-
+    JOIN return_items ri ON ri.return_id = r.id
     WHERE r.seller_id = $1
       AND r.deleted_at IS NULL
-
+      AND ($2::text IS NULL OR r.status = $2)
     ORDER BY r.created_at DESC
     `,
-    [sellerId]
+    [sellerId, status ?? null]
   );
 
   return rows;
