@@ -26,7 +26,24 @@ type ReturnItem = {
   product_name: string;
   thumbnail: string;
   quantity: number;
+
+  reason?: string;
+  evidence_images?: string[];
 };
+
+/* ================= TIMELINE ================= */
+
+const timelineSteps = [
+  "pending",
+  "approved",
+  "shipping_back",
+  "received",
+  "refunded",
+];
+
+function getStepIndex(status: ReturnStatus) {
+  return timelineSteps.indexOf(status);
+}
 
 /* ================= PAGE ================= */
 
@@ -37,175 +54,240 @@ export default function SellerReturnsPage() {
   const [items, setItems] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [tab, setTab] = useState<ReturnStatus | "all">("all");
+  const [preview, setPreview] = useState<ReturnItem | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
     if (authLoading || !user) return;
     load();
-  }, [authLoading, user, tab]);
+  }, [authLoading, user]);
 
   async function load() {
     try {
-      console.log("🚀 [RETURN DASHBOARD] LOAD:", tab);
-
-      const url =
-        tab === "all"
-          ? "/api/seller/returns"
-          : `/api/seller/returns?status=${tab}`;
-
-      const res = await apiAuthFetch(url);
-
-      if (!res.ok) {
-        console.error("❌ LOAD FAIL:", res.status);
-        return;
-      }
-
+      const res = await apiAuthFetch("/api/seller/returns");
       const json = await res.json();
-      const list = json.items ?? [];
-
-      console.log("📦 DATA:", list);
-
-      setItems(list);
-
+      setItems(json.items ?? []);
     } catch (err) {
-      console.error("💥 LOAD ERROR:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  /* ================= STATUS ================= */
+  /* ================= ACTION ================= */
 
-  function getColor(status: ReturnStatus) {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-700";
-      case "approved":
-        return "bg-blue-100 text-blue-700";
-      case "shipping_back":
-        return "bg-indigo-100 text-indigo-700";
-      case "received":
-        return "bg-purple-100 text-purple-700";
-      case "refunded":
-        return "bg-green-100 text-green-700";
-      case "rejected":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
+  async function action(id: string, type: string) {
+    await apiAuthFetch(`/api/seller/returns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: type }),
+    });
+
+    await load();
+    setPreview(null);
   }
-
-  /* ================= TABS ================= */
-
-  const tabs: (ReturnStatus | "all")[] = [
-    "all",
-    "pending",
-    "approved",
-    "shipping_back",
-    "received",
-    "refunded",
-    "rejected",
-  ];
 
   /* ================= UI ================= */
 
+  if (loading) return <p className="p-4">Loading...</p>;
+
   return (
-    <main className="min-h-screen bg-gray-100 pb-20">
+    <main className="p-4 max-w-xl mx-auto space-y-4">
 
-      {/* HEADER */}
-      <div className="bg-white px-4 py-3 border-b sticky top-0 z-10">
-        <h1 className="font-semibold text-lg">
-          🔄 Return Orders
-        </h1>
-      </div>
+      <h1 className="text-lg font-bold">
+        🔄 Seller Returns
+      </h1>
 
-      {/* TABS */}
-      <div className="bg-white overflow-x-auto border-b">
-        <div className="flex gap-3 px-3 py-2 min-w-max">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-1 text-sm rounded-full border ${
-                tab === t
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="bg-white p-3 rounded-xl shadow-sm flex gap-3"
+        >
+          <img
+            src={item.thumbnail}
+            className="w-20 h-20 object-cover rounded"
+          />
 
-      {/* LIST */}
-      <div className="p-3 space-y-3">
+          <div className="flex-1">
 
-        {loading && (
-          <p className="text-center text-gray-400">
-            Loading...
-          </p>
-        )}
+            <p className="text-sm font-medium">
+              {item.product_name}
+            </p>
 
-        {!loading && items.length === 0 && (
-          <div className="bg-white p-6 text-center text-gray-500 rounded-xl">
-            No return orders
-          </div>
-        )}
+            <p className="text-xs text-gray-400">
+              {new Date(item.created_at).toLocaleString()}
+            </p>
 
-        {items.map((item) => (
-          <div
-            key={item.id}
-            onClick={() =>
-              router.push(`/seller/returns/${item.id}`)
-            }
-            className="bg-white rounded-xl p-3 flex gap-3 shadow-sm hover:shadow-md transition cursor-pointer"
-          >
-            {/* IMAGE */}
-            <img
-              src={item.thumbnail || "/placeholder.png"}
-              className="w-20 h-20 object-cover rounded"
-              onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
-              }}
-            />
+            <div className="flex justify-between mt-2">
 
-            {/* INFO */}
-            <div className="flex-1 flex flex-col justify-between">
+              <span className="text-xs text-gray-600">
+                {item.status}
+              </span>
 
-              <div>
-                <p className="text-sm font-medium line-clamp-2">
-                  {item.product_name}
-                </p>
-
-                <p className="text-xs text-gray-500 mt-1">
-                  Qty: {item.quantity}
-                </p>
-              </div>
-
-              <div className="flex justify-between items-end mt-2">
-
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getColor(
-                    item.status
-                  )}`}
-                >
-                  {item.status}
-                </span>
-
-                <span className="text-[10px] text-gray-400">
-                  {new Date(item.created_at).toLocaleString()}
-                </span>
-
-              </div>
+              <button
+                onClick={() => {
+                  setPreview(item);
+                  setCurrentIndex(0);
+                }}
+                className="text-xs text-blue-600"
+              >
+                Xem ảnh
+              </button>
 
             </div>
           </div>
-        ))}
+        </div>
+      ))}
+
+      {/* ================= PREVIEW ================= */}
+
+      {preview && (
+        <PreviewModal
+          preview={preview}
+          currentIndex={currentIndex}
+          setCurrentIndex={setCurrentIndex}
+          onClose={() => setPreview(null)}
+          onAction={action}
+        />
+      )}
+
+    </main>
+  );
+}
+
+/* ================= PREVIEW ================= */
+
+function PreviewModal({
+  preview,
+  currentIndex,
+  setCurrentIndex,
+  onClose,
+  onAction,
+}: {
+  preview: ReturnItem;
+  currentIndex: number;
+  setCurrentIndex: (i: number) => void;
+  onClose: () => void;
+  onAction: (id: string, type: string) => void;
+}) {
+  const images = [
+    preview.thumbnail,
+    ...(preview.evidence_images ?? []),
+  ];
+
+  const stepIndex = getStepIndex(preview.status);
+
+  return (
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+
+      {/* HEADER */}
+      <div className="flex justify-between p-3 text-white">
+        <button onClick={onClose}>←</button>
+        <span>{currentIndex + 1}/{images.length}</span>
+        <span />
+      </div>
+
+      {/* IMAGE */}
+      <div className="flex-1 flex items-center justify-center relative">
+
+        <img
+          src={images[currentIndex]}
+          className="max-h-full max-w-full object-contain"
+        />
+
+        {currentIndex > 0 && (
+          <button
+            onClick={() => setCurrentIndex(currentIndex - 1)}
+            className="absolute left-2 text-white text-2xl"
+          >
+            ‹
+          </button>
+        )}
+
+        {currentIndex < images.length - 1 && (
+          <button
+            onClick={() => setCurrentIndex(currentIndex + 1)}
+            className="absolute right-2 text-white text-2xl"
+          >
+            ›
+          </button>
+        )}
+      </div>
+
+      {/* INFO */}
+      <div className="bg-white p-4 space-y-3">
+
+        <p className="text-sm font-semibold">
+          {preview.product_name}
+        </p>
+
+        <p className="text-xs text-gray-500">
+          {new Date(preview.created_at).toLocaleString()}
+        </p>
+
+        {preview.reason && (
+          <p className="text-xs text-gray-600">
+            Reason: {preview.reason}
+          </p>
+        )}
+
+        {/* ================= TIMELINE ================= */}
+
+        <div className="flex items-center justify-between mt-3">
+
+          {timelineSteps.map((step, i) => (
+            <div key={step} className="flex-1 text-center">
+
+              <div
+                className={`w-6 h-6 mx-auto rounded-full ${
+                  i <= stepIndex
+                    ? "bg-black"
+                    : "bg-gray-300"
+                }`}
+              />
+
+              <p className="text-[10px] mt-1">
+                {step}
+              </p>
+
+              {i < timelineSteps.length - 1 && (
+                <div
+                  className={`h-[2px] ${
+                    i < stepIndex
+                      ? "bg-black"
+                      : "bg-gray-300"
+                  }`}
+                />
+              )}
+
+            </div>
+          ))}
+
+        </div>
+
+        {/* ACTION */}
+        {preview.status === "pending" && (
+          <div className="flex gap-2 pt-3">
+
+            <button
+              onClick={() => onAction(preview.id, "approve")}
+              className="flex-1 bg-green-500 text-white py-2 rounded"
+            >
+              Approve
+            </button>
+
+            <button
+              onClick={() => onAction(preview.id, "reject")}
+              className="flex-1 bg-red-500 text-white py-2 rounded"
+            >
+              Reject
+            </button>
+
+          </div>
+        )}
 
       </div>
-    </main>
+    </div>
   );
 }
