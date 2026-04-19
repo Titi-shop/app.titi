@@ -1,16 +1,18 @@
-import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/guard";
-import { getWalletByUserId } from "@/lib/db/wallet";
-
-export const runtime = "nodejs";
-
 export async function GET() {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
   try {
+    console.log("🧪 [WALLET API] userId:", auth.userId);
+
     const wallet = await getWalletByUserId(auth.userId);
-    return NextResponse.json(wallet);
+
+    console.log("🧪 [WALLET API] result:", wallet);
+
+    return NextResponse.json({
+      balance: wallet?.balance ?? 0,
+    });
+
   } catch (err) {
     console.error("[WALLET][GET_ERROR]", err);
     return NextResponse.json(
