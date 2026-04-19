@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { useAuth } from "@/context/AuthContext";
-
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import "swiper/css";
 import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -110,16 +110,14 @@ async function handleShip() {
   try {
     setSending(true);
 
-    const res = await fetch(`/api/returns/${returnId}/ship`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        tracking_code: trackingCode,
-        shipping_provider: shippingProvider,
-      }),
-    });
+    const res = await apiAuthFetch(`/api/returns/${returnId}/ship`, {
+  method: "PATCH",
+  body: JSON.stringify({
+    tracking_code: trackingCode,
+    shipping_provider: shippingProvider,
+  }),
+
+});
 
     if (!res.ok) {
       alert("Gửi thất bại");
