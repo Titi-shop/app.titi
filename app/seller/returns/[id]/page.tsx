@@ -2,10 +2,13 @@
 
 export const dynamic = "force-dynamic";
 
+import "swiper/css";
+import "swiper/css/pagination";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
 /* ================= TYPES ================= */
 
 type TimelineItem = {
@@ -222,43 +225,39 @@ export default function SellerReturnDetail() {
       {/* ================= PREVIEW ================= */}
 
       {previewIndex !== null && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+  <div className="fixed inset-0 bg-black z-50 flex flex-col">
 
-          {/* HEADER */}
-          <div className="flex justify-between p-3 text-white">
-            <button onClick={() => setPreviewIndex(null)}>←</button>
-            <span>{previewIndex + 1}/{allImages.length}</span>
-            <span />
-          </div>
+    {/* HEADER */}
+    <div className="flex justify-between p-3 text-white">
+      <button onClick={() => setPreviewIndex(null)}>←</button>
+      <span>{previewIndex + 1}/{allImages.length}</span>
+      <span />
+    </div>
 
-          {/* IMAGE */}
-          <div className="flex-1 flex items-center justify-center relative">
-
+    {/* SWIPER */}
+    <Swiper
+      modules={[Pagination]}
+      pagination={{ clickable: true }}
+      initialSlide={previewIndex}
+      onSlideChange={(swiper) => {
+        setPreviewIndex(swiper.activeIndex);
+      }}
+      className="flex-1"
+    >
+      {allImages.map((src, i) => (
+        <SwiperSlide key={i}>
+          <div className="flex items-center justify-center h-full">
             <img
-              src={allImages[previewIndex]}
+              src={src}
               className="max-h-full max-w-full object-contain"
             />
-
-            {previewIndex > 0 && (
-              <button
-                onClick={() => setPreviewIndex(previewIndex - 1)}
-                className="absolute left-2 text-white text-2xl"
-              >
-                ‹
-              </button>
-            )}
-
-            {previewIndex < allImages.length - 1 && (
-              <button
-                onClick={() => setPreviewIndex(previewIndex + 1)}
-                className="absolute right-2 text-white text-2xl"
-              >
-                ›
-              </button>
-            )}
           </div>
-        </div>
-      )}
+        </SwiperSlide>
+      ))}
+    </Swiper>
+
+  </div>
+)}
 
       {/* ACTIONS */}
       <div className="p-4 space-y-2">
