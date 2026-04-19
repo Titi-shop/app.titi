@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ================= TYPES ================= */
@@ -37,13 +37,10 @@ export default function WalletPage() {
 
 useEffect(() => {
   if (authLoading || hasLoaded.current) return;
-
+  console.log("🟢 LOAD WALLET");
   hasLoaded.current = true;
   load();
 }, [authLoading]);
-  useEffect(() => {
-    load();
-  }, []);
 
   async function load() {
     try {
@@ -194,13 +191,10 @@ useEffect(() => {
                 {t.type === "credit" ? "+" : "-"}π
                 {formatPi(t.amount)}
               </p>
-
             </div>
           ))}
-
         </div>
       </div>
-
     </main>
   );
 }
