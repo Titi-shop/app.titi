@@ -4,11 +4,13 @@ export const dynamic = "force-dynamic";
 
 import "swiper/css";
 import "swiper/css/pagination";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+
 /* ================= TYPES ================= */
 
 type TimelineItem = {
@@ -44,6 +46,13 @@ export default function SellerReturnDetail() {
   const [loading, setLoading] = useState(true);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [swiperRef, setSwiperRef] = useState<any>(null);
+
+  /* ================= ZOOM ================= */
+  const scaleRef = useRef(1);
+  const startDistRef = useRef(0);
+
+  /* ================= LOAD ================= */
 
   useEffect(() => {
     load();
@@ -51,22 +60,13 @@ export default function SellerReturnDetail() {
 
   async function load() {
     try {
-      console.log("🚀 LOAD RETURN DETAIL:", id);
-
       const res = await apiAuthFetch(`/api/seller/returns/${id}`);
-
-      if (!res.ok) {
-        console.error("❌ API ERROR:", res.status);
-        return;
-      }
+      if (!res.ok) return;
 
       const json = await res.json();
-
-      console.log("📦 RETURN DATA:", json);
-
       setData(json);
     } catch (err) {
-      console.error("💥 LOAD ERROR", err);
+      console.error("LOAD ERROR", err);
     } finally {
       setLoading(false);
     }
@@ -77,8 +77,58 @@ export default function SellerReturnDetail() {
       method: "PATCH",
       body: JSON.stringify({ action: type }),
     });
-
     await load();
+  }
+
+  /* ================= IMAGE LIST ================= */
+
+  const allImages: string[] = [
+    ...(data?.items?.map((i) => i.thumbnail) ?? []),
+    ...(data?.evidence_images ?? []),
+  ].filter((i) => typeof i === "string" && i.length > 5);
+
+  /* ================= SWIPER SYNC ================= */
+
+  useEffect(() => {
+    if (swiperRef && previewIndex !== null) {
+      swiperRef.slideTo(previewIndex);
+    }
+  }, [previewIndex, swiperRef]);
+
+  /* ================= ZOOM HANDLER ================= */
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      const dx =
+        e.touches[0].clientX - e.touches[1].clientX;
+      const dy =
+        e.touches[0].clientY - e.touches[1].clientY;
+      startDistRef.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      const dx =
+        e.touches[0].clientX - e.touches[1].clientX;
+      const dy =
+        e.touches[0].clientY - e.touches[1].clientY;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const scale = dist / startDistRef.current;
+
+      scaleRef.current = Math.min(Math.max(scale, 1), 4);
+
+      const img = document.getElementById("zoom-img");
+      if (img) {
+        img.style.transform = `scale(${scaleRef.current})`;
+      }
+    }
+  }
+
+  function resetZoom() {
+    scaleRef.current = 1;
   }
 
   /* ================= STATUS ================= */
@@ -102,26 +152,18 @@ export default function SellerReturnDetail() {
     }
   }
 
-  /* ================= IMAGE LIST ================= */
-
-  const allImages: string[] = [
-    ...(data?.items?.map((i) => i.thumbnail) ?? []),
-    ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.startsWith("http"));
-
   /* ================= UI ================= */
 
   if (loading) return <p className="p-4">Loading...</p>;
-
   if (!data) return <p className="p-4 text-red-500">Not found</p>;
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
 
       {/* HEADER */}
-      <div className="bg-white p-4 border-b space-y-2">
+      <div className="bg-white p-4 border-b">
         <p className="text-sm text-gray-500">
-          Return #{data.return_number || data.id.slice(0, 8)}
+          Return #{data.return_number}
         </p>
 
         <div className="flex justify-between items-center">
@@ -139,129 +181,101 @@ export default function SellerReturnDetail() {
       <div className="bg-white divide-y">
         {data.items.map((item, i) => (
           <div key={i} className="flex gap-3 p-4">
-
             <img
-              src={item.thumbnail || "/placeholder.png"}
-              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              className="w-20 h-20 object-cover rounded border"
+              src={item.thumbnail}
+              onClick={() => setPreviewIndex(i)}
+              className="w-20 h-20 object-cover rounded border cursor-pointer"
             />
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
+            <div>
+              <p className="text-sm font-medium">
                 {item.product_name}
               </p>
-
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500">
                 Qty: {item.quantity}
               </p>
-
-              <p className="text-sm font-semibold mt-2">
+              <p className="font-semibold">
                 π{item.unit_price}
               </p>
             </div>
-
           </div>
         ))}
       </div>
 
       {/* REASON */}
-      <div className="bg-white p-4 space-y-2">
-        <p className="text-sm font-semibold">Reason</p>
-        <p className="text-sm text-gray-600">{data.reason}</p>
-
-        {data.description && (
-          <p className="text-xs text-gray-500">
-            {data.description}
-          </p>
-        )}
+      <div className="bg-white p-4">
+        <p className="font-semibold">Reason</p>
+        <p className="text-gray-600">{data.reason}</p>
       </div>
 
-      {/* ================= IMAGES ================= */}
-
+      {/* IMAGES */}
       <div className="bg-white p-4">
-        <p className="text-sm font-semibold mb-2">
-          Product & Evidence Images
+        <p className="font-semibold mb-2">
+          Evidence Images
         </p>
 
-        {allImages.length === 0 ? (
-          <p className="text-xs text-gray-400">
-            No images
-          </p>
-        ) : (
-          <div className="flex gap-2 overflow-x-auto">
-            {allImages.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                onClick={() => setPreviewIndex(i)}
-                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                className="w-24 h-24 object-cover rounded border cursor-pointer"
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex gap-2 overflow-x-auto">
+          {allImages.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              onClick={() => setPreviewIndex(i)}
+              className="w-24 h-24 object-cover rounded border cursor-pointer"
+            />
+          ))}
+        </div>
       </div>
 
-      {/* ================= TIMELINE ================= */}
+      {/* ================= PREVIEW + ZOOM ================= */}
 
-      {data.timeline && (
-        <div className="bg-white p-4 space-y-3">
-          <p className="text-sm font-semibold">Timeline</p>
+      {previewIndex !== null && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
 
-          {data.timeline.map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
-              <div className="w-2 h-2 mt-2 rounded-full bg-black" />
-              <div>
-                <p className="font-medium">{t.label}</p>
-                <p className="text-xs text-gray-400">
-                  {new Date(t.time).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          ))}
+          {/* HEADER */}
+          <div className="flex justify-between p-3 text-white">
+            <button onClick={() => setPreviewIndex(null)}>←</button>
+            <span>{previewIndex + 1}/{allImages.length}</span>
+            <span />
+          </div>
+
+          <Swiper
+            modules={[Pagination]}
+            pagination={{ clickable: true }}
+            onSwiper={setSwiperRef}
+            className="flex-1"
+          >
+            {allImages.map((src, i) => (
+              <SwiperSlide key={i}>
+                <div
+                  className="flex items-center justify-center h-full"
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={resetZoom}
+                  onDoubleClick={() => {
+                    scaleRef.current =
+                      scaleRef.current === 1 ? 2 : 1;
+
+                    const img = document.getElementById("zoom-img");
+                    if (img) {
+                      img.style.transform = `scale(${scaleRef.current})`;
+                    }
+                  }}
+                >
+                  <img
+                    id="zoom-img"
+                    src={src}
+                    className="max-h-full max-w-full object-contain transition-transform"
+                  />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+
         </div>
       )}
 
-      {/* ================= PREVIEW ================= */}
-
-      {previewIndex !== null && (
-  <div className="fixed inset-0 bg-black z-50 flex flex-col">
-
-    {/* HEADER */}
-    <div className="flex justify-between p-3 text-white">
-      <button onClick={() => setPreviewIndex(null)}>←</button>
-      <span>{previewIndex + 1}/{allImages.length}</span>
-      <span />
-    </div>
-
-    {/* SWIPER */}
-    <Swiper
-      modules={[Pagination]}
-      pagination={{ clickable: true }}
-      initialSlide={previewIndex}
-      onSlideChange={(swiper) => {
-        setPreviewIndex(swiper.activeIndex);
-      }}
-      className="flex-1"
-    >
-      {allImages.map((src, i) => (
-        <SwiperSlide key={i}>
-          <div className="flex items-center justify-center h-full">
-            <img
-              src={src}
-              className="max-h-full max-w-full object-contain"
-            />
-          </div>
-        </SwiperSlide>
-      ))}
-    </Swiper>
-
-  </div>
-)}
-
-      {/* ACTIONS */}
+      {/* ACTION */}
       <div className="p-4 space-y-2">
-
         {data.status === "pending" && (
           <div className="flex gap-2">
             <button
@@ -279,16 +293,6 @@ export default function SellerReturnDetail() {
             </button>
           </div>
         )}
-
-        {data.status === "shipping_back" && (
-          <button
-            onClick={() => action("received")}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg"
-          >
-            Mark as Received
-          </button>
-        )}
-
       </div>
 
     </main>
