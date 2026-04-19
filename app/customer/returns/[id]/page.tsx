@@ -262,11 +262,12 @@ async function handleShip() {
             {data.status}
           </span>
         </div>
-        {data.return_tracking_code && (
-  <div className="bg-white p-4 rounded-xl text-xs text-blue-600">
-    Tracking: {data.return_tracking_code}
-  </div>
-)}
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-1">
+  <p className="text-xs text-gray-400">Tracking</p>
+  <p className="text-sm text-blue-600 font-medium">
+    {data.return_tracking_code}
+  </p>
+</div>
 {data.status === "approved" && (
   <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
 
