@@ -34,17 +34,30 @@ export default function SellerReturnDetail() {
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [previewImg, setPreviewImg] = useState<string | null>(null);
+
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
     try {
+      console.log("🚀 LOAD RETURN DETAIL:", id);
+
       const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+
+      if (!res.ok) {
+        console.error("❌ API ERROR:", res.status);
+        return;
+      }
+
       const json = await res.json();
+
+      console.log("📦 RETURN DATA:", json);
+
       setData(json);
     } catch (err) {
-      console.error("LOAD ERROR", err);
+      console.error("💥 LOAD ERROR", err);
     } finally {
       setLoading(false);
     }
@@ -117,6 +130,9 @@ export default function SellerReturnDetail() {
 
             <img
               src={item.thumbnail || "/placeholder.png"}
+              onError={(e) => {
+                e.currentTarget.src = "/placeholder.png";
+              }}
               className="w-20 h-20 object-cover rounded border"
             />
 
@@ -150,22 +166,50 @@ export default function SellerReturnDetail() {
         )}
       </div>
 
-      {/* IMAGES */}
-      {data.evidence_images && data.evidence_images.length > 0 && (
-        <div className="bg-white p-4">
-          <p className="text-sm font-semibold mb-2">
-            Evidence Images
-          </p>
+      {/* ================= EVIDENCE IMAGES ================= */}
 
-          <div className="flex gap-2">
-            {data.evidence_images.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                className="w-20 h-20 object-cover rounded border"
-              />
-            ))}
+      <div className="bg-white p-4">
+        <p className="text-sm font-semibold mb-2">
+          Evidence Images
+        </p>
+
+        {!data.evidence_images || data.evidence_images.length === 0 ? (
+          <p className="text-xs text-gray-400">
+            No evidence images
+          </p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto">
+            {data.evidence_images.map((src, i) => {
+              console.log("🖼 IMAGE:", src);
+
+              return (
+                <img
+                  key={i}
+                  src={src}
+                  onClick={() => setPreviewImg(src)}
+                  onError={(e) => {
+                    console.error("❌ IMAGE LOAD FAIL:", src);
+                    e.currentTarget.src = "/placeholder.png";
+                  }}
+                  className="w-20 h-20 object-cover rounded border cursor-pointer"
+                />
+              );
+            })}
           </div>
+        )}
+      </div>
+
+      {/* ================= FULLSCREEN PREVIEW ================= */}
+
+      {previewImg && (
+        <div
+          className="fixed inset-0 bg-black z-50 flex items-center justify-center"
+          onClick={() => setPreviewImg(null)}
+        >
+          <img
+            src={previewImg}
+            className="max-w-full max-h-full object-contain"
+          />
         </div>
       )}
 
