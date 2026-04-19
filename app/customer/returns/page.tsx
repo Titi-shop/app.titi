@@ -10,17 +10,28 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ================= TYPES ================= */
 
+type ReturnStatus =
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refund_pending"
+  | "refunded"
+  | "rejected";
+
 type ReturnRecord = {
   id: string;
   return_number?: string;
   order_id: string;
-  status: string;
+  status: ReturnStatus;
+
   refund_amount?: string;
-  created_at: string;
+  created_at: string | null;
+
   return_tracking_code?: string | null;
   refunded_at?: string | null;
 
-  thumbnail?: string; // ✅ quan trọng
+  thumbnail?: string;
 };
 
 /* ================= CONST ================= */
@@ -46,14 +57,9 @@ export default function ReturnsPage() {
 
     async function load() {
       try {
-        console.log("🚀 [RETURNS] LOAD");
-
         const res = await apiAuthFetch("/api/returns");
 
-        if (!res.ok) {
-          console.error("❌ [RETURNS] API ERROR:", res.status);
-          return;
-        }
+        if (!res.ok) return;
 
         const data = await res.json();
 
@@ -63,11 +69,9 @@ export default function ReturnsPage() {
           ? data.items
           : [];
 
-        console.log("📦 [RETURNS] COUNT:", list.length);
-
         setReturns(list);
       } catch (err) {
-        console.error("💥 [RETURNS] LOAD ERROR");
+        console.error("💥 LOAD ERROR", err);
       } finally {
         setLoading(false);
       }
@@ -80,9 +84,7 @@ export default function ReturnsPage() {
 
   function getImage(src?: string) {
     if (!src) return "/placeholder.png";
-
     if (src.startsWith("http")) return src;
-
     return BASE_STORAGE + "products/" + src;
   }
 
@@ -90,22 +92,18 @@ export default function ReturnsPage() {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-700";
-
       case "approved":
         return "bg-blue-100 text-blue-700";
-
       case "shipping_back":
         return "bg-indigo-100 text-indigo-700";
-
       case "received":
         return "bg-purple-100 text-purple-700";
-
+      case "refund_pending":
+        return "bg-orange-100 text-orange-700";
       case "refunded":
         return "bg-green-200 text-green-800";
-
       case "rejected":
         return "bg-red-100 text-red-700";
-
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -115,22 +113,18 @@ export default function ReturnsPage() {
     switch (status) {
       case "pending":
         return "Pending";
-
       case "approved":
         return "Approved";
-
       case "shipping_back":
         return "Shipping Back";
-
       case "received":
         return "Received";
-
+      case "refund_pending":
+        return "Waiting Refund Confirm";
       case "refunded":
         return "Refunded";
-
       case "rejected":
         return "Rejected";
-
       default:
         return status;
     }
@@ -142,6 +136,7 @@ export default function ReturnsPage() {
       "approved",
       "shipping_back",
       "received",
+      "refund_pending",
       "refunded",
     ];
 
@@ -170,7 +165,7 @@ export default function ReturnsPage() {
     );
   }
 
-  /* ================= LOADING ================= */
+  /* ================= UI ================= */
 
   if (loading) {
     return (
@@ -179,8 +174,6 @@ export default function ReturnsPage() {
       </div>
     );
   }
-
-  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
@@ -245,19 +238,29 @@ export default function ReturnsPage() {
                   {/* TIMELINE */}
                   {renderTimeline(r.status)}
 
-                  {/* EXTRA INFO */}
+                  {/* EXTRA */}
                   {r.return_tracking_code && (
                     <p className="text-[11px] text-blue-600">
                       Tracking: {r.return_tracking_code}
                     </p>
                   )}
 
+                  {r.status === "refund_pending" && (
+                    <p className="text-[11px] text-orange-600">
+                      Waiting for refund confirmation
+                    </p>
+                  )}
+
                   {r.refunded_at && (
                     <p className="text-[11px] text-green-600">
                       Refunded:{" "}
-                      {new Date(
-                        r.refunded_at
-                      ).toLocaleString()}
+                      {new Date(r.refunded_at).toLocaleString()}
+                    </p>
+                  )}
+
+                  {r.created_at && (
+                    <p className="text-[10px] text-gray-400">
+                      {new Date(r.created_at).toLocaleString()}
                     </p>
                   )}
 
