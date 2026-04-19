@@ -90,6 +90,16 @@ export default function OrderReturnPage() {
     setItems(mapped);
   }, [order]);
 
+  /* ================= CLEANUP ================= */
+
+  useEffect(() => {
+    return () => {
+      items.forEach((i) =>
+        i.previews.forEach((u) => URL.revokeObjectURL(u))
+      );
+    };
+  }, [items]);
+
   /* ================= IMAGE ================= */
 
   function handleImageChange(
@@ -110,7 +120,6 @@ export default function OrderReturnPage() {
 
     const updated = [...items];
 
-    // cleanup old preview
     updated[index].previews.forEach((u) =>
       URL.revokeObjectURL(u)
     );
@@ -126,29 +135,31 @@ export default function OrderReturnPage() {
   /* ================= UPLOAD ================= */
 
   async function uploadImages(files: File[]): Promise<string[]> {
-    const urls: string[] = [];
+    const urls = await Promise.all(
+      files.map(async (file) => {
+        const res = await apiAuthFetch("/api/returns/upload-url", {
+          method: "POST",
+        });
 
-    for (const file of files) {
-      const res = await apiAuthFetch("/api/returns/upload-url", {
-        method: "POST",
-      });
+        if (!res.ok) throw new Error("UPLOAD_URL_FAILED");
 
-      if (!res.ok) throw new Error("UPLOAD_URL_FAILED");
+        const data = await res.json();
 
-      const { uploadUrl, publicUrl } = await res.json();
+        if (!data.uploadUrl || !data.publicUrl) {
+          throw new Error("INVALID_UPLOAD_URL");
+        }
 
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
+        const uploadRes = await fetch(data.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
 
-      if (!uploadRes.ok) throw new Error("UPLOAD_FAILED");
+        if (!uploadRes.ok) throw new Error("UPLOAD_FAILED");
 
-      urls.push(publicUrl);
-    }
+        return data.publicUrl;
+      })
+    );
 
     return urls;
   }
@@ -172,41 +183,44 @@ export default function OrderReturnPage() {
       setSubmitting(true);
       setError(null);
 
-      for (const item of selectedItems) {
-        if (!item.reason.trim()) {
-          setError("Reason required");
-          return;
-        }
+      await Promise.all(
+        selectedItems.map(async (item) => {
+          if (!item.reason.trim()) {
+            throw new Error("Reason required");
+          }
 
-        if (item.files.length === 0) {
-          setError("Please upload images");
-          return;
-        }
+          if (item.files.length === 0) {
+            throw new Error("Please upload images");
+          }
 
-        const imageUrls = await uploadImages(item.files);
+          const imageUrls = await uploadImages(item.files);
 
-        console.log("[RETURN SUBMIT]", {
-          orderId,
-          orderItemId: item.orderItemId,
-          imageUrls,
-        });
-
-        const res = await apiAuthFetch("/api/returns", {
-          method: "POST",
-          body: JSON.stringify({
+          console.log("🟡 [RETURN SUBMIT]", {
             orderId,
             orderItemId: item.orderItemId,
-            reason: item.reason,
-            description: "",
-            images: imageUrls,
-          }),
-        });
+            imageUrls,
+          });
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "Submit failed");
-        }
-      }
+          const res = await apiAuthFetch("/api/returns", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              orderId,
+              orderItemId: item.orderItemId,
+              reason: item.reason,
+              description: "",
+              images: imageUrls,
+            }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            throw new Error(data?.error || "Submit failed");
+          }
+        })
+      );
 
       router.push("/customer/returns");
 
@@ -239,29 +253,43 @@ export default function OrderReturnPage() {
       {order.order_items.map((item, index) => {
         const state = items[index];
 
+        if (!state) return null;
+
         return (
           <div
             key={item.id}
-            className="bg-white p-3 rounded-xl border space-y-2"
+            className={`bg-white p-3 rounded-xl border space-y-2 ${
+              state.selected ? "border-orange-500" : ""
+            }`}
           >
-            {/* SELECT */}
-            <label className="flex items-center gap-2">
+            {/* HEADER */}
+            <div className="flex gap-3 items-center">
               <input
                 type="checkbox"
-                checked={state?.selected || false}
+                checked={state.selected}
                 onChange={(e) => {
                   const updated = [...items];
                   updated[index].selected = e.target.checked;
                   setItems(updated);
                 }}
               />
-              <span className="text-sm font-medium">
-                {item.product_name}
-              </span>
-            </label>
+
+              {item.thumbnail && (
+                <img
+                  src={item.thumbnail}
+                  className="w-12 h-12 rounded object-cover"
+                />
+              )}
+
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  {item.product_name}
+                </p>
+              </div>
+            </div>
 
             {/* REASON */}
-            {state?.selected && (
+            {state.selected && (
               <input
                 value={state.reason}
                 onChange={(e) => {
@@ -275,7 +303,7 @@ export default function OrderReturnPage() {
             )}
 
             {/* IMAGE */}
-            {state?.selected && (
+            {state.selected && (
               <>
                 <input
                   type="file"
