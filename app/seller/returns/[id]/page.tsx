@@ -2,16 +2,16 @@
 
 export const dynamic = "force-dynamic";
 
-import "swiper/css";
-import "swiper/css/pagination";
-
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination } from "swiper/modules";
 
 /* ================= TYPES ================= */
+
+type TimelineItem = {
+  label: string;
+  time: string;
+};
 
 type ReturnItem = {
   product_name: string;
@@ -25,7 +25,9 @@ type ReturnDetail = {
   return_number: string;
   status: string;
   reason: string;
+  description?: string;
   evidence_images?: string[];
+  timeline?: TimelineItem[];
   items: ReturnItem[];
 };
 
@@ -37,9 +39,8 @@ export default function SellerReturnDetail() {
 
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  /* ================= LOAD ================= */
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   useEffect(() => {
     load();
@@ -47,14 +48,54 @@ export default function SellerReturnDetail() {
 
   async function load() {
     try {
+      console.log("🚀 LOAD RETURN DETAIL:", id);
+
       const res = await apiAuthFetch(`/api/seller/returns/${id}`);
-      if (!res.ok) return;
+
+      if (!res.ok) {
+        console.error("❌ API ERROR:", res.status);
+        return;
+      }
+
       const json = await res.json();
+
+      console.log("📦 RETURN DATA:", json);
+
       setData(json);
     } catch (err) {
-      console.error(err);
+      console.error("💥 LOAD ERROR", err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function action(type: string) {
+    await apiAuthFetch(`/api/seller/returns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: type }),
+    });
+
+    await load();
+  }
+
+  /* ================= STATUS ================= */
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      case "approved":
+        return "bg-blue-100 text-blue-700";
+      case "shipping_back":
+        return "bg-indigo-100 text-indigo-700";
+      case "received":
+        return "bg-purple-100 text-purple-700";
+      case "refunded":
+        return "bg-green-200 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   }
 
@@ -63,128 +104,125 @@ export default function SellerReturnDetail() {
   const allImages: string[] = [
     ...(data?.items?.map((i) => i.thumbnail) ?? []),
     ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.length > 5);
-
-  /* ================= ZOOM STATE ================= */
-
-  const scaleRef = useRef(1);
-  const posRef = useRef({ x: 0, y: 0 });
-  const startRef = useRef({ x: 0, y: 0 });
-
-  const lastTapRef = useRef(0);
-
-  function resetTransform(el: HTMLImageElement) {
-    scaleRef.current = 1;
-    posRef.current = { x: 0, y: 0 };
-    el.style.transform = `translate(0px,0px) scale(1)`;
-  }
-
-  /* ================= DOUBLE TAP ================= */
-
-  function handleDoubleTap(e: React.TouchEvent, el: HTMLImageElement) {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      if (scaleRef.current === 1) {
-        scaleRef.current = 2;
-      } else {
-        scaleRef.current = 1;
-        posRef.current = { x: 0, y: 0 };
-      }
-
-      el.style.transform = `translate(${posRef.current.x}px, ${posRef.current.y}px) scale(${scaleRef.current})`;
-    }
-    lastTapRef.current = now;
-  }
-
-  /* ================= PINCH ZOOM ================= */
-
-  const pinchStartRef = useRef(0);
-
-  function handleTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 2) {
-      const dx =
-        e.touches[0].clientX - e.touches[1].clientX;
-      const dy =
-        e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartRef.current = Math.sqrt(dx * dx + dy * dy);
-    } else if (e.touches.length === 1) {
-      startRef.current = {
-        x: e.touches[0].clientX - posRef.current.x,
-        y: e.touches[0].clientY - posRef.current.y,
-      };
-    }
-  }
-
-  function handleTouchMove(e: React.TouchEvent, el: HTMLImageElement) {
-    if (e.touches.length === 2) {
-      const dx =
-        e.touches[0].clientX - e.touches[1].clientX;
-      const dy =
-        e.touches[0].clientY - e.touches[1].clientY;
-
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      let scale = dist / pinchStartRef.current;
-
-      scale = Math.min(Math.max(scale, 1), 4);
-      scaleRef.current = scale;
-
-      el.style.transform = `translate(${posRef.current.x}px, ${posRef.current.y}px) scale(${scale})`;
-    }
-
-    if (e.touches.length === 1 && scaleRef.current > 1) {
-      posRef.current = {
-        x: e.touches[0].clientX - startRef.current.x,
-        y: e.touches[0].clientY - startRef.current.y,
-      };
-
-      el.style.transform = `translate(${posRef.current.x}px, ${posRef.current.y}px) scale(${scaleRef.current})`;
-    }
-  }
+  ].filter((i) => typeof i === "string" && i.startsWith("http"));
 
   /* ================= UI ================= */
 
   if (loading) return <p className="p-4">Loading...</p>;
-  if (!data) return <p className="p-4">Not found</p>;
+
+  if (!data) return <p className="p-4 text-red-500">Not found</p>;
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-20">
+    <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
 
-      {/* PRODUCT */}
-      <div className="bg-white">
+      {/* HEADER */}
+      <div className="bg-white p-4 border-b space-y-2">
+        <p className="text-sm text-gray-500">
+          Return #{data.return_number || data.id.slice(0, 8)}
+        </p>
+
+        <div className="flex justify-between items-center">
+          <h1 className="font-semibold text-lg">
+            Return Request
+          </h1>
+
+          <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
+            {data.status}
+          </span>
+        </div>
+      </div>
+
+      {/* PRODUCTS */}
+      <div className="bg-white divide-y">
         {data.items.map((item, i) => (
           <div key={i} className="flex gap-3 p-4">
+
             <img
-              src={item.thumbnail}
-              onClick={() => setPreviewIndex(i)}
+              src={item.thumbnail || "/placeholder.png"}
+              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
               className="w-20 h-20 object-cover rounded border"
             />
-            <div>
-              <p>{item.product_name}</p>
-              <p className="text-xs">Qty: {item.quantity}</p>
-              <p className="font-semibold">π{item.unit_price}</p>
+
+            <div className="flex-1">
+              <p className="text-sm font-medium line-clamp-2">
+                {item.product_name}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Qty: {item.quantity}
+              </p>
+
+              <p className="text-sm font-semibold mt-2">
+                π{item.unit_price}
+              </p>
             </div>
+
           </div>
         ))}
       </div>
 
-      {/* EVIDENCE */}
+      {/* REASON */}
+      <div className="bg-white p-4 space-y-2">
+        <p className="text-sm font-semibold">Reason</p>
+        <p className="text-sm text-gray-600">{data.reason}</p>
+
+        {data.description && (
+          <p className="text-xs text-gray-500">
+            {data.description}
+          </p>
+        )}
+      </div>
+
+      {/* ================= IMAGES ================= */}
+
       <div className="bg-white p-4">
-        <div className="flex gap-2 overflow-x-auto">
-          {allImages.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              onClick={() => setPreviewIndex(i)}
-              className="w-24 h-24 object-cover rounded border"
-            />
+        <p className="text-sm font-semibold mb-2">
+          Product & Evidence Images
+        </p>
+
+        {allImages.length === 0 ? (
+          <p className="text-xs text-gray-400">
+            No images
+          </p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto">
+            {allImages.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                onClick={() => setPreviewIndex(i)}
+                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                className="w-24 h-24 object-cover rounded border cursor-pointer"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ================= TIMELINE ================= */}
+
+      {data.timeline && (
+        <div className="bg-white p-4 space-y-3">
+          <p className="text-sm font-semibold">Timeline</p>
+
+          {data.timeline.map((t, i) => (
+            <div key={i} className="flex gap-3 text-sm">
+              <div className="w-2 h-2 mt-2 rounded-full bg-black" />
+              <div>
+                <p className="font-medium">{t.label}</p>
+                <p className="text-xs text-gray-400">
+                  {new Date(t.time).toLocaleString()}
+                </p>
+              </div>
+            </div>
           ))}
         </div>
-      </div>
+      )}
 
       {/* ================= PREVIEW ================= */}
 
       {previewIndex !== null && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col h-screen">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
 
           {/* HEADER */}
           <div className="flex justify-between p-3 text-white">
@@ -193,42 +231,66 @@ export default function SellerReturnDetail() {
             <span />
           </div>
 
-          <Swiper
-            key={previewIndex}
-            modules={[Pagination]}
-            pagination={{ clickable: true }}
-            initialSlide={previewIndex}
-            className="flex-1 h-full"
-          >
-            {allImages.map((src, i) => (
-              <SwiperSlide key={i}>
-                <div className="flex items-center justify-center h-full">
+          {/* IMAGE */}
+          <div className="flex-1 flex items-center justify-center relative">
 
-                  <img
-                    src={src}
-                    className="max-h-full max-w-full object-contain transition-transform duration-100"
-                    onTouchStart={(e) => {
-                      handleDoubleTap(e, e.currentTarget);
-                      handleTouchStart(e);
-                    }}
-                    onTouchMove={(e) =>
-                      handleTouchMove(e, e.currentTarget)
-                    }
-                    onDoubleClick={(e) =>
-                      resetTransform(e.currentTarget)
-                    }
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder.png";
-                    }}
-                  />
+            <img
+              src={allImages[previewIndex]}
+              className="max-h-full max-w-full object-contain"
+            />
 
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+            {previewIndex > 0 && (
+              <button
+                onClick={() => setPreviewIndex(previewIndex - 1)}
+                className="absolute left-2 text-white text-2xl"
+              >
+                ‹
+              </button>
+            )}
 
+            {previewIndex < allImages.length - 1 && (
+              <button
+                onClick={() => setPreviewIndex(previewIndex + 1)}
+                className="absolute right-2 text-white text-2xl"
+              >
+                ›
+              </button>
+            )}
+          </div>
         </div>
       )}
+
+      {/* ACTIONS */}
+      <div className="p-4 space-y-2">
+
+        {data.status === "pending" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => action("approve")}
+              className="flex-1 bg-green-500 text-white py-3 rounded-lg"
+            >
+              Approve
+            </button>
+
+            <button
+              onClick={() => action("reject")}
+              className="flex-1 bg-red-500 text-white py-3 rounded-lg"
+            >
+              Reject
+            </button>
+          </div>
+        )}
+
+        {data.status === "shipping_back" && (
+          <button
+            onClick={() => action("received")}
+            className="w-full bg-blue-500 text-white py-3 rounded-lg"
+          >
+            Mark as Received
+          </button>
+        )}
+
+      </div>
 
     </main>
   );
