@@ -343,3 +343,85 @@ export async function cancelReturnByBuyer(
     error("RETURN_NOT_CANCELABLE");
   }
 }
+export async function getReturnByIdForSeller(
+  returnId: string,
+  sellerId: string
+) {
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM returns
+    WHERE id = $1
+      AND seller_id = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [returnId, sellerId]
+  );
+
+  return rows[0] ?? null;
+}
+export async function updateReturnStatusBySeller(
+  returnId: string,
+  sellerId: string,
+  action: string
+) {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query<{
+      status: string;
+    }>(
+      `
+      SELECT status
+      FROM returns
+      WHERE id = $1
+        AND seller_id = $2
+      LIMIT 1
+      `,
+      [returnId, sellerId]
+    );
+
+    const item = rows[0];
+
+    if (!item) throw new Error("NOT_FOUND");
+
+    let nextStatus = item.status;
+
+    /* ================= FLOW ================= */
+
+    if (action === "approve") {
+      if (item.status !== "pending") {
+        throw new Error("INVALID_STATE");
+      }
+      nextStatus = "approved";
+    }
+
+    if (action === "reject") {
+      if (item.status !== "pending") {
+        throw new Error("INVALID_STATE");
+      }
+      nextStatus = "rejected";
+    }
+
+    if (action === "received") {
+      if (item.status !== "shipping_back") {
+        throw new Error("INVALID_STATE");
+      }
+      nextStatus = "received";
+    }
+
+    await client.query(
+      `
+      UPDATE returns
+      SET status = $1,
+          updated_at = now()
+      WHERE id = $2
+      `,
+      [nextStatus, returnId]
+    );
+
+    console.log("🟢 [RETURN][SELLER UPDATE]", {
+      returnId,
+      nextStatus,
+    });
+  });
+}
