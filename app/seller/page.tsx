@@ -98,7 +98,7 @@ function SellerOrdersContent() {
       </div>
 
       {/* MAIN ACTIONS */}
-      <section className="grid grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MainCard
           href="/seller/post"
           icon={<PackagePlus size={18} />}
