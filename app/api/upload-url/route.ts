@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireSeller } from "@/lib/auth/guard";
+import { requireAuth } from "@/lib/auth/guard";
 
-export const runtime = "nodejs"; // 🔥 đảm bảo dùng Node (crypto OK)
+export const runtime = "nodejs";
 
 export async function POST() {
-  try {
-    console.log("🚀 CREATE SIGNED URL");
+  console.log("🚀 [UPLOAD_URL] START");
 
+  try {
     /* ================= AUTH ================= */
-    const auth = await requireSeller();
+    const auth = await requireAuth();
+
+    console.log("🔐 [UPLOAD_URL] AUTH:", auth);
 
     if (!auth?.ok) {
-      console.error("❌ AUTH FAILED");
+      console.error("❌ [UPLOAD_URL] UNAUTHORIZED");
       return auth.response ?? NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
@@ -22,44 +24,62 @@ export async function POST() {
     const userId = auth.userId;
 
     if (!userId) {
-      console.error("❌ NO USER ID");
+      console.error("❌ [UPLOAD_URL] NO USER");
       return NextResponse.json(
         { error: "NO_USER" },
         { status: 401 }
       );
     }
 
-    console.log("👤 USER:", userId);
+    console.log("👤 [UPLOAD_URL] USER:", userId);
 
     /* ================= PATH ================= */
     const fileName = `${Date.now()}-${crypto.randomUUID()}.jpg`;
-    const filePath = `products/${userId}/${fileName}`;
 
-    console.log("📂 PATH:", filePath);
+    // 🔥 dùng folder returns riêng (chuẩn hệ thống)
+    const filePath = `returns/${userId}/${fileName}`;
+
+    console.log("📂 [UPLOAD_URL] PATH:", filePath);
 
     /* ================= SIGNED URL ================= */
     const { data, error } = await supabaseAdmin.storage
-      .from("products")
+      .from("returns") // ⚠️ bucket riêng
       .createSignedUploadUrl(filePath);
 
     if (error || !data?.signedUrl) {
-      console.error("❌ SIGNED URL ERROR:", error);
+      console.error("❌ [UPLOAD_URL] SIGN ERROR:", error);
       return NextResponse.json(
         { error: "SIGNED_URL_FAILED" },
         { status: 500 }
       );
     }
 
-    console.log("✅ SIGNED URL CREATED");
+    console.log("✅ [UPLOAD_URL] SIGNED URL OK");
+
+    /* ================= PUBLIC URL ================= */
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    if (!baseUrl) {
+      console.error("❌ [UPLOAD_URL] MISSING ENV");
+      return NextResponse.json(
+        { error: "CONFIG_ERROR" },
+        { status: 500 }
+      );
+    }
+
+    const publicUrl = `${baseUrl}/storage/v1/object/public/returns/${filePath}`;
+
+    console.log("🌍 [UPLOAD_URL] PUBLIC URL:", publicUrl);
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
-      url: data.signedUrl,
-      path: filePath,
+      uploadUrl: data.signedUrl, // 🔥 frontend dùng PUT
+      publicUrl,                 // 🔥 lưu DB
+      path: filePath,            // optional debug
     });
 
-  } catch (err: any) {
-    console.error("💥 API ERROR:", err?.message || err);
+  } catch (err: unknown) {
+    console.error("💥 [UPLOAD_URL] ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
