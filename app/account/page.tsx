@@ -1,267 +1,103 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-/* ================= TYPES ================= */
+import AccountHeader from "@/components/AccountHeader";
+import OrderSummary from "@/components/OrderSummary";
+import CustomerMenu from "@/components/customerMenu";
 
-type Tx = {
-  id: string;
-  type: "credit" | "debit";
-  amount: number;
-  reference_type: string;
-  created_at: string;
-};
-
-/* ================= UTILS ================= */
-
-function formatPi(value: number): string {
-  return Number(value).toFixed(2);
-}
-
-function formatTime(value: string): string {
-  return new Date(value).toLocaleString();
-}
-
-/* ================= PAGE ================= */
-
-export default function WalletPage() {
+export default function AccountPage() {
   const { t } = useTranslation();
-  const { loading: authLoading } = useAuth();
+  const { user, loading, pilogin, logout, piReady } = useAuth();
 
-  const [balance, setBalance] = useState<number>(0);
-  const [txs, setTxs] = useState<Tx[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [agreed, setAgreed] = useState(false);
 
-  const hasLoaded = useRef<boolean>(false);
-
-  /* ================= LOAD ================= */
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (hasLoaded.current) return;
-
-    hasLoaded.current = true;
-    load();
-  }, [authLoading]);
-
-  async function load(): Promise<void> {
-    try {
-      console.log("🟡 [WALLET][LOAD]");
-
-      const [walletRes, txRes] = await Promise.all([
-        apiAuthFetch("/api/wallet", { cache: "no-store" }),
-        apiAuthFetch("/api/wallet/transactions", { cache: "no-store" }),
-      ]);
-
-      /* ================= WALLET ================= */
-
-      if (walletRes.ok) {
-        const walletJson: unknown = await walletRes.json();
-
-        if (
-          typeof walletJson === "object" &&
-          walletJson !== null &&
-          "balance" in walletJson
-        ) {
-          const balanceValue = Number(
-            (walletJson as { balance: unknown }).balance
-          );
-
-          setBalance(Number.isNaN(balanceValue) ? 0 : balanceValue);
-        }
-      }
-
-      /* ================= TX ================= */
-
-      if (txRes.ok) {
-        const txJson: unknown = await txRes.json();
-
-        if (Array.isArray(txJson)) {
-          const safeTx: Tx[] = txJson.filter(
-            (tItem): tItem is Tx =>
-              typeof tItem === "object" &&
-              tItem !== null &&
-              typeof tItem.id === "string" &&
-              (tItem.type === "credit" || tItem.type === "debit") &&
-              typeof tItem.amount !== "undefined" &&
-              typeof tItem.reference_type === "string" &&
-              typeof tItem.created_at === "string"
-          );
-
-          setTxs(safeTx);
-        }
-      }
-
-      console.log("🟢 [WALLET][LOAD_SUCCESS]");
-    } catch (err) {
-      console.error("❌ [WALLET][LOAD_ERROR]", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
-
-  async function refresh(): Promise<void> {
-    if (refreshing) return;
-    setRefreshing(true);
-    await load();
-  }
-
-  /* ================= REF LABEL ================= */
-
-  function getRefLabel(type: string): string {
-    switch (type) {
-      case "order":
-        return t.wallet_ref_order;
-      case "refund":
-        return t.wallet_ref_refund;
-      case "withdraw":
-        return t.wallet_ref_withdraw;
-      case "deposit":
-        return t.wallet_ref_deposit;
-      default:
-        return type;
-    }
-  }
-
-  /* ================= UI ================= */
-
+  /* =========================
+     LOADING
+  ========================= */
   if (loading) {
+    return null;
+  }
+
+  /* =========================
+     NOT LOGGED IN
+  ========================= */
+  if (!user) {
     return (
-      <main className="p-4 space-y-4 animate-pulse">
-        <div className="h-24 bg-gray-200 rounded-xl" />
-        <div className="h-40 bg-gray-200 rounded-xl" />
+      <main className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="text-xl font-semibold mb-6">
+            {t.account}
+          </h1>
+
+          {/* LOGIN BUTTON */}
+          <button
+            onClick={pilogin}
+            disabled={!piReady || !agreed}
+            className={`w-full py-3 rounded-full font-semibold text-white shadow transition
+              ${
+                piReady && agreed
+                  ? "bg-orange-500 hover:bg-orange-600"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+          >
+            {t.login}
+          </button>
+
+          {/* TERMS CHECKBOX */}
+          <div className="mt-4 flex items-start justify-center space-x-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={() => setAgreed(v => !v)}
+              className="mt-1 w-4 h-4 accent-orange-500"
+            />
+            <label className="text-left">
+              {t.i_agree}{" "}
+              <a
+                href="https://www.termsfeed.com/live/32e8bf86-ceaf-4eb6-990e-cd1fa0b0775e"
+                target="_blank"
+                className="text-orange-500 underline"
+              >
+                {t.terms_of_use}
+              </a>{" "}
+              {t.and}{" "}
+              <a
+                href="https://www.termsfeed.com/live/8e33a9fd-71e7-4536-8033-9c8b329f3f25"
+                target="_blank"
+                className="text-orange-500 underline"
+              >
+                {t.privacy_policy}
+              </a>
+            </label>
+          </div>
+        </div>
       </main>
     );
   }
 
+  /* =========================
+     LOGGED IN → DASHBOARD
+  ========================= */
   return (
-    <main className="min-h-screen bg-gray-100 pb-24">
+    <main className="bg-gray-100 pb-32 space-y-4">
+      <AccountHeader />
+      <OrderSummary />
+      <CustomerMenu />
 
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-5 rounded-b-2xl shadow">
-
-        <div className="flex justify-between items-center">
-          <p className="text-sm opacity-80">
-            {t.wallet_balance}
-          </p>
-
-          <button
-            onClick={refresh}
-            className="text-xs bg-white/20 px-3 py-1 rounded-full"
-          >
-            {refreshing ? "..." : t.wallet_refresh}
-          </button>
-        </div>
-
-        <h1 className="text-3xl font-bold mt-2">
-          π {formatPi(balance)}
-        </h1>
-
-        {/* ACTIONS */}
-        <div className="flex gap-3 mt-5">
-
-          <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
-            {t.wallet_deposit}
-          </button>
-
-          <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
-            {t.wallet_withdraw}
-          </button>
-
-          <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
-            {t.wallet_pay}
-          </button>
-
-        </div>
-      </div>
-
-      {/* QUICK STATS */}
-      <div className="p-4 grid grid-cols-2 gap-3">
-
-        <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-xs text-gray-400">
-            {t.wallet_total_in}
-          </p>
-          <p className="text-green-600 font-semibold">
-            +π{" "}
-            {formatPi(
-              txs
-                .filter((tItem) => tItem.type === "credit")
-                .reduce((sum, tItem) => sum + Number(tItem.amount), 0)
-            )}
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-xs text-gray-400">
-            {t.wallet_total_out}
-          </p>
-          <p className="text-red-500 font-semibold">
-            -π{" "}
-            {formatPi(
-              txs
-                .filter((tItem) => tItem.type === "debit")
-                .reduce((sum, tItem) => sum + Number(tItem.amount), 0)
-            )}
-          </p>
-        </div>
-
-      </div>
-
-      {/* TRANSACTIONS */}
-      <div className="px-4 mt-2">
-
-        <p className="text-sm font-semibold mb-2">
-          {t.wallet_transactions}
-        </p>
-
-        <div className="bg-white rounded-xl shadow divide-y">
-
-          {txs.length === 0 && (
-            <div className="p-6 text-center text-gray-400 text-sm">
-              {t.wallet_no_transactions}
-            </div>
-          )}
-
-          {txs.map((tItem) => (
-            <div
-              key={tItem.id}
-              className="p-4 flex justify-between items-center"
-            >
-
-              <div>
-                <p className="text-sm font-medium">
-                  {getRefLabel(tItem.reference_type)}
-                </p>
-
-                <p className="text-xs text-gray-400">
-                  {formatTime(tItem.created_at)}
-                </p>
-              </div>
-
-              <p
-                className={`text-sm font-semibold ${
-                  tItem.type === "credit"
-                    ? "text-green-600"
-                    : "text-red-500"
-                }`}
-              >
-                {tItem.type === "credit" ? "+" : "-"}π
-                {formatPi(tItem.amount)}
-              </p>
-
-            </div>
-          ))}
-        </div>
-      </div>
-
+      <section className="mx-4">
+        <button
+          onClick={logout}
+          className="w-full py-4 bg-red-500 text-white rounded-2xl
+            flex items-center justify-center gap-3 font-semibold text-lg shadow"
+        >
+          <LogOut size={22} />
+          {t.logout}
+        </button>
+      </section>
     </main>
   );
 }
