@@ -41,6 +41,7 @@ export default function SellerReturnDetail() {
   const id = params.id as string;
 
   const [data, setData] = useState<ReturnDetail | null>(null);
+  const [acting, setActing] = useState(false);
   const [loading, setLoading] = useState(true);
 const [zoomImage, setZoomImage] = useState<string | null>(null);
 const [scale, setScale] = useState(1);
@@ -51,8 +52,11 @@ const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
   useEffect(() => {
-    load();
-  }, []);
+  load();
+
+  const i = setInterval(load, 10000);
+  return () => clearInterval(i);
+}, []);
 
   async function load() {
     try {
@@ -75,34 +79,51 @@ const [initialScale, setInitialScale] = useState(1);
   }
 
   async function action(type: string) {
-    await apiAuthFetch(`/api/seller/returns/${id}`, {
+  if (acting) return;
+
+  try {
+    setActing(true);
+
+    const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ action: type }),
     });
 
+    if (!res.ok) {
+      alert("Action failed");
+      return;
+    }
+
     await load();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setActing(false);
   }
+}
 
   /* ================= STATUS ================= */
 
-  function getStatusColor(status: string) {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-700";
-      case "approved":
-        return "bg-blue-100 text-blue-700";
-      case "shipping_back":
-        return "bg-indigo-100 text-indigo-700";
-      case "received":
-        return "bg-purple-100 text-purple-700";
-      case "refunded":
-        return "bg-green-200 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
+  function getStatusLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Waiting approval";
+    case "approved":
+      return "Approved";
+    case "shipping_back":
+      return "Buyer returning";
+    case "received":
+      return "Received";
+    case "refund_pending":
+      return "Waiting buyer refund confirm";
+    case "refunded":
+      return "Refunded";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status;
   }
+}
 
   /* ================= IMAGE LIST ================= */
 
@@ -130,7 +151,7 @@ const [initialScale, setInitialScale] = useState(1);
           </h1>
 
           <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
-            {data.status}
+            {getStatusLabel(data.status)}
           </span>
         </div>
       </div>
@@ -317,7 +338,6 @@ const [initialScale, setInitialScale] = useState(1);
 
       {/* ACTIONS */}
       <div className="p-4 space-y-2">
-
         {data.status === "pending" && (
           <div className="flex gap-2">
             <button
