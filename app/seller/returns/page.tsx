@@ -22,7 +22,7 @@ type ReturnItem = {
   id: string;
   return_number: string;
   status: ReturnStatus;
-  created_at: string;
+  created_at: string | null;
 
   product_name: string;
   thumbnail: string;
@@ -69,7 +69,6 @@ export default function SellerReturnsPage() {
       console.log("📦 DATA:", list);
 
       setItems(list);
-
     } catch (err) {
       console.error("💥 LOAD ERROR:", err);
     } finally {
@@ -80,25 +79,46 @@ export default function SellerReturnsPage() {
   /* ================= STATUS ================= */
 
   function getStatusLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Waiting approval";
-    case "approved":
-      return "Approved";
-    case "shipping_back":
-      return "Buyer returning";
-    case "received":
-      return "Received";
-    case "refund_pending":
-      return "Waiting refund confirm";
-    case "refunded":
-      return "Refunded";
-    case "rejected":
-      return "Rejected";
-    default:
-      return status;
+    switch (status) {
+      case "pending":
+        return "Waiting approval";
+      case "approved":
+        return "Approved";
+      case "shipping_back":
+        return "Buyer returning";
+      case "received":
+        return "Received";
+      case "refund_pending":
+        return "Waiting refund confirm";
+      case "refunded":
+        return "Refunded";
+      case "rejected":
+        return "Rejected";
+      default:
+        return status;
+    }
   }
-}
+
+  function getColor(status: string) {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      case "approved":
+        return "bg-blue-100 text-blue-700";
+      case "shipping_back":
+        return "bg-indigo-100 text-indigo-700";
+      case "received":
+        return "bg-purple-100 text-purple-700";
+      case "refund_pending":
+        return "bg-orange-100 text-orange-700";
+      case "refunded":
+        return "bg-green-100 text-green-700";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-600";
+    }
+  }
 
   /* ================= TABS ================= */
 
@@ -108,6 +128,7 @@ export default function SellerReturnsPage() {
     "approved",
     "shipping_back",
     "received",
+    "refund_pending",
     "refunded",
     "rejected",
   ];
@@ -116,7 +137,6 @@ export default function SellerReturnsPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-
       {/* HEADER */}
       <div className="bg-white px-4 py-3 border-b sticky top-0 z-10">
         <h1 className="font-semibold text-lg">
@@ -145,7 +165,6 @@ export default function SellerReturnsPage() {
 
       {/* LIST */}
       <div className="p-3 space-y-3">
-
         {loading && (
           <p className="text-center text-gray-400">
             Loading...
@@ -177,7 +196,6 @@ export default function SellerReturnsPage() {
 
             {/* INFO */}
             <div className="flex-1 flex flex-col justify-between">
-
               <div>
                 <p className="text-sm font-medium line-clamp-2">
                   {item.product_name}
@@ -189,25 +207,23 @@ export default function SellerReturnsPage() {
               </div>
 
               <div className="flex justify-between items-end mt-2">
-
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${getColor(
                     item.status
                   )}`}
                 >
-                  {item.status}
+                  {getStatusLabel(item.status)}
                 </span>
 
-                <span className="text-[10px] text-gray-400">
-                  {new Date(item.created_at).toLocaleString()}
-                </span>
-
+                {item.created_at && (
+                  <span className="text-[10px] text-gray-400">
+                    {new Date(item.created_at).toLocaleString()}
+                  </span>
+                )}
               </div>
-
             </div>
           </div>
         ))}
-
       </div>
     </main>
   );
