@@ -574,59 +574,126 @@ export async function updateReturnStatusBySeller(
   action: string
 ) {
   return withTransaction(async (client) => {
+
+    /* ================= LOCK RETURN ================= */
+
     const { rows } = await client.query<{
       status: string;
+      refund_amount: string;
+      order_id: string;
+      pi_payment_id: string | null;
+      refunded_at: string | null;
     }>(
       `
-      SELECT status
+      SELECT
+        status,
+        refund_amount,
+        order_id,
+        pi_payment_id,
+        refunded_at
       FROM returns
       WHERE id = $1
         AND seller_id = $2
-      LIMIT 1
+      FOR UPDATE
       `,
       [returnId, sellerId]
     );
 
-    const item = rows[0];
+    const ret = rows[0];
 
-    if (!item) throw new Error("NOT_FOUND");
+    if (!ret) throw new Error("NOT_FOUND");
 
-    let nextStatus = item.status;
+    let nextStatus = ret.status;
 
-    /* ================= FLOW ================= */
+    /* ================= APPROVE ================= */
 
     if (action === "approve") {
-      if (item.status !== "pending") {
+      if (ret.status !== "pending") {
         throw new Error("INVALID_STATE");
       }
+
       nextStatus = "approved";
     }
 
+    /* ================= REJECT ================= */
+
     if (action === "reject") {
-      if (item.status !== "pending") {
+      if (ret.status !== "pending") {
         throw new Error("INVALID_STATE");
       }
+
       nextStatus = "rejected";
     }
 
+    /* ================= RECEIVED → REFUND ================= */
+
     if (action === "received") {
-      if (item.status !== "shipping_back") {
+      if (ret.status !== "shipping_back") {
         throw new Error("INVALID_STATE");
       }
-      nextStatus = "received";
+
+      // ❗ chống double refund
+      if (ret.refunded_at) {
+        throw new Error("ALREADY_REFUNDED");
+      }
+
+      const amount = Number(ret.refund_amount);
+
+      if (Number.isNaN(amount) || amount <= 0) {
+        throw new Error("INVALID_AMOUNT");
+      }
+
+      if (!ret.pi_payment_id) {
+        throw new Error("MISSING_PAYMENT_ID");
+      }
+
+      console.log("💰 [REFUND START]", {
+        returnId,
+        amount,
+      });
+
+      /* ================= CALL PI REFUND ================= */
+
+      // ⚠️ chỗ này bạn sẽ gọi Pi API thật
+      const refundTxId = await fakeRefund(ret.pi_payment_id, amount);
+
+      /* ================= UPDATE REFUNDED ================= */
+
+      await client.query(
+        `
+        UPDATE returns
+        SET
+          status = 'refunded',
+          refunded_at = now(),
+          refund_txid = $1,
+          updated_at = now()
+        WHERE id = $2
+        `,
+        [refundTxId, returnId]
+      );
+
+      console.log("🟢 [REFUND SUCCESS]", {
+        returnId,
+        refundTxId,
+      });
+
+      return;
     }
+
+    /* ================= NORMAL UPDATE ================= */
 
     await client.query(
       `
       UPDATE returns
-      SET status = $1,
-          updated_at = now()
+      SET
+        status = $1,
+        updated_at = now()
       WHERE id = $2
       `,
       [nextStatus, returnId]
     );
 
-    console.log("🟢 [RETURN][SELLER UPDATE]", {
+    console.log("🟢 [RETURN UPDATE]", {
       returnId,
       nextStatus,
     });
@@ -715,4 +782,48 @@ export async function shipReturnByBuyer(params: {
   console.log("🟢 [RETURN][SHIP SUCCESS]", {
     returnId,
   });
+}
+async function refundPiPayment(params: {
+  paymentId: string;
+  amount: number;
+}): Promise<string> {
+  const { paymentId, amount } = params;
+
+  const apiKey = process.env.PI_API_KEY;
+  const baseUrl = process.env.PI_API_URL;
+
+  if (!apiKey || !baseUrl) {
+    throw new Error("PI_CONFIG_MISSING");
+  }
+
+  console.log("💰 [PI][REFUND REQUEST]", {
+    paymentId,
+    amount,
+  });
+
+  const res = await fetch(`${baseUrl}/payments/${paymentId}/refund`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amount,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+
+    console.error("❌ [PI REFUND ERROR]", text);
+
+    throw new Error("REFUND_FAILED");
+  }
+
+  const data = await res.json();
+
+  console.log("🟢 [PI REFUND SUCCESS]", data);
+
+  // ⚠️ tuỳ Pi trả gì (txid / identifier)
+  return data?.identifier || data?.txid || "unknown";
 }
