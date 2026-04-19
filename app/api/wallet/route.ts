@@ -1,20 +1,24 @@
-export async function GET() {
-  const auth = await requireAuth();
-  if (!auth.ok) return auth.response;
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/guard";
+import { getWalletByUserId } from "@/lib/db/wallet";
 
+export const runtime = "nodejs";
+
+export async function GET() {
   try {
-    console.log("🧪 [WALLET API] userId:", auth.userId);
+    const auth = await requireAuth();
+
+    if (!auth.ok) return auth.response;
 
     const wallet = await getWalletByUserId(auth.userId);
-
-    console.log("🧪 [WALLET API] result:", wallet);
 
     return NextResponse.json({
       balance: wallet?.balance ?? 0,
     });
 
   } catch (err) {
-    console.error("[WALLET][GET_ERROR]", err);
+    console.error("🔥 [WALLET API ERROR]", err);
+
     return NextResponse.json(
       { error: "INTERNAL_ERROR" },
       { status: 500 }
