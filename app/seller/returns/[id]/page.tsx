@@ -269,11 +269,18 @@ export default function SellerReturnDetail() {
       </div>
 
       {/* ZOOM */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center"
-          onClick={() => setZoomImage(null)}
-        >
+     {zoomImage && (
+  <div
+    className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center"
+    onClick={() => setZoomImage(null)}
+  >
+    {/* ❌ CLOSE BUTTON */}
+    <button
+      onClick={() => setZoomImage(null)}
+      className="absolute top-5 right-5 z-[1000] w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white text-xl"
+    >
+      ✕
+    </button>
           <img
             src={zoomImage}
             onClick={(e) => e.stopPropagation()}
