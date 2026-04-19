@@ -84,26 +84,36 @@ export default function SellerReturnDetail() {
   /* ================= ACTION ================= */
 
   async function action(type: string) {
-    if (acting) return;
+  if (acting) return;
 
-    try {
-      setActing(true);
-
-      const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: type }),
-      });
-
-      if (!res.ok) {
-        alert("Action failed");
-        return;
-      }
-
-      await load();
-    } finally {
-      setActing(false);
-    }
+  if (type === "received") {
+    const ok = confirm(
+      "Confirm you received the returned product?\n\nRefund will be sent to buyer wallet."
+    );
+    if (!ok) return;
   }
+
+  try {
+    setActing(true);
+
+    const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: type }),
+    });
+
+    if (!res.ok) {
+      alert("Action failed");
+      return;
+    }
+
+    await load();
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setActing(false);
+  }
+}
 
   /* ================= STATUS ================= */
 
@@ -249,23 +259,23 @@ export default function SellerReturnDetail() {
       </div>
 
       {/* REFUND NOTICE */}
-      {data.status === "refund_pending" && (
-        <div className="bg-yellow-50 text-yellow-700 text-sm p-3 mx-4 rounded">
-          Waiting for buyer to confirm refund in Pi Wallet
-        </div>
+      {data.status === "refunded" && (
+  <div className="bg-green-50 text-green-700 text-sm p-3 mx-4 rounded">
+    Refund has been added to buyer's wallet
+    </div>
       )}
 
       {/* ACTION */}
       <div className="p-4">
-        {data.status === "shipping_back" && (
-          <button
-            disabled={acting}
-            onClick={() => action("received")}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg"
-          >
-            Mark as Received
-          </button>
-        )}
+       {data.status === "shipping_back" && (
+  <button
+    disabled={acting}
+    onClick={() => action("received")}
+    className="w-full bg-blue-500 text-white py-3 rounded-lg"
+  >
+    {acting ? "Processing..." : "Mark as Received"}
+  </button>
+)}
       </div>
 
       {/* ZOOM */}
