@@ -8,9 +8,14 @@ export async function GET() {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
-  const wallet = await getWalletByUserId(auth.userId);
-
-  return NextResponse.json({
-    balance: wallet?.balance ?? 0,
-  });
+  try {
+    const wallet = await getWalletByUserId(auth.userId);
+    return NextResponse.json(wallet);
+  } catch (err) {
+    console.error("[WALLET][GET_ERROR]", err);
+    return NextResponse.json(
+      { error: "INTERNAL_ERROR" },
+      { status: 500 }
+    );
+  }
 }
