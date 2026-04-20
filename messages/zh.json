@@ -565,7 +565,15 @@
   "return_upload_required": "请上传图片",
   "return_image_limit": "每张图片最大2MB",
   "return_reason_placeholder": "请输入退货原因",
-  "system_error": "系统错误"
+  "system_error": "系统错误",
+
+  "return_select_reason": "选择原因",
+  "return_reason_damaged": "商品损坏",
+  "return_reason_wrong": "发错商品",
+  "return_reason_not_match": "与描述不符",
+  "return_reason_other": "其他",
+  "return_max_3_images": "最多3张图片"
+
 
 
 
