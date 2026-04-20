@@ -537,7 +537,7 @@ export default function CustomerOrdersPage() {
                     className={`w-full rounded-xl border px-4 py-3 text-left ${
                       selectedReason ===
                       key
-                        "border-primary bg-primary/10 text-primary"
+                        ?"border-primary bg-primary/10 text-primary"
                         : "border-gray-200"
                     }`}
                   >
