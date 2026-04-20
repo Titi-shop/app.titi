@@ -1,351 +1,276 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
 
-import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { useAuth } from "@/context/AuthContext";
+import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
-import "swiper/css";
-import "swiper/css/pagination";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination } from "swiper/modules";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
-type ReturnStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "shipping_back"
-  | "received"
-  | "refund_pending"
-  | "refunded"
-  | "cancelled";
+type TimelineItem = {
+  label: string;
+  time: string;
+};
 
-interface ReturnRecord {
-  id: string;
-  order_id: string;
+type ReturnItem = {
   product_name: string;
-  product_thumbnail: string | null;
+  thumbnail: string;
   quantity: number;
-  refund_amount: number;
-  status: ReturnStatus;
-  reason?: string;
-  created_at: string;
+  unit_price: number;
+};
 
+type ReturnDetail = {
+  id: string;
+  return_number: string;
+  status: string;
+  reason: string;
+  description?: string;
   evidence_images?: string[];
-  return_tracking_code?: string | null;
-  shipping_provider?: string | null;
-}
-
-/* ================= CONST ================= */
-
-const BASE_STORAGE =
-  process.env.NEXT_PUBLIC_SUPABASE_URL +
-  "/storage/v1/object/public/";
+  timeline?: TimelineItem[];
+  items: ReturnItem[];
+  return_tracking_code?: string;
+};
 
 /* ================= PAGE ================= */
 
-export default function ReturnDetailPage() {
+export default function SellerReturnDetailPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
 
-  const returnId = Array.isArray(params?.id)
-    ? params.id[0]
-    : params?.id;
-
-  const { user, loading: authLoading } = useAuth();
-
-  const [data, setData] = useState<ReturnRecord | null>(null);
+  const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState(false);
 
-  const [trackingCode, setTrackingCode] = useState("");
-  const [shippingProvider, setShippingProvider] = useState("");
-  const [sending, setSending] = useState(false);
-
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
-  /* ===== ZOOM STATE ===== */
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [start, setStart] = useState({ x: 0, y: 0 });
-  const [initialDistance, setInitialDistance] = useState(0);
-  const [initialScale, setInitialScale] = useState(1);
+  const [preview, setPreview] = useState<string | null>(null);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
-    if (authLoading || !user || !returnId) return;
-    loadReturn();
-  }, [authLoading, user, returnId]);
+    if (!id) return;
+    load();
+  }, [id]);
 
-  async function loadReturn() {
+  async function load() {
     try {
-      const res = await apiAuthFetch(`/api/returns/${returnId}`);
-      if (!res.ok) {
-        setData(null);
-        return;
-      }
+      const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+      if (!res.ok) return;
 
-      const record: ReturnRecord = await res.json();
-      setData(record);
+      const json = await res.json();
+      setData(json);
     } catch (err) {
-      console.error(err);
-      setData(null);
+      console.error("[RETURN][LOAD]", err);
     } finally {
       setLoading(false);
     }
   }
 
-  /* ================= SHIP ================= */
+  /* ================= ACTION ================= */
 
-  async function handleShip() {
-    if (!trackingCode.trim()) {
-      alert("Nhập mã vận đơn");
-      return;
-    }
+  async function markReceived() {
+    if (!data || acting) return;
 
     try {
-      setSending(true);
+      setActing(true);
 
-      const res = await apiAuthFetch(`/api/returns/${returnId}/ship`, {
+      const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          tracking_code: trackingCode,
-          shipping_provider: shippingProvider,
-        }),
+        body: JSON.stringify({ action: "received" }),
       });
 
       if (!res.ok) {
-        alert("Gửi thất bại");
+        alert(t.action_failed);
         return;
       }
 
-      await loadReturn();
-      setTrackingCode("");
-      setShippingProvider("");
+      await load();
     } finally {
-      setSending(false);
+      setActing(false);
     }
   }
 
   /* ================= HELPERS ================= */
 
-  function getImage(src?: string | null) {
-    if (!src) return "/placeholder.png";
-    if (src.startsWith("http")) return src;
-    return BASE_STORAGE + src;
-  }
-
-  function getStatusLabel(status: ReturnStatus) {
+  function getStatusColor(status: string) {
     switch (status) {
-      case "pending": return "Pending";
-      case "approved": return "Approved";
-      case "shipping_back": return "Shipping back";
-      case "received": return "Received";
-      case "refund_pending": return "Waiting refund confirm";
-      case "refunded": return "Refunded";
-      case "rejected": return "Rejected";
-      default: return status;
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      case "approved":
+        return "bg-blue-100 text-blue-700";
+      case "shipping_back":
+        return "bg-indigo-100 text-indigo-700";
+      case "received":
+        return "bg-purple-100 text-purple-700";
+      case "refund_pending":
+        return "bg-orange-100 text-orange-700";
+      case "refunded":
+        return "bg-green-200 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   }
 
-  function getStatusColor(status: ReturnStatus) {
+  function getStatusText(status: string) {
     switch (status) {
-      case "pending": return "text-yellow-600";
-      case "approved": return "text-blue-600";
-      case "shipping_back": return "text-indigo-600";
-      case "received": return "text-purple-600";
-      case "refund_pending": return "text-orange-600";
-      case "refunded": return "text-green-700";
-      case "rejected": return "text-red-600";
-      default: return "text-gray-500";
+      case "pending":
+        return t.pending;
+      case "approved":
+        return t.approved;
+      case "shipping_back":
+        return t.shipping_back;
+      case "received":
+        return t.received;
+      case "refund_pending":
+        return t.waiting_refund;
+      case "refunded":
+        return t.refunded;
+      case "rejected":
+        return t.rejected;
+      default:
+        return status;
     }
   }
 
   const allImages: string[] = [
-    data?.product_thumbnail ?? "",
+    ...(data?.items?.map((i) => i.thumbnail) ?? []),
     ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.length > 5);
+  ].filter((i): i is string => typeof i === "string" && i.length > 5);
 
   /* ================= UI ================= */
 
-  if (loading) return <div className="p-4">Loading...</div>;
-  if (!data) return <div className="p-4 text-red-500">Not found</div>;
+  if (loading) {
+    return <div className="p-4">{t.loading}</div>;
+  }
+
+  if (!data) {
+    return <div className="p-4 text-red-500">{t.not_found}</div>;
+  }
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-24">
+    <main className="min-h-screen bg-gray-100 pb-24 space-y-4">
 
       {/* HEADER */}
-      <header className="bg-orange-500 text-white px-4 py-4">
-        <div className="bg-orange-400 rounded-lg p-4">
-          <p className="text-sm">Return Detail</p>
-          <p className="text-xs">Order: #{data.order_id}</p>
-        </div>
-      </header>
+      <div className="bg-white p-4 border-b space-y-2">
+        <p className="text-sm text-gray-500">
+          #{data.return_number || data.id.slice(0, 8)}
+        </p>
 
-      <section className="mt-6 px-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <h1 className="font-semibold text-lg">
+            {t.return_request}
+          </h1>
 
-        {/* PRODUCT */}
-        <div className="bg-white rounded-xl p-4 flex gap-3">
-          <img
-            src={getImage(data.product_thumbnail)}
-            onClick={() => setPreviewIndex(0)}
-            className="w-16 h-16 rounded border cursor-pointer"
-          />
-          <div>
-            <p>{data.product_name}</p>
-            <p className="text-xs text-gray-500">Qty: {data.quantity}</p>
-          </div>
-        </div>
-
-        {/* STATUS */}
-        <div className="bg-white p-4 flex justify-between rounded-xl">
-          <span>Status</span>
-          <span className={getStatusColor(data.status)}>
-            {getStatusLabel(data.status)}
+          <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
+            {getStatusText(data.status)}
           </span>
         </div>
 
-        {/* TRACKING */}
         {data.return_tracking_code && (
-          <div className="bg-white p-4 text-blue-600 text-xs rounded-xl">
-            Tracking: {data.return_tracking_code}
-          </div>
+          <p className="text-xs text-blue-600">
+            {t.tracking}: {data.return_tracking_code}
+          </p>
         )}
+      </div>
 
-        {/* REFUND NOTICE */}
-        {data.status === "refund_pending" && (
-          <div className="bg-yellow-50 text-yellow-700 p-3 rounded">
-            Waiting buyer confirm refund in Pi Wallet
-          </div>
-        )}
-
-        {/* SHIPPING */}
-        {data.status === "approved" && (
-          <div className="bg-white p-4 rounded-xl space-y-3">
-            <input
-              value={trackingCode}
-              onChange={(e) => setTrackingCode(e.target.value)}
-              placeholder="Tracking code"
-              className="w-full border p-2 rounded"
+      {/* PRODUCT */}
+      <div className="bg-white p-4 flex gap-3">
+        {data.items.map((item, i) => (
+          <div key={i} className="flex gap-3">
+            <img
+              src={item.thumbnail || "/placeholder.png"}
+              className="w-20 h-20 object-cover rounded border"
             />
 
-            <button
-              onClick={handleShip}
-              className="w-full bg-orange-500 text-white py-3 rounded"
-            >
-              Send return
-            </button>
+            <div>
+              <p className="text-sm font-medium">
+                {item.product_name}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                {t.quantity}: {item.quantity}
+              </p>
+
+              <p className="font-semibold mt-1">
+                π{item.unit_price}
+              </p>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
 
-      </section>
+      {/* REASON */}
+      <div className="bg-white p-4">
+        <p className="font-semibold mb-1">{t.reason}</p>
+        <p className="text-gray-600 text-sm">{data.reason}</p>
+      </div>
 
-      {/* ================= PREVIEW ================= */}
+      {/* IMAGES */}
+      <div className="bg-white p-4">
+        <p className="font-semibold mb-2">
+          {t.product_and_evidence_images}
+        </p>
 
-      {previewIndex !== null && (
-        <div className="fixed inset-0 z-[999] bg-black">
+        <div className="grid grid-cols-3 gap-3">
+          {allImages.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              onClick={() => setPreview(src)}
+              className="w-full h-24 object-cover rounded-lg border cursor-pointer"
+            />
+          ))}
+        </div>
+      </div>
 
-          {/* CLOSE */}
-          <button
-            onClick={() => setPreviewIndex(null)}
-            className="absolute top-5 right-5 z-50 text-white text-2xl"
-          >
-            ✕
-          </button>
+      {/* TIMELINE */}
+      {data.timeline && data.timeline.length > 0 && (
+        <div className="bg-white p-4">
+          <p className="font-semibold mb-3">{t.timeline}</p>
 
-          <Swiper
-            modules={[Pagination]}
-            pagination={{ clickable: true }}
-            initialSlide={previewIndex}
-            onSlideChange={(s) => {
-              setPreviewIndex(s.activeIndex);
-              setScale(1);
-              setPosition({ x: 0, y: 0 });
-            }}
-          >
-            {allImages.map((src, i) => (
-              <SwiperSlide key={i}>
-                <div className="flex items-center justify-center h-screen">
+          <div className="space-y-3">
+            {data.timeline.map((tItem, i) => (
+              <div key={i} className="flex gap-3">
+                <div className="mt-1 w-2 h-2 bg-black rounded-full" />
 
-                  <img
-                    src={getImage(src)}
-
-                    /* DOUBLE TAP */
-                    onTouchEnd={(e) => {
-                      const now = Date.now();
-                      if (!(window as any).__tap) (window as any).__tap = 0;
-
-                      if (now - (window as any).__tap < 300) {
-                        setScale((s) => (s === 1 ? 2 : 1));
-                        setPosition({ x: 0, y: 0 });
-                      }
-
-                      (window as any).__tap = now;
-                    }}
-
-                    /* PINCH */
-                    onTouchStart={(e) => {
-                      if (e.touches.length === 2) {
-                        const dx = e.touches[0].clientX - e.touches[1].clientX;
-                        const dy = e.touches[0].clientY - e.touches[1].clientY;
-
-                        setInitialDistance(Math.sqrt(dx * dx + dy * dy));
-                        setInitialScale(scale);
-                      }
-
-                      if (e.touches.length === 1) {
-                        const t = e.touches[0];
-                        setDragging(true);
-                        setStart({
-                          x: t.clientX - position.x,
-                          y: t.clientY - position.y,
-                        });
-                      }
-                    }}
-
-                    onTouchMove={(e) => {
-                      if (e.touches.length === 2) {
-                        const dx = e.touches[0].clientX - e.touches[1].clientX;
-                        const dy = e.touches[0].clientY - e.touches[1].clientY;
-
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-
-                        let newScale = initialScale * (dist / initialDistance);
-                        newScale = Math.max(1, Math.min(newScale, 6));
-                        setScale(newScale);
-                      }
-
-                      if (e.touches.length === 1 && dragging && scale > 1) {
-                        const t = e.touches[0];
-
-                        setPosition({
-                          x: t.clientX - start.x,
-                          y: t.clientY - start.y,
-                        });
-                      }
-                    }}
-
-                    onTouchEnd={() => setDragging(false)}
-
-                    style={{
-                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                    }}
-
-                    className="max-w-full max-h-full object-contain"
-                  />
-
+                <div>
+                  <p className="text-sm">{tItem.label}</p>
+                  <p className="text-xs text-gray-400">
+                    {tItem.time}
+                  </p>
                 </div>
-              </SwiperSlide>
+              </div>
             ))}
-          </Swiper>
+          </div>
+        </div>
+      )}
+
+      {/* ACTION */}
+      {data.status === "shipping_back" && (
+        <div className="p-4">
+          <button
+            disabled={acting}
+            onClick={markReceived}
+            className="w-full bg-blue-500 text-white py-4 rounded-xl text-sm font-semibold"
+          >
+            {acting ? t.processing : t.mark_as_received}
+          </button>
+        </div>
+      )}
+
+      {/* PREVIEW IMAGE */}
+      {preview && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+          onClick={() => setPreview(null)}
+        >
+          <img
+            src={preview}
+            className="max-w-full max-h-full object-contain"
+          />
         </div>
       )}
     </main>
