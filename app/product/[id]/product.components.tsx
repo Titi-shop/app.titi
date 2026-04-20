@@ -397,6 +397,6 @@ export function ProductView({
           </button>
         </div>
       </div>
-    </div> {/* ⬅️ QUAN TRỌNG: đóng root div */}
+    </div> 
   );
 }
