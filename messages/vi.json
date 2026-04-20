@@ -605,7 +605,44 @@
   "return_rejected": "Rejected",
 
   "order": "Order",
-  "loading": "Loading..."
+  "loading": "Loading...",
+  
+  "my_returns": "My Returns",
+  "loading": "Loading...",
+  "no_returns": "No return requests",
+  "order": "Order",
+  "tracking": "Tracking",
+  "refunded": "Refunded",
+
+  "all": "All",
+  "pending": "Pending",
+  "approved": "Approved",
+  "shipping_back": "Shipping Back",
+  "received": "Received",
+  "refund_pending": "Refund Pending",
+  "refunded": "Refunded",
+  "rejected": "Rejected",
+  
+  "return_request": "Return Request",
+  "quantity": "Qty",
+  "reason": "Reason",
+  "product_and_evidence_images": "Product & Evidence Images",
+  "timeline": "Timeline",
+  "tracking": "Tracking",
+  "mark_as_received": "Mark as Received",
+  "processing": "Processing...",
+  "waiting_refund": "Waiting refund confirm",
+  "approved": "Approved",
+  "pending": "Pending",
+  "received": "Received",
+  "rejected": "Rejected",
+  "refunded": "Refunded",
+  "shipping_back": "Shipping Back",
+  "action_failed": "Action failed",
+  "loading": "Loading...",
+  "not_found": "Not found"
+
+
 
 
 
