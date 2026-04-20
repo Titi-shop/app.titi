@@ -3,9 +3,8 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
@@ -24,23 +23,38 @@ type ReturnItem = {
   return_number: string;
   status: ReturnStatus;
   created_at: string | null;
+
   product_name: string;
   thumbnail: string;
   quantity: number;
 };
 
+type ReturnDetail = {
+  id: string;
+  status: ReturnStatus;
+  reason: string;
+  evidence_images?: string[];
+  return_tracking_code?: string;
+};
+
 /* ================= PAGE ================= */
 
 export default function SellerReturnsPage() {
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
 
   const [items, setItems] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [tab, setTab] = useState<ReturnStatus | "all">("all");
 
-  /* ================= LOAD ================= */
+  /* ===== bottom sheet ===== */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ReturnDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [acting, setActing] = useState(false);
+
+  /* ================= LOAD LIST ================= */
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -55,31 +69,92 @@ export default function SellerReturnsPage() {
           : `/api/seller/returns?status=${tab}`;
 
       const res = await apiAuthFetch(url);
-
       if (!res.ok) return;
 
       const json = await res.json();
-      const list = Array.isArray(json)
-        ? json
-        : Array.isArray(json.items)
-        ? json.items
-        : [];
-
-      setItems(list);
+      setItems(json.items ?? []);
     } catch (err) {
-      console.error("💥 LOAD ERROR:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  /* ================= STATUS ================= */
+  /* ================= LOAD DETAIL ================= */
 
-  function getStatusLabel(status: string) {
-    return t[status] ?? status;
+  async function openDetail(id: string) {
+    try {
+      setOpenId(id);
+      setLoadingDetail(true);
+
+      const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+      if (!res.ok) return;
+
+      const json = await res.json();
+      setDetail(json);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDetail(false);
+    }
   }
 
-  function getColor(status: string) {
+  function closeSheet() {
+    setOpenId(null);
+    setDetail(null);
+  }
+
+  /* ================= ACTION ================= */
+
+  async function action(type: string) {
+    if (!openId || acting) return;
+
+    try {
+      setActing(true);
+
+      const res = await apiAuthFetch(`/api/seller/returns/${openId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: type }),
+      });
+
+      if (!res.ok) {
+        alert(t.action_failed || "Action failed");
+        return;
+      }
+
+      await openDetail(openId);
+      await load();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActing(false);
+    }
+  }
+
+  /* ================= STATUS ================= */
+
+  function getStatusLabel(status: ReturnStatus) {
+    switch (status) {
+      case "pending":
+        return t.pending;
+      case "approved":
+        return t.approved;
+      case "shipping_back":
+        return t.shipping_back;
+      case "received":
+        return t.received;
+      case "refund_pending":
+        return t.refund_pending;
+      case "refunded":
+        return t.refunded;
+      case "rejected":
+        return t.rejected;
+      default:
+        return status;
+    }
+  }
+
+  function getColor(status: ReturnStatus) {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-700";
@@ -113,44 +188,30 @@ export default function SellerReturnsPage() {
     "rejected",
   ];
 
-  function getTabLabel(tab: string) {
-    return t[tab] ?? tab;
-  }
-
   /* ================= UI ================= */
 
-  if (authLoading || loading) {
-    return (
-      <div className="p-6 text-center text-gray-500">
-        {t.loading}
-      </div>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-gray-100 pb-20">
+    <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-      <div className="bg-white px-4 py-3 border-b sticky top-0 z-10">
-        <h1 className="font-semibold text-lg">
-          🔄 {t.return_orders}
-        </h1>
+      <div className="bg-orange-500 text-white px-4 py-4 font-semibold">
+        {t.return_orders}
       </div>
 
       {/* TABS */}
       <div className="bg-white overflow-x-auto border-b">
-        <div className="flex gap-3 px-3 py-2 min-w-max">
+        <div className="flex gap-2 px-3 py-2 min-w-max">
           {tabs.map((tKey) => (
             <button
               key={tKey}
               onClick={() => setTab(tKey)}
-              className={`px-3 py-1 text-sm rounded-full border ${
+              className={`px-3 py-1 text-sm rounded-full ${
                 tab === tKey
-                  ? "bg-black text-white"
+                  ? "bg-orange-500 text-white"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
-              {getTabLabel(tKey)}
+              {t[tKey] ?? tKey}
             </button>
           ))}
         </div>
@@ -158,65 +219,156 @@ export default function SellerReturnsPage() {
 
       {/* LIST */}
       <div className="p-3 space-y-3">
-
-        {!loading && items.length === 0 && (
-          <div className="bg-white p-6 text-center text-gray-500 rounded-xl">
-            {t.no_returns}
-          </div>
-        )}
+        {loading && <p className="text-center">Loading...</p>}
 
         {items.map((item) => (
           <div
             key={item.id}
-            onClick={() =>
-              router.push(`/seller/returns/${item.id}`)
-            }
-            className="bg-white rounded-xl p-3 flex gap-3 shadow-sm hover:shadow-md transition cursor-pointer"
+            onClick={() => openDetail(item.id)}
+            className="bg-white rounded-xl p-3 flex gap-3 shadow-sm"
           >
-            {/* IMAGE */}
             <img
               src={item.thumbnail || "/placeholder.png"}
-              className="w-20 h-20 object-cover rounded"
-              onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
-              }}
+              className="w-20 h-20 rounded object-cover"
             />
 
-            {/* INFO */}
-            <div className="flex-1 flex flex-col justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {item.product_name}
+              </p>
 
-              <div>
-                <p className="text-sm font-medium line-clamp-2">
-                  {item.product_name}
-                </p>
+              <p className="text-xs text-gray-500">
+                Qty: {item.quantity}
+              </p>
 
-                <p className="text-xs text-gray-500 mt-1">
-                  {t.quantity}: {item.quantity}
-                </p>
-              </div>
-
-              <div className="flex justify-between items-end mt-2">
-
+              <div className="flex justify-between mt-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full ${getColor(
+                  className={`text-xs px-2 py-1 rounded ${getColor(
                     item.status
                   )}`}
                 >
                   {getStatusLabel(item.status)}
                 </span>
 
-                {item.created_at && (
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(item.created_at).toLocaleString()}
-                  </span>
-                )}
-
+                <span className="text-xs text-gray-400">
+                  {item.created_at &&
+                    new Date(item.created_at).toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
         ))}
-
       </div>
+
+      {/* ================= BOTTOM SHEET ================= */}
+
+      {openId && (
+        <div className="fixed inset-0 z-50">
+
+          {/* overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={closeSheet}
+          />
+
+          {/* sheet */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 animate-slideUp max-h-[80vh] overflow-auto">
+
+            {/* handle */}
+            <div className="w-10 h-1 bg-gray-300 rounded mx-auto mb-3" />
+
+            {loadingDetail && <p>Loading...</p>}
+
+            {detail && (
+              <>
+                <p className="font-semibold text-lg">
+                  {t.return_detail}
+                </p>
+
+                {/* STATUS */}
+                <div className="mt-2">
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${getColor(
+                      detail.status
+                    )}`}
+                  >
+                    {getStatusLabel(detail.status)}
+                  </span>
+                </div>
+
+                {/* REASON */}
+                <div className="mt-4">
+                  <p className="text-sm font-semibold">
+                    {t.reason}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {detail.reason}
+                  </p>
+                </div>
+
+                {/* IMAGES */}
+                <div className="flex gap-2 mt-3 overflow-x-auto">
+                  {detail.evidence_images?.map((img, i) => (
+                    <img
+                      key={i}
+                      src={img}
+                      className="w-20 h-20 rounded object-cover"
+                    />
+                  ))}
+                </div>
+
+                {/* ACTIONS */}
+                <div className="mt-5 space-y-2">
+
+                  {detail.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => action("approve")}
+                        className="flex-1 bg-green-500 text-white py-3 rounded"
+                      >
+                        {t.approve}
+                      </button>
+
+                      <button
+                        onClick={() => action("reject")}
+                        className="flex-1 bg-red-500 text-white py-3 rounded"
+                      >
+                        {t.reject}
+                      </button>
+                    </div>
+                  )}
+
+                  {detail.status === "shipping_back" && (
+                    <button
+                      onClick={() => action("received")}
+                      className="w-full bg-blue-500 text-white py-3 rounded"
+                    >
+                      {t.mark_received}
+                    </button>
+                  )}
+
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* animation */}
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slideUp {
+          animation: slideUp 0.25s ease;
+        }
+      `}</style>
+
     </main>
   );
 }
