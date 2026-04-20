@@ -621,7 +621,12 @@ export default function CustomerOrdersPage() {
             className="absolute inset-0 bg-black/40"
           />
 
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <div className="
+absolute bottom-0 left-0 right-0
+max-h-[88vh] overflow-y-auto
+rounded-t-3xl bg-white p-5
+pb-[calc(env(safe-area-inset-bottom)+80px)]
+">
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-gray-300" />
 
             <h3 className="text-center text-lg font-semibold">
@@ -729,7 +734,11 @@ export default function CustomerOrdersPage() {
             className="absolute inset-0 bg-black/40"
           />
 
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <div className="
+absolute bottom-0 left-0 right-0
+rounded-t-3xl bg-white p-5
+pb-[calc(env(safe-area-inset-bottom)+80px)]
+">
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-gray-300" />
 
             <h3 className="text-center text-lg font-semibold">
