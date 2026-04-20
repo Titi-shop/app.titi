@@ -3,139 +3,107 @@
 
 export const dynamic = "force-dynamic";
 
-import "swiper/css";
-import "swiper/css/pagination";
-
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ================= TYPES ================= */
 
-type TimelineItem = {
-  label: string;
-  time: string;
-};
+type ReturnStatus =
+  | "all"
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refund_pending"
+  | "refunded"
+  | "rejected";
 
-type ReturnItem = {
-  product_name: string;
-  thumbnail: string;
-  quantity: number;
-  unit_price: number;
-};
-
-type ReturnDetail = {
+type ReturnRecord = {
   id: string;
-  return_number: string;
-  status: string;
-  reason: string;
-  description?: string;
-  evidence_images?: string[];
-  timeline?: TimelineItem[];
-  items: ReturnItem[];
-
-  // ✅ FIX: thêm field thiếu
-  return_tracking_code?: string;
+  return_number?: string;
+  order_id: string;
+  status: ReturnStatus;
+  refund_amount?: string;
+  created_at: string | null;
+  return_tracking_code?: string | null;
+  refunded_at?: string | null;
+  thumbnail?: string;
 };
+
+/* ================= CONST ================= */
+
+const BASE_STORAGE =
+  process.env.NEXT_PUBLIC_SUPABASE_URL +
+  "/storage/v1/object/public/";
+
+const TABS: ReturnStatus[] = [
+  "all",
+  "pending",
+  "approved",
+  "shipping_back",
+  "received",
+  "refund_pending",
+  "refunded",
+  "rejected",
+];
 
 /* ================= PAGE ================= */
 
-export default function SellerReturnDetail() {
-  const params = useParams();
-  const id = params.id as string;
+export default function ReturnsPage() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
 
-  const [data, setData] = useState<ReturnDetail | null>(null);
-  const [acting, setActing] = useState(false);
+  const [returns, setReturns] = useState<ReturnRecord[]>([]);
   const [loading, setLoading] = useState(true);
-
-  /* ================= ZOOM ================= */
-
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [start, setStart] = useState({ x: 0, y: 0 });
-  const [initialDistance, setInitialDistance] = useState(0);
-  const [initialScale, setInitialScale] = useState(1);
+  const [tab, setTab] = useState<ReturnStatus>("all");
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
+    if (authLoading || !user) return;
+
+    async function load() {
+      try {
+        const res = await apiAuthFetch("/api/returns");
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data.items)
+          ? data.items
+          : [];
+
+        setReturns(list);
+      } catch (err) {
+        console.error("💥 LOAD ERROR", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     load();
-    const i = setInterval(load, 10000);
-    return () => clearInterval(i);
-  }, []);
+  }, [authLoading, user]);
 
-  async function load() {
-    try {
-      const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+  /* ================= FILTER ================= */
 
-      if (!res.ok) return;
+  const filtered =
+    tab === "all"
+      ? returns
+      : returns.filter((r) => r.status === tab);
 
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  /* ================= HELPERS ================= */
 
-  /* ================= ACTION ================= */
-
-  async function action(type: string) {
-  if (acting) return;
-
-  if (type === "received") {
-    const ok = confirm(
-      "Confirm you received the returned product?\n\nRefund will be sent to buyer wallet."
-    );
-    if (!ok) return;
-  }
-
-  try {
-    setActing(true);
-
-    const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ action: type }),
-    });
-
-    if (!res.ok) {
-      alert("Action failed");
-      return;
-    }
-
-    await load();
-
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setActing(false);
-  }
-}
-
-  /* ================= STATUS ================= */
-
-  function getStatusLabel(status: string) {
-    switch (status) {
-      case "pending":
-        return "Waiting approval";
-      case "approved":
-        return "Approved";
-      case "shipping_back":
-        return "Buyer returning";
-      case "received":
-        return "Received";
-      case "refund_pending":
-        return "Waiting refund confirm";
-      case "refunded":
-        return "Refunded";
-      case "rejected":
-        return "Rejected";
-      default:
-        return status;
-    }
+  function getImage(src?: string) {
+    if (!src) return "/placeholder.png";
+    if (src.startsWith("http")) return src;
+    return BASE_STORAGE + "products/" + src;
   }
 
   function getStatusColor(status: string) {
@@ -159,211 +127,129 @@ export default function SellerReturnDetail() {
     }
   }
 
-  /* ================= IMAGES ================= */
-
-  const allImages: string[] = [
-    ...(data?.items?.map((i) => i.thumbnail) ?? []),
-    ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.startsWith("http"));
+  function getStatusText(status: string) {
+    return t[status] ?? status;
+  }
 
   /* ================= UI ================= */
 
-  if (loading) return <p className="p-4">Loading...</p>;
-  if (!data) return <p className="p-4 text-red-500">Not found</p>;
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        {t.loading}
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
+    <main className="min-h-screen bg-gray-50 pb-16">
 
-      {/* HEADER */}
-      <div className="bg-white p-4 border-b space-y-2">
-        <p className="text-sm text-gray-500">
-          Return #{data.return_number || data.id.slice(0, 8)}
-        </p>
-
-        <div className="flex justify-between items-center">
-          <h1 className="font-semibold text-lg">
-            Return Request
-          </h1>
-
-          <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
-            {getStatusLabel(data.status)}
-          </span>
-        </div>
-
-        {data.return_tracking_code && (
-          <div className="text-xs text-blue-600">
-            Tracking: {data.return_tracking_code}
-          </div>
-        )}
+      {/* TITLE */}
+      <div className="max-w-xl mx-auto p-4">
+        <h1 className="text-lg font-semibold">
+          {t.my_returns}
+        </h1>
       </div>
 
-      {/* PRODUCTS */}
-      <div className="bg-white divide-y">
-        {data.items.map((item, i) => (
-          <div key={i} className="flex gap-3 p-4">
-            <img
-              src={item.thumbnail || "/placeholder.png"}
-              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              className="w-20 h-20 object-cover rounded border"
-            />
+      {/* FILTER TABS (CAM NHƯ HEADER) */}
+      <div className="sticky top-0 bg-orange-500 px-3 py-2 overflow-x-auto flex gap-2">
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
-                {item.product_name}
-              </p>
-
-              <p className="text-xs text-gray-500 mt-1">
-                Qty: {item.quantity}
-              </p>
-
-              <p className="text-sm font-semibold mt-2">
-                π{item.unit_price}
-              </p>
-            </div>
-          </div>
+        {TABS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setTab(s)}
+            className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
+              tab === s
+                ? "bg-white text-orange-600 font-semibold"
+                : "bg-white/20 text-white"
+            }`}
+          >
+            {t[s] ?? s}
+          </button>
         ))}
       </div>
 
-      {/* REASON */}
-      <div className="bg-white p-4 space-y-2">
-        <p className="text-sm font-semibold">Reason</p>
-        <p className="text-sm text-gray-600">{data.reason}</p>
+      {/* LIST */}
+      <div className="max-w-xl mx-auto p-4 space-y-4">
 
-        {data.description && (
-          <p className="text-xs text-gray-500">
-            {data.description}
-          </p>
+        {filtered.length === 0 && (
+          <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
+            {t.no_returns}
+          </div>
         )}
+
+        {filtered.map((r) => {
+          if (!r?.id) return null;
+
+          return (
+            <div
+              key={r.id}
+              onClick={() =>
+                router.push(`/customer/returns/${r.id}`)
+              }
+              className="bg-white rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition"
+            >
+              <div className="flex gap-3">
+
+                {/* IMAGE */}
+                <img
+                  src={getImage(r.thumbnail)}
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.png";
+                  }}
+                  className="w-16 h-16 rounded-lg object-cover border"
+                />
+
+                {/* CONTENT */}
+                <div className="flex-1 space-y-2">
+
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        #{r.return_number ?? r.id.slice(0, 8)}
+                      </p>
+
+                      <p className="text-[11px] text-gray-400">
+                        {t.order}: {r.order_id?.slice(0, 8)}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`px-2 py-1 text-[10px] rounded-full ${getStatusColor(
+                        r.status
+                      )}`}
+                    >
+                      {getStatusText(r.status)}
+                    </span>
+                  </div>
+
+                  {/* EXTRA */}
+                  {r.return_tracking_code && (
+                    <p className="text-[11px] text-blue-600">
+                      {t.tracking}: {r.return_tracking_code}
+                    </p>
+                  )}
+
+                  {r.refunded_at && (
+                    <p className="text-[11px] text-green-600">
+                      {t.refunded}:{" "}
+                      {new Date(r.refunded_at).toLocaleString()}
+                    </p>
+                  )}
+
+                  {r.created_at && (
+                    <p className="text-[10px] text-gray-400">
+                      {new Date(r.created_at).toLocaleString()}
+                    </p>
+                  )}
+
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
       </div>
-
-      {/* IMAGES */}
-      <div className="bg-white p-4">
-        <p className="text-sm font-semibold mb-2">
-          Product & Evidence Images
-        </p>
-
-        <div className="flex gap-2 overflow-x-auto">
-          {allImages.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              onClick={() => {
-                setZoomImage(src);
-                setScale(1);
-                setPosition({ x: 0, y: 0 });
-              }}
-              className="w-24 h-24 object-cover rounded border cursor-pointer"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* REFUND NOTICE */}
-      {data.status === "refunded" && (
-  <div className="bg-green-50 text-green-700 text-sm p-3 mx-4 rounded">
-    Refund has been added to buyer's wallet
-    </div>
-      )}
-
-      {/* ACTION */}
-      <div className="p-4">
-       {data.status === "shipping_back" && (
-  <button
-    disabled={acting}
-    onClick={() => action("received")}
-    className="w-full bg-blue-500 text-white py-3 rounded-lg"
-  >
-    {acting ? "Processing..." : "Mark as Received"}
-  </button>
-)}
-      </div>
-
-      {/* ZOOM */}
-     {zoomImage && (
-  <div
-    className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center"
-    onClick={() => setZoomImage(null)}
-  >
-    {/* ❌ CLOSE BUTTON */}
-    <button
-      onClick={() => setZoomImage(null)}
-      className="absolute top-5 right-5 z-[1000] w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white text-xl"
-    >
-      ✕
-    </button>
-          <img
-            src={zoomImage}
-            onClick={(e) => e.stopPropagation()}
-
-            onTouchEnd={(e) => {
-              const now = Date.now();
-              if (!(window as any).__tap) (window as any).__tap = 0;
-
-              if (now - (window as any).__tap < 300) {
-                setScale((s) => (s === 1 ? 2 : 1));
-                setPosition({ x: 0, y: 0 });
-              }
-
-              (window as any).__tap = now;
-            }}
-
-            onTouchStart={(e) => {
-              if (e.touches.length === 2) {
-                const dx =
-                  e.touches[0].clientX - e.touches[1].clientX;
-                const dy =
-                  e.touches[0].clientY - e.touches[1].clientY;
-
-                setInitialDistance(Math.sqrt(dx * dx + dy * dy));
-                setInitialScale(scale);
-              }
-
-              if (e.touches.length === 1) {
-                const t = e.touches[0];
-                setDragging(true);
-                setStart({
-                  x: t.clientX - position.x,
-                  y: t.clientY - position.y,
-                });
-              }
-            }}
-
-            onTouchMove={(e) => {
-              if (e.touches.length === 2) {
-                const dx =
-                  e.touches[0].clientX - e.touches[1].clientX;
-                const dy =
-                  e.touches[0].clientY - e.touches[1].clientY;
-
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                let newScale =
-                  initialScale * (dist / initialDistance);
-
-                newScale = Math.max(1, Math.min(newScale, 6));
-                setScale(newScale);
-              }
-
-              if (e.touches.length === 1 && dragging && scale > 1) {
-                const t = e.touches[0];
-
-                setPosition({
-                  x: t.clientX - start.x,
-                  y: t.clientY - start.y,
-                });
-              }
-            }}
-
-            onTouchEnd={() => setDragging(false)}
-
-            style={{
-              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            }}
-
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      )}
     </main>
   );
 }
