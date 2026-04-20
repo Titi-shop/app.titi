@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +11,7 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 /* ================= TYPES ================= */
 
 type ReturnStatus =
+  | "all"
   | "pending"
   | "approved"
   | "shipping_back"
@@ -23,14 +24,8 @@ type ReturnRecord = {
   id: string;
   return_number?: string;
   order_id: string;
-  status: ReturnStatus;
-
-  refund_amount?: string;
+  status: Exclude<ReturnStatus, "all">;
   created_at: string | null;
-
-  return_tracking_code?: string | null;
-  refunded_at?: string | null;
-
   thumbnail?: string;
 };
 
@@ -42,13 +37,14 @@ const BASE_STORAGE =
 
 /* ================= PAGE ================= */
 
-export default function ReturnsPage() {
+export default function CustomerReturnsPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ReturnStatus>("all");
 
   /* ================= LOAD ================= */
 
@@ -71,7 +67,7 @@ export default function ReturnsPage() {
 
         setReturns(list);
       } catch (err) {
-        console.error("💥 LOAD ERROR", err);
+        console.error("💥 LOAD RETURNS ERROR", err);
       } finally {
         setLoading(false);
       }
@@ -79,6 +75,23 @@ export default function ReturnsPage() {
 
     load();
   }, [authLoading, user]);
+
+  /* ================= FILTER ================= */
+
+  const filtered = useMemo(() => {
+    if (activeTab === "all") return returns;
+    return returns.filter((r) => r.status === activeTab);
+  }, [returns, activeTab]);
+
+  const tabs = [
+    { key: "all", label: t.all },
+    { key: "pending", label: t.return_pending },
+    { key: "approved", label: t.return_approved },
+    { key: "shipping_back", label: t.return_shipping_back },
+    { key: "received", label: t.return_received },
+    { key: "refunded", label: t.return_refunded },
+    { key: "rejected", label: t.return_rejected },
+  ] as const;
 
   /* ================= HELPERS ================= */
 
@@ -112,57 +125,22 @@ export default function ReturnsPage() {
   function getStatusText(status: string) {
     switch (status) {
       case "pending":
-        return "Pending";
+        return t.return_pending;
       case "approved":
-        return "Approved";
+        return t.return_approved;
       case "shipping_back":
-        return "Shipping Back";
+        return t.return_shipping_back;
       case "received":
-        return "Received";
+        return t.return_received;
       case "refund_pending":
-        return "Waiting Refund Confirm";
+        return t.return_waiting_refund;
       case "refunded":
-        return "Refunded";
+        return t.return_refunded;
       case "rejected":
-        return "Rejected";
+        return t.return_rejected;
       default:
         return status;
     }
-  }
-
-  function renderTimeline(status: string) {
-    const steps = [
-      "pending",
-      "approved",
-      "shipping_back",
-      "received",
-      "refund_pending",
-      "refunded",
-    ];
-
-    return (
-      <div className="flex items-center gap-1 text-[10px]">
-        {steps.map((s, i) => {
-          const active = steps.indexOf(status) >= i;
-
-          return (
-            <div key={s} className="flex items-center gap-1">
-              <span
-                className={
-                  active ? "text-green-600" : "text-gray-300"
-                }
-              >
-                ●
-              </span>
-
-              {i !== steps.length - 1 && (
-                <span className="text-gray-300">—</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
   }
 
   /* ================= UI ================= */
@@ -170,105 +148,106 @@ export default function ReturnsPage() {
   if (loading) {
     return (
       <div className="p-6 text-center text-gray-500">
-        Loading...
+        {t.loading}
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-16">
+    <main className="min-h-screen bg-gray-50 pb-20">
+
       <div className="max-w-xl mx-auto p-4 space-y-4">
 
+        {/* TITLE */}
         <h1 className="text-lg font-semibold">
-          {t.my_returns ?? "My Returns"}
+          {t.my_returns}
         </h1>
 
-        {returns.length === 0 && (
-          <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
-            No return requests
+        {/* 🔥 FILTER TAB (BUYER STYLE) */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key;
+
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition
+                  ${
+                    active
+                      ? "bg-orange-500 text-white"
+                      : "bg-white border text-gray-600"
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* EMPTY */}
+        {filtered.length === 0 && (
+          <div className="bg-white p-6 rounded-xl text-center text-gray-500">
+            {t.no_returns}
           </div>
         )}
 
-        {returns.map((r) => {
-          if (!r?.id) return null;
+        {/* LIST */}
+        {filtered.map((r) => (
+          <div
+            key={r.id}
+            onClick={() =>
+              router.push(`/customer/returns/${r.id}`)
+            }
+            className="bg-white rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition"
+          >
+            <div className="flex gap-3">
 
-          return (
-            <div
-              key={r.id}
-              onClick={() =>
-                router.push(`/customer/returns/${r.id}`)
-              }
-              className="bg-white rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition"
-            >
-              <div className="flex gap-3">
+              {/* IMAGE */}
+              <img
+                src={getImage(r.thumbnail)}
+                onError={(e) => {
+                  e.currentTarget.src = "/placeholder.png";
+                }}
+                className="w-16 h-16 rounded-lg object-cover border"
+              />
 
-                {/* IMAGE */}
-                <img
-                  src={getImage(r.thumbnail)}
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder.png";
-                  }}
-                  className="w-16 h-16 rounded-lg object-cover border"
-                />
+              {/* CONTENT */}
+              <div className="flex-1 space-y-2">
 
-                {/* CONTENT */}
-                <div className="flex-1 space-y-2">
+                {/* HEADER */}
+                <div className="flex justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      #{r.return_number ?? r.id.slice(0, 8)}
+                    </p>
 
-                  {/* HEADER */}
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="text-sm font-semibold">
-                        #{r.return_number ?? r.id.slice(0, 8)}
-                      </p>
-
-                      <p className="text-[11px] text-gray-400">
-                        Order: {r.order_id?.slice(0, 8)}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`px-2 py-1 text-[10px] rounded-full ${getStatusColor(
-                        r.status
-                      )}`}
-                    >
-                      {getStatusText(r.status)}
-                    </span>
+                    <p className="text-[11px] text-gray-400">
+                      {t.order}: {r.order_id.slice(0, 8)}
+                    </p>
                   </div>
 
-                  {/* TIMELINE */}
-                  {renderTimeline(r.status)}
-
-                  {/* EXTRA */}
-                  {r.return_tracking_code && (
-                    <p className="text-[11px] text-blue-600">
-                      Tracking: {r.return_tracking_code}
-                    </p>
-                  )}
-
-                  {r.status === "refund_pending" && (
-                    <p className="text-[11px] text-orange-600">
-                      Waiting for refund confirmation
-                    </p>
-                  )}
-
-                  {r.refunded_at && (
-                    <p className="text-[11px] text-green-600">
-                      Refunded:{" "}
-                      {new Date(r.refunded_at).toLocaleString()}
-                    </p>
-                  )}
-
-                  {r.created_at && (
-                    <p className="text-[10px] text-gray-400">
-                      {new Date(r.created_at).toLocaleString()}
-                    </p>
-                  )}
-
+                  <span
+                    className={`px-2 py-1 text-[10px] rounded-full ${getStatusColor(
+                      r.status
+                    )}`}
+                  >
+                    {getStatusText(r.status)}
+                  </span>
                 </div>
+
+                {/* TIME */}
+                {r.created_at && (
+                  <p className="text-[10px] text-gray-400">
+                    {new Date(r.created_at).toLocaleString()}
+                  </p>
+                )}
+
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
 
       </div>
     </main>
