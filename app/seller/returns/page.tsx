@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
@@ -23,7 +24,6 @@ type ReturnItem = {
   return_number: string;
   status: ReturnStatus;
   created_at: string | null;
-
   product_name: string;
   thumbnail: string;
   quantity: number;
@@ -34,10 +34,10 @@ type ReturnItem = {
 export default function SellerReturnsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
 
   const [items, setItems] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [tab, setTab] = useState<ReturnStatus | "all">("all");
 
   /* ================= LOAD ================= */
@@ -49,8 +49,6 @@ export default function SellerReturnsPage() {
 
   async function load() {
     try {
-      console.log("🚀 [RETURN DASHBOARD] LOAD:", tab);
-
       const url =
         tab === "all"
           ? "/api/seller/returns"
@@ -58,15 +56,14 @@ export default function SellerReturnsPage() {
 
       const res = await apiAuthFetch(url);
 
-      if (!res.ok) {
-        console.error("❌ LOAD FAIL:", res.status);
-        return;
-      }
+      if (!res.ok) return;
 
       const json = await res.json();
-      const list = json.items ?? [];
-
-      console.log("📦 DATA:", list);
+      const list = Array.isArray(json)
+        ? json
+        : Array.isArray(json.items)
+        ? json.items
+        : [];
 
       setItems(list);
     } catch (err) {
@@ -79,24 +76,7 @@ export default function SellerReturnsPage() {
   /* ================= STATUS ================= */
 
   function getStatusLabel(status: string) {
-    switch (status) {
-      case "pending":
-        return "Waiting approval";
-      case "approved":
-        return "Approved";
-      case "shipping_back":
-        return "Buyer returning";
-      case "received":
-        return "Received";
-      case "refund_pending":
-        return "Waiting refund confirm";
-      case "refunded":
-        return "Refunded";
-      case "rejected":
-        return "Rejected";
-      default:
-        return status;
-    }
+    return t[status] ?? status;
   }
 
   function getColor(status: string) {
@@ -133,31 +113,44 @@ export default function SellerReturnsPage() {
     "rejected",
   ];
 
+  function getTabLabel(tab: string) {
+    return t[tab] ?? tab;
+  }
+
   /* ================= UI ================= */
+
+  if (authLoading || loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        {t.loading}
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
+
       {/* HEADER */}
       <div className="bg-white px-4 py-3 border-b sticky top-0 z-10">
         <h1 className="font-semibold text-lg">
-          🔄 Return Orders
+          🔄 {t.return_orders}
         </h1>
       </div>
 
       {/* TABS */}
       <div className="bg-white overflow-x-auto border-b">
         <div className="flex gap-3 px-3 py-2 min-w-max">
-          {tabs.map((t) => (
+          {tabs.map((tKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tKey}
+              onClick={() => setTab(tKey)}
               className={`px-3 py-1 text-sm rounded-full border ${
-                tab === t
+                tab === tKey
                   ? "bg-black text-white"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
-              {t}
+              {getTabLabel(tKey)}
             </button>
           ))}
         </div>
@@ -165,15 +158,10 @@ export default function SellerReturnsPage() {
 
       {/* LIST */}
       <div className="p-3 space-y-3">
-        {loading && (
-          <p className="text-center text-gray-400">
-            Loading...
-          </p>
-        )}
 
         {!loading && items.length === 0 && (
           <div className="bg-white p-6 text-center text-gray-500 rounded-xl">
-            No return orders
+            {t.no_returns}
           </div>
         )}
 
@@ -196,17 +184,19 @@ export default function SellerReturnsPage() {
 
             {/* INFO */}
             <div className="flex-1 flex flex-col justify-between">
+
               <div>
                 <p className="text-sm font-medium line-clamp-2">
                   {item.product_name}
                 </p>
 
                 <p className="text-xs text-gray-500 mt-1">
-                  Qty: {item.quantity}
+                  {t.quantity}: {item.quantity}
                 </p>
               </div>
 
               <div className="flex justify-between items-end mt-2">
+
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${getColor(
                     item.status
@@ -220,10 +210,12 @@ export default function SellerReturnsPage() {
                     {new Date(item.created_at).toLocaleString()}
                   </span>
                 )}
+
               </div>
             </div>
           </div>
         ))}
+
       </div>
     </main>
   );
