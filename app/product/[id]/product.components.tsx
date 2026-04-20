@@ -356,26 +356,47 @@ export function ProductView({
       )}
 
       {/* ===== ACTION (FIX CHE NAV) ===== */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white p-3 flex gap-2 z-50 border-t"
-        style={{
-          paddingBottom: "env(safe-area-inset-bottom)",
-        }}
-      >
-        <button
-          onClick={add}
-          className="flex-1 bg-primary text-white rounded-xl py-3"
-        >
-          {t.add_to_cart}
-        </button>
+     <div
+  className="
+    fixed left-0 right-0 z-50
+    bg-white border-t
+    px-3 pt-2
+  "
+  style={{
+    bottom: "60px", // ✅ tránh đè lên BottomNav
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
+  }}
+>
+  <div className="flex gap-2 max-w-4xl mx-auto">
+    
+    <button
+      onClick={add}
+      className="
+        flex-1 h-11
+        bg-primary text-white
+        rounded-xl
+        text-sm font-medium
+        active:scale-95 transition
+      "
+    >
+      {t.add_to_cart}
+    </button>
 
-        <button
-          onClick={buy}
-          className="flex-1 bg-primary-dark text-white rounded-xl py-3"
-        >
-          {t.buy_now}
-        </button>
-      </div>
-    </div>
+    <button
+      onClick={buy}
+      className="
+        flex-1 h-11
+        bg-primary-dark text-white
+        rounded-xl
+        text-sm font-semibold
+        shadow-md
+        active:scale-95 transition
+      "
+    >
+      {t.buy_now}
+    </button>
+
+  </div>
+</div>
   );
 }
