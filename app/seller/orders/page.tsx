@@ -617,7 +617,7 @@ function SellerOrdersContent() {
       <header className="bg-primary text-white px-4 py-4 shadow">
   <div className="bg-primary-dark rounded-2xl p-4">
           <p className="text-sm">
-            {
+           {
               {
                 all:
                   t.all_orders ??
