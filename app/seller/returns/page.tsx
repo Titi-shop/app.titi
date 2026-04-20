@@ -194,7 +194,7 @@ export default function SellerReturnsPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-gray-700 to-gray-900 text-white px-4 py-4 font-semibold shadow">
+      <div className="bg-primary text-white px-4 py-4 font-semibold shadow">
         {t.return_orders}
       </div>
 
@@ -207,7 +207,7 @@ export default function SellerReturnsPage() {
               onClick={() => setTab(tKey)}
               className={`px-3 py-1 text-sm rounded-full ${
                 tab === tKey
-                  ? "bg-orange-500 text-white"
+                 ? "bg-primary text-white"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
@@ -341,7 +341,7 @@ export default function SellerReturnsPage() {
                   {detail.status === "shipping_back" && (
                     <button
                       onClick={() => action("received")}
-                      className="w-full bg-blue-500 text-white py-3 rounded"
+                      className="w-full bg-primary text-white py-3 rounded"
                     >
                       {t.mark_received}
                     </button>
