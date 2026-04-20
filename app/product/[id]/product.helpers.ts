@@ -3,20 +3,13 @@
 export function formatDetail(text: string) {
   if (!text) return "";
 
-  return text
+  const normalized = text
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
-    .replace(/\n/g, "<br/>")
     .trim();
-}
 
-  // ⚠️ basic escape để tránh XSS nhẹ
-  const safe = normalized
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  return safe.replace(/\n/g, "<br/>");
+  return normalized.replace(/\n/g, "<br/>");
 }
 
 /* ================= SHORT DESCRIPTION ================= */
@@ -36,16 +29,16 @@ export function formatShortDescription(text?: string) {
 /* ================= SALE ================= */
 
 export function calcSalePercent(price: number, finalPrice: number) {
-  if (!price || price <= 0) return 0; // ✅ fix chia 0
+  if (!price || price <= 0) return 0;
   if (finalPrice >= price) return 0;
 
   return Math.round(((price - finalPrice) / price) * 100);
 }
 
-/* ================= TOUCH DISTANCE ================= */
+/* ================= TOUCH ================= */
 
 export function getDistance(touches: TouchList) {
-  if (!touches || touches.length < 2) return 0; // ✅ tránh crash
+  if (!touches || touches.length < 2) return 0;
 
   const dx = touches[0].clientX - touches[1].clientX;
   const dy = touches[0].clientY - touches[1].clientY;
