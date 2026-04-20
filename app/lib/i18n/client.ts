@@ -21,41 +21,47 @@ export function useTranslationClient() {
 
   // Load file JSON
   useEffect(() => {
-    let active = true;
+  let active = true;
 
-    async function load() {
-      try {
-        const loader = languageFiles[lang];
+  async function load() {
+    try {
+      const loader = languageFiles[lang];
+      const enLoader = languageFiles["en"];
 
-        if (!loader) {
-          setT({});
-          return;
-        }
+      if (!enLoader) return;
 
+      // ✅ load EN (fallback)
+      const enMod = await enLoader();
+      const enData = enMod.default || {};
+
+      // ✅ load current lang
+      let langData: TranslationMap = {};
+
+      if (loader) {
         const mod = await loader();
-
-        if (active) {
-          const data = mod.default;
-
-          if (data && typeof data === "object") {
-            setT(data as TranslationMap);
-          } else {
-            setT({});
-          }
-        }
-      } catch {
-        if (active) {
-          setT({});
-        }
+        langData = mod.default || {};
       }
+
+      // ✅ merge fallback
+      const merged: TranslationMap = {
+        ...enData,
+        ...langData,
+      };
+
+      if (active) {
+        setT(merged);
+      }
+    } catch (err) {
+      console.error("i18n load error", err);
     }
+  }
 
-    void load();
+  void load();
 
-    return () => {
-      active = false;
-    };
-  }, [lang]);
+  return () => {
+    active = false;
+  };
+}, [lang]);
 
   // Lắng nghe event đổi ngôn ngữ
   useEffect(() => {
