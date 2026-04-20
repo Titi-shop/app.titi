@@ -194,7 +194,7 @@ export default function SellerReturnsPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-      <div className="bg-orange-500 text-white px-4 py-4 font-semibold">
+      <div className="bg-gradient-to-r from-gray-700 to-gray-900 text-white px-4 py-4 font-semibold shadow">
         {t.return_orders}
       </div>
 
