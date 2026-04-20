@@ -1,11 +1,37 @@
 import { languageFiles } from "./i18n";
 
-export async function getDictionary(lang: string) {
-  const en = await languageFiles["en"]?.();
-  const current = await languageFiles[lang]?.();
+type TranslationMap = Record<string, string>;
 
-  return {
-    ...(en?.default || {}),
-    ...(current?.default || {}),
-  };
+export async function getDictionary(
+  lang: string
+): Promise<TranslationMap> {
+  try {
+    const enLoader = languageFiles["en"];
+    const currentLoader = languageFiles[lang];
+
+    if (!enLoader) {
+      return {};
+    }
+
+    // ✅ load EN fallback
+    const enMod = await enLoader();
+    const enData = enMod.default || {};
+
+    // ✅ load current language
+    let langData: TranslationMap = {};
+
+    if (currentLoader) {
+      const mod = await currentLoader();
+      langData = mod.default || {};
+    }
+
+    // ✅ merge fallback
+    return {
+      ...enData,
+      ...langData,
+    };
+  } catch (err) {
+    console.error("[i18n] server load error", err);
+    return {};
+  }
 }
