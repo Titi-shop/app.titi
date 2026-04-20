@@ -511,12 +511,14 @@ export default function CustomerOrdersPage() {
             className="absolute inset-0 bg-black/40"
           />
 
-          <className="
-          absolute bottom-0 left-0 right-0
-          bg-white rounded-t-3xl
-          p-5
-           pb-[calc(env(safe-area-inset-bottom)+80px)]
-            ">
+          <div
+      className="
+    absolute bottom-0 left-0 right-0
+    bg-white rounded-t-3xl
+    p-5
+    pb-[calc(env(safe-area-inset-bottom)+80px)]
+       "
+        >
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-gray-300" />
 
             <h3 className="text-center text-lg font-semibold">
