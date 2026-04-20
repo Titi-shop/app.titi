@@ -33,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <AlertProvider />
           <AuthProvider>
-            <PiRootClient>{children}</PiRootClient>
+           <ThemeProvider>
+              <PiRootClient>{children}</PiRootClient>
+            </ThemeProvider>
           </AuthProvider>
         </SWRConfig>
       </body>
