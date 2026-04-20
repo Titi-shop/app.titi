@@ -1,5 +1,4 @@
-Kiểm tra app/product/[id]/product.helpers.ts
-Cho đồng bộ .
+
 
 export function formatDetail(text: string) {
   return text
