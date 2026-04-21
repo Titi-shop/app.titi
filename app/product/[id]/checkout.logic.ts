@@ -282,42 +282,41 @@ export function useCheckoutPay({
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-            try {
-              const token = await getPiAccessToken();
+  // 🚀 1. Redirect NGAY (UX mượt)
+  onClose();
+  router.push("/customer/pending");
 
-              const res = await fetch("/api/pi/complete", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  paymentId,
-                  txid,
-                  product_id: item?.id,
-                  variant_id: product.variant_id ?? null,
-                  quantity,
-                  shipping,
-                  zone,
-                }),
-              });
+  try {
+    const token = await getPiAccessToken();
 
-              if (!res.ok) {
-                showMessage(t.payment_complete_failed ?? "complete_failed");
-                throw new Error("COMPLETE_FAILED");
-              }
+    await fetch("/api/pi/complete", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        paymentId,
+        txid,
+        product_id: item?.id,
+        variant_id: product.variant_id ?? null,
+        quantity,
+        shipping,
+        zone,
+      }),
+    });
 
-              onClose();
-              router.push("/customer/pending");
+    // ❗ không cần check res.ok ở đây nữa
+    // vì user đã rời khỏi checkout
 
-              showMessage(t.payment_success ?? "success", "success");
-            } catch {
-              showMessage(t.payment_failed ?? "payment_failed");
-            } finally {
-              processingRef.current = false;
-              setProcessing(false);
-            }
-          },
+  } catch (err) {
+    console.error("[COMPLETE ERROR]", err);
+    // ❗ không show message ở đây (user đã redirect)
+  } finally {
+    processingRef.current = false;
+    setProcessing(false);
+  }
+},
 
           onCancel: () => {
             processingRef.current = false;
