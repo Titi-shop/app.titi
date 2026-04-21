@@ -14,15 +14,6 @@ function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
-}
-
-function safeQuantity(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isInteger(n)) return 1;
-  if (n < 1) return 1;
-  if (n > 10) return 10;
-  return n;
-}
 
 /* ================= TYPES ================= */
 
@@ -49,7 +40,10 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [PAYMENT][START]");
+    console.log("🟡 [PAYMENT][START]", {
+  paymentId,
+  txid,
+});
 
     /* ================= BODY ================= */
 
@@ -70,9 +64,6 @@ export async function POST(req: Request) {
 
     const txid =
       typeof body.txid === "string" ? body.txid : "";
-
-
-    /* ================= VALIDATE ================= */
 
     /* ================= VALIDATE BASIC ================= */
 
@@ -112,7 +103,12 @@ if (!piRes.ok) {
 }
 
 const payment = await piRes.json();
-
+if (!payment.amount || Number(payment.amount) <= 0) {
+  return NextResponse.json(
+    { error: "INVALID_AMOUNT" },
+    { status: 400 }
+  );
+}
 /* ================= VERIFY USER ================= */
 
 if (payment.user_uid !== piUidFromToken) {
@@ -154,9 +150,16 @@ const productId =
 
 const variantId =
   typeof meta.variant_id === "string" ? meta.variant_id : null;
-
+if (variantId && !isUUID(variantId)) {
+  return NextResponse.json(
+    { error: "INVALID_VARIANT_ID" },
+    { status: 400 }
+  );
+}
 const quantity =
-  Number.isInteger(meta.quantity) && meta.quantity > 0
+  Number.isInteger(meta.quantity) &&
+  meta.quantity > 0 &&
+  meta.quantity <= 10
     ? meta.quantity
     : 1;
 
