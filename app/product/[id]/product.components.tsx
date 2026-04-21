@@ -361,39 +361,101 @@ export function ProductView({
   className="
     fixed left-0 right-0 z-50
     bg-white border-t border-gray-200
-    px-2 pt-1
+    px-3 pt-2
+    shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
   "
   style={{
     bottom: "var(--bottom-nav-height, 60px)",
-    paddingBottom: "calc(env(safe-area-inset-bottom) + 4px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 6px)",
   }}
 >
-  <div className="flex gap-2 max-w-4xl mx-auto">
-    <button
-      onClick={add}
-      className="
-        flex-1 h-8
-        bg-primary text-white
-        rounded-lg
-        text-xs font-medium
-        active:scale-95 transition
-      "
-    >
-      {t.add_to_cart}
-    </button>
+  <div className="max-w-4xl mx-auto space-y-2">
 
-    <button
-      onClick={buy}
-      className="
-        flex-1 h-8
-        bg-primary-dark text-white
-        rounded-lg
-        text-xs font-semibold
-        active:scale-95 transition
-      "
-    >
-      {t.buy_now}
-    </button>
+    {/* ===== ROW 1: PRICE + STOCK ===== */}
+    <div className="flex items-center justify-between text-xs">
+      <div>
+        <span className="text-gray-400">
+          {t.total || "Total"}
+        </span>
+
+        <span className="ml-2 font-semibold text-orange-600 text-sm">
+          π {formatPi(
+            selectedVariant?.salePrice ??
+            selectedVariant?.price ??
+            product.finalPrice
+          )}
+        </span>
+      </div>
+
+      <div className={canBuy ? "text-green-600" : "text-red-500"}>
+        {canBuy
+          ? `${t.in_stock || "In stock"}: ${selectedStock}`
+          : t.out_of_stock || "Out of stock"}
+      </div>
+    </div>
+
+    {/* ===== ROW 2: ACTION ===== */}
+    <div className="flex items-center gap-2">
+
+      {/* ===== QUANTITY ===== */}
+      <div className="flex items-center border rounded-lg overflow-hidden h-9">
+        <button
+          onClick={() => setQty((q) => Math.max(1, q - 1))}
+          className="w-8 text-center text-lg"
+        >
+          −
+        </button>
+
+        <span className="w-8 text-center text-sm">
+          {qty}
+        </span>
+
+        <button
+          onClick={() =>
+            setQty((q) => Math.min(selectedStock || 1, q + 1))
+          }
+          className="w-8 text-center text-lg"
+        >
+          +
+        </button>
+      </div>
+
+      {/* ===== ADD TO CART ===== */}
+      <button
+        onClick={() => add(qty)}
+        disabled={!canBuy}
+        className={`
+          flex-1 h-9
+          rounded-lg text-xs font-medium
+          transition active:scale-95
+          ${
+            canBuy
+              ? "bg-yellow-500 text-white"
+              : "bg-gray-200 text-gray-400"
+          }
+        `}
+      >
+        {t.add_to_cart}
+      </button>
+
+      {/* ===== BUY NOW ===== */}
+      <button
+        onClick={() => buy(qty)}
+        disabled={!canBuy}
+        className={`
+          flex-1 h-9
+          rounded-lg text-xs font-semibold
+          transition active:scale-95
+          ${
+            canBuy
+              ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
+              : "bg-gray-200 text-gray-400"
+          }
+        `}
+      >
+        {t.buy_now}
+      </button>
+    </div>
   </div>
 </div>
     </div> 
