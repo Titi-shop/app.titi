@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-import { getPiAccessToken } from "@/lib/piAuth"; // ✅ FIX
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import useSWR from "swr";
 
 import type {
@@ -43,7 +43,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
   const [zone, setZone] = useState<Region | null>(null);
-console.log("🟣 SHIPPING STATE:", shipping);
   /* ========================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
@@ -103,30 +102,25 @@ console.log("🟣 SHIPPING STATE:", shipping);
 
   /* ========================= */
 
-  const previewKey =
-  open && shipping?.country && zone && item
-    ? [
-        "/api/orders/preview",
-        {
-          country: shipping.country.toUpperCase(),
-          zone,
+  const previewKey = useMemo(() => {
+  if (!open || !shipping?.country || !zone || !item) return null;
 
-          shipping: {
-            region: shipping.region,
-            district: shipping.district,
-            ward: shipping.ward,
-          },
-
-          items: [
-            {
-              product_id: item.id,
-              quantity,
-              variant_id: product?.selectedVariant?.id ?? null,
-            },
-          ],
-        },
-      ]
-    : null;
+  return [
+    "/api/orders/preview",
+    shipping.country,
+    zone,
+    item.id,
+    quantity,
+    product?.selectedVariant?.id ?? null,
+  ];
+}, [
+  open,
+  shipping?.country,
+  zone,
+  item?.id,
+  quantity,
+  product?.selectedVariant?.id,
+]);
 
   const { data: preview, error: previewError } = useSWR(
     previewKey,
@@ -140,19 +134,13 @@ console.log("🟣 SHIPPING STATE:", shipping);
   useEffect(() => {
   async function loadAddress() {
     try {
-      const token = await getPiAccessToken();
-
-      const res = await fetch("/api/address", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiAuthFetch("/api/address");
 
       if (!res.ok) return;
 
       const data: AddressApiResponse = await res.json();
-
       const def = data.items?.find((a) => a.is_default);
       if (!def) return;
-   console.log("🟢 SHIPPING SET:", def);
       setShipping({
   name: def.full_name,
   phone: def.phone,
@@ -189,11 +177,10 @@ console.log("🟣 SHIPPING STATE:", shipping);
 
   const country = shipping.country.toUpperCase();
 
-  // ✅ FIX CRASH / UNDEFINED
-  const rates = Array.isArray(product?.shippingRates)
-    ? product.shippingRates
-    : [];
-  console.log("🚚 SHIPPING RATES:", rates);
+  const rates = useMemo(() => {
+  if (!Array.isArray(product?.shippingRates)) return [];
+  return product.shippingRates;
+}, [product?.shippingRates]);
   return rates.filter((r) => {
     if (country === "VN") return r.zone === "domestic";
     return true;
@@ -240,7 +227,7 @@ console.log("🟣 SHIPPING STATE:", shipping);
 
   /* ========================= */
 
-  if (!open || !item) return null;
+  if (!open || !item || !item.id) return null;
 
   /* ========================= */
 
@@ -302,7 +289,7 @@ console.log("🟣 SHIPPING STATE:", shipping);
         key={r.zone}
         onClick={() => {
   if (!r.zone) return;
-  setZone(r.zone as Region);
+setZone(r.zone);
 }}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
@@ -353,12 +340,13 @@ console.log("🟣 SHIPPING STATE:", shipping);
         inputMode="numeric"
         value={qtyDraft}
         onChange={(e) => {
-          if (!/^\d+$/.test(e.target.value)) return;
+          const val = e.target.value.replace(/\D/g, "");
+          if (!val) return;
 
-          const val = Number(e.target.value || "0");
-          if (val > maxStock) return;
+       const num = Number(val);
+        if (num > maxStock) return;
 
-          setQtyDraft(e.target.value);
+       setQtyDraft(val);
         }}
         onBlur={() => {
           const val = Number(qtyDraft || "0");
