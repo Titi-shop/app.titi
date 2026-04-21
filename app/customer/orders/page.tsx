@@ -226,6 +226,13 @@ const mergedOrders = useMemo(() => {
 
   return [optimisticOrder, ...orders];
 }, [orders, optimisticOrder]);
+  const totalPi = useMemo(() => {
+  return mergedOrders.reduce(
+    (sum: number, order: Order) =>
+      sum + Number(order.total ?? 0),
+    0
+  );
+}, [mergedOrders]);
 
   /* ================= HELPERS ================= */
 
