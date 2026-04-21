@@ -480,6 +480,7 @@ export function ProductView({
     </button>
   </div>
 </div>
+      </div>
     </div> 
   );
 }
