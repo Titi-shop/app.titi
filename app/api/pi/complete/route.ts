@@ -269,3 +269,18 @@ return NextResponse.json({
   success: true,
   order_id: result.orderId,
 });
+
+    return NextResponse.json({
+  success: true,
+  order_id: result.orderId,
+});
+
+  } catch (err) {
+    console.error("🔥 [API COMPLETE ERROR]", err);
+
+    return NextResponse.json(
+      { error: (err as Error).message || "PAYMENT_FAILED" },
+      { status: 400 }
+    );
+  }
+}
