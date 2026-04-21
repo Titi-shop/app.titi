@@ -9,7 +9,13 @@ export function formatDetail(text: string) {
     .replace(/\r/g, "\n")
     .trim();
 
-  return normalized.replace(/\n/g, "<br/>");
+  // ✅ escape HTML
+  const safe = normalized
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  return safe.replace(/\n/g, "<br/>");
 }
 
 /* ================= SHORT DESCRIPTION ================= */
