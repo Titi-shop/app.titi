@@ -562,11 +562,24 @@
   "return_waiting_refund": "Waiting for refund",
   "return_refunded": "Refunded",
   "return_rejected": "Rejected",
-
   "order": "Order",
 
   "tracking": "Tracking Number",
   "waiting_refund": "Waiting for refund confirmation",
+  "return_leave_warning": "You have unsaved changes. Leaving will discard them. Continue?",
+  
+  "error_no_address": "Chưa có địa chỉ",
+  "error_no_region": "Chưa chọn khu vực",
+  "error_invalid_quantity": "Số lượng không hợp lệ",
+  "error_product_invalid": "Sản phẩm không hợp lệ",
+  "error_network": "Lỗi mạng",
+  "order_success": "Đặt hàng thành công",
+  "pi_not_ready": "Pi chưa sẵn sàng"
 
-  "return_leave_warning": "You have unsaved changes. Leaving will discard them. Continue?"
+
+
+
+
+
+  
 }
