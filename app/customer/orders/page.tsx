@@ -181,29 +181,21 @@ useEffect(() => {
     setOptimisticOrder(parsed);
   } catch {}
 }, []);
-  useEffect(() => {
-  if (typeof window === "undefined") return;
-
-  const raw = localStorage.getItem("optimistic_order");
-  if (!raw) return;
-
-  try {
-    const parsed = JSON.parse(raw);
-    setOptimisticOrder(parsed);
-  } catch {}
-}, []);
+  
   /* ================= TOTAL ================= */
 
   const mergedOrders = useMemo(() => {
   if (!optimisticOrder) return orders;
 
-  const exists = orders.some(
-    (o) => o.id === optimisticOrder.id
+  // 🔥 check backend đã có đơn pending mới chưa
+  const hasRealPending = orders.some(
+    (o) => o.status === "pending"
   );
 
-  // nếu backend đã trả về → remove fake
-  if (exists) {
+  // nếu backend đã có đơn → xóa fake
+  if (hasRealPending) {
     localStorage.removeItem("optimistic_order");
+    setOptimisticOrder(null);
     return orders;
   }
 
