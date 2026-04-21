@@ -282,12 +282,29 @@ export function useCheckoutPay({
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-  // 🚀 1. ĐÁNH DẤU optimistic
-  localStorage.setItem("pending_order", "1");
+  // ✅ tạo đơn fake
+  const fakeOrder = {
+    id: "temp_" + Date.now(),
+    order_number: "TEMP",
+    total: total,
+    status: "pending",
+    order_items: [
+      {
+        product_id: item?.id,
+        product_name: item?.name,
+        thumbnail: item?.thumbnail,
+      },
+    ],
+  };
 
-  // 🚀 2. Redirect NGAY về orders (KHÔNG chờ API)
+  localStorage.setItem(
+    "optimistic_order",
+    JSON.stringify(fakeOrder)
+  );
+
+  // 🚀 redirect ngay
   onClose();
-  router.push("/customer/orders?tab=pending"); // ✅ nếu bạn có filter tab
+  router.push("/customer/orders?tab=pending");
 
   try {
     const token = await getPiAccessToken();
@@ -308,10 +325,9 @@ export function useCheckoutPay({
         zone,
       }),
     });
+  } catch {}
 
-  } catch (err) {
-    console.error("[COMPLETE ERROR]", err);
-  } finally {
+  finally {
     processingRef.current = false;
     setProcessing(false);
   }
