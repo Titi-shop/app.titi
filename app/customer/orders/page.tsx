@@ -8,6 +8,7 @@ import {
   Suspense,
   useMemo,
   useState,
+  useEffect, 
 } from "react";
 import { useRouter } from "next/navigation";
 
@@ -113,21 +114,25 @@ export default function CustomerOrdersPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading } = useAuth();
-
+const [optimisticOrder, setOptimisticOrder] =
+  useState<Order | null>(null);
   const {
     data: orders = [],
     isLoading,
     mutate,
-  } = useSWR<Order[]>(
-    const [optimisticOrder, setOptimisticOrder] = useState<Order | null>(null);
-    user ? "/api/orders" : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 5000,
-      keepPreviousData: true,
-    }
-  );
+  } = const {
+  data: orders = [],
+  isLoading,
+  mutate,
+} = useSWR<Order[]>(
+  user ? "/api/orders" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+    keepPreviousData: true,
+  }
+);
 
   /* ================= STATE ================= */
 
@@ -178,7 +183,32 @@ export default function CustomerOrdersPage() {
     setOptimisticOrder(parsed);
   } catch {}
 }, []);
+  useEffect(() => {
+  if (typeof window === "undefined") return;
 
+  const raw = localStorage.getItem("optimistic_order");
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw);
+    setOptimisticOrder(parsed);
+  } catch {}
+}, []);
+const mergedOrders = useMemo(() => {
+  if (!optimisticOrder) return orders;
+
+  const exists = orders.some(
+    (o) => o.id === optimisticOrder.id
+  );
+
+  // backend đã trả → xoá fake
+  if (exists) {
+    localStorage.removeItem("optimistic_order");
+    return orders;
+  }
+
+  return [optimisticOrder, ...orders];
+}, [orders, optimisticOrder]);
   /* ================= TOTAL ================= */
 
   const mergedOrders = useMemo(() => {
@@ -472,8 +502,7 @@ export default function CustomerOrdersPage() {
           </p>
 
           <p className="mt-1 text-xs">
-            {orders.length} · π
-            {formatPi(totalPi)}
+            {mergedOrders.length} · π{formatPi(totalPi)}
           </p>
         </div>
       </header>
