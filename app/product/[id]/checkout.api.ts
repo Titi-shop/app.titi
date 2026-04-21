@@ -1,4 +1,5 @@
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
 import type {
   PreviewPayload,
   PreviewResponse,
@@ -7,65 +8,80 @@ import type {
 } from "./checkout.types";
 
 /* =========================
-   PREVIEW FETCHER
+   PREVIEW FETCHER (SAFE)
 ========================= */
 
 export const previewFetcher = async (
   [url, payload]: [string, PreviewPayload]
 ): Promise<PreviewResponse> => {
-  const token = await getPiAccessToken();
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  /* ===== NORMALIZE ===== */
+  const safePayload: PreviewPayload = {
+    country: payload.country,
+    zone: payload.zone,
+    shipping: {
+      region: payload.shipping.region,
+      district: payload.shipping.district ?? "",
+      ward: payload.shipping.ward ?? "",
     },
-    body: JSON.stringify(payload),
+    items: payload.items.map((i) => ({
+      product_id: i.product_id,
+      variant_id: i.variant_id ?? null,
+      quantity: Number(i.quantity) || 1,
+    })),
+  };
+
+  const res = await apiAuthFetch(url, {
+    method: "POST",
+    body: JSON.stringify(safePayload),
   });
 
-  const data = await res.json();
+  let data: unknown = null;
+
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("INVALID_RESPONSE");
+  }
 
   if (!res.ok) {
-    throw new Error(data?.error || "PREVIEW_FAILED");
+    throw new Error(
+      typeof (data as any)?.error === "string"
+        ? (data as any).error
+        : "PREVIEW_FAILED"
+    );
   }
 
   return data as PreviewResponse;
 };
 
 /* =========================
-   LOAD ADDRESS
+   LOAD ADDRESS (SAFE)
 ========================= */
 
 export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
   try {
-    const token = await getPiAccessToken();
-
-    const res = await fetch("/api/address", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await apiAuthFetch("/api/address");
 
     if (!res.ok) {
-      throw new Error("ADDRESS_FETCH_FAILED");
+      return null;
     }
 
     const data: AddressApiResponse = await res.json();
 
     const def = data.items?.find((a) => a.is_default);
     if (!def) return null;
-console.log("🟢 DEFAULT ADDRESS:", def);
+
     return {
-  name: def.full_name,
-  phone: def.phone,
-  address_line: def.address_line,
-  region: def.region,
-  district: def.district ?? "",
-  ward: def.ward ?? "",
-  country: def.country || "VN",
-  postal_code: def.postal_code ?? null,
-};
-  } catch (err) {
-    console.error("❌ LOAD ADDRESS ERROR:", err);
+      name: def.full_name,
+      phone: def.phone,
+      address_line: def.address_line,
+      region: def.region,
+      district: def.district ?? "",
+      ward: def.ward ?? "",
+      country: def.country || "VN",
+      postal_code: def.postal_code ?? null,
+    };
+  } catch {
     return null;
   }
 }
@@ -75,5 +91,7 @@ console.log("🟢 DEFAULT ADDRESS:", def);
 ========================= */
 
 export function getCountryDisplay(country?: string) {
-  return country ?? "";
+  if (!country) return "";
+
+  return country.toUpperCase();
 }
