@@ -360,20 +360,20 @@ export function ProductView({
       <div
   className="
     fixed left-0 right-0 z-50
-    bg-white border-t
-    px-3 pt-2
+    bg-white border-t border-gray-200
+    px-2 pt-1
   "
   style={{
     bottom: "var(--bottom-nav-height, 60px)",
-    paddingBottom: "calc(env(safe-area-inset-bottom) + 6px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 4px)",
   }}
 >
   <div className="flex gap-2 max-w-4xl mx-auto">
     <button
       onClick={add}
       className="
-        flex-1 h-9
-        bg-yellow-500 text-white
+        flex-1 h-8
+        bg-primary text-white
         rounded-lg
         text-xs font-medium
         active:scale-95 transition
@@ -385,8 +385,8 @@ export function ProductView({
     <button
       onClick={buy}
       className="
-        flex-1 h-9
-        bg-red-500 text-white
+        flex-1 h-8
+        bg-primary-dark text-white
         rounded-lg
         text-xs font-semibold
         active:scale-95 transition
