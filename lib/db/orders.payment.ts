@@ -3,7 +3,8 @@ import { withTransaction } from "@/lib/db";
 /* ================= HELPERS ================= */
 
 function isUUID(v: unknown): v is string {
-  return typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
+  return typeof v === "string" &&
+    /^[0-9a-f-]{36}$/i.test(v);
 }
 
 function safeQty(q: unknown): number {
@@ -24,6 +25,7 @@ export async function processPiPayment(params: {
   txid: string;
   country: string;
   zone: string;
+
   shipping: {
     name: string;
     phone: string;
@@ -33,9 +35,11 @@ export async function processPiPayment(params: {
     region?: string | null;
     postal_code?: string | null;
   };
+
   verifiedAmount: number;
 }) {
-  console.log("🟡 [DB] STEP 0 START", {
+
+  console.log("🟡 [DB] START", {
     paymentId: params.paymentId,
     productId: params.productId,
     amount: params.verifiedAmount,
@@ -53,9 +57,9 @@ export async function processPiPayment(params: {
   return withTransaction(async (client) => {
 
     /* =========================================================
-       🔒 STEP 1: IDEMPOTENCY
+       🔒 1. IDEMPOTENCY
     ========================================================= */
-    console.log("🟡 [DB] STEP 1 CHECK ORDER EXIST");
+    console.log("🟡 [DB] STEP 1 IDEMPOTENCY");
 
     const existingOrder = await client.query(
       `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
@@ -64,6 +68,7 @@ export async function processPiPayment(params: {
 
     if (existingOrder.rows.length > 0) {
       console.log("🟡 [DB] DUPLICATE ORDER");
+
       return {
         orderId: existingOrder.rows[0].id,
         duplicated: true,
@@ -71,9 +76,9 @@ export async function processPiPayment(params: {
     }
 
     /* =========================================================
-       🔒 STEP 2: TXID CHECK
+       🔒 2. TXID CHECK
     ========================================================= */
-    console.log("🟡 [DB] STEP 2 CHECK TXID");
+    console.log("🟡 [DB] STEP 2 TX CHECK");
 
     const txCheck = await client.query(
       `SELECT id FROM pi_payments WHERE txid=$1 LIMIT 1`,
@@ -86,15 +91,21 @@ export async function processPiPayment(params: {
     }
 
     /* =========================================================
-       🔒 STEP 3: INSERT PAYMENT
+       🔒 3. INSERT PAYMENT
     ========================================================= */
     console.log("🟡 [DB] STEP 3 INSERT PAYMENT");
 
     await client.query(
       `
       INSERT INTO pi_payments (
-        user_id, pi_payment_id, txid,
-        amount, status, country, zone, verified_amount
+        user_id,
+        pi_payment_id,
+        txid,
+        amount,
+        status,
+        country,
+        zone,
+        verified_amount
       )
       VALUES ($1,$2,$3,$4,'verified',$5,$6,$7)
       ON CONFLICT (pi_payment_id) DO NOTHING
@@ -111,11 +122,11 @@ export async function processPiPayment(params: {
     );
 
     /* =========================================================
-       🌍 STEP 4: VALIDATE ZONE
+       🌍 4. VALIDATE ZONE
     ========================================================= */
-    console.log("🟡 [DB] STEP 4 VALIDATE ZONE", { country, zone });
+    console.log("🟡 [DB] STEP 4 ZONE", { country, zone });
 
-    const zoneRes = await client.query(
+    const zoneRes = await client.query<{ code: string }>(
       `
       SELECT sz.code
       FROM shipping_zone_countries szc
@@ -139,15 +150,24 @@ export async function processPiPayment(params: {
     }
 
     /* =========================================================
-       📍 STEP 5: LOAD ADDRESS
+       📍 5. ADDRESS
     ========================================================= */
-    console.log("🟡 [DB] STEP 5 LOAD ADDRESS");
+    console.log("🟡 [DB] STEP 5 ADDRESS");
 
     const addressRes = await client.query(
       `
-      SELECT *
+      SELECT 
+        full_name,
+        phone,
+        address_line,
+        ward,
+        district,
+        region,
+        country,
+        postal_code
       FROM addresses
-      WHERE user_id = $1 AND is_default = true
+      WHERE user_id = $1
+      AND is_default = true
       LIMIT 1
       `,
       [params.userId]
@@ -161,13 +181,16 @@ export async function processPiPayment(params: {
     const address = addressRes.rows[0];
 
     /* =========================================================
-       📦 STEP 6: LOAD PRODUCT
+       📦 6. PRODUCT
     ========================================================= */
-    console.log("🟡 [DB] STEP 6 LOAD PRODUCT");
+    console.log("🟡 [DB] STEP 6 PRODUCT");
 
     const productRes = await client.query(
       `
-      SELECT *
+      SELECT 
+        id, seller_id, name, price, thumbnail,
+        is_active, deleted_at,
+        sale_price, sale_start, sale_end
       FROM products
       WHERE id=$1
       FOR UPDATE
@@ -182,10 +205,14 @@ export async function processPiPayment(params: {
       throw new Error("PRODUCT_NOT_AVAILABLE");
     }
 
+    if (!isUUID(product.seller_id)) {
+      throw new Error("INVALID_SELLER");
+    }
+
     let price = Number(product.price);
 
     /* =========================================================
-       🧩 STEP 7: VARIANT
+       🧩 7. VARIANT
     ========================================================= */
     if (params.variantId) {
       console.log("🟡 [DB] STEP 7 VARIANT");
@@ -207,11 +234,14 @@ export async function processPiPayment(params: {
 
       const v = vRes.rows[0];
 
-      price = v.sale_price > 0 ? Number(v.sale_price) : Number(v.price);
+      price =
+        v.sale_price && v.sale_price > 0
+          ? Number(v.sale_price)
+          : Number(v.price);
     }
 
     /* =========================================================
-       🚚 STEP 8: SHIPPING
+       🚚 8. SHIPPING
     ========================================================= */
     console.log("🟡 [DB] STEP 8 SHIPPING");
 
@@ -235,10 +265,12 @@ export async function processPiPayment(params: {
     const shippingFee = Number(shippingRes.rows[0].price);
 
     /* =========================================================
-       💰 STEP 9: CALC
+       💰 9. TOTAL
     ========================================================= */
     const subtotal = price * quantity;
-    const total = subtotal + shippingFee;
+    const discount = 0;
+    const itemsTotal = subtotal - discount;
+    const total = itemsTotal + shippingFee;
 
     console.log("🧾 [DB] STEP 9 CALC", {
       subtotal,
@@ -253,27 +285,39 @@ export async function processPiPayment(params: {
     }
 
     /* =========================================================
-       📉 STEP 10: STOCK
+       📉 10. STOCK
     ========================================================= */
     console.log("🟡 [DB] STEP 10 STOCK");
 
-    const stock = await client.query(
-      `
-      UPDATE products
-      SET stock = stock - $1
-      WHERE id=$2 AND stock >= $1
-      RETURNING id
-      `,
-      [quantity, params.productId]
-    );
+    if (params.variantId) {
+      const stock = await client.query(
+        `
+        UPDATE product_variants
+        SET stock = stock - $1
+        WHERE id=$2 AND stock >= $1
+        RETURNING id
+        `,
+        [quantity, params.variantId]
+      );
 
-    if (!stock.rowCount) {
-      console.error("❌ [DB] OUT_OF_STOCK");
-      throw new Error("OUT_OF_STOCK");
+      if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
+    } else {
+      const stock = await client.query(
+        `
+        UPDATE products
+        SET stock = stock - $1,
+            sold = sold + $1
+        WHERE id=$2 AND stock >= $1
+        RETURNING id
+        `,
+        [quantity, params.productId]
+      );
+
+      if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
     }
 
     /* =========================================================
-       🧾 STEP 11: CREATE ORDER
+       🧾 11. ORDER
     ========================================================= */
     console.log("🟡 [DB] STEP 11 CREATE ORDER");
 
@@ -285,8 +329,11 @@ export async function processPiPayment(params: {
         seller_id,
         pi_payment_id,
         pi_txid,
+        items_total,
         subtotal,
+        discount,
         shipping_fee,
+        tax,
         total,
         currency,
         payment_status,
@@ -295,14 +342,23 @@ export async function processPiPayment(params: {
         shipping_name,
         shipping_phone,
         shipping_address_line,
-        shipping_country
+        shipping_ward,
+        shipping_district,
+        shipping_region,
+        shipping_country,
+        shipping_postal_code,
+        shipping_zone,
+        total_items,
+        total_quantity
       )
       VALUES (
         gen_random_uuid()::text,
-        $1,$2,$3,$4,
-        $5,$6,$7,'PI',
+        $1,$2,
+        $3,$4,
+        $5,$6,$7,$8,$9,$10,$11,
         'paid', NOW(),'pending',
-        $8,$9,$10,$11
+        $12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22
       )
       RETURNING id
       `,
@@ -311,21 +367,73 @@ export async function processPiPayment(params: {
         product.seller_id,
         params.paymentId,
         params.txid,
+        itemsTotal,
         subtotal,
+        0,
         shippingFee,
+        0,
         total,
+        "PI",
         address.full_name,
         address.phone,
         address.address_line,
+        address.ward ?? null,
+        address.district ?? null,
+        address.region ?? null,
         address.country,
+        address.postal_code ?? null,
+        realZone,
+        1,
+        quantity,
       ]
     );
 
     const orderId = orderRes.rows[0].id;
 
     /* =========================================================
-       🔥 STEP 12: FINAL
+       📦 12. ORDER ITEM
     ========================================================= */
+    console.log("🟡 [DB] STEP 12 ORDER ITEM");
+
+    await client.query(
+      `
+      INSERT INTO order_items (
+        order_id, product_id, variant_id, seller_id,
+        product_name, product_slug, thumbnail,
+        variant_name, variant_value,
+        unit_price, quantity, total_price, currency
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      `,
+      [
+        orderId,
+        product.id,
+        params.variantId ?? null,
+        product.seller_id,
+        product.name,
+        "",
+        product.thumbnail ?? "",
+        "",
+        "",
+        price,
+        quantity,
+        subtotal,
+        "PI",
+      ]
+    );
+
+    /* =========================================================
+       🔥 13. FINAL
+    ========================================================= */
+    await client.query(
+      `
+      UPDATE pi_payments
+      SET status='completed', order_id=$1, amount=$2, completed_at=NOW()
+      WHERE pi_payment_id=$3
+      `,
+      [orderId, total, params.paymentId]
+    );
+
     console.log("🟢 [DB] SUCCESS", { orderId });
 
     return { orderId, duplicated: false };
