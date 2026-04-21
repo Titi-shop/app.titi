@@ -13,7 +13,7 @@ import type {
   Region,
   ShippingInfo,
   Message,
-  AddressApiResponse, // ✅ FIX
+  AddressApiResponse, 
 } from "./checkout.types";
 
 import { previewFetcher } from "./checkout.api";
@@ -180,10 +180,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const country = shipping.country.toUpperCase();
 
-  const rates = useMemo(() => {
-  if (!Array.isArray(product?.shippingRates)) return [];
-  return product.shippingRates;
-}, [product?.shippingRates]);
+  const rates = Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+
   return rates.filter((r) => {
     if (country === "VN") return r.zone === "domestic";
     return true;
@@ -207,10 +207,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       showMessage,
       t,
     });
-  if (processingRef.current) return;
-processingRef.current = true;
 
   const handlePay = useCheckoutPay({
+    if (processingRef.current) return;
+     processingRef.current = true;
     item,
     quantity,
     total,
@@ -392,7 +392,7 @@ setZone(r.zone);
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
-  onClick={handlePay}
+  onClick={handlePayClick}
   disabled={processing}
   className={`w-full py-3 text-white rounded ${
     processing ? "bg-gray-400" : "bg-orange-600"
