@@ -74,72 +74,30 @@ export async function POST(req: Request) {
 
     /* ================= VALIDATE ================= */
 
-    if (!paymentId || !txid || !productId) {
-      console.error("❌ [PAYMENT][INVALID_REQUIRED_FIELDS]");
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
-    }
+    /* ================= VALIDATE BASIC ================= */
 
-
-    if (variantId && !isUUID(variantId)) {
-      console.error("❌ [PAYMENT][INVALID_VARIANT_ID]", variantId);
-      return NextResponse.json(
-        { error: "INVALID_VARIANT_ID" },
-        { status: 400 }
-      );
-    }
-
-      if (!productId || !isUUID(productId)) {
+if (!paymentId || !txid) {
   return NextResponse.json(
-    { error: "INVALID_METADATA_PRODUCT" },
+    { error: "INVALID_BODY" },
     { status: 400 }
   );
 }
-    /* ================= AUTH ================= */
 
-    const auth = await getUserFromBearer();
+/* ================= AUTH ================= */
 
-    if (!auth) {
-      console.error("❌ [PAYMENT][UNAUTHORIZED]");
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+const auth = await getUserFromBearer();
 
-    const userId = auth.userId;
-
-    console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
-
-    console.log("🟡 [PAYMENT][VERIFY_TOKEN_USER]");
-
-const piUidFromToken = auth.pi_uid; || "",
-  },
-  cache: "no-store",
-});
-
-if (!meRes.ok) {
+if (!auth) {
   return NextResponse.json(
-    { error: "INVALID_TOKEN" },
+    { error: "UNAUTHORIZED" },
     { status: 401 }
   );
 }
 
-const me = await meRes.json();
+const userId = auth.userId;
+const piUidFromToken = auth.pi_uid;
 
-if (!me?.uid) {
-  return NextResponse.json(
-    { error: "INVALID_PI_USER" },
-    { status: 401 }
-  );
-}
-
-const piUidFromToken = me.uid;
-    /* ================= VERIFY PI ================= */
-
-console.log("🟡 [PAYMENT][VERIFY_PI]");
+/* ================= VERIFY PI ================= */
 
 const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
   headers: { Authorization: `Key ${PI_KEY}` },
@@ -147,7 +105,6 @@ const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
 });
 
 if (!piRes.ok) {
-  console.error("❌ [PAYMENT][PI_NOT_FOUND]", paymentId);
   return NextResponse.json(
     { error: "PI_PAYMENT_NOT_FOUND" },
     { status: 400 }
@@ -155,7 +112,42 @@ if (!piRes.ok) {
 }
 
 const payment = await piRes.json();
-    const meta = payment.metadata || {};
+
+/* ================= VERIFY USER ================= */
+
+if (payment.user_uid !== piUidFromToken) {
+  return NextResponse.json(
+    { error: "INVALID_USER_PAYMENT" },
+    { status: 400 }
+  );
+}
+
+/* ================= VERIFY TXID ================= */
+
+if (payment.transaction?.txid !== txid) {
+  return NextResponse.json(
+    { error: "INVALID_TXID" },
+    { status: 400 }
+  );
+}
+
+/* ================= VERIFY STATUS ================= */
+
+const status = payment.status;
+
+if (
+  !status?.developer_approved ||
+  !status?.transaction_verified
+) {
+  return NextResponse.json(
+    { error: "PAYMENT_NOT_APPROVED" },
+    { status: 400 }
+  );
+}
+
+/* ================= METADATA ================= */
+
+const meta = payment.metadata || {};
 
 const productId =
   typeof meta.product_id === "string" ? meta.product_id : "";
@@ -168,47 +160,12 @@ const quantity =
     ? meta.quantity
     : 1;
 
-/* ================= 🔥 CRITICAL FIX ================= */
-
-if (!payment.amount || payment.amount <= 0) {
+if (!productId || !isUUID(productId)) {
   return NextResponse.json(
-    { error: "INVALID_AMOUNT" },
+    { error: "INVALID_METADATA_PRODUCT" },
     { status: 400 }
   );
 }
-
-if (payment.user_uid !== piUidFromToken) {
-  console.error("❌ [PAYMENT][USER_MISMATCH]", {
-    pi: payment.user_uid,
-    token: piUidFromToken,
-  });
-
-  return NextResponse.json(
-    { error: "INVALID_USER_PAYMENT" },
-    { status: 400 }
-  );
-}
-
-console.log("🟢 [PAYMENT][PI_DATA]", {
-  status: payment.status,
-});
-
-/* ================= STATUS CHECK ================= */
-
-const status = payment.status;
-
-if (
-  !status?.developer_approved ||
-  !status?.transaction_verified
-) {
-  console.error("❌ [PAYMENT][NOT_APPROVED]", status);
-
-  return NextResponse.json(
-    { error: "PAYMENT_NOT_APPROVED" },
-    { status: 400 }
-  );
-}
-
 /* ================= COMPLETE PI ================= */
 
 if (!status?.developer_completed) {
