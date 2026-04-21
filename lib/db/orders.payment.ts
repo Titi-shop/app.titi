@@ -126,16 +126,16 @@ export async function processPiPayment(params: {
     ========================================================= */
     console.log("🟡 [DB] STEP 4 ZONE", { country, zone });
 
-    const zoneRes = await client.query<{ code: string }>(
-      `
-      SELECT sz.code
-      FROM shipping_zone_countries szc
-      JOIN shipping_zones sz ON sz.id = szc.zone_id
-      WHERE szc.country_code = $1
-      LIMIT 1
-      `,
-      [country]
-    );
+    const zoneRes = await client.query(
+  `
+  SELECT sz.code
+  FROM shipping_zone_countries szc
+  JOIN shipping_zones sz ON sz.id = szc.zone_id
+  WHERE szc.country_code = $1
+  LIMIT 1
+  `,
+  [country]
+);
 
     if (!zoneRes.rows.length) {
       console.error("❌ [DB] INVALID_COUNTRY");
