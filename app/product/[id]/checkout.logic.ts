@@ -282,44 +282,10 @@ export function useCheckoutPay({
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-  /* =========================
-     1. TẠO ĐƠN ẢO (OPTIMISTIC)
-  ========================= */
-  const fakeOrder = {
-    id: "temp_" + Date.now(),
-    order_number: "TEMP",
-    total: total,
-    status: "pending",
-    order_items: [
-      {
-        product_id: item?.id,
-        product_name: item?.name,
-        thumbnail: item?.thumbnail,
-      },
-    ],
-    created_at: Date.now(),
-  };
-
-  try {
-    localStorage.setItem(
-      "optimistic_order",
-      JSON.stringify(fakeOrder)
-    );
-  } catch {}
-
-  /* =========================
-     2. REDIRECT NGAY (QUAN TRỌNG)
-  ========================= */
-  onClose();
-  router.push("/customer/orders?tab=pending");
-
-  /* =========================
-     3. CALL BACKEND (CHẠY NGẦM)
-  ========================= */
   try {
     const token = await getPiAccessToken();
 
-    await fetch("/api/pi/complete", {
+    const res = await fetch("/api/pi/complete", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -336,11 +302,25 @@ export function useCheckoutPay({
       }),
     });
 
-    // ❗ KHÔNG check res.ok nữa
-    // vì user đã rời khỏi checkout
+    if (!res.ok) {
+      showMessage(t.payment_complete_failed ?? "complete_failed");
+      throw new Error("COMPLETE_FAILED");
+    }
+
+    /* =========================
+       SUCCESS → REDIRECT
+    ========================= */
+    onClose();
+
+    router.replace("/customer/orders?tab=pending");
+
+    showMessage(t.payment_success ?? "success", "success");
+
   } catch (err) {
     console.error("COMPLETE ERROR:", err);
-    // ❗ KHÔNG show message ở đây
+
+    showMessage(t.payment_failed ?? "payment_failed");
+
   } finally {
     processingRef.current = false;
     setProcessing(false);
