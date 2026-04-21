@@ -74,6 +74,19 @@ export async function processPiPayment(params: {
     }
 
     /* =========================================================
+   🔒 CHECK TXID (ANTI DOUBLE SPEND)
+========================================================= */
+
+const txCheck = await client.query(
+  `SELECT id FROM pi_payments WHERE txid=$1 LIMIT 1`,
+  [params.txid]
+);
+
+if (txCheck.rows.length > 0) {
+  console.error("❌ [PAYMENT] TX ALREADY USED", params.txid);
+  throw new Error("TX_ALREADY_USED");
+}
+    /* =========================================================
        🔒 2. INSERT PAYMENT (ANTI REPLAY)
     ========================================================= */
 
