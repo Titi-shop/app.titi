@@ -190,21 +190,6 @@ const [optimisticOrder, setOptimisticOrder] =
     setOptimisticOrder(parsed);
   } catch {}
 }, []);
-const mergedOrders = useMemo(() => {
-  if (!optimisticOrder) return orders;
-
-  const exists = orders.some(
-    (o) => o.id === optimisticOrder.id
-  );
-
-  // backend đã trả → xoá fake
-  if (exists) {
-    localStorage.removeItem("optimistic_order");
-    return orders;
-  }
-
-  return [optimisticOrder, ...orders];
-}, [orders, optimisticOrder]);
   /* ================= TOTAL ================= */
 
   const mergedOrders = useMemo(() => {
