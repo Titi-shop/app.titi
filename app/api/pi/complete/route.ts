@@ -71,74 +71,6 @@ export async function POST(req: Request) {
     const txid =
       typeof body.txid === "string" ? body.txid : "";
 
-    const productId =
-      typeof body.product_id === "string" ? body.product_id : "";
-
-    const variantId =
-      typeof body.variant_id === "string" && body.variant_id
-        ? body.variant_id
-        : null;
-
-    const quantity = safeQuantity(body.quantity);
-
-    const zone =
-      typeof body.zone === "string"
-        ? body.zone.trim().toLowerCase()
-        : "";
-
-    const country =
-      typeof body.shipping?.country === "string"
-        ? body.shipping.country.trim().toUpperCase()
-        : "";
-    const shipping = body.shipping || {};
-
-const shippingName =
-  typeof shipping.name === "string" ? shipping.name.trim() : "";
-
-const shippingPhone =
-  typeof shipping.phone === "string" ? shipping.phone.trim() : "";
-
-const shippingAddressLine =
-  typeof shipping.address_line === "string"
-    ? shipping.address_line.trim()
-    : "";
-
-const shippingRegion =
-  typeof shipping.region === "string" ? shipping.region.trim() : "";
-
-const shippingDistrict =
-  typeof shipping.district === "string"
-    ? shipping.district.trim()
-    : null;
-
-const shippingWard =
-  typeof shipping.ward === "string"
-    ? shipping.ward.trim()
-    : null;
-
-const shippingPostalCode =
-  typeof shipping.postal_code === "string"
-    ? shipping.postal_code.trim()
-    : null;
-
-    console.log("🟢 [PAYMENT][PARSED]", {
-      paymentId,
-      txid,
-      productId,
-      variantId,
-      quantity,
-      zone,
-      country,
-    });
-    console.log("🟣 [PAYMENT][SHIPPING_FULL]", {
-  shippingName,
-  shippingPhone,
-  shippingAddressLine,
-  shippingRegion,
-  shippingDistrict,
-  shippingWard,
-  shippingPostalCode,
-});
 
     /* ================= VALIDATE ================= */
 
@@ -150,13 +82,6 @@ const shippingPostalCode =
       );
     }
 
-    if (!isUUID(productId)) {
-      console.error("❌ [PAYMENT][INVALID_PRODUCT_ID]", productId);
-      return NextResponse.json(
-        { error: "INVALID_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
 
     if (variantId && !isUUID(variantId)) {
       console.error("❌ [PAYMENT][INVALID_VARIANT_ID]", variantId);
@@ -166,22 +91,9 @@ const shippingPostalCode =
       );
     }
 
-    if (!country || !zone) {
-      console.error("❌ [PAYMENT][INVALID_SHIPPING]", {
-        country,
-        zone,
-      });
-      return NextResponse.json(
-        { error: "INVALID_SHIPPING" },
-        { status: 400 }
-      );
-    }
-
-    if (!shippingName || !shippingPhone || !shippingAddressLine) {
-  console.error("❌ [PAYMENT][INVALID_SHIPPING_INFO]");
-
+      if (!productId || !isUUID(productId)) {
   return NextResponse.json(
-    { error: "INVALID_SHIPPING_INFO" },
+    { error: "INVALID_METADATA_PRODUCT" },
     { status: 400 }
   );
 }
@@ -203,9 +115,7 @@ const shippingPostalCode =
 
     console.log("🟡 [PAYMENT][VERIFY_TOKEN_USER]");
 
-const meRes = await fetch("https://api.minepi.com/v2/me", {
-  headers: {
-    Authorization: req.headers.get("authorization") || "",
+const piUidFromToken = auth.pi_uid; || "",
   },
   cache: "no-store",
 });
@@ -245,6 +155,18 @@ if (!piRes.ok) {
 }
 
 const payment = await piRes.json();
+    const meta = payment.metadata || {};
+
+const productId =
+  typeof meta.product_id === "string" ? meta.product_id : "";
+
+const variantId =
+  typeof meta.variant_id === "string" ? meta.variant_id : null;
+
+const quantity =
+  Number.isInteger(meta.quantity) && meta.quantity > 0
+    ? meta.quantity
+    : 1;
 
 /* ================= 🔥 CRITICAL FIX ================= */
 
@@ -330,26 +252,11 @@ console.log("🟡 [PAYMENT][DB_PROCESS]");
 
 const result = await processPiPayment({
   userId,
+  paymentId,
+  txid,
   productId,
   variantId,
   quantity,
-  paymentId,
-  txid,
-
-  country,
-  zone,
-
-  shipping: {
-    name: shippingName,
-    phone: shippingPhone,
-    address_line: shippingAddressLine,
-    ward: shippingWard,
-    district: shippingDistrict,
-    region: shippingRegion,
-    postal_code: shippingPostalCode,
-  },
-
-  /* 🔥 CRITICAL FIX */
   verifiedAmount: Number(payment.amount),
 });
 
