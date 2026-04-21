@@ -169,17 +169,17 @@ const address = addressRes.rows[0];
     ========================================================= */
 
     const productRes = await client.query(
-      `
-      SELECT 
-        id, seller_id, name, price, thumbnail,
-        is_active, deleted_at,
-        sale_price, sale_start, sale_end
-      FROM products
-      WHERE id=$1
-      LIMIT 1
-      `,
-      [params.productId]
-    );
+  `
+  SELECT 
+    id, seller_id, name, price, thumbnail,
+    is_active, deleted_at,
+    sale_price, sale_start, sale_end
+  FROM products
+  WHERE id=$1
+  FOR UPDATE
+  `,
+  [params.productId]
+);
 
     const product = productRes.rows[0];
 
@@ -199,8 +199,9 @@ const address = addressRes.rows[0];
       const vRes = await client.query(
         `
         SELECT price, sale_price
-        FROM product_variants
-        WHERE id=$1 AND product_id=$2
+       FROM product_variants
+       WHERE id=$1 AND product_id=$2
+       FOR UPDATE
         LIMIT 1
         `,
         [params.variantId, params.productId]
