@@ -37,34 +37,45 @@ export function useProduct(id: string) {
   );
 
   const product = useMemo(() => {
-    if (!data) return null;
+  if (!data || typeof data !== "object") return null;
 
-    const api = data as ProductType;
+  const api = data as Partial<ProductType>;
 
-    const finalPrice =
-      typeof api.salePrice === "number" &&
-      api.salePrice < api.price
-        ? api.salePrice
-        : api.price;
+  const finalPrice =
+    typeof api.salePrice === "number" &&
+    typeof api.price === "number" &&
+    api.salePrice < api.price
+      ? api.salePrice
+      : api.price ?? 0;
 
-    return {
-      ...api,
-      finalPrice,
+  return {
+    ...api,
+    finalPrice,
 
-      images: Array.isArray(api.images) ? api.images : [],
-      variants: Array.isArray(api.variants) ? api.variants : [],
-      shippingRates: Array.isArray(api.shippingRates)
-        ? api.shippingRates
-        : [],
+    images: Array.isArray(api.images) ? api.images : [],
+    variants: Array.isArray(api.variants) ? api.variants : [],
+    shippingRates: Array.isArray(api.shippingRates)
+      ? api.shippingRates
+      : [],
 
-      ratingAvg: Number(api.ratingAvg ?? 0),
-      ratingCount: Number(api.ratingCount ?? 0),
+    ratingAvg: Number.isFinite(Number(api.ratingAvg))
+      ? Number(api.ratingAvg)
+      : 0,
 
-      isSale: finalPrice < api.price,
-      isOutOfStock:
-        (api.stock ?? 0) <= 0 || api.isActive === false,
-    };
-  }, [data]);
+    ratingCount: Number.isFinite(Number(api.ratingCount))
+      ? Number(api.ratingCount)
+      : 0,
+
+    isSale: finalPrice < (api.price ?? 0),
+
+    isOutOfStock:
+      (api.stock ?? 0) <= 0 || api.isActive === false,
+  } as ProductType & {
+    finalPrice: number;
+    isSale: boolean;
+    isOutOfStock: boolean;
+  };
+}, [data]);
 
   return {
     product,
