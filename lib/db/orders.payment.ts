@@ -102,25 +102,6 @@ export async function processPiPayment(params: {
     );
 
     /* =========================================================
-       🌍 3. VALIDATE ZONE
-    ========================================================= */
-
-    const zoneRes = await client.query<{ code: string }>(
-      `
-      SELECT sz.code
-      FROM shipping_zone_countries szc
-      JOIN shipping_zones sz ON sz.id = szc.zone_id
-      WHERE szc.country_code = $1
-      LIMIT 1
-      `,
-      [country]
-    );
-
-    if (!zoneRes.rows.length) throw new Error("INVALID_COUNTRY");
-    const realZone = zoneRes.rows[0].code;
-
-    if (realZone !== zone) throw new Error("INVALID_REGION");
-    /* =========================================================
    📍 LOAD ADDRESS (SOURCE OF TRUTH)
 ========================================================= */
 
