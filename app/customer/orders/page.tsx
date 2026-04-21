@@ -117,10 +117,6 @@ export default function CustomerOrdersPage() {
 const [optimisticOrder, setOptimisticOrder] =
   useState<Order | null>(null);
   const {
-    data: orders = [],
-    isLoading,
-    mutate,
-  const {
   data: orders = [],
   isLoading,
   mutate,
