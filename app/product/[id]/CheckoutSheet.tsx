@@ -390,7 +390,6 @@ setZone(r.zone);
 
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
-          <button
          <button
        onClick={handlePay}
       disabled={processing}
