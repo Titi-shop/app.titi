@@ -192,19 +192,19 @@ export default function ProductDetail() {
     if (!canBuy) return;
 
     addToCart({
-      id: product.id,
-      product_id: product.id,
-      variant_id: selectedVariant?.id ?? null,
-      name:
-        hasVariants && selectedVariant
-          ? `${product.name} - ${selectedVariant.optionValue}`
-          : product.name,
-      price: product.price,
-      sale_price: product.salePrice,
-      final_price: product.finalPrice,
-      thumbnail: product.thumbnail,
-      quantity: 1,
-    });
+  id: product.id,
+  product_id: product.id,
+  variant_id: selectedVariant?.id ?? null,
+  name:
+    hasVariants && selectedVariant
+      ? `${product.name} - ${selectedVariant.optionValue}`
+      : product.name,
+  price: selectedVariant?.price ?? product.price,
+  final_price:
+    selectedVariant?.finalPrice ?? product.finalPrice,
+  thumbnail: product.thumbnail,
+  quantity: 1,
+});
 
     router.push("/cart");
   };
