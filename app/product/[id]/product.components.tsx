@@ -243,9 +243,7 @@ export function ProductView(props: ProductViewProps) {
             selectedVariant ? (
               <>
                 <p className="text-xl font-bold text-primary">
-                  π {formatPi(
-                    selectedVariant.salePrice ?? selectedVariant.price
-                  )}
+                  π {formatPi(selectedVariant.finalPrice)}
                 </p>
 
                 {selectedVariant.salePrice && (
