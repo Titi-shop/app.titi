@@ -170,63 +170,7 @@ export async function previewOrder(
     let price = Number(p.price);
 
     /* ================= VARIANT ================= */
-    if (item.variant_id) {
-  const v = variantMap.get(item.variant_id);
-
-  if (!v) throw new Error("INVALID_VARIANT");
-
-  const start = p.sale_start
-    ? new Date(p.sale_start).getTime()
-    : null;
-
-  const end = p.sale_end
-    ? new Date(p.sale_end).getTime()
-    : null;
-
-  const isSale =
-    v.sale_price &&
-    v.sale_price > 0 &&
-    start &&
-    end &&
-    now >= start &&
-    now <= end;
-
-  price = isSale
-    ? Number(v.sale_price)
-    : Number(v.price);
-
-  console.log("🎯 [PREVIEW] VARIANT PRICE:", {
-    price,
-    isSale,
-    now,
-    start,
-    end,
-  });
-}
-      /* ================= SALE ================= */
-
-      const start = p.sale_start
-        ? new Date(p.sale_start).getTime()
-        : null;
-
-      const end = p.sale_end
-        ? new Date(p.sale_end).getTime()
-        : null;
-
-      const isSale =
-        p.sale_price &&
-        start &&
-        end &&
-        now >= start &&
-        now <= end;
-
-      price = isSale
-        ? Number(p.sale_price)
-        : Number(p.price);
-
-      console.log("💰 [PREVIEW] PRODUCT PRICE:", price);
-    }
-
+    
     const total = price * item.quantity;
 
     subtotal += total;
