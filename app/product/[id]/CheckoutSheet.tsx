@@ -189,7 +189,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   });
 }, [shipping?.country, product?.shippingRates]);
 
-  const total = preview?.total ?? unitPrice * quantity;
+  const total = preview?.total ?? 0;
 
   /* ========================= */
 
@@ -390,7 +390,7 @@ setZone(r.zone);
         <div className="border-t p-4">
           <button
   onClick={handlePay}
-  disabled={processing}
+  disabled={processing || !preview}
   className={`w-full py-3 text-white rounded ${
     processing ? "bg-gray-400" : "bg-orange-600"
   }`}
