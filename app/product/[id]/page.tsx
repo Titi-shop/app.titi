@@ -122,10 +122,6 @@ export default function ProductDetail() {
 
   finalPrice: p.finalPrice,
   isSale: p.isSale,
-
-  isSale:
-    typeof p.salePrice === "number" &&
-    p.salePrice < p.price,
 }));
 
         setProducts(normalized);
@@ -226,10 +222,8 @@ export default function ProductDetail() {
           ? `${product.name} - ${selectedVariant.optionValue}`
           : product.name,
       price: selectedVariant?.price ?? product.price,
-      sale_price:
-        selectedVariant?.salePrice ??
-        product.salePrice ??
-        null,
+      final_price:
+      selectedVariant?.finalPrice ?? product.finalPrice,
       thumbnail: product.thumbnail,
       quantity: 1,
     });
