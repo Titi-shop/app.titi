@@ -391,13 +391,12 @@ setZone(r.zone);
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
-         onClick={handlePay}
-        disabled={processing || !preview || isLoading || isValidating}
-        className={`w-full py-3 text-white rounded ${
-         processing || !preview || isLoading || isValidating
-      ? "bg-gray-400"
-      : "bg-orange-600"
-        }`}
+         <button
+       onClick={handlePay}
+      disabled={processing}
+  className={`w-full py-3 text-white rounded ${
+    processing ? "bg-gray-400" : "bg-orange-600"
+       }`}
          >
             {processing ? t.processing : t.pay_now}
           </button>
