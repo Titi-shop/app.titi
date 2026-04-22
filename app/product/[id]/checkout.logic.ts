@@ -20,6 +20,7 @@ type PreviewPayload = {
   zone: Region;
   item: Item;
   quantity: number;
+  variant_id?: string | null;
 };
 
 type ValidateParams = {
@@ -64,6 +65,7 @@ async function previewOrderDirect({
   zone,
   item,
   quantity,
+  variant_id,
 }: PreviewPayload) {
   const token = await getPiAccessToken();
 
@@ -84,7 +86,7 @@ async function previewOrderDirect({
       items: [
   {
     product_id: item.id,
-    variant_id: product?.variant_id ?? null,
+    variant_id: variant_id ?? null,
     quantity,
   },
 ],
@@ -226,11 +228,12 @@ if (!preview || typeof preview.total !== "number") {
       if (!finalPreview && shipping && zone && item) {
         try {
           finalPreview = await previewOrderDirect({
-            shipping,
-            zone,
-            item,
-            quantity,
-          });
+      shipping,
+      zone,
+      item,
+      quantity,
+      variant_id: product.variant_id ?? null,
+      });
         } catch (err) {
           const key = getErrorKey((err as Error).message);
           showMessage(t[key] ?? key);
