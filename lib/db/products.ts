@@ -193,7 +193,7 @@ export async function getSellerProducts(
       WHEN p.sale_price > 0 
         AND NOW() BETWEEN p.sale_start AND p.sale_end
       THEN p.sale_price
-      ELSE NULL
+      ELSE p.price
     END AS sale_price
 
   FROM products p
