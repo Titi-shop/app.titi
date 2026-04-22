@@ -246,7 +246,7 @@ export function ProductView(props: ProductViewProps) {
                   π {formatPi(selectedVariant.finalPrice)}
                 </p>
 
-                {selectedVariant.salePrice && (
+               {selectedVariant.isSale && (
                   <p className="text-sm text-gray-400 line-through">
                     π {formatPi(selectedVariant.price)}
                   </p>
