@@ -119,11 +119,8 @@ export default function ProductDetail() {
   price: p.price,
   salePrice: p.salePrice ?? null,
 
-  finalPrice:
-    typeof p.salePrice === "number" &&
-    p.salePrice < p.price
-      ? p.salePrice
-      : p.price,
+  finalPrice: p.finalPrice,
+  isSale: p.isSale,
 
   isSale:
     typeof p.salePrice === "number" &&
@@ -206,7 +203,8 @@ export default function ProductDetail() {
           ? `${product.name} - ${selectedVariant.optionValue}`
           : product.name,
       price: product.price,
-      sale_price: product.finalPrice,
+      sale_price: product.salePrice,
+      final_price: product.finalPrice,
       thumbnail: product.thumbnail,
       quantity: 1,
     });
