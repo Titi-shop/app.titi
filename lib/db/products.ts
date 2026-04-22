@@ -113,9 +113,6 @@ function toAppProduct(row: ProductRow): ProductRecord {
 /* =========================================================
    GET — ALL PRODUCTS
 ========================================================= */
-export async function getSellerProducts(
-  sellerId: string
-): Promise<ProductRecord[]> {
 export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   const { rows } = await query<ProductRecord>(
     `
