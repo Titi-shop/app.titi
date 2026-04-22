@@ -226,32 +226,38 @@ console.log("🟢 [DB] PAYMENT INSERTED");
    } else {
   const now = Date.now();
 
-  const start = product.sale_start
-    ? new Date(product.sale_start).getTime()
-    : null;
+const start = product.sale_start
+  ? new Date(product.sale_start).getTime()
+  : null;
 
-  const end = product.sale_end
-    ? new Date(product.sale_end).getTime()
-    : null;
+const end = product.sale_end
+  ? new Date(product.sale_end).getTime()
+  : null;
 
-  const isSale =
-    product.sale_price !== null &&
-    product.sale_price > 0 &&
-    start &&
-    end &&
-    now >= start &&
-    now <= end;
+// ✅ FIX LOGIC Ở ĐÂY
+const isSale =
+  product.sale_price !== null &&
+  product.sale_price > 0 &&
+  (
+    // có time → check time
+    (start && end && now >= start && now <= end)
+    ||
+    // không có time → vẫn cho sale
+    (!start && !end)
+  );
 
-  price = isSale
-    ? Number(product.sale_price)
-    : Number(product.price);
+price = isSale
+  ? Number(product.sale_price)
+  : Number(product.price);
 
-  console.log("💰 [DB] FINAL PRODUCT PRICE", {
-    price,
-    base: product.price,
-    sale: product.sale_price,
-    isSale,
-  });
+console.log("💰 [DB] FINAL PRODUCT PRICE", {
+  price,
+  base: product.price,
+  sale: product.sale_price,
+  start,
+  end,
+  isSale,
+});
 }
 
     /* =========================================================
