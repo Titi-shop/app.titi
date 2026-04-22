@@ -179,9 +179,14 @@ export async function GET(req: Request) {
               : p.price;
 
           const finalPrice =
-            typeof v.salePrice === "number" && v.salePrice > 0
-              ? v.salePrice
-              : basePrice;
+  typeof v.salePrice === "number" &&
+  v.salePrice > 0 &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end
+    ? v.salePrice
+    : basePrice;
 
           return {
             ...v,
