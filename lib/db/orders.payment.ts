@@ -324,7 +324,10 @@ const total = itemsTotal + shippingFee;
     /* =========================================================
        📉 9. STOCK (ATOMIC)
     ========================================================= */
-
+console.log("🧪 [DB] STOCK FLOW", {
+  variantId: params.variantId,
+  productId: params.productId,
+});
     if (params.variantId) {
       const stock = await client.query(
         `
