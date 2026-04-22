@@ -61,12 +61,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* ================= VARIANT ================= */
   if (selected) {
-    const price =
-      typeof selected.finalPrice === "number"
-        ? selected.finalPrice
-        : selected.salePrice && selected.salePrice > 0
-        ? selected.salePrice
-        : selected.price;
+    const price = selected.finalPrice;
 
     return {
       id: product.id,
