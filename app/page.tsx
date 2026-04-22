@@ -1,4 +1,3 @@
-
 "use client";
 export const dynamic = "force-dynamic";
 import SplashScreen from "./components/SplashScreen";
@@ -57,7 +56,7 @@ function getMainImage(product: Product) {
   return "/placeholder.png";
 }
 function isProductOnSale(p: Product) {
-  return p.isSale;
+  return p.finalPrice < p.price;
 }
 /* ================= PRODUCT CARD ================= */
 
@@ -218,7 +217,9 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 };
   /* ===== COUNTDOWN ===== */
   useEffect(() => {
-    const target = new Date(product.saleEnd);
+    const target = new Date();
+    target.setHours(target.getHours() + 2);
+
     const interval = setInterval(() => {
       const diff = target.getTime() - Date.now();
       if (diff <= 0) {
