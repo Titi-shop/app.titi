@@ -223,7 +223,6 @@ console.log("🟢 [DB] PAYMENT INSERTED");
           : Number(v.price);
 
       console.log("🎯 [PAYMENT] VARIANT PRICE:", price);
-   } else {
   } else {
   const now = Date.now();
 
