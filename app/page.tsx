@@ -32,7 +32,10 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  finalPrice: number;
+  finalPrice: number | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  hasVariants?: boolean;
   thumbnail?: string;
   isActive?: boolean;
   stock?: number;
@@ -56,7 +59,10 @@ function getMainImage(product: Product) {
   return "/placeholder.png";
 }
 function isProductOnSale(p: Product) {
-  return p.finalPrice < p.price;
+  if (p.hasVariants) {
+    return p.minPrice !== null && p.maxPrice !== null && p.minPrice < p.maxPrice;
+  }
+  return p.finalPrice !== null && p.finalPrice < p.price;
 }
 /* ================= PRODUCT CARD ================= */
 
@@ -73,11 +79,13 @@ function ProductCard({
   const [added, setAdded] = useState(false);
 const isSale = isProductOnSale(product);
   const discount =
-    product.price > 0
-      ? Math.round(
-          ((product.price - (product.finalPrice ?? product.price)) / product.price) * 100
-        )
-      : 0;
+  !product.hasVariants && product.price > 0
+    ? Math.round(
+        ((product.price - (product.finalPrice ?? product.price)) /
+          product.price) *
+          100
+      )
+    : 0;
 
   return (
     <div
@@ -126,11 +134,11 @@ const isSale = isProductOnSale(product);
           {formatPi(product.finalPrice ?? product.price)} π
         </p>
 
-        {isSale && (
-          <p className="text-xs text-gray-400 line-through">
-            {formatPi(product.price)} π
-          </p>
-        )}
+        {!product.hasVariants && isSale && (
+  <p className="text-xs text-gray-400 line-through">
+    {formatPi(product.price)} π
+  </p>
+)}
 
         <div className="mt-2 bg-pink-100 text-pink-600 text-xs text-center rounded-full py-1">
           {(t.sold || "Sold")} {product.sold ?? 0}
@@ -380,7 +388,9 @@ if (loading && products.length === 0) {
                     <p className="text-xs line-clamp-2 min-h-[32px]">{p.name}</p>
 
                     <p className="text-orange-500 font-bold text-sm mt-1">
-                      {formatPi(p.finalPrice ?? p.price)} π
+                      {product.hasVariants
+                   ? `${formatPi(product.minPrice ?? 0)} - ${formatPi(product.maxPrice ?? 0)} π`
+                 : `${formatPi(product.finalPrice ?? product.price)} π`}
                     </p>
 
                     <p className="text-[10px] text-gray-400 line-through">
