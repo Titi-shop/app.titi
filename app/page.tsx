@@ -95,7 +95,7 @@ function ProductCard({
 
   return (
     <div
-      onClick={() => !isOut && router.push(`/product/${product.id}`)}
+      onClick={() => router.push(`/product/${product.id}`)}
       className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${
         isOut
           ? "opacity-60 pointer-events-none"
@@ -343,7 +343,6 @@ useEffect(() => {
   if (showSplash || (loading && products.length === 0)) {
   return <SplashScreen />;
 }
-// 👉 Sau đó mới tới loading
 if (loading && products.length === 0) {
   return (
     <p className="text-center mt-10">
