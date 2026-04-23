@@ -44,6 +44,8 @@ interface Product {
   variants?: ProductVariant[];
   categoryId: string | null;
   sold: number;
+  isSale?: boolean;
+  saleEnd?: string;
 }
 
 interface Category {
@@ -427,9 +429,7 @@ if (loading && products.length === 0) {
           </div>
           <div className="flex gap-3 overflow-x-auto">
           {products
-           ?.filter((p) => {
-            .filter((p) => (p as any).isSale === true)
-         })
+          ?.filter((p) => p.isSale)
            .slice(0, 10)
              .map((p) => (
                 <div
