@@ -25,6 +25,8 @@ const fetcher = async <T,>(url: string): Promise<T> => {
 interface ProductVariant {
   id: string;
   name: string;
+  price?: number;
+  finalPrice?: number;
   stock: number;
 }
 
@@ -63,6 +65,26 @@ function isProductOnSale(p: Product) {
     return p.minPrice !== null && p.maxPrice !== null && p.minPrice < p.maxPrice;
   }
   return p.finalPrice !== null && p.finalPrice < p.price;
+}
+function getVariantDiscount(p: Product) {
+  if (!p.hasVariants || !p.variants?.length) return 0;
+
+  // lấy variant giảm mạnh nhất
+  let max = 0;
+
+  for (const v of p.variants) {
+    if (!v || !("finalPrice" in v)) continue;
+
+    const base = (v as any).price || 0;
+    const final = (v as any).finalPrice || base;
+
+    if (base > final && base > 0) {
+      const percent = Math.round(((base - final) / base) * 100);
+      if (percent > max) max = percent;
+    }
+  }
+
+  return max;
 }
 /* ================= PRODUCT CARD ================= */
 
@@ -126,11 +148,11 @@ function ProductCard({
   <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
     {t.low_stock || "Low stock"}
   </div>
-    ) : isSale && discount > 0 ? (
+    ) : discount > 0 ? (
   <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
     -{discount}%
   </div>
-       ) : null}
+) : null}
 
         {/* ===== ADD TO CART ===== */}
         <button
@@ -397,7 +419,10 @@ if (loading && products.length === 0) {
           </div>
           <div className="flex gap-3 overflow-x-auto">
           {products
-           ?.filter((p) => isProductOnSale(p))
+           ?.filter((p) => {
+       if (p.hasVariants) return getVariantDiscount(p) > 0;
+        return isProductOnSale(p);
+         })
            .slice(0, 10)
              .map((p) => (
                 <div
@@ -418,7 +443,10 @@ if (loading && products.length === 0) {
                <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
             {t.out_of_stock || "Out of stock"}
          </div>
-        ) : isProductOnSale(p) ? (
+        ) : (p.hasVariants
+    ? getVariantDiscount(p) > 0
+    : isProductOnSale(p)
+  ) ? (
         <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
          {t.flash_sale || "Sale"}
            </div>
