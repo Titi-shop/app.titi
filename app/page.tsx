@@ -218,7 +218,7 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
     </div>
 
     <p className="text-[11px] text-red-500 text-center mt-1">
-      🔥 Còn {(product as any).saleLeft}
+       🔥 Còn {saleLeft}
     </p>
   </div>
 )}
@@ -462,11 +462,11 @@ if (loading && products.length === 0) {
                 >
                   <div className="relative overflow-hidden group">
            <Image
-    src={getMainImage(product)}
-    alt={product.name}
-    width={300}
-    height={300}
-    className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
+         src={getMainImage(p)}
+        alt={p.name}
+          width={300}
+           height={300}
+            className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
              />
 
                     {p.stock === 0 ? (
