@@ -16,6 +16,11 @@ export type ProductVariant = {
   stock: number;
   isUnlimited?: boolean;
 
+  /* 🔥 FLASH SALE */
+  saleStock?: number;
+  saleSold?: number;
+  saleEnabled?: boolean;
+
   sku?: string | null;
   image?: string | null;
 
@@ -91,32 +96,46 @@ function normalizeVariant(v: ProductVariant, index: number) {
     salePrice !== null && salePrice < price
       ? salePrice
       : price;
+   const saleStock =
+  typeof v.saleStock === "number" && v.saleStock >= 0
+    ? v.saleStock
+    : 0;
+
+const saleSold =
+  typeof v.saleSold === "number" && v.saleSold >= 0
+    ? v.saleSold
+    : 0;
+
+const saleEnabled =
+  typeof v.saleEnabled === "boolean"
+    ? v.saleEnabled
+    : false;
 
   return {
-    option_1: value,
-    option_label_1: label,
+  option_1: value,
+  option_label_1: label,
+  option_2: null,
+  option_label_2: null,
+  option_3: null,
+  option_label_3: null,
+  name: value,
 
-    option_2: null,
-    option_label_2: null,
+  price,
+  sale_price: salePrice,
+  final_price: finalPrice,
+  stock: v.stock >= 0 ? v.stock : 0,
+  is_unlimited: v.isUnlimited ?? false,
+  /* 🔥 FLASH SALE */
+  sale_stock: saleStock,
+  sale_sold: saleSold,
+  sale_enabled: saleEnabled,
 
-    option_3: null,
-    option_label_3: null,
+  sku: v.sku ?? null,
+  image: v.image ?? "",
 
-    name: value,
-
-    price,
-    sale_price: salePrice,
-    final_price: finalPrice,
-
-    stock: v.stock >= 0 ? v.stock : 0,
-    is_unlimited: v.isUnlimited ?? false,
-
-    sku: v.sku ?? null,
-    image: v.image ?? "",
-
-    sort_order: v.sortOrder ?? index,
-    is_active: v.isActive ?? true,
-  };
+  sort_order: v.sortOrder ?? index,
+  is_active: v.isActive ?? true,
+};
 }
 
 /* =========================================================
