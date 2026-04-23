@@ -73,10 +73,8 @@ function getVariantDiscount(p: Product) {
 
   for (const v of p.variants) {
     if (!v || !("finalPrice" in v)) continue;
-
     const base = (v as any).price || 0;
     const final = (v as any).finalPrice || base;
-
     if (base > final && base > 0) {
       const percent = Math.round(((base - final) / base) * 100);
       if (percent > max) max = percent;
@@ -151,7 +149,7 @@ function ProductCard({
   <div className="absolute top-2 left-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-2 py-1 rounded shadow">
     -{discount}%
   </div>
-) : null}
+   ) : null}
 
         {/* ===== ADD TO CART ===== */}
         <button
@@ -164,9 +162,6 @@ function ProductCard({
             setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
-          const isSaleOut =
-         (product as any).saleStock > 0 &&
-         (product as any).saleLeft <= 0;
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             isOut
               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
