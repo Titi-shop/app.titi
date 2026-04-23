@@ -444,7 +444,6 @@ if (loading && products.length === 0) {
     height={300}
     className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
              />
-               </div>
 
                     {p.stock === 0 ? (
                <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
