@@ -311,36 +311,43 @@ export async function createProduct(
       price,
       sale_price,
       sale_start,
-      sale_end,
-      stock,
-      is_active,
-      views,
-      sold,
-      seller_id
-    )
+      sale_stock,
+  sale_sold,
+  sale_enabled,
+  stock,
+  is_active,
+  views,
+  sold,
+  seller_id
+
+)
     VALUES (
       $1,$2,$3,$4,$5,$6,
-      $7,$8,$9,$10,$11,$12,$13,$14,$15
+      $7,$8,$9,$10, $11,$12,$13, $14,$15,$16,$17,$18
     )
     RETURNING *
     `,
     [
-      product.name.trim(),
-      product.description ?? "",
-      product.detail ?? "",
-      product.images,
-      product.thumbnail,
-      product.category_id,
-      product.price,
-      product.sale_price,
-      product.sale_start,
-      product.sale_end,
-      product.stock,
-      product.is_active,
-      product.views ?? 0,
-      product.sold ?? 0,
-      sellerId,
-    ]
+      [
+  product.name.trim(),
+  product.description ?? "",
+  product.detail ?? "",
+  product.images,
+  product.thumbnail,
+  product.category_id,
+  product.price,
+  product.sale_price,
+  product.sale_start,
+  product.sale_end,
+  product.sale_stock ?? 0,
+  0,
+  product.sale_enabled ?? false,
+  product.stock,
+  product.is_active,
+  product.views ?? 0,
+  product.sold ?? 0,
+  sellerId,
+]
   );
 
   if (!rows.length) {
@@ -373,20 +380,24 @@ export async function updateProductBySeller(
   let idx = 1;
 
   const allowedFields = [
-    "name",
-    "description",
-    "detail",
-    "images",
-    "thumbnail",
-    "category_id",
-    "price",
-    "sale_price",
-    "sale_start",
-    "sale_end",
-    "stock",
-    "is_active",
-    "status",
-  ] as const;
+  "name",
+  "description",
+  "detail",
+  "images",
+  "thumbnail",
+  "category_id",
+  "price",
+  "sale_price",
+  "sale_start",
+  "sale_end",
+  "stock",
+  "is_active",
+  "status",
+
+  "sale_stock",
+  "sale_sold",
+  "sale_enabled",
+] as const;
 
   for (const key of allowedFields) {
     const value = data[key];
