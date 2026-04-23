@@ -106,7 +106,6 @@ function normalizeVariant(v: ProductVariant, index: number) {
 
 export async function getVariantsByProductId(productId: string) {
   console.log("🔍 [VARIANT][GET] product:", productId);
-
   const res = await query(
     `
     SELECT
@@ -115,36 +114,36 @@ export async function getVariantsByProductId(productId: string) {
       option_label_1,
       price,
       sale_price,
+      final_price,
       stock,
+      is_unlimited,
       sku,
+      image,
       sort_order,
-      is_active
+      is_active,
+      sold
     FROM product_variants
     WHERE product_id = $1
       AND deleted_at IS NULL
-      AND is_active = TRUE
     ORDER BY sort_order ASC
     `,
     [productId]
   );
 
-  console.log("🧩 [VARIANT][GET] rows:", res.rows.length);
-
   return res.rows.map((r) => ({
     id: r.id,
-
     optionName: r.option_label_1,
     optionValue: r.option_1,
-
     price: Number(r.price),
     salePrice:
       r.sale_price !== null ? Number(r.sale_price) : null,
-
-    stock: Number(r.stock) || 0,
-    sku: r.sku ?? null,
-
-    sortOrder: r.sort_order ?? 0,
-    isActive: r.is_active ?? true,
+    finalPrice: Number(r.final_price),
+    stock: r.is_unlimited ? 999999 : r.stock,
+    sku: r.sku,
+    image: r.image,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+    sold: r.sold ?? 0,
   }));
 }
 
