@@ -78,8 +78,10 @@ function ProductCard({
   const router = useRouter();
   const [added, setAdded] = useState(false);
 
-  const isOut = product.stock === 0;
-  const isLowStock = (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5;
+  const isOut = (product.stock ?? 0) <= 0;
+  const isLowStock =
+    (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5;
+
   const isSale = isProductOnSale(product);
 
   const discount =
@@ -91,17 +93,19 @@ function ProductCard({
         )
       : 0;
 
-  /* ================= UI ================= */
+  const soldPercent = Math.min(
+    ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
+    100
+  );
 
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
-        className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 
-    cursor-pointer active:scale-[0.97] hover:shadow-md
-     ${isOut ? "opacity-60" : ""}
-      `}
+      className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.97] hover:shadow-md ${
+        isOut ? "opacity-60" : ""
+      }`}
     >
-      {/* IMAGE */}
+      {/* ================= IMAGE ================= */}
       <div className="relative">
         <Image
           src={getMainImage(product)}
@@ -120,31 +124,38 @@ function ProductCard({
           <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
             {t.low_stock || "Low stock"}
           </div>
-        ) : (
-          isSale && (
-            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-              -{discount}%
-            </div>
-          )
-        )}
+        ) : isSale && !product.hasVariants ? (
+          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+            -{discount}%
+          </div>
+        ) : null}
 
-        {/* ADD CART */}
+        {/* ===== ADD TO CART ===== */}
         <button
           onClick={(e) => {
             e.stopPropagation();
+
+            if (isOut) return;
+
             onAddToCart(product);
             setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
+          disabled={isOut}
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
-            added ? "bg-green-500 text-white scale-110" : "bg-white"
+            isOut
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : added
+              ? "bg-green-500 text-white scale-110"
+              : "bg-white"
           }`}
+          aria-label={t.add_to_cart || "Add to cart"}
         >
           🛒
         </button>
       </div>
 
-      {/* CONTENT */}
+      {/* ================= CONTENT ================= */}
       <div className="p-3">
         {/* NAME */}
         <p className="text-sm line-clamp-2 min-h-[40px]">
@@ -169,10 +180,8 @@ function ProductCard({
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-orange-500"
-              style={{
-               const soldPercent = Math.min((product.sold ?? 0) / 100, 1) * 100;
-              }}
+              className="h-full bg-gradient-to-r from-orange-400 to-red-500"
+              style={{ width: `${soldPercent}%` }}
             />
           </div>
 
