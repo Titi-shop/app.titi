@@ -148,19 +148,23 @@ export async function getVariantsByProductId(productId: string) {
   const res = await query(
     `
     SELECT
-      id,
-      option_1,
-      option_label_1,
-      price,
-      sale_price,
-      final_price,
-      stock,
-      is_unlimited,
-      sku,
-      image,
-      sort_order,
-      is_active,
-      sold
+      SELECT
+  id,
+  option_1,
+  option_label_1,
+  price,
+  sale_price,
+  final_price,
+  stock,
+  is_unlimited,
+  sale_stock,
+  sale_sold,
+  sale_enabled,
+  sku,
+  image,
+  sort_order,
+  is_active,
+  sold
     FROM product_variants
     WHERE product_id = $1
       AND deleted_at IS NULL
@@ -189,7 +193,9 @@ export async function getVariantsByProductId(productId: string) {
 
     sortOrder: r.sort_order,
     isActive: r.is_active,
-
+   saleStock: r.sale_stock,
+    saleSold: r.sale_sold,
+    saleEnabled: r.sale_enabled,
     sold: r.sold ?? 0,
   }));
 }
@@ -241,32 +247,37 @@ export async function replaceVariantsByProductId(
       );
 
       values.push(
-        productId,
+  productId,
 
-        v.option_1,
-        v.option_label_1,
+  v.option_1,
+  v.option_label_1,
 
-        v.option_2,
-        v.option_label_2,
+  v.option_2,
+  v.option_label_2,
 
-        v.option_3,
-        v.option_label_3,
+  v.option_3,
+  v.option_label_3,
 
-        v.name,
+  v.name,
 
-        v.price,
-        v.sale_price,
-        v.final_price,
+  v.price,
+  v.sale_price,
+  v.final_price,
 
-        v.stock,
-        v.is_unlimited,
+  v.stock,
+  v.is_unlimited,
 
-        v.sku,
-        v.image,
+  /* 🔥 FLASH SALE */
+  v.sale_stock,
+  v.sale_sold,
+  v.sale_enabled,
 
-        v.sort_order,
-        v.is_active
-      );
+  v.sku,
+  v.image,
+
+  v.sort_order,
+  v.is_active
+);
     });
 
     /* ================= INSERT ================= */
