@@ -297,8 +297,10 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   if (!products || products.length === 0) return;
 
   const saleProduct = products.find(
-    (p: any) => p.isSale && p.saleEnd
-  );
+  (p: any) => p.isSale && p.saleEnd
+     );
+
+  if (!saleProduct) return;
 
   const target = new Date(
     saleProduct?.saleEnd || Date.now()
