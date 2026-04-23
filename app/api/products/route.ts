@@ -134,22 +134,26 @@ export async function GET(req: Request) {
           const base = v.price;
 
           const isSale =
-            typeof v.salePrice === "number" &&
-            v.salePrice < base &&
-            start &&
-            end &&
-            now >= start &&
-            now <= end;
+           v.sale_enabled &&
+           typeof v.salePrice === "number" &&
+           start &&
+           end &&
+           now >= start &&
+           now <= end &&
+           v.sale_sold < v.sale_stock;
 
           const finalPrice = isSale
             ? v.salePrice!
             : base;
 
           return {
-            ...v,
-            finalPrice,
-            isSale,
-          };
+         ...v,
+         finalPrice,
+         isSale,
+         saleStock: v.sale_stock,
+         saleSold: v.sale_sold,
+         saleLeft: Math.max(0, v.sale_stock - v.sale_sold),
+       };
         });
 
         const hasVariants = enrichedVariants.length > 0;
