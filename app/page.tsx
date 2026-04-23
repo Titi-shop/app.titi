@@ -97,9 +97,10 @@ function ProductCard({
     <div
       onClick={() => router.push(`/product/${product.id}`)}
       className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${
-        isOut
-          ? "opacity-60 pointer-events-none"
-          : "cursor-pointer active:scale-[0.97] hover:shadow-md"
+        className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 
+    cursor-pointer active:scale-[0.97] hover:shadow-md
+     ${isOut ? "opacity-60" : ""}
+      `}
       }`}
     >
       {/* IMAGE */}
@@ -172,7 +173,7 @@ function ProductCard({
             <div
               className="h-full bg-orange-500"
               style={{
-                width: `${Math.min(product.sold ?? 0, 100)}%`,
+               const soldPercent = Math.min((product.sold ?? 0) / 100, 1) * 100;
               }}
             />
           </div>
@@ -386,10 +387,14 @@ if (loading && products.length === 0) {
               {timeLeft}
             </div>
           </div>
-
           <div className="flex gap-3 overflow-x-auto">
           {products
-           ?.filter((p) => isProductOnSale(p))
+           function isProductOnSale(p: Product) {
+  if (p.hasVariants) {
+    return p.minPrice !== null && p.maxPrice !== null && p.minPrice < p.maxPrice;
+  }
+  return p.finalPrice !== null && p.finalPrice < p.price;
+}
              .slice(0, 10)
               .map((p) => (
                 <div
@@ -407,14 +412,14 @@ if (loading && products.length === 0) {
                     />
 
                     {p.stock === 0 ? (
-          <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
-        {t.out_of_stock || "Out of stock"}
-     </div>
-    ) : (
-  <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
-    {t.flash_sale || "Sale"}
-            </div>
-                )}
+               <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
+            {t.out_of_stock || "Out of stock"}
+         </div>
+        ) : isProductOnSale(p) ? (
+        <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+         {t.flash_sale || "Sale"}
+           </div>
+             ) : null}
 
                     <button
                       onClick={(e) => {
@@ -435,8 +440,8 @@ if (loading && products.length === 0) {
 
                     <p className="text-orange-500 font-bold text-sm mt-1">
                {p.hasVariants
-    ? `${formatPi(p.minPrice ?? 0)} - ${formatPi(p.maxPrice ?? 0)} π`
-    : `${formatPi(p.finalPrice ?? p.price)} π`}
+            ? `${formatPi(p.minPrice ?? 0)} - ${formatPi(p.maxPrice ?? 0)} π`
+            : `${formatPi(p.finalPrice ?? p.price)} π`}
               </p>
 
                     <p className="text-[10px] text-gray-400 line-through">
