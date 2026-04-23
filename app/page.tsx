@@ -77,25 +77,32 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
-const isSale = isProductOnSale(product);
+
+  const isOut = product.stock === 0;
+  const isLowStock = (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5;
+  const isSale = isProductOnSale(product);
+
   const discount =
-  !product.hasVariants && product.price > 0
-    ? Math.round(
-        ((product.price - (product.finalPrice ?? product.price)) /
-          product.price) *
-          100
-      )
-    : 0;
+    !product.hasVariants && product.price > 0
+      ? Math.round(
+          ((product.price - (product.finalPrice ?? product.price)) /
+            product.price) *
+            100
+        )
+      : 0;
+
+  /* ================= UI ================= */
 
   return (
     <div
-      onClick={() => router.push(`/product/${product.id}`)}
-    className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-transform ${
-  product.stock === 0
-  ? "opacity-60 pointer-events-none"
-  : "cursor-pointer active:scale-[0.97]"
-}`}
+      onClick={() => !isOut && router.push(`/product/${product.id}`)}
+      className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${
+        isOut
+          ? "opacity-60 pointer-events-none"
+          : "cursor-pointer active:scale-[0.97] hover:shadow-md"
+      }`}
     >
+      {/* IMAGE */}
       <div className="relative">
         <Image
           src={getMainImage(product)}
@@ -105,18 +112,24 @@ const isSale = isProductOnSale(product);
           className="w-full h-44 object-cover"
         />
 
-       {product.stock === 0 ? (
-     <div className="absolute top-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-    {t.out_of_stock || "Out of stock"}
-  </div>
-    ) : (
-  isSale && (
-    <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-      -{discount}%
-    </div>
-      )
-      )}
+        {/* ===== BADGE ===== */}
+        {isOut ? (
+          <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+            {t.out_of_stock || "Out of stock"}
+          </div>
+        ) : isLowStock ? (
+          <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+            {t.low_stock || "Low stock"}
+          </div>
+        ) : (
+          isSale && (
+            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+              -{discount}%
+            </div>
+          )
+        )}
 
+        {/* ADD CART */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -127,33 +140,51 @@ const isSale = isProductOnSale(product);
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             added ? "bg-green-500 text-white scale-110" : "bg-white"
           }`}
-          aria-label={t.add_to_cart || "Add to cart"}
         >
-          <ShoppingCart size={16} />
+          🛒
         </button>
       </div>
 
+      {/* CONTENT */}
       <div className="p-3">
-        <p className="text-sm line-clamp-2 min-h-[40px]">{product.name}</p>
-
-        <p className="text-orange-500 font-bold mt-1 text-[15px]">
-          {formatPi(product.finalPrice ?? product.price)} π
+        {/* NAME */}
+        <p className="text-sm line-clamp-2 min-h-[40px]">
+          {product.name}
         </p>
 
-        {!product.hasVariants && isSale && (
-  <p className="text-xs text-gray-400 line-through">
-    {formatPi(product.price)} π
-  </p>
-)}
+        {/* ===== PRICE ===== */}
+        <p className="text-orange-500 font-bold mt-1 text-[15px]">
+          {product.hasVariants
+            ? `${formatPi(product.minPrice ?? 0)} - ${formatPi(product.maxPrice ?? 0)} π`
+            : `${formatPi(product.finalPrice ?? product.price)} π`}
+        </p>
 
-        <div className="mt-2 bg-pink-100 text-pink-600 text-xs text-center rounded-full py-1">
-          {(t.sold || "Sold")} {product.sold ?? 0}
+        {/* ORIGINAL PRICE */}
+        {!product.hasVariants && isSale && (
+          <p className="text-xs text-gray-400 line-through">
+            {formatPi(product.price)} π
+          </p>
+        )}
+
+        {/* ===== SOLD BAR ===== */}
+        <div className="mt-2">
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-orange-500"
+              style={{
+                width: `${Math.min(product.sold ?? 0, 100)}%`,
+              }}
+            />
+          </div>
+
+          <p className="text-[11px] text-gray-500 mt-1 text-center">
+            {(t.sold || "Sold")} {product.sold ?? 0}
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
 /* ================= PAGE ================= */
 
 export default function HomePage() {
