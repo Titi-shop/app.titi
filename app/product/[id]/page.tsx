@@ -20,9 +20,9 @@ type Variant = {
   optionValue: string;
   price: number;
   salePrice?: number | null;
-  finalPrice: number;  
-  isSale: boolean;      
+  finalPrice: number;
   stock: number;
+  isActive?: boolean; 
 };
 
 type RelatedProduct = {
