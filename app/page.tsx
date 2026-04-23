@@ -201,6 +201,28 @@ function ProductCard({
           </p>
         )}
 
+
+        {/* ===== FLASH SALE PROGRESS ===== */}
+{(product as any).saleStock > 0 && (
+  <div className="mt-2">
+    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-red-500 transition-all duration-500"
+        style={{
+          width: `${
+            (((product as any).saleSold ?? 0) /
+              ((product as any).saleStock || 1)) *
+            100
+          }%`,
+        }}
+      />
+    </div>
+
+    <p className="text-[11px] text-red-500 text-center mt-1">
+      🔥 Còn {(product as any).saleLeft}
+    </p>
+  </div>
+)}
         {/* ===== SOLD BAR ===== */}
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
