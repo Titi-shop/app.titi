@@ -318,3 +318,72 @@ VALUES  ${placeholders.join(",")}
     console.log("✅ [VARIANT] inserted success");
   });
 }
+
+export async function decreaseVariantStock(
+  variantId: string,
+  quantity: number
+) {
+  return withTransaction(async (client) => {
+    /* 🔒 LOCK ROW */
+    const res = await client.query(
+      `
+      SELECT
+        stock,
+        is_unlimited,
+        sale_enabled,
+        sale_stock,
+        sale_sold
+      FROM product_variants
+      WHERE id = $1
+      FOR UPDATE
+      `,
+      [variantId]
+    );
+
+    if (!res.rows.length) {
+      throw new Error("VARIANT_NOT_FOUND");
+    }
+
+    const v = res.rows[0];
+
+    /* ================= NORMAL STOCK ================= */
+    if (!v.is_unlimited) {
+      if (v.stock < quantity) {
+        throw new Error("OUT_OF_STOCK");
+      }
+    }
+
+    /* ================= FLASH SALE ================= */
+    if (v.sale_enabled) {
+      const left = (v.sale_stock ?? 0) - (v.sale_sold ?? 0);
+
+      if (left < quantity) {
+        throw new Error("FLASH_SALE_SOLD_OUT");
+      }
+    }
+
+    /* ================= UPDATE ================= */
+
+    await client.query(
+      `
+      UPDATE product_variants
+      SET
+        stock = CASE
+          WHEN is_unlimited THEN stock
+          ELSE stock - $2
+        END,
+
+        sale_sold = CASE
+          WHEN sale_enabled THEN sale_sold + $2
+          ELSE sale_sold
+        END,
+
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [variantId, quantity]
+    );
+
+    return { success: true };
+  });
+}
