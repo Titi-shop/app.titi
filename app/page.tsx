@@ -96,7 +96,6 @@ function ProductCard({
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
-      className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${
         className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all duration-200 
     cursor-pointer active:scale-[0.97] hover:shadow-md
      ${isOut ? "opacity-60" : ""}
