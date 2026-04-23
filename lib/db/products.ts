@@ -328,7 +328,7 @@ export async function createProduct(
     RETURNING *
     `,
     [
-      [
+      
   product.name.trim(),
   product.description ?? "",
   product.detail ?? "",
