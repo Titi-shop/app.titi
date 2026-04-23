@@ -101,7 +101,6 @@ function ProductCard({
     cursor-pointer active:scale-[0.97] hover:shadow-md
      ${isOut ? "opacity-60" : ""}
       `}
-      }`}
     >
       {/* IMAGE */}
       <div className="relative">
