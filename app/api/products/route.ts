@@ -244,7 +244,7 @@ const hasVariants = enrichedVariants.length > 0;
           maxPrice,
 
           stock: finalStock,
-
+          sold: p.sold ?? 0,
           thumbnail: p.thumbnail ?? "",
           images: p.images ?? [],
           categoryId: p.category_id ?? null,
