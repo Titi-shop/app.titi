@@ -42,17 +42,24 @@ interface Product {
   name: string;
   price: number;
   finalPrice: number | null;
+
   minPrice?: number | null;
   maxPrice?: number | null;
   hasVariants?: boolean;
+
   thumbnail?: string;
   isActive?: boolean;
+
   stock?: number;
+  sold: number;
+
   variants?: ProductVariant[];
   categoryId: string | null;
-  sold: number;
   isSale?: boolean;
   saleEnd?: string;
+  saleStock?: number;
+  saleSold?: number;
+  saleLeft?: number;
 }
 
 interface Category {
@@ -115,6 +122,7 @@ function ProductCard({
 
   const discount = product.hasVariants
   ? Math.max(
+      0,
       ...(product.variants ?? []).map((v: any) => {
         if (!v.isSale) return 0;
         if (!v.price || !v.finalPrice) return 0;
@@ -219,6 +227,10 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
 const saleInfo = product.hasVariants
   ? product.variants?.find((v: any) => v.isSale)
   : product;
+
+const saleStock = saleInfo?.saleStock ?? 0;
+const saleSold = saleInfo?.saleSold ?? 0;
+const saleLeft = saleStock - saleSold;
 
 {saleInfo?.saleStock > 0 && (
   <div className="mt-2">
