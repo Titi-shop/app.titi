@@ -141,6 +141,13 @@ function ProductCard({
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
     100
   );
+  const saleInfo = product.hasVariants
+  ? product.variants?.find((v: any) => v.isSale)
+  : product;
+
+const saleStock2 = saleInfo?.saleStock ?? 0;
+const saleSold2 = saleInfo?.saleSold ?? 0;
+const saleLeft2 = saleStock2 - saleSold2;
 const saleStock = (product as any).saleStock ?? 0;
 const saleSold = (product as any).saleSold ?? 0;
 const saleLeft = saleStock - saleSold;
@@ -224,27 +231,19 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
         )}
 
         {/* ===== FLASH SALE PROGRESS ===== */}
-const saleInfo = product.hasVariants
-  ? product.variants?.find((v: any) => v.isSale)
-  : product;
-
-const saleStock = saleInfo?.saleStock ?? 0;
-const saleSold = saleInfo?.saleSold ?? 0;
-const saleLeft = saleStock - saleSold;
-
-{saleStock > 0 && (
+{saleStock2 > 0 && (
   <div className="mt-2">
     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
       <div
         className="h-full bg-red-500"
         style={{
-          width: `${(saleSold / (saleStock || 1)) * 100}%`,
+          width: `${(saleSold2 / (saleStock2 || 1)) * 100}%`,
         }}
       />
     </div>
 
     <p className="text-[11px] text-red-500 text-center mt-1">
-      🔥 Còn {saleLeft}
+      🔥 Còn {saleLeft2}
     </p>
   </div>
 )}
