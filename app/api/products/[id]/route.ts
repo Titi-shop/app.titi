@@ -174,10 +174,18 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     : Number(v.price);
 
   return {
-    ...v,
-    finalPrice,
-    isSale: isVariantSale, 
-  };
+  ...v,
+  finalPrice,
+  isSale: isVariantSale,
+
+  /* 🔥 ADD */
+  saleStock: v.saleStock ?? 0,
+  saleSold: v.saleSold ?? 0,
+  saleLeft: Math.max(
+    0,
+    (v.saleStock ?? 0) - (v.saleSold ?? 0)
+  ),
+};
 });
 
     
@@ -235,48 +243,71 @@ try {
     console.log("🎉 [PRODUCT][GET] SUCCESS");
 
     return NextResponse.json({
-      id: p.id,
-      sellerId: p.seller_id,
-      name: p.name,
-      selectedPrice: null,
-      slug: p.slug ?? "",
-      shortDescription: p.short_description ?? "",
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-      thumbnail: p.thumbnail ?? "",
-      images: p.images ?? [],
-      detailImages: p.detail_images ?? [],
-      videoUrl: p.video_url ?? "",
-      /* 🔥 CORE LOGIC */
-      price: hasVariants ? null : p.price ?? 0,
-      salePrice: hasVariants ? null : p.sale_price ?? null,
-      finalPrice: hasVariants ? null : finalPrice,
-      minPrice,
-      maxPrice,
-      stock: totalStock,
-      currency: p.currency ?? "PI",
-      isUnlimited: p.is_unlimited ?? false,
-      sold: p.sold ?? 0,
-      views: p.views ?? 0,
+  id: p.id,
+  sellerId: p.seller_id,
+  name: p.name,
 
-      ratingAvg: p.rating_avg ?? 0,
-      ratingCount: p.rating_count ?? 0,
-      isActive: p.is_active ?? true,
-      isFeatured: p.is_featured ?? false,
-      isDigital: p.is_digital ?? false,
-      status: p.status ?? "active",
-      categoryId: p.category_id ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-      metaTitle: p.meta_title ?? "",
-      metaDescription: p.meta_description ?? "",
-      createdAt: p.created_at,
-      updatedAt: p.updated_at,
-      deletedAt: p.deleted_at ?? null,
+  selectedPrice: null,
 
-      variants,
-      shippingRates,
-    });
+  slug: p.slug ?? "",
+  shortDescription: p.short_description ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+
+  thumbnail: p.thumbnail ?? "",
+  images: p.images ?? [],
+  detailImages: p.detail_images ?? [],
+  videoUrl: p.video_url ?? "",
+
+  /* 🔥 PRICE */
+  price: hasVariants ? null : p.price ?? 0,
+  salePrice: hasVariants ? null : p.sale_price ?? null,
+  finalPrice: hasVariants ? null : finalPrice,
+
+  minPrice,
+  maxPrice,
+
+  /* 🔥 STOCK */
+  stock: totalStock,
+
+  /* 🔥 SALE CORE */
+  saleEnabled: p.sale_enabled === true,
+  saleStock: p.sale_stock ?? 0,
+  saleSold: p.sale_sold ?? 0,
+  saleLeft:
+    p.sale_stock > 0
+      ? Math.max(0, p.sale_stock - p.sale_sold)
+      : null,
+
+  isSale,
+
+  /* 🔥 META */
+  currency: p.currency ?? "PI",
+  isUnlimited: p.is_unlimited ?? false,
+
+  sold: p.sold ?? 0,
+  views: p.views ?? 0,
+
+  ratingAvg: p.rating_avg ?? 0,
+  ratingCount: p.rating_count ?? 0,
+
+  isActive: p.is_active ?? true,
+  isFeatured: p.is_featured ?? false,
+  isDigital: p.is_digital ?? false,
+  status: p.status ?? "active",
+
+  categoryId: p.category_id ?? null,
+
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
+  metaTitle: p.meta_title ?? "",
+  metaDescription: p.meta_description ?? "",
+  createdAt: p.created_at,
+  updatedAt: p.updated_at,
+  deletedAt: p.deleted_at ?? null,
+  variants,
+  shippingRates,
+});
 
   } catch (err) {
     console.error("💥 [PRODUCT][GET ERROR FULL]:", err);
