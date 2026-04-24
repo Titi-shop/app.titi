@@ -198,10 +198,10 @@ return data;
 }
 
   if (sale >= price) {
-    return fail("Sale price must be less than price");
-  }
+  alert("Sale price must be less than price");
+  setSubmitting(false);
+  return;
 }
-
     /* ================= PAYLOAD ================= */
 
     const payload = {
