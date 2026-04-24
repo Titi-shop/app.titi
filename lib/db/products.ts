@@ -135,6 +135,7 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   video_url,
   price,
   sale_price,
+  final_price,
   currency,
   stock,
   is_unlimited,
@@ -302,16 +303,18 @@ export async function createProduct(
   const { rows } = await query(
     `
     INSERT INTO products (
-      name,
-      description,
-      detail,
-      images,
-      thumbnail,
-      category_id,
-      price,
-      sale_price,
-      sale_start,
-      sale_stock,
+  name,
+  description,
+  detail,
+  images,
+  thumbnail,
+  category_id,
+  price,
+  sale_price,
+  final_price,
+  sale_start,
+  sale_end,        
+  sale_stock,
   sale_sold,
   sale_enabled,
   stock,
@@ -319,12 +322,11 @@ export async function createProduct(
   views,
   sold,
   seller_id
-
 )
-    VALUES (
-      $1,$2,$3,$4,$5,$6,
-      $7,$8,$9,$10, $11,$12,$13, $14,$15,$16,$17,$18
-    )
+VALUES (
+  $1,$2,$3,$4,$5,$6,
+  $7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+)
     RETURNING *
     `,
     [
