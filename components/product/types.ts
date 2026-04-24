@@ -15,6 +15,9 @@ export interface ProductVariant {
   optionLabel3?: string;
   price?: number | null;
   salePrice?: number | null;
+  saleEnabled?: boolean;
+  saleStock?: number;
+  saleSold?: number;
   stock: number;
   sku?: string | null;
   image?: string;
@@ -26,11 +29,8 @@ export interface ProductVariant {
 ========================= */
 export interface ProductPayload {
   id?: string;
-
   name: string;
   price: number;
-
-  /* 🔥 SALE */
   salePrice?: number | null;
   saleStart?: string | null;
   saleEnd?: string | null;
