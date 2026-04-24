@@ -266,7 +266,7 @@ try {
   detailImages: p.detail_images ?? [],
   videoUrl: p.video_url ?? "",
 
-  /* 🔥 PRICE */
+  hasVariants,
   price: hasVariants ? null : p.price ?? 0,
   salePrice: hasVariants ? null : p.sale_price ?? null,
   finalPrice: hasVariants ? minPrice : finalPrice,
