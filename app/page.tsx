@@ -225,9 +225,8 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
             {formatPi(product.price)} π
           </p>
         )}
-
-        {/* ===== FLASH SALE PROGRESS ===== */}
-{saleStock > 0 && (
+{/* ===== PROGRESS BAR ===== */}
+{saleStock > 0 ? (
   <div className="mt-2">
     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
       <div
@@ -238,24 +237,23 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
       />
     </div>
 
-    <p className="text-[11px] text-red-500 text-center mt-1">
+    <p className="text-[11px] text-red-500 text-center mt-1 font-medium">
       🔥 Còn {saleLeft}
     </p>
   </div>
-)}
-        {/* ===== SOLD BAR ===== */}
-        <div className="mt-2">
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-orange-400 to-red-500"
-              style={{ width: `${soldPercent}%` }}
-            />
-          </div>
+) : (
+  <div className="mt-2">
+    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-orange-400"
+        style={{ width: `${soldPercent}%` }}
+      />
+    </div>
 
-          <p className="text-[11px] text-gray-500 mt-1 text-center">
-            {(t.sold || "Sold")} {product.sold ?? 0}
-          </p>
-        </div>
+    <p className="text-[11px] text-gray-500 mt-1 text-center">
+      {t.sold || "Sold"} {product.sold ?? 0}
+    </p>
+      </div>
       </div>
     </div>
   );
