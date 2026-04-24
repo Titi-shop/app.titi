@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
@@ -18,11 +18,22 @@ import "swiper/css";
 import "swiper/css/pagination";
 type Variant = {
   id: string;
-  optionValue: string;
+
+  option1?: string;
+  option2?: string;
+  option3?: string;
+
+  optionLabel1?: string;
+  optionLabel2?: string;
+  optionLabel3?: string;
+
+  optionValue?: string;
+  optionName?: string;
+
   price: number;
   salePrice?: number | null;
-  finalPrice: number;  
-  isSale: boolean;     
+  finalPrice: number;
+  isSale: boolean;
   stock: number;
   isActive?: boolean;
 };
@@ -311,42 +322,91 @@ export function ProductView(props: ProductViewProps) {
 
       {/* ===== VARIANTS ===== */}
       {hasVariants && (
-        <div className="bg-white px-4 pb-4">
-          <div className="grid grid-cols-5 gap-2">
-          {availableVariants.map((v) => {
-              const isSelected = selectedVariant?.id === v.id;
-              const isDisabled = v.stock <= 0;
+  <div className="bg-white px-4 pb-4 space-y-4">
 
-              return (
-                <button
-                  key={v.id}
-                  disabled={isDisabled}
-                  onClick={() => {
-                    if (!isDisabled) setSelectedVariant(v);
-                  }}
-                  className={`rounded border px-2 py-2 text-sm transition
-                    ${
-                      isDisabled
-                        ? "bg-gray-100 text-gray-400"
-                        : isSelected
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-gray-300 bg-white"
-                    }
-                  `}
-                >
-                  <div className="font-medium">
-                    {v.optionValue}
-                  </div>
+    {/* OPTION 1 */}
+    {option1List.length > 0 && (
+      <div>
+        <p className="text-sm mb-2 font-medium">
+          {availableVariants[0]?.optionLabel1 || "Option"}
+        </p>
 
-                  <div className="text-[11px]">
-                    {v.stock}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {option1List.map((v) => (
+            <button
+              key={v}
+              onClick={() => {
+                setSelectedOption1(v as string);
+                setSelectedOption2(null);
+                setSelectedOption3(null);
+              }}
+              className={`px-3 py-2 rounded border text-sm ${
+                selectedOption1 === v
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-300"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+    )}
+
+    {/* OPTION 2 */}
+    {option2List.length > 0 && (
+      <div>
+        <p className="text-sm mb-2 font-medium">
+          {availableVariants[0]?.optionLabel2 || "Option"}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          {option2List.map((v) => (
+            <button
+              key={v}
+              onClick={() => {
+                setSelectedOption2(v as string);
+                setSelectedOption3(null);
+              }}
+              className={`px-3 py-2 rounded border text-sm ${
+                selectedOption2 === v
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-300"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* OPTION 3 */}
+    {option3List.length > 0 && (
+      <div>
+        <p className="text-sm mb-2 font-medium">
+          {availableVariants[0]?.optionLabel3 || "Option"}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          {option3List.map((v) => (
+            <button
+              key={v}
+              onClick={() => setSelectedOption3(v as string)}
+              className={`px-3 py-2 rounded border text-sm ${
+                selectedOption3 === v
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-300"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
       {/* ===== DESCRIPTION ===== */}
       <div className="bg-white p-4">
