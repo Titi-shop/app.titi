@@ -33,8 +33,6 @@ export default function ProductForm({
   const { t } = useTranslation();
   const { user, loading } = useAuth();
   const form = useProductForm(initialData);
-  const [saleEnabled, setSaleEnabled] = useState(false);
-  const [saleStock, setSaleStock] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -164,91 +162,111 @@ export default function ProductForm({
      SUBMIT
   ========================= */
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (submitting) {
-      console.log("⚠️ BLOCK DOUBLE SUBMIT");
+  if (submitting) return;
+  setSubmitting(true);
+
+  try {
+    const hasVariants = form.variants.length > 0;
+
+    /* ================= VALIDATE ================= */
+
+    if (!form.name) {
+      alert("Invalid name");
       return;
     }
 
-    setSubmitting(true);
+    if (!form.images.length) {
+      alert("Need image");
+      return;
+    }
 
-    try {
-        const hasVariants = form.variants.length > 0;
-      if (!form.name) {
-  alert("Invalid name");
-  return;
-}
+    /* 🔥 MIN PRICE */
+    if (!hasVariants && Number(form.price) < 0.00001) {
+      alert("Price must be >= 0.00001 PI");
+      return;
+    }
 
-if (!hasVariants && Number(form.price) <= 0) {
-  alert("Invalid price");
-  return;
-}
-
-      if (!form.images.length) {
-        alert("Need image");
+    /* 🔥 SALE VALIDATION */
+    if (!hasVariants && form.saleEnabled) {
+      if (!form.salePrice || form.salePrice <= 0) {
+        alert("Invalid sale price");
         return;
       }
 
-const payload = {
-  id: form.id,
-  name: form.name,
-  categoryId: form.categoryId,
-  description: form.description,
-  detail: form.detail,
-  images: form.images,
-  thumbnail: form.images[0],
-  isActive: form.isActive,
+      if (form.salePrice >= form.price) {
+        alert("Sale price must be less than price");
+        return;
+      }
 
-  price: hasVariants ? undefined : Number(form.price),
-  stock: hasVariants ? undefined : Number(form.stock || 0),
-
-  salePrice: hasVariants
-    ? undefined
-    : form.saleEnabled
-    ? form.salePrice || null
-    : null,
-
-  /* 🔥 NEW */
-  saleEnabled: hasVariants ? undefined : form.saleEnabled || false,
-  saleStock: hasVariants
-    ? undefined
-    : form.saleEnabled
-    ? Number(form.saleStock || 0)
-    : 0,
-
-  saleStart: form.saleStart
-    ? toUTCFromInput(form.saleStart)
-    : null,
-
-  saleEnd: form.saleEnd
-    ? toUTCFromInput(form.saleEnd)
-    : null,
-
-  variants: form.variants,
-
-  shippingRates: Object.entries(form.shippingRates).map(
-    ([zone, price]) => ({
-      zone,
-      price: Number(price),
-    })
-  ),
-  idempotencyKey: generateKey(),
-};
-
-      console.log("📦 SUBMIT:", payload);
-
-      await onSubmit(payload);
-
-      console.log("✅ SUBMIT DONE");
-
-    } catch (err) {
-      console.error("💥 SUBMIT ERROR:", err);
-      alert("Submit failed");
-    } finally {
-      setSubmitting(false);
+      if (form.saleStock > form.stock) {
+        alert("Sale stock cannot exceed stock");
+        return;
+      }
     }
-  };
+
+    /* ================= PAYLOAD ================= */
+
+    const payload = {
+      id: form.id,
+      name: form.name,
+      categoryId: form.categoryId,
+      description: form.description,
+      detail: form.detail,
+      images: form.images,
+      thumbnail: form.images[0],
+      isActive: form.isActive,
+
+      price: hasVariants ? undefined : Number(form.price),
+      stock: hasVariants ? undefined : Number(form.stock || 0),
+
+      /* 🔥 SALE LOGIC CLEAN */
+      salePrice:
+        hasVariants || !form.saleEnabled
+          ? null
+          : Number(form.salePrice),
+
+      saleEnabled: hasVariants
+        ? undefined
+        : !!form.saleEnabled,
+
+      saleStock:
+        hasVariants || !form.saleEnabled
+          ? 0
+          : Number(form.saleStock || 0),
+
+      saleStart: form.saleStart
+        ? toUTCFromInput(form.saleStart)
+        : null,
+
+      saleEnd: form.saleEnd
+        ? toUTCFromInput(form.saleEnd)
+        : null,
+
+      variants: form.variants,
+
+      shippingRates: Object.entries(form.shippingRates).map(
+        ([zone, price]) => ({
+          zone,
+          price: Number(price),
+        })
+      ),
+
+      idempotencyKey: generateKey(),
+    };
+
+    console.log("📦 SUBMIT:", payload);
+
+    await onSubmit(payload);
+
+  } catch (err) {
+    console.error(err);
+    alert("Submit failed");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   /* =========================
      UI
@@ -320,14 +338,16 @@ const payload = {
   <>
     {/* PRICE */}
     <input
-      type="number"
-      value={form.price}
-      onChange={(e) =>
-        form.setPrice(e.target.value ? Number(e.target.value) : "")
-      }
-      placeholder="Price"
-      className="w-full border p-2 rounded"
-    />
+  type="number"
+  step="0.00001"
+  min="0.00001"
+  value={form.price}
+  onChange={(e) =>
+    form.setPrice(e.target.value ? Number(e.target.value) : "")
+  }
+  placeholder="Price"
+  className="w-full border p-2 rounded"
+/>
 
     {/* STOCK */}
     <input
@@ -370,14 +390,21 @@ const payload = {
     {/* 🔥 SALE STOCK */}
     {form.saleEnabled && (
       <input
-        type="number"
-        value={form.saleStock || 0}
-        onChange={(e) =>
-          form.setSaleStock(Number(e.target.value))
-        }
-        placeholder="Sale stock"
-        className="w-full border p-2 rounded"
-      />
+  type="number"
+  value={form.saleStock || 0}
+  onChange={(e) => {
+    const val = Number(e.target.value);
+
+    if (val > form.stock) {
+      alert("Sale stock cannot exceed stock");
+      return;
+    }
+
+    form.setSaleStock(val);
+  }}
+  placeholder="Sale stock"
+  className="w-full border p-2 rounded"
+    />
     )}
   </>
 )}
