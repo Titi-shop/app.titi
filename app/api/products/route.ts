@@ -265,6 +265,7 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     /* ================= VALIDATE ================= */
+
     if (!body.name) {
       return NextResponse.json(
         { error: "INVALID_NAME" },
@@ -299,89 +300,142 @@ export async function POST(req: Request) {
       ? Number(body.saleStock) || 0
       : 0;
 
-    /* ================= INSERT PRODUCT ================= */
+    /* ================= PRODUCT ================= */
 
     const { data: product, error } = await supabaseAdmin
       .from("products")
       .insert([
         {
-          user_id: userId,
+          seller_id: userId,
+
           name: body.name,
+          slug: body.name.toLowerCase().replace(/\s+/g, "-"),
+
+          short_description: body.description ?? "",
+          description: body.description ?? "",
+          detail: body.detail ?? "",
+
+          thumbnail: body.thumbnail ?? "",
+          images: body.images ?? [],
+          detail_images: [],
+
+          video_url: "",
 
           price,
           sale_price: hasVariants ? null : salePrice,
+
+          final_price:
+            salePrice && salePrice < price ? salePrice : price,
+
+          currency: "PI",
+
+          stock,
+          is_unlimited: false,
+
+          sold: 0,
+          views: 0,
+
+          rating_avg: 0,
+          rating_count: 0,
+
+          is_active: true,
+          is_featured: false,
+          is_digital: false,
+
+          status: "active",
+
+          category_id: body.categoryId
+            ? Number(body.categoryId)
+            : null,
+
+          sale_start: body.saleStart || null,
+          sale_end: body.saleEnd || null,
 
           sale_enabled: saleEnabled,
           sale_stock: saleStock,
           sale_sold: 0,
 
-          stock,
-
-          description: body.description ?? "",
-          detail: body.detail ?? "",
-
-          images: body.images ?? [],
-          thumbnail: body.thumbnail ?? "",
-
-          category_id: body.categoryId ?? null,
-
-          sale_start: body.saleStart || null,
-          sale_end: body.saleEnd || null,
-
-          is_active: true,
-          views: 0,
-          sold: 0,
+          meta_title: "",
+          meta_description: "",
         },
       ])
       .select()
       .single();
 
     if (error || !product) {
-      console.error("🔥 INSERT PRODUCT ERROR:", error);
+      console.error("🔥 PRODUCT ERROR:", error);
       return NextResponse.json(
-        { error: "DB_ERROR" },
+        { error: "DB_PRODUCT_ERROR" },
         { status: 500 }
       );
     }
 
     /* ================= VARIANTS ================= */
+
     if (hasVariants) {
       const { error: variantError } = await supabaseAdmin
         .from("product_variants")
         .insert(
-          variants.map((v) => ({
-            product_id: product.id,
-            option1: v.option1,
-            option2: v.option2,
-            option3: v.option3,
-            price: v.price,
-            stock: v.stock,
-            image: v.image,
-            is_active: true,
-          }))
+          variants.map((v: any, index: number) => {
+            const vPrice = Number(v.price) || 0;
+            const vSale =
+              typeof v.sale_price === "number"
+                ? v.sale_price
+                : null;
+
+            return {
+              product_id: product.id,
+
+              option_1: v.option1 ?? null,
+              option_2: v.option2 ?? null,
+              option_3: v.option3 ?? null,
+
+              option_label_1: v.label1 ?? "Option 1",
+              option_label_2: v.label2 ?? "Option 2",
+              option_label_3: v.label3 ?? "Option 3",
+
+              name:
+                v.name ??
+                `${v.option1 || ""} ${v.option2 || ""} ${v.option3 || ""}`.trim(),
+
+              sku: v.sku ?? null,
+
+              price: vPrice,
+              sale_price: vSale,
+
+              final_price:
+                vSale && vSale < vPrice ? vSale : vPrice,
+
+              sale_enabled: !!v.sale_enabled,
+              sale_stock: Number(v.sale_stock) || 0,
+              sale_sold: 0,
+
+              currency: "PI",
+
+              stock: Number(v.stock) || 0,
+              is_unlimited: false,
+
+              image: v.image ?? "",
+
+              is_active: true,
+
+              sort_order: index,
+
+              sold: 0,
+            };
+          })
         );
 
       if (variantError) {
         console.error("🔥 VARIANT ERROR:", variantError);
-      }
-    }
-
-    /* ================= SHIPPING ================= */
-    if (Array.isArray(body.shippingRates)) {
-      const { error: shipError } = await supabaseAdmin
-        .from("shipping_rates")
-        .insert(
-          body.shippingRates.map((r: any) => ({
-            product_id: product.id,
-            zone: r.zone,
-            price: r.price,
-          }))
+        return NextResponse.json(
+          { error: "DB_VARIANT_ERROR" },
+          { status: 500 }
         );
-
-      if (shipError) {
-        console.error("🔥 SHIPPING ERROR:", shipError);
       }
     }
+
+    /* ================= SUCCESS ================= */
 
     return NextResponse.json({
       success: true,
