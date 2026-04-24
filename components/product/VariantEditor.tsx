@@ -150,6 +150,23 @@ export default function VariantEditor({ variants, setVariants }: Props) {
     }
         />
          </div>
+            {v.saleEnabled && (
+  <div className="grid grid-cols-2 gap-2">
+    <input
+      type="number"
+      placeholder="Sale stock"
+      value={v.saleStock ?? 0}
+      onChange={(e) =>
+        updateVariant(i, "saleStock", Number(e.target.value))
+      }
+      className="border p-2 rounded text-sm"
+    />
+
+    <div className="flex items-center text-xs text-gray-400">
+      🔒 Sold auto
+    </div>
+  </div>
+)}
             {/* ERROR */}
             {isInvalidSale && (
               <p className="text-red-500 text-xs">
