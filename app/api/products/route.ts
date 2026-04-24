@@ -1,3 +1,4 @@
+
   import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import {
@@ -195,11 +196,7 @@ const enriched = await Promise.all(
       price: p.price,
       salePrice: p.sale_price,
       saleEnd: p.sale_end,
-      finalPrice: hasVariants
-      ? null
-      : isProductSale
-      ? p.sale_price
-      : p.price,
+      finalPrice: hasVariants ? null : productFinalPrice,
 
       hasVariants,
       minPrice,
