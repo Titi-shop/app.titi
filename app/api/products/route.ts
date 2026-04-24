@@ -35,35 +35,46 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     .map((item: any, index) => {
       if (!item || typeof item !== "object") return null;
 
-      const value =
-        typeof item.optionValue === "string"
-          ? item.optionValue.trim()
-          : "";
+      /* 🔥 FIX: support nhiều format FE */
+      const rawValue =
+        item.optionValue ??
+        item.value ??
+        item.option_value ??
+        item.name ??
+        "";
+
+      const value = String(rawValue).trim();
 
       if (!value) return null;
 
       return {
-  id: typeof item.id === "string" ? item.id : undefined,
-  optionName:
-    typeof item.optionName === "string"
-      ? item.optionName
-      : "option",
-  optionValue: value,
-  price: Number(item.price) || 0,
-  salePrice:
-    typeof item.salePrice === "number"
-      ? item.salePrice
-      : null,
-  stock: Number(item.stock) || 0,
-  sku: item.sku ?? null,
-  image: item.image ?? "",
-  sortOrder: item.sortOrder ?? index,
-  isActive: item.isActive ?? true,
-};
+        id: typeof item.id === "string" ? item.id : undefined,
+
+        optionName:
+          item.optionName ??
+          item.option_name ??
+          "option",
+
+        optionValue: value,
+
+        price: Number(item.price) || 0,
+
+        salePrice:
+          typeof item.salePrice === "number"
+            ? item.salePrice
+            : null,
+
+        stock: Number(item.stock) || 0,
+
+        sku: item.sku ?? null,
+        image: item.image ?? "",
+
+        sortOrder: item.sortOrder ?? index,
+        isActive: item.isActive ?? true,
+      };
     })
     .filter(Boolean) as ProductVariant[];
 }
-
 /* =========================================================
    GET PRODUCTS
 ========================================================= */
@@ -292,7 +303,9 @@ export async function POST(req: Request) {
     ========================================================= */
 
     const variants = normalizeVariants(body.variants);
-    const hasVariants = variants.length > 0;
+    const hasVariants =
+  variants.length > 0 ||
+  (Array.isArray(body.variants) && body.variants.length > 0);
 
     console.log("🧩 VARIANTS:", variants);
     console.log("📦 hasVariants:", hasVariants);
@@ -487,7 +500,14 @@ export async function PUT(req: Request) {
     const variants = normalizeVariants(body.variants);
 const hasVariants = variants.length > 0;
 
-const price = hasVariants ? 0 : Number(body.price) || 0;
+let price = 0;
+
+if (hasVariants) {
+  const prices = variants.map(v => v.price).filter(n => n > 0);
+  price = Math.min(...prices);
+} else {
+  price = Number(body.price) || 0;
+}
 
 const salePrice =
   typeof body.salePrice === "number"
