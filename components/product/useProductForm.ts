@@ -4,11 +4,9 @@ import { useState, useEffect } from "react";
 import { ProductPayload, ProductVariant } from "./types";
 
 /* =========================================================
-   MAP SHIPPING (FIX + LOG)
+   SHIPPING MAP
 ========================================================= */
 function mapShippingRates(rates: any[]) {
-  console.log("🚚 [FORM] mapShippingRates INPUT:", rates);
-
   const base: Record<string, number | ""> = {
     domestic: "",
     sea: "",
@@ -18,30 +16,13 @@ function mapShippingRates(rates: any[]) {
     rest_of_world: "",
   };
 
-  if (!Array.isArray(rates)) {
-    console.warn("⚠️ [FORM] shippingRates is not array");
-    return base;
-  }
+  if (!Array.isArray(rates)) return base;
 
   for (const r of rates) {
-    if (!r) continue;
-
-    console.log("➡️ [FORM] shipping item:", r);
-
-    if (!r.zone) {
-      console.warn("⚠️ missing zone:", r);
-      continue;
-    }
-
+    if (!r?.zone) continue;
     const price = Number(r.price);
-
-base[r.zone] =
-  !Number.isNaN(price) ? price : "";
-
-    console.log("✅ mapped:", r.zone, "=", base[r.zone]);
+    base[r.zone] = !Number.isNaN(price) ? price : "";
   }
-
-  console.log("🎯 [FORM] FINAL SHIPPING:", base);
 
   return base;
 }
@@ -50,22 +31,33 @@ base[r.zone] =
    HOOK
 ========================================================= */
 export function useProductForm(initialData?: ProductPayload) {
+  /* ================= BASIC ================= */
   const [name, setName] = useState("");
   const [price, setPrice] = useState<number | "">("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
+  /* ================= SALE ================= */
+  const [saleEnabled, setSaleEnabled] = useState(false);
   const [salePrice, setSalePrice] = useState<number | "">("");
+  const [saleStock, setSaleStock] = useState<number>(0);
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
+  /* ================= STOCK ================= */
   const [stock, setStock] = useState<number | "">(1);
+
+  /* ================= STATUS ================= */
   const [isActive, setIsActive] = useState(true);
 
+  /* ================= DETAIL ================= */
   const [detail, setDetail] = useState("");
+
+  /* ================= VARIANTS ================= */
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
+  /* ================= SHIPPING ================= */
   const [shippingRates, setShippingRates] = useState<
     Record<string, number | "">
   >({
@@ -78,17 +70,12 @@ export function useProductForm(initialData?: ProductPayload) {
   });
 
   /* =========================================================
-     INIT DATA
+     INIT DATA (EDIT MODE)
   ========================================================= */
   useEffect(() => {
-    console.log("🚀 [FORM] INIT START");
+    if (!initialData) return;
 
-    if (!initialData) {
-      console.warn("⚠️ [FORM] NO INITIAL DATA");
-      return;
-    }
-
-    console.log("📦 [FORM] INIT DATA FULL:", initialData);
+    console.log("📦 INIT PRODUCT:", initialData);
 
     /* ================= BASIC ================= */
     setName(initialData.name || "");
@@ -98,53 +85,71 @@ export function useProductForm(initialData?: ProductPayload) {
     setImages(initialData.images || []);
 
     /* ================= SALE ================= */
-    console.log("💰 [FORM] SALE:", {
-      salePrice: initialData.salePrice,
-      saleStart: initialData.saleStart,
-      saleEnd: initialData.saleEnd,
-    });
+    const hasSale =
+      typeof initialData.salePrice === "number" &&
+      initialData.salePrice > 0;
 
+    setSaleEnabled(hasSale);
     setSalePrice(initialData.salePrice ?? "");
+    setSaleStock((initialData as any).saleStock ?? 0);
     setSaleStart(initialData.saleStart ?? "");
     setSaleEnd(initialData.saleEnd ?? "");
 
-    /* ================= ACTIVE ================= */
+    /* ================= STOCK ================= */
+    setStock(initialData.stock ?? 1);
+
+    /* ================= STATUS ================= */
     setIsActive(
       typeof initialData.isActive === "boolean"
         ? initialData.isActive
         : true
     );
 
-    /* ================= STOCK ================= */
-    setStock(initialData.stock ?? 1);
-
     /* ================= DETAIL ================= */
     setDetail(initialData.detail || "");
 
     /* ================= VARIANTS ================= */
-    console.log("🧩 [FORM] VARIANTS:", initialData.variants);
-
     setVariants(initialData.variants || []);
 
     /* ================= SHIPPING ================= */
-    console.log("🚚 [FORM] RAW SHIPPING:", initialData.shippingRates);
+    setShippingRates(
+      mapShippingRates(initialData.shippingRates || [])
+    );
 
-    const mapped = mapShippingRates(initialData.shippingRates);
-
-    setShippingRates(mapped);
-
-    console.log("🎯 [FORM] SET SHIPPING DONE");
-
-    console.log("🎉 [FORM] INIT DONE");
   }, [initialData]);
-   
-useEffect(() => {
-  console.log("📡 [FORM] SHIPPING STATE UPDATED:", shippingRates);
-}, [shippingRates]);
+
+  /* =========================================================
+     AUTO FIX: SALE LOGIC
+  ========================================================= */
+
+  /* ❌ disable sale → reset */
+  useEffect(() => {
+    if (!saleEnabled) {
+      setSalePrice("");
+      setSaleStock(0);
+    }
+  }, [saleEnabled]);
+
+  /* 🔥 ensure saleStock <= stock */
+  useEffect(() => {
+    if (typeof stock === "number" && saleStock > stock) {
+      setSaleStock(stock);
+    }
+  }, [stock, saleStock]);
+
+  /* 🔥 nếu có variant → tắt sale product */
+  useEffect(() => {
+    if (variants.length > 0 && saleEnabled) {
+      console.warn("⚠️ Disable product sale because variants exist");
+      setSaleEnabled(false);
+    }
+  }, [variants]);
+
   /* =========================================================
      RETURN
   ========================================================= */
   return {
+    /* BASIC */
     name,
     setName,
 
@@ -160,8 +165,15 @@ useEffect(() => {
     images,
     setImages,
 
+    /* SALE */
+    saleEnabled,
+    setSaleEnabled,
+
     salePrice,
     setSalePrice,
+
+    saleStock,
+    setSaleStock,
 
     saleStart,
     setSaleStart,
@@ -169,18 +181,23 @@ useEffect(() => {
     saleEnd,
     setSaleEnd,
 
+    /* STOCK */
     stock,
     setStock,
 
+    /* STATUS */
     isActive,
     setIsActive,
 
+    /* DETAIL */
     detail,
     setDetail,
 
+    /* VARIANTS */
     variants,
     setVariants,
 
+    /* SHIPPING */
     shippingRates,
     setShippingRates,
   };
