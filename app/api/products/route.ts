@@ -264,6 +264,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    /* ================= VALIDATE ================= */
     if (!body.name) {
       return NextResponse.json(
         { error: "INVALID_NAME" },
@@ -272,68 +273,114 @@ export async function POST(req: Request) {
     }
 
     const variants = normalizeVariants(body.variants);
-const hasVariants = variants.length > 0;
+    const hasVariants = variants.length > 0;
 
-const price = hasVariants ? 0 : Number(body.price) || 0;
+    const price = hasVariants ? 0 : Number(body.price) || 0;
 
-const salePrice =
-  typeof body.salePrice === "number"
-    ? body.salePrice
-    : null;
+    const salePrice =
+      typeof body.salePrice === "number"
+        ? body.salePrice
+        : null;
 
-/* ✅ VALIDATION */
-if (salePrice !== null && salePrice >= price) {
-  return NextResponse.json(
-    { error: "INVALID_SALE_PRICE" },
-    { status: 400 }
-  );
-}
+    if (salePrice !== null && salePrice >= price) {
+      return NextResponse.json(
+        { error: "INVALID_SALE_PRICE" },
+        { status: 400 }
+      );
+    }
 
-const stock = hasVariants
-  ? variants.reduce((s, v) => s + v.stock, 0)
-  : Number(body.stock) || 0;
+    const stock = hasVariants
+      ? variants.reduce((s, v) => s + v.stock, 0)
+      : Number(body.stock) || 0;
 
     const saleEnabled = body.saleEnabled === true;
 
-const saleStock = saleEnabled
-  ? Number(body.saleStock) || 0
-  : 0;
+    const saleStock = saleEnabled
+      ? Number(body.saleStock) || 0
+      : 0;
 
-const product = await createProduct(userId, {
-  name: body.name,
-  price,
-  sale_price: hasVariants ? null : salePrice,
+    /* ================= INSERT PRODUCT ================= */
 
-  /* ✅ SALE */
-  sale_enabled: saleEnabled,
-  sale_stock: saleStock,
-  sale_sold: 0, // luôn reset khi tạo
+    const { data: product, error } = await supabaseAdmin
+      .from("products")
+      .insert([
+        {
+          user_id: userId,
+          name: body.name,
 
-  stock,
+          price,
+          sale_price: hasVariants ? null : salePrice,
 
-  description: body.description ?? "",
-  detail: body.detail ?? "",
-  images: body.images ?? [],
-  thumbnail: body.thumbnail ?? "",
-  category_id: body.categoryId ?? null,
+          sale_enabled: saleEnabled,
+          sale_stock: saleStock,
+          sale_sold: 0,
 
-  sale_start: body.saleStart || null,
-  sale_end: body.saleEnd || null,
+          stock,
 
-  is_active: true,
-  views: 0,
-  sold: 0,
-});
+          description: body.description ?? "",
+          detail: body.detail ?? "",
 
-    if (hasVariants) {
-      await replaceVariantsByProductId(product.id, variants);
+          images: body.images ?? [],
+          thumbnail: body.thumbnail ?? "",
+
+          category_id: body.categoryId ?? null,
+
+          sale_start: body.saleStart || null,
+          sale_end: body.saleEnd || null,
+
+          is_active: true,
+          views: 0,
+          sold: 0,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error || !product) {
+      console.error("🔥 INSERT PRODUCT ERROR:", error);
+      return NextResponse.json(
+        { error: "DB_ERROR" },
+        { status: 500 }
+      );
     }
 
+    /* ================= VARIANTS ================= */
+    if (hasVariants) {
+      const { error: variantError } = await supabaseAdmin
+        .from("product_variants")
+        .insert(
+          variants.map((v) => ({
+            product_id: product.id,
+            option1: v.option1,
+            option2: v.option2,
+            option3: v.option3,
+            price: v.price,
+            stock: v.stock,
+            image: v.image,
+            is_active: true,
+          }))
+        );
+
+      if (variantError) {
+        console.error("🔥 VARIANT ERROR:", variantError);
+      }
+    }
+
+    /* ================= SHIPPING ================= */
     if (Array.isArray(body.shippingRates)) {
-      await upsertShippingRates({
-        productId: product.id,
-        rates: body.shippingRates,
-      });
+      const { error: shipError } = await supabaseAdmin
+        .from("shipping_rates")
+        .insert(
+          body.shippingRates.map((r: any) => ({
+            product_id: product.id,
+            zone: r.zone,
+            price: r.price,
+          }))
+        );
+
+      if (shipError) {
+        console.error("🔥 SHIPPING ERROR:", shipError);
+      }
     }
 
     return NextResponse.json({
@@ -341,7 +388,7 @@ const product = await createProduct(userId, {
       data: { id: product.id },
     });
   } catch (err) {
-    console.error(err);
+    console.error("💥 API ERROR:", err);
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
