@@ -257,22 +257,34 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+
+  if (!auth.ok) {
+    console.warn("❌ AUTH FAILED");
+    return auth.response;
+  }
 
   const userId = auth.userId;
 
+  /* =========================================================
+     HELPER DEBUG
+  ========================================================= */
+
+  const bad = (msg: string, extra?: any) => {
+    console.error("❌ BAD REQUEST:", msg, extra);
+    return NextResponse.json({ error: msg }, { status: 400 });
+  };
+
   try {
     const body = await req.json();
+
+    console.log("📥 BODY:", JSON.stringify(body, null, 2));
 
     /* =========================================================
        VALIDATE BASIC
     ========================================================= */
 
     if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json(
-        { error: "INVALID_NAME" },
-        { status: 400 }
-      );
+      return bad("INVALID_NAME", body.name);
     }
 
     /* =========================================================
@@ -281,6 +293,9 @@ export async function POST(req: Request) {
 
     const variants = normalizeVariants(body.variants);
     const hasVariants = variants.length > 0;
+
+    console.log("🧩 VARIANTS:", variants);
+    console.log("📦 hasVariants:", hasVariants);
 
     /* =========================================================
        PRICE (🔥 FIX QUAN TRỌNG)
@@ -293,22 +308,20 @@ export async function POST(req: Request) {
         .map((v) => Number(v.price))
         .filter((n) => n > 0);
 
+      console.log("💰 variant prices:", prices);
+
       if (!prices.length) {
-        return NextResponse.json(
-          { error: "INVALID_VARIANT_PRICE" },
-          { status: 400 }
-        );
+        return bad("INVALID_VARIANT_PRICE", variants);
       }
 
-      price = Math.min(...prices); // ✅ FIX DB CHECK
+      price = Math.min(...prices);
     } else {
       price = Number(body.price) || 0;
 
+      console.log("💰 product price:", price);
+
       if (price < 0.00001) {
-        return NextResponse.json(
-          { error: "INVALID_PRICE" },
-          { status: 400 }
-        );
+        return bad("INVALID_PRICE", price);
       }
     }
 
@@ -323,12 +336,15 @@ export async function POST(req: Request) {
         ? body.salePrice
         : null;
 
+    console.log("🏷 saleEnabled:", saleEnabled);
+    console.log("🏷 salePrice:", salePrice);
+
     if (!hasVariants && salePrice !== null) {
       if (salePrice >= price) {
-        return NextResponse.json(
-          { error: "INVALID_SALE_PRICE" },
-          { status: 400 }
-        );
+        return bad("INVALID_SALE_PRICE", {
+          salePrice,
+          price,
+        });
       }
     }
 
@@ -336,17 +352,26 @@ export async function POST(req: Request) {
       ? Number(body.saleStock) || 0
       : 0;
 
+    console.log("📦 saleStock:", saleStock);
+
     /* =========================================================
        STOCK
     ========================================================= */
 
     const stock = hasVariants
-      ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+      ? variants.reduce(
+          (s, v) => s + (Number(v.stock) || 0),
+          0
+        )
       : Number(body.stock) || 0;
+
+    console.log("📦 total stock:", stock);
 
     /* =========================================================
        CREATE PRODUCT
     ========================================================= */
+
+    console.log("🚀 Creating product...");
 
     const product = await createProduct(userId, {
       name: body.name.trim(),
@@ -378,12 +403,18 @@ export async function POST(req: Request) {
       sold: 0,
     });
 
+    console.log("✅ PRODUCT CREATED:", product.id);
+
     /* =========================================================
        VARIANTS
     ========================================================= */
 
     if (hasVariants) {
+      console.log("🚀 Inserting variants...");
+
       await replaceVariantsByProductId(product.id, variants);
+
+      console.log("✅ VARIANTS INSERTED");
     }
 
     /* =========================================================
@@ -391,26 +422,44 @@ export async function POST(req: Request) {
     ========================================================= */
 
     if (Array.isArray(body.shippingRates)) {
+      console.log("🚀 Shipping rates:", body.shippingRates);
+
       await upsertShippingRates({
         productId: product.id,
         rates: body.shippingRates,
       });
+
+      console.log("✅ SHIPPING SAVED");
     }
 
     /* =========================================================
        SUCCESS
     ========================================================= */
 
+    console.log("🎉 SUCCESS CREATE PRODUCT:", product.id);
+
     return NextResponse.json({
       success: true,
       data: { id: product.id },
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error("💥 API ERROR:", err);
 
+    /* 🔥 LOG DETAIL DB ERROR */
+    if (err?.code) {
+      console.error("🧨 DB CODE:", err.code);
+    }
+
+    if (err?.message) {
+      console.error("🧨 DB MESSAGE:", err.message);
+    }
+
     return NextResponse.json(
-      { error: "FAILED_TO_CREATE_PRODUCT" },
+      {
+        error: "FAILED_TO_CREATE_PRODUCT",
+        message: err?.message ?? null,
+      },
       { status: 500 }
     );
   }
