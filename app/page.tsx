@@ -81,7 +81,10 @@ function getVariantDiscount(p: Product) {
   for (const v of p.variants) {
     if (!v || !("finalPrice" in v)) continue;
     const base = (v as any).price || 0;
-    const final = (v as any).finalPrice || base;
+    const final =
+  typeof (v as any).finalPrice === "number"
+    ? (v as any).finalPrice
+    : base;
     if (base > final && base > 0) {
       const percent = Math.round(((base - final) / base) * 100);
       if (percent > max) max = percent;
@@ -457,7 +460,7 @@ if (loading && products.length === 0) {
             </div>
           </div>
           <div className="flex gap-3 overflow-x-auto">
-          {products?.filter((p: any) => p.isSale === true)
+          {(Array.isArray(products) ? products : []).filter(p: any) => p.isSale === true)
            .slice(0, 10)
              .map((p) => (
                 <div
