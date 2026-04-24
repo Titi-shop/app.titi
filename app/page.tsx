@@ -232,23 +232,19 @@ const saleStock = saleInfo?.saleStock ?? 0;
 const saleSold = saleInfo?.saleSold ?? 0;
 const saleLeft = saleStock - saleSold;
 
-{saleInfo?.saleStock > 0 && (
+{saleStock > 0 && (
   <div className="mt-2">
     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
       <div
         className="h-full bg-red-500"
         style={{
-          width: `${
-            ((saleInfo.saleSold ?? 0) /
-              (saleInfo.saleStock || 1)) *
-            100
-          }%`,
+          width: `${(saleSold / (saleStock || 1)) * 100}%`,
         }}
       />
     </div>
 
     <p className="text-[11px] text-red-500 text-center mt-1">
-      🔥 Còn {saleInfo.saleStock - saleInfo.saleSold}
+      🔥 Còn {saleLeft}
     </p>
   </div>
 )}
