@@ -254,7 +254,6 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
       {t.sold || "Sold"} {product.sold ?? 0}
     </p>
       </div>
-      </div>
     </div>
   );
 }
