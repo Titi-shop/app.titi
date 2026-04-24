@@ -114,14 +114,20 @@ function ProductCard({
   const isSale = isProductOnSale(product);
 
   const discount = product.hasVariants
-  ? getVariantDiscount(product)
+  ? Math.max(
+      ...(product.variants ?? []).map((v: any) => {
+        if (!v.isSale) return 0;
+        if (!v.price || !v.finalPrice) return 0;
+        return Math.round(((v.price - v.finalPrice) / v.price) * 100);
+      })
+    )
   : product.price > 0
   ? Math.round(
       ((product.price - (product.finalPrice ?? product.price)) /
         product.price) *
         100
-        )
-       : 0;
+    )
+  : 0;
 
   const soldPercent = Math.min(
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
@@ -272,7 +278,9 @@ const {
 });
 const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
 const products = useMemo(() => {
-  return productsData ?? fallbackProducts;
+  return Array.isArray(productsData)
+    ? productsData
+    : fallbackProducts ?? [];
 }, [productsData, fallbackProducts]);
 
 const categories = useMemo(() => {
