@@ -1,3 +1,4 @@
+
 "use client";
 export const dynamic = "force-dynamic";
 import SplashScreen from "./components/SplashScreen";
@@ -73,10 +74,8 @@ function getVariantDiscount(p: Product) {
 
   for (const v of p.variants) {
     if (!v || !("finalPrice" in v)) continue;
-
     const base = (v as any).price || 0;
     const final = (v as any).finalPrice || base;
-
     if (base > final && base > 0) {
       const percent = Math.round(((base - final) / base) * 100);
       if (percent > max) max = percent;
@@ -103,20 +102,27 @@ function ProductCard({
   const isLowStock =
     (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5;
 
-  const final = product.finalPrice ?? product.price;
+  const isSale = isProductOnSale(product);
 
-const discount =
-  product.hasVariants
-    ? getVariantDiscount(product)
-    : product.price > 0 && final < product.price
-    ? Math.round(((product.price - final) / product.price) * 100)
-    : 0;
+  const discount = product.hasVariants
+  ? getVariantDiscount(product)
+  : product.price > 0
+  ? Math.round(
+      ((product.price - (product.finalPrice ?? product.price)) /
+        product.price) *
+        100
+        )
+       : 0;
 
   const soldPercent = Math.min(
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
     100
   );
+const saleStock = (product as any).saleStock ?? 0;
+const saleSold = (product as any).saleSold ?? 0;
+const saleLeft = saleStock - saleSold;
 
+const isSaleOut = saleStock > 0 && saleLeft <= 0;
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
@@ -147,7 +153,7 @@ const discount =
   <div className="absolute top-2 left-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-2 py-1 rounded shadow">
     -{discount}%
   </div>
-) : null}
+   ) : null}
 
         {/* ===== ADD TO CART ===== */}
         <button
@@ -160,7 +166,6 @@ const discount =
             setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
-          disabled={isOut}
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             isOut
               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
@@ -195,6 +200,27 @@ const discount =
           </p>
         )}
 
+        {/* ===== FLASH SALE PROGRESS ===== */}
+{(product as any).saleStock > 0 && (
+  <div className="mt-2">
+    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-red-500 transition-all duration-500"
+        style={{
+          width: `${
+            (((product as any).saleSold ?? 0) /
+              ((product as any).saleStock || 1)) *
+            100
+          }%`,
+        }}
+      />
+    </div>
+
+    <p className="text-[11px] text-red-500 text-center mt-1">
+      🔥 Còn {(product as any).saleLeft}
+    </p>
+  </div>
+)}
         {/* ===== SOLD BAR ===== */}
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -224,8 +250,8 @@ export default function HomePage() {
   data: productsData,
   isLoading: loadingProducts,
 } = useSWR<Product[]>("/api/products", fetcher, {
-  revalidateOnFocus: false,
-  dedupingInterval: 5000,
+  refreshInterval: 3000, // 🔥 realtime mỗi 3s
+  revalidateOnFocus: true,
 });
 
 const {
@@ -291,8 +317,10 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   if (!products || products.length === 0) return;
 
   const saleProduct = products.find(
-    (p: any) => p.isSale && p.saleEnd
-  );
+  (p: any) => p.isSale && p.saleEnd
+     );
+
+  if (!saleProduct) return;
 
   const target = new Date(
     saleProduct?.saleEnd || Date.now()
@@ -355,7 +383,6 @@ useEffect(() => {
   
   const filteredProducts = useMemo(() => {
     let list = [...products];
-
     if (selectedCategory !== "all") {
       list = list.filter((p) => p.categoryId === selectedCategory);
     }
@@ -424,8 +451,7 @@ if (loading && products.length === 0) {
             </div>
           </div>
           <div className="flex gap-3 overflow-x-auto">
-          {products
-          ?.filter((p) => p.isSale)
+          {products?.filter((p: any) => p.isSale === true)
            .slice(0, 10)
              .map((p) => (
                 <div
@@ -433,14 +459,14 @@ if (loading && products.length === 0) {
                   onClick={() => router.push(`/product/${p.id}`)}
                   className="min-w-[140px] bg-white rounded-lg overflow-hidden text-black cursor-pointer"
                 >
-                  <div className="relative">
-                    <Image
-                      src={getMainImage(p)}
-                      alt={p.name}
-                      width={200}
-                      height={200}
-                      className="w-full h-28 object-cover"
-                    />
+                  <div className="relative overflow-hidden group">
+           <Image
+    src={getMainImage(product)}
+    alt={product.name}
+    width={300}
+    height={300}
+    className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
+             />
 
                     {p.stock === 0 ? (
                <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
@@ -450,9 +476,9 @@ if (loading && products.length === 0) {
     ? getVariantDiscount(p) > 0
     : isProductOnSale(p)
   ) ? (
-        <div className="absolute top-1 left-1 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] px-2 py-0.5 rounded shadow font-semibold animate-pulse">
-  ⚡ SALE
-      </div>
+        <div className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs px-2 py-1 rounded shadow font-semibold animate-pulse">
+        ⚡ SALE
+          </div>
              ) : null}
 
                     <button
