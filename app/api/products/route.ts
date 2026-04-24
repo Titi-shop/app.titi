@@ -136,6 +136,10 @@ const enriched = await Promise.all(
   v.saleEnabled === true &&
   typeof v.salePrice === "number" &&
   v.salePrice < v.price &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end &&
   (v.saleStock === 0 || v.saleSold < v.saleStock);
 
       const finalPrice = isSale ? v.salePrice! : v.price;
