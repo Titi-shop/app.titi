@@ -136,16 +136,20 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     /* ================= VARIANTS ================= */
     const rawVariants = await getVariantsByProductId(id);
 
-    const variants = rawVariants.map((v) => {
+console.log("🧩 [API][GET] RAW VARIANTS FROM DB:", rawVariants);
+
+const variants = rawVariants.map((v, i) => {
+  console.log(`🔎 [API][GET][VARIANT ${i}] INPUT:`, v);
+
   const price = Number(v.price ?? 0);
-  const salePrice = v.sale_price != null ? Number(v.sale_price) : null;
-  const saleStock = Number(v.sale_stock ?? 0);
-  const saleSold = Number(v.sale_sold ?? 0);
+  const salePrice = v.salePrice != null ? Number(v.salePrice) : null;
+  const saleStock = Number(v.saleStock ?? 0);
+  const saleSold = Number(v.saleSold ?? 0);
 
   const saleLeft = saleStock - saleSold;
 
   const isVariantSale =
-    Boolean(v.sale_enabled) &&
+    Boolean(v.saleEnabled) &&
     salePrice !== null &&
     salePrice > 0 &&
     start !== null &&
@@ -153,50 +157,46 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     now >= start &&
     now <= end;
 
-  return {
+  const finalVariant = {
     id: v.id,
 
-    /* OPTIONS */
-    option1: v.option_1,
-    option2: v.option_2,
-    option3: v.option_3,
+    option1: v.option1 ?? null,
+    option2: v.option2 ?? null,
+    option3: v.option3 ?? null,
 
-    optionLabel1: v.option_label_1,
-    optionLabel2: v.option_label_2,
-    optionLabel3: v.option_label_3,
+    optionLabel1: v.optionLabel1 ?? null,
+    optionLabel2: v.optionLabel2 ?? null,
+    optionLabel3: v.optionLabel3 ?? null,
 
-    /* CORE */
-    name: v.name,
-    sku: v.sku,
+    name: v.name ?? "",
+    sku: v.sku ?? null,
 
-    /* PRICE (FIXED) */
     price,
     salePrice,
-    finalPrice: Number(v.final_price ?? price),
+    finalPrice: Number(v.finalPrice ?? price),
 
-    /* SALE */
-    saleEnabled: Boolean(v.sale_enabled),
+    saleEnabled: Boolean(v.saleEnabled),
     saleStock,
     saleSold,
     saleLeft: Math.max(0, saleLeft),
 
-    /* STOCK */
     stock: Number(v.stock ?? 0),
-    isUnlimited: Boolean(v.is_unlimited),
+    isUnlimited: Boolean(v.isUnlimited),
 
-    /* MEDIA */
     image: v.image ?? "",
 
-    /* STATUS */
-    isActive: Boolean(v.is_active),
+    isActive: Boolean(v.isActive),
 
-    sortOrder: Number(v.sort_order ?? 0),
+    sortOrder: Number(v.sortOrder ?? 0),
 
     sold: Number(v.sold ?? 0),
 
-    /* COMPUTED */
     isSale: isVariantSale,
   };
+
+  console.log(`✅ [API][GET][VARIANT ${i}] OUTPUT:`, finalVariant);
+
+  return finalVariant;
 });
 
     console.log("🧩 VARIANTS:", variants.length);
