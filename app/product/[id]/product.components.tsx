@@ -145,7 +145,7 @@ export function ProductView(props: ProductViewProps) {
           {gallery.map((img: string, i: number) => (
             <SwiperSlide key={i}>
               <img
-              src={activeImage || img}
+               src={img}
                 alt={product.name}
                 onClick={() => {
                   setZoomImage(img);
@@ -184,25 +184,51 @@ export function ProductView(props: ProductViewProps) {
 
             /* ===== TOUCH START ===== */
             onTouchStart={(e) => {
-              if (e.touches.length === 2) {
-                const dx =
-                  e.touches[0].clientX - e.touches[1].clientX;
-                const dy =
-                  e.touches[0].clientY - e.touches[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                setInitialDistance(distance);
-                setInitialScale(scale);
-              }
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
-              if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                setDragging(true);
-                setStart({
-                  x: touch.clientX - position.x,
-                  y: touch.clientY - position.y,
-                });
-              }
-            }}
+    setInitialDistance(distance);
+    setInitialScale(scale);
+  }
+
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    setDragging(true);
+    setStart({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y,
+    });
+  }
+}}
+
+onTouchMove={(e) => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    let newScale = initialScale * (distance / initialDistance);
+    newScale = Math.max(1, Math.min(newScale, 6));
+
+    setScale(newScale);
+  }
+
+  if (e.touches.length === 1 && dragging && scale > 1) {
+    const touch = e.touches[0];
+
+    setPosition({
+      x: touch.clientX - start.x,
+      y: touch.clientY - start.y,
+    });
+  }
+}}
+
+onTouchEnd={() => {
+  setDragging(false);
+}}
 
             /* ===== TOUCH MOVE ===== */
             onTouchEnd={() => {
@@ -306,8 +332,8 @@ export function ProductView(props: ProductViewProps) {
                 ? selectedVariant.stock
                 : product.stock
               : product.stock}
-          </span>
-        ) : (
+            </span>
+            ) : (
           <span className="text-red-500">
             ❌ {t.out_of_stock}
           </span>
@@ -327,13 +353,15 @@ export function ProductView(props: ProductViewProps) {
                   key={v.id}
                   disabled={isDisabled}
                   onClick={() => {
-                if (!isDisabled) {
-             setSelectedVariant(v);
-            if ((v as any).image) {
-           setActiveImage((v as any).image);
-            }
-              }
-                }}
+                 if (!isDisabled) {
+                setSelectedVariant(v);
+           if ((v as any).image) {
+         setActiveImage((v as any).image);
+    } else {
+      setActiveImage(null);
+           }
+             }
+               }}
                   className={`rounded border px-2 py-2 text-sm transition
                     ${
                       isDisabled
