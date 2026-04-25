@@ -76,9 +76,11 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     })
     .filter(Boolean) as ProductVariant[];
 
-  console.log("[PRODUCT][VARIANT] normalized:", result.length);
-
-  return result;
+  const result = input
+  .map(...)
+  .filter(Boolean) as ProductVariant[];
+console.log("[PRODUCT][VARIANT] normalized:", result.length);
+return result;
 }
 
 function getTotalVariantStock(variants: ProductVariant[]) {
@@ -162,29 +164,29 @@ function getTotalVariantStock(variants: ProductVariant[]) {
   return {
     id: v.id,
 
-    /* ================= OPTIONS ================= */
+    /* ================= OPTIONS (FIX FULL) ================= */
     option1: v.option_1 ?? "",
     option2: v.option_2 ?? null,
     option3: v.option_3 ?? null,
 
     optionLabel1: v.option_label_1 ?? null,
-    optionLabel2: v.option_label_2 ?? null,
-    optionLabel3: v.option_label_3 ?? null,
+    optionLabel2: v.option_label_2 ?? null,   // 🔥 FIX
+    optionLabel3: v.option_label_3 ?? null,   // 🔥 FIX
 
     /* ================= CORE ================= */
     name: v.name ?? "",
 
     sku: v.sku ?? null,
 
-    /* ================= PRICE (FIXED) ================= */
+    /* ================= PRICE ================= */
     price,
-    salePrice,
+    salePrice,                     // 🔥 FIX: đảm bảo có
     finalPrice: isVariantSale ? salePrice : price,
 
-    /* ================= SALE (FIXED) ================= */
+    /* ================= SALE (FIX FULL) ================= */
     saleEnabled: Boolean(v.sale_enabled),
-    saleStock,
-    saleSold,
+    saleStock,                     // 🔥 FIX
+    saleSold,                     // 🔥 FIX
     saleLeft: saleStock > 0 ? Math.max(0, saleStock - saleSold) : null,
 
     /* ================= STOCK ================= */
@@ -205,8 +207,6 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     isSale: isVariantSale,
   };
 });
-
-    
 
     console.log("🧩 VARIANTS:", variants.length);
 
