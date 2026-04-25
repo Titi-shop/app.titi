@@ -75,7 +75,7 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       };
     })
     .filter(Boolean) as ProductVariant[];
-}
+
   console.log("[PRODUCT][VARIANT] normalized:", result.length);
 
   return result;
