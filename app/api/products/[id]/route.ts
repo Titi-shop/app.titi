@@ -20,60 +20,55 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariant[] {
-  console.log("[PRODUCT][VARIANT] normalize start");
+  if (!Array.isArray(input)) return [];
 
-  if (!Array.isArray(input)) {
-    console.log("[PRODUCT][VARIANT] not array");
-    return [];
-  }
-
-  const result = input
-    .map((item, index) => {
-      if (typeof item !== "object" || item === null) return null;
-
-      const row = item as any;
+  return input
+    .map((item: any, index) => {
+      if (!item || typeof item !== "object") return null;
 
       const option1 =
-        typeof row.option1 === "string"
-          ? row.option1.trim()
+        typeof item.option1 === "string"
+          ? item.option1.trim()
           : "";
 
       if (!option1) return null;
 
       return {
-        id: typeof row.id === "string" ? row.id : undefined,
+        id: item.id ?? undefined,
 
-        /* 🔥 MAP CHUẨN */
-        optionName:
-          typeof row.optionLabel1 === "string"
-            ? row.optionLabel1
-            : "option",
+        /* DB OPTIONS */
+        option_1: option1,
+        option_2: item.option2 ?? null,
+        option_3: item.option3 ?? null,
 
-        optionValue: option1,
+        option_label_1: item.optionLabel1 ?? "Option",
+        option_label_2: item.optionLabel2 ?? null,
+        option_label_3: item.optionLabel3 ?? null,
 
-        price:
-          typeof row.price === "number" && row.price > 0
-            ? row.price
-            : 0,
+        name:
+          item.name ??
+          option1,
 
-        salePrice:
-          typeof row.salePrice === "number"
-            ? row.salePrice
-            : null,
+        /* PRICE */
+        price: Number(item.price) || 0,
+        sale_price: item.salePrice ?? null,
 
-        stock:
-          typeof row.stock === "number"
-            ? row.stock
-            : 0,
+        /* STOCK */
+        stock: Number(item.stock) || 0,
+        is_unlimited: item.isUnlimited ?? false,
 
-        /* 🔥 FLASH SALE */
-        saleEnabled: row.saleEnabled ?? false,
-        saleStock: row.saleStock ?? 0,
+        /* SALE */
+        sale_enabled: item.saleEnabled ?? false,
+        sale_stock: item.saleStock ?? 0,
+        sale_sold: item.saleSold ?? 0,
 
-        sku: row.sku ?? null,
-        image: row.image ?? "",
-        sortOrder: row.sortOrder ?? index,
-        isActive: row.isActive ?? true,
+        /* MEDIA */
+        image: item.image ?? "",
+
+        /* META */
+        sku: item.sku ?? null,
+        sort_order: index,
+        is_active: item.isActive ?? true,
       };
     })
     .filter(Boolean) as ProductVariant[];
@@ -150,63 +145,59 @@ function getTotalVariantStock(variants: ProductVariant[]) {
 
     const variants = rawVariants.map((v) => {
   const isVariantSale =
-    typeof v.salePrice === "number" &&
-    v.salePrice > 0 &&
+    v.sale_enabled === true &&
+    typeof v.sale_price === "number" &&
+    v.sale_price > 0 &&
     start !== null &&
     end !== null &&
     now >= start &&
     now <= end;
 
-  const finalPrice = isVariantSale
-    ? Number(v.salePrice)
-    : Number(v.price);
+  const finalPrice =
+    isVariantSale
+      ? Number(v.sale_price)
+      : Number(v.price);
 
   return {
-  id: v.id,
+    id: v.id,
 
-  /* ================= OPTIONS (SHOPEE STYLE) ================= */
-  option1: v.option_1,
-  option2: v.option_2,
-  option3: v.option_3,
+    /* OPTIONS (DB chuẩn) */
+    option1: v.option_1,
+    option2: v.option_2,
+    option3: v.option_3,
 
-  optionLabel1: v.option_label_1,
-  optionLabel2: v.option_label_2,
-  optionLabel3: v.option_label_3,
+    optionLabel1: v.option_label_1,
+    optionLabel2: v.option_label_2,
+    optionLabel3: v.option_label_3,
 
-  name: v.name,
+    name: v.name,
 
-  /* ================= SKU ================= */
-  sku: v.sku,
+    /* PRICE (CHUẨN DB) */
+    price: Number(v.price),
+    salePrice: v.sale_price,
+    finalPrice,
 
-  /* ================= PRICE ================= */
-  price: Number(v.price),
-  salePrice: v.sale_price,
-  finalPrice: Number(v.final_price),
+    /* SALE */
+    saleEnabled: v.sale_enabled,
+    saleStock: v.sale_stock,
+    saleSold: v.sale_sold,
 
-  saleEnabled: v.sale_enabled,
-  saleStock: v.sale_stock,
-  saleSold: v.sale_sold,
-  currency: v.currency,
+    /* STOCK */
+    stock: v.stock,
+    isUnlimited: v.is_unlimited,
 
-  /* ================= STOCK ================= */
-  stock: v.stock,
-  isUnlimited: v.is_unlimited,
+    /* MEDIA */
+    image: v.image,
 
-  /* ================= MEDIA ================= */
-  image: v.image,
+    /* STATUS */
+    isActive: v.is_active,
 
-  /* ================= STATUS ================= */
-  isActive: v.is_active,
+    sortOrder: v.sort_order,
+    sold: v.sold,
 
-  /* ================= SORT ================= */
-  sortOrder: v.sort_order,
-
-  /* ================= ANALYTICS ================= */
-  sold: v.sold,
-
-  /* ================= COMPUTED ================= */
-  isSale: v.sale_enabled && v.sale_price > 0,
-};
+    /* COMPUTED */
+    isSale: isVariantSale,
+  };
 });
 
     
