@@ -361,7 +361,7 @@ onTouchMove={(e) => {
               )}
 
               <span className="text-[11px]">
-                {v.option1 || v.name || "Option"}
+                {v.option2 || v.option1 || v.optionValue || "Option"}
               </span>
 
               <span className="text-[10px] text-gray-400">
