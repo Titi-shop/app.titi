@@ -211,9 +211,8 @@ export async function getVariantsByProductId(productId: string) {
       optionLabel2: r.option_label_2,
       optionLabel3: r.option_label_3,
 
-      /* 🔥 BACKWARD COMPAT (cho code cũ) */
-      optionName: r.option_label_1,
-      optionValue: r.option_1,
+    optionValue: r.option_2 || r.option_1,
+    optionName: r.option_label_2 || r.option_label_1,
 
       /* 🔥 PRICE */
       price: Number(r.price),
