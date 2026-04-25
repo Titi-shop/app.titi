@@ -144,10 +144,11 @@ export function ProductView(props: ProductViewProps) {
           {gallery.map((img: string, i: number) => (
             <SwiperSlide key={i}>
               <img
-                src={img}
+              src={activeImage || img}
                 alt={product.name}
                 onClick={() => {
                   setZoomImage(img);
+                  setActiveImage(img);
                   setScale(1);
                   setPosition({ x: 0, y: 0 });
                 }}
@@ -333,8 +334,13 @@ export function ProductView(props: ProductViewProps) {
                   key={v.id}
                   disabled={isDisabled}
                   onClick={() => {
-                    if (!isDisabled) setSelectedVariant(v);
-                  }}
+                if (!isDisabled) {
+             setSelectedVariant(v);
+            if ((v as any).image) {
+           setActiveImage((v as any).image);
+            }
+              }
+                }}
                   className={`rounded border px-2 py-2 text-sm transition
                     ${
                       isDisabled
@@ -348,7 +354,16 @@ export function ProductView(props: ProductViewProps) {
                   <div className="font-medium">
                     {v.optionValue}
                   </div>
-
+                {v.image ? (
+           <img
+        src={v.image}
+    className="w-6 h-6 rounded-full object-cover border"
+        />
+         ) : (
+           <div className="font-medium">
+            {v.optionValue}
+             </div>
+                )}
                   <div className="text-[11px]">
                     {v.stock}
                   </div>
@@ -443,7 +458,10 @@ export function ProductView(props: ProductViewProps) {
     </button>
 
     <button
-      onClick={buy}
+      onClick={() => {
+     if (hasVariants && !selectedVariant) return;
+     buy();
+    }}
       className="
         flex-1 h-8
         bg-primary-dark text-white
