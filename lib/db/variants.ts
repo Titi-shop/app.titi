@@ -121,10 +121,14 @@ function normalizeVariant(v: ProductVariant, index: number) {
   const normalized = {
     option_1: value,
     option_label_1: label,
-    option_2: null,
-    option_label_2: null,
-    option_3: null,
-    option_label_3: null,
+    option_1: v.option_1 ?? v.optionValue ?? "",
+    option_label_1: v.option_label_1 ?? v.optionName ?? label,
+
+    option_2: v.option_2 ?? null,
+    option_label_2: v.option_label_2 ?? null,
+
+    option_3: v.option_3 ?? null,
+    option_label_3: v.option_label_3 ?? null,
     name: value,
 
     price,
