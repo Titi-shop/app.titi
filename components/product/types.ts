@@ -7,21 +7,44 @@ export interface Category {
 export interface ProductVariant {
   id?: string;
 
-  option1?: string; // Red / 10ml
-  option2?: string; // XL
-  option3?: string;
-  optionLabel1?: string; // Color / Volume
-  optionLabel2?: string; // Size
-  optionLabel3?: string;
-  price?: number | null;
+  /* OPTIONS */
+  option1?: string | null;
+  option2?: string | null;
+  option3?: string | null;
+
+  optionLabel1?: string | null;
+  optionLabel2?: string | null;
+  optionLabel3?: string | null;
+
+  optionValue?: string;
+  optionName?: string;
+
+  name?: string;
+
+  /* PRICE */
+  price?: number;
   salePrice?: number | null;
+  finalPrice?: number;
+
+  /* SALE */
   saleEnabled?: boolean;
   saleStock?: number;
   saleSold?: number;
+
+  /* STOCK */
   stock: number;
+  isUnlimited?: boolean;
+
+  /* MEDIA */
   sku?: string | null;
   image?: string;
+
+  /* STATUS */
+  sortOrder?: number;
   isActive?: boolean;
+
+  /* ANALYTICS */
+  sold?: number;
 }
 
 /* =========================
