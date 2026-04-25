@@ -119,35 +119,33 @@ function normalizeVariant(v: ProductVariant, index: number) {
       : false;
 
   const normalized = {
-    option_1: value,
-    option_label_1: label,
-    option_1: v.option_1 ?? v.optionValue ?? "",
-    option_label_1: v.option_label_1 ?? v.optionName ?? label,
+  option_1: value,
+  option_label_1: label,
 
-    option_2: v.option_2 ?? null,
-    option_label_2: v.option_label_2 ?? null,
+  option_2: v.option_2 ?? null,
+  option_label_2: v.option_label_2 ?? null,
 
-    option_3: v.option_3 ?? null,
-    option_label_3: v.option_label_3 ?? null,
-    name: value,
+  option_3: v.option_3 ?? null,
+  option_label_3: v.option_label_3 ?? null,
 
-    price,
-    sale_price: salePrice,
-    final_price: finalPrice,
+  name: value,
 
-    stock: v.stock >= 0 ? v.stock : 0,
-    is_unlimited: v.isUnlimited ?? false,
+  price,
+  sale_price: salePrice,
+  final_price: finalPrice,
 
-    sale_enabled: saleEnabled,
-    sale_stock: saleStock,
-    sale_sold: saleSold,
+  stock: v.stock >= 0 ? v.stock : 0,
+  is_unlimited: v.isUnlimited ?? false,
 
-    sku: v.sku ?? null,
-    image: v.image ?? "",
+  sale_enabled: saleEnabled,
+  sale_stock: saleStock,
+  sale_sold: saleSold,
 
-    sort_order: v.sortOrder ?? index,
-    is_active: v.isActive ?? true,
-  };
+  sku: v.sku ?? null,
+  image: v.image ?? "",
+  sort_order: v.sortOrder ?? index,
+  is_active: v.isActive ?? true,
+};
 
   console.log("✅ [VARIANT][NORMALIZED]:", normalized);
 
@@ -206,22 +204,25 @@ export async function getVariantsByProductId(productId: string) {
     const mapped = {
       id: r.id,
 
-      /* 🔥 OPTION (FULL SUPPORT 3 LEVEL) */
-      option1: r.option_1,
-      option2: r.option_2,
-      option3: r.option_3,
+      /option1: r.option_1,
+option2: r.option_2,
+option3: r.option_3,
 
-      optionLabel1: r.option_label_1,
-      optionLabel2: r.option_label_2,
-      optionLabel3: r.option_label_3,
+optionLabel1: r.option_label_1,
+optionLabel2: r.option_label_2,
+optionLabel3: r.option_label_3,
 
-    optionValue: r.option_2 || r.option_1,
-    optionName: r.option_label_2 || r.option_label_1,
+optionValue: r.option_1,
+optionName: r.option_label_1,
 
       /* 🔥 PRICE */
       price: Number(r.price),
       salePrice:
-        r.sale_price !== null ? Number(r.sale_price) : null,
+     r.sale_price != null ? Number(r.sale_price) : null,
+     saleStock:
+      r.sale_stock != null ? Number(r.sale_stock) : 0,
+     saleSold:
+      r.sale_sold != null ? Number(r.sale_sold) : 0,
       finalPrice: Number(r.final_price),
 
       /* 🔥 STOCK */
