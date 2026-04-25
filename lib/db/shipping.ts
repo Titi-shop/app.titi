@@ -1,8 +1,10 @@
+"use server";
+
 import { query } from "@/lib/db";
 
-/* =========================
+/* =========================================================
    TYPES
-========================= */
+========================================================= */
 
 export type Region =
   | "domestic"
@@ -15,17 +17,19 @@ export type Region =
 export type ShippingRateInput = {
   zone: Region;
   price: number;
+  domesticCountryCode?: string | null;
 };
 
 type ShippingRateRow = {
   product_id: string;
   code: string;
   price: number;
+  domestic_country_code: string | null;
 };
 
-/* =========================
+/* =========================================================
    VALIDATE
-========================= */
+========================================================= */
 
 function isUUID(v: string): boolean {
   return /^[0-9a-f-]{36}$/i.test(v);
@@ -42,9 +46,9 @@ function isValidRegion(value: string): value is Region {
   ].includes(value);
 }
 
-/* =========================
-   UPSERT (PRODUCT BASED)
-========================= */
+/* =========================================================
+   UPSERT SHIPPING RATES
+========================================================= */
 
 export async function upsertShippingRates({
   productId,
@@ -54,42 +58,27 @@ export async function upsertShippingRates({
   rates: ShippingRateInput[];
 }) {
   console.log("🚀 [DB][SHIPPING][UPSERT] START");
-  console.log("📌 PRODUCT ID:", productId);
-  console.log("📦 INPUT RATES:", rates);
+  console.log("📌 PRODUCT:", productId);
+  console.log("📦 RATES:", rates);
 
   if (!isUUID(productId)) {
-    console.error("❌ INVALID PRODUCT ID");
-    throw new Error("INVALID_PRODUCT");
+    throw new Error("INVALID_PRODUCT_ID");
   }
 
-  if (!Array.isArray(rates)) {
-    console.warn("⚠️ RATES NOT ARRAY");
-    return;
-  }
-
-  /* ================= CLEAN ================= */
+  if (!Array.isArray(rates)) return;
 
   const cleanRates = rates.filter((r) => {
-    const valid =
+    return (
       r &&
       typeof r.zone === "string" &&
       typeof r.price === "number" &&
       !Number.isNaN(r.price) &&
       r.price >= 0 &&
-      isValidRegion(r.zone);
-
-    if (!valid) {
-      console.warn("⚠️ INVALID RATE:", r);
-    }
-
-    return valid;
+      isValidRegion(r.zone)
+    );
   });
 
-  console.log("✅ CLEAN RATES:", cleanRates);
-
-  /* ================= DELETE OLD ================= */
-
-  console.log("🗑️ DELETE OLD SHIPPING");
+  console.log("✅ CLEAN:", cleanRates);
 
   await query(
     `
@@ -99,14 +88,7 @@ export async function upsertShippingRates({
     [productId]
   );
 
-  console.log("✅ OLD SHIPPING DELETED");
-
-  if (!cleanRates.length) {
-    console.warn("⚠️ NO VALID SHIPPING → NOTHING INSERTED");
-    return;
-  }
-
-  /* ================= GET ZONE MAP ================= */
+  if (!cleanRates.length) return;
 
   const zoneRes = await query<{ id: string; code: string }>(
     `
@@ -117,180 +99,142 @@ export async function upsertShippingRates({
     [cleanRates.map((r) => r.zone)]
   );
 
-  console.log("🗺️ ZONE MAP RAW:", zoneRes.rows);
-
   const zoneMap = new Map(
     zoneRes.rows.map((z) => [z.code, z.id])
   );
 
-  console.log("🗺️ ZONE MAP FINAL:", zoneMap);
-
-  /* ================= INSERT ================= */
-
-  const values: unknown[] = [];
   const placeholders: string[] = [];
-
+  const values: unknown[] = [];
   let idx = 1;
 
   for (const r of cleanRates) {
     const zoneId = zoneMap.get(r.zone);
+    if (!zoneId) continue;
 
-    if (!zoneId) {
-      console.warn("⚠️ ZONE NOT FOUND:", r.zone);
-      continue;
-    }
+    placeholders.push(
+      `($${idx++}, $${idx++}, $${idx++}, $${idx++})`
+    );
 
-    placeholders.push(`($${idx++}, $${idx++}, $${idx++})`);
-    values.push(productId, zoneId, r.price);
+    values.push(
+      productId,
+      zoneId,
+      r.price,
+      r.zone === "domestic"
+        ? (r.domesticCountryCode || null)
+        : null
+    );
   }
-
-  if (!placeholders.length) {
-    console.warn("⚠️ NOTHING TO INSERT");
-    return;
-  }
-
-  console.log("📥 INSERT VALUES:", values);
 
   await query(
     `
-    INSERT INTO shipping_rates (product_id, zone_id, price)
+    INSERT INTO shipping_rates (
+      product_id,
+      zone_id,
+      price,
+      domestic_country_code
+    )
     VALUES ${placeholders.join(",")}
     `,
     values
   );
 
-  console.log("🎉 SHIPPING UPSERT SUCCESS");
+  console.log("🎉 SHIPPING UPSERT DONE");
 }
 
-/* =========================
-   GET — SINGLE PRODUCT
-========================= */
+/* =========================================================
+   GET SHIPPING BY PRODUCT
+========================================================= */
 
 export async function getShippingRatesByProduct(
   productId: string
 ): Promise<ShippingRateInput[]> {
-  console.log("🚀 [DB][SHIPPING][GET ONE] START:", productId);
+  console.log("🚀 [DB][SHIPPING][GET]:", productId);
 
   if (!isUUID(productId)) {
-    console.error("❌ INVALID PRODUCT ID");
-    throw new Error("INVALID_PRODUCT");
+    throw new Error("INVALID_PRODUCT_ID");
   }
 
-  const { rows } = await query<{
-    code: string;
-    price: number;
-  }>(
+  const { rows } = await query<ShippingRateRow>(
     `
-    SELECT 
+    SELECT
       sr.product_id,
       sz.code,
-      sr.price
+      sr.price,
+      sr.domestic_country_code
     FROM shipping_rates sr
-    JOIN shipping_zones sz 
+    JOIN shipping_zones sz
       ON sz.id = sr.zone_id
     WHERE sr.product_id = $1
     `,
     [productId]
   );
 
-  console.log("📦 RAW ROWS:", rows);
-
-  if (!rows.length) {
-    console.warn("⚠️ NO SHIPPING FOUND IN DB");
-  }
-
   const result = rows
-    .filter((r) => {
-      const valid = isValidRegion(r.code);
-
-      if (!valid) {
-        console.warn("⚠️ INVALID REGION:", r.code);
-      }
-
-      return valid;
-    })
+    .filter((r) => isValidRegion(r.code))
     .map((r) => ({
-      zone: r.code,
+      zone: r.code as Region,
       price: Number(r.price),
+      domesticCountryCode: r.domestic_country_code,
     }));
 
-  console.log("✅ FINAL SHIPPING:", result);
+  console.log("✅ SHIPPING GET RESULT:", result);
 
   return result;
 }
 
-/* =========================
-   GET — MULTIPLE PRODUCTS
-========================= */
+/* =========================================================
+   GET SHIPPING BY MULTIPLE PRODUCTS
+========================================================= */
 
 export async function getShippingRatesByProducts(
   productIds: string[]
 ): Promise<
-  { product_id: string; zone: Region; price: number }[]
+  {
+    product_id: string;
+    zone: Region;
+    price: number;
+    domesticCountryCode?: string | null;
+  }[]
 > {
-  console.log("🚀 [DB][SHIPPING][MULTI] START:", productIds);
-
-  if (!Array.isArray(productIds)) {
-    console.warn("⚠️ productIds NOT ARRAY");
-    return [];
-  }
+  console.log("🚀 [DB][SHIPPING][MULTI]:", productIds);
 
   const validIds = productIds.filter(isUUID);
 
-  if (!validIds.length) {
-    console.warn("⚠️ NO VALID IDS");
-    return [];
-  }
+  if (!validIds.length) return [];
 
   const { rows } = await query<ShippingRateRow>(
     `
-    SELECT 
+    SELECT
       sr.product_id,
       sz.code,
-      sr.price
+      sr.price,
+      sr.domestic_country_code
     FROM shipping_rates sr
-    JOIN shipping_zones sz 
+    JOIN shipping_zones sz
       ON sz.id = sr.zone_id
     WHERE sr.product_id = ANY($1::uuid[])
     `,
     [validIds]
   );
 
-  console.log("📦 MULTI RAW:", rows);
-
-  if (!rows.length) {
-    console.warn("⚠️ NO SHIPPING FOUND FOR ANY PRODUCT");
-  }
-
-  const result = rows
-    .filter((r) => {
-      const valid = isValidRegion(r.code);
-
-      if (!valid) {
-        console.warn("⚠️ INVALID REGION:", r.code);
-      }
-
-      return valid;
-    })
+  return rows
+    .filter((r) => isValidRegion(r.code))
     .map((r) => ({
       product_id: r.product_id,
-      zone: r.code,
+      zone: r.code as Region,
       price: Number(r.price),
+      domesticCountryCode: r.domestic_country_code,
     }));
-
-  console.log("✅ MULTI FINAL:", result);
-
-  return result;
 }
 
-/* =========================
-   ZONE BY COUNTRY
-========================= */
+/* =========================================================
+   COUNTRY -> NORMAL ZONE
+========================================================= */
 
 export async function getZoneByCountry(
   countryCode: string
-): Promise<string | null> {
-  console.log("🌍 [DB][ZONE] COUNTRY:", countryCode);
+): Promise<Region | null> {
+  console.log("🌍 [ZONE LOOKUP]:", countryCode);
 
   if (!countryCode) return null;
 
@@ -298,14 +242,76 @@ export async function getZoneByCountry(
     `
     SELECT sz.code
     FROM shipping_zone_countries szc
-    JOIN shipping_zones sz ON sz.id = szc.zone_id
+    JOIN shipping_zones sz
+      ON sz.id = szc.zone_id
     WHERE szc.country_code = $1
     LIMIT 1
     `,
     [countryCode.toUpperCase()]
   );
 
-  console.log("🌍 [DB][ZONE] RESULT:", rows);
+  const code = rows[0]?.code;
 
-  return rows[0]?.code ?? null;
+  return isValidRegion(code) ? code : null;
+}
+
+/* =========================================================
+   FINAL SHIPPING RESOLVER
+========================================================= */
+
+export async function resolveShippingPrice({
+  productId,
+  buyerCountryCode,
+}: {
+  productId: string;
+  buyerCountryCode: string;
+}): Promise<number> {
+  console.log("🚀 [SHIPPING RESOLVER] START", {
+    productId,
+    buyerCountryCode,
+  });
+
+  const rates = await getShippingRatesByProduct(productId);
+
+  if (!rates.length) {
+    console.warn("⚠️ NO SHIPPING CONFIG");
+    return 0;
+  }
+
+  const buyer = buyerCountryCode.toUpperCase();
+
+  /* ================= DOMESTIC FIRST ================= */
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domesticCountryCode?.toUpperCase() === buyer
+  );
+
+  if (domestic) {
+    console.log("🏠 MATCH DOMESTIC:", domestic.price);
+    return domestic.price;
+  }
+
+  /* ================= FALLBACK ZONE ================= */
+  const zone = await getZoneByCountry(buyer);
+
+  console.log("🌎 BUYER ZONE:", zone);
+
+  if (!zone) {
+    const rest = rates.find((r) => r.zone === "rest_of_world");
+    return rest?.price || 0;
+  }
+
+  const found = rates.find((r) => r.zone === zone);
+
+  if (found) {
+    console.log("✅ MATCH ZONE:", found.price);
+    return found.price;
+  }
+
+  const rest = rates.find((r) => r.zone === "rest_of_world");
+
+  console.log("🌍 FALLBACK REST:", rest?.price || 0);
+
+  return rest?.price || 0;
 }
