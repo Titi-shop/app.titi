@@ -257,16 +257,19 @@ export default function VariantEditor({
             placeholder="SKU prefix"
             className="border p-2 rounded"
             onBlur={(e) => {
-              const prefix = e.target.value;
-              setVariants(
-                variants.map((v) => ({
-                  ...v,
-                  sku: `${prefix}-${v.option1}${
-                    v.option2 ? `-${v.option2}` : ""
-                  }`,
-                }))
-              );
-            }}
+             const prefix = e.target.value.trim();
+            if (!prefix) return;
+           setVariants((prev) =>
+           prev.map((v) => ({
+      ...v,
+      sku: v.sku?.trim()
+        ? v.sku // 🔥 giữ SKU user đã nhập
+        : `${prefix}-${v.option1}${
+            v.option2 ? `-${v.option2}` : ""
+          }`,
+    }))
+  );
+}}
           />
 
           <button
