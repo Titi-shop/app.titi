@@ -24,13 +24,12 @@ export const dynamic = "force-dynamic";
 function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  return input
+  const result = input
     .map((item, index) => {
       if (!item || typeof item !== "object") return null;
 
       const v: any = item;
 
-      // 🔥 FIX: lấy cả option1 OR optionValue
       const option1 =
         (v.option1 ?? v.optionValue ?? "").toString().trim();
 
@@ -55,7 +54,6 @@ function normalizeVariants(input: unknown): ProductVariant[] {
 
         price: Number(v.price) || 0,
 
-        // 🔥 FIX CONSISTENT SALE FIELDS
         salePrice:
           v.salePrice !== undefined && v.salePrice !== null
             ? Number(v.salePrice)
@@ -76,11 +74,9 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     })
     .filter(Boolean) as ProductVariant[];
 
-  const result = input
-  .map(...)
-  .filter(Boolean) as ProductVariant[];
-console.log("[PRODUCT][VARIANT] normalized:", result.length);
-return result;
+  console.log("[PRODUCT][VARIANT] normalized:", result.length);
+
+  return result;
 }
 
 function getTotalVariantStock(variants: ProductVariant[]) {
