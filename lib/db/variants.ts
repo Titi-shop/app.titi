@@ -2,194 +2,193 @@
 import { query, withTransaction } from "@/lib/db";
 
 /* =========================================================
-   TYPES
+   DB TYPE (1:1 WITH TABLE)
+========================================================= */
+
+export type ProductVariantDB = {
+  id?: string;
+
+  product_id: string;
+
+  /* ================= OPTIONS ================= */
+  option_1: string | null;
+  option_2: string | null;
+  option_3: string | null;
+
+  option_label_1: string | null;
+  option_label_2: string | null;
+  option_label_3: string | null;
+
+  name: string;
+
+  /* ================= SKU ================= */
+  sku: string | null;
+
+  /* ================= PRICE ================= */
+  price: number;
+  sale_price: number | null;
+  final_price: number;
+  sale_enabled: boolean;
+  sale_stock: number;
+  sale_sold: number;
+  currency: string;
+
+  /* ================= STOCK ================= */
+  stock: number;
+  is_unlimited: boolean;
+
+  /* ================= MEDIA ================= */
+  image: string;
+
+  /* ================= STATUS ================= */
+  is_active: boolean;
+
+  /* ================= SORT ================= */
+  sort_order: number;
+
+  /* ================= ANALYTICS ================= */
+  sold: number;
+
+  /* ================= TIME ================= */
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+};
+
+/* =========================================================
+   APP TYPE (FRONTEND FRIENDLY)
 ========================================================= */
 
 export type ProductVariant = {
   id?: string;
-  optionName?: string;
-  optionValue: string;
 
-  price?: number;
-  salePrice?: number | null;
-  finalPrice?: number;
+  option1: string;
+  option2: string | null;
+  option3: string | null;
+
+  optionLabel1: string | null;
+  optionLabel2: string | null;
+  optionLabel3: string | null;
+
+  name: string;
+
+  sku: string | null;
+
+  price: number;
+  salePrice: number | null;
+  finalPrice: number;
+
+  saleEnabled: boolean;
+  saleStock: number;
+  saleSold: number;
 
   stock: number;
-  isUnlimited?: boolean;
+  isUnlimited: boolean;
 
-  saleStock?: number;
-  saleSold?: number;
-  saleEnabled?: boolean;
+  image: string;
 
-  sold?: number;
+  isActive: boolean;
+  sortOrder: number;
 
-  sku?: string | null;
-  image?: string | null;
-
-  sortOrder?: number;
-  isActive?: boolean;
+  sold: number;
 };
 
 /* =========================================================
-   VALIDATE
+   MAP: DB → APP
 ========================================================= */
 
-function validateVariants(input: unknown): ProductVariant[] {
-  console.log("🧪 [VARIANT][VALIDATE] RAW:", input);
+export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
+  return {
+    id: v.id,
 
-  if (!Array.isArray(input)) {
-    console.warn("⚠️ [VARIANT] input is not array");
-    return [];
-  }
+    option1: v.option_1 ?? "",
+    option2: v.option_2 ?? null,
+    option3: v.option_3 ?? null,
 
-  const valid = input.filter((v, i): v is ProductVariant => {
-    if (typeof v !== "object" || v === null) {
-      console.warn(`❌ [VARIANT] invalid object at index ${i}:`, v);
-      return false;
-    }
+    optionLabel1: v.option_label_1 ?? null,
+    optionLabel2: v.option_label_2 ?? null,
+    optionLabel3: v.option_label_3 ?? null,
 
-    const value =
-      typeof v.optionValue === "string"
-        ? v.optionValue.trim()
-        : "";
+    name: v.name,
 
-    if (!value) {
-      console.warn(`❌ [VARIANT] empty optionValue at index ${i}:`, v);
-      return false;
-    }
+    sku: v.sku ?? null,
 
-    return true;
-  });
+    price: Number(v.price ?? 0),
+    salePrice: v.sale_price !== null ? Number(v.sale_price) : null,
+    finalPrice: Number(v.final_price ?? v.price ?? 0),
 
-  console.log("✅ [VARIANT] VALID COUNT:", valid.length);
-  return valid;
+    saleEnabled: Boolean(v.sale_enabled),
+    saleStock: Number(v.sale_stock ?? 0),
+    saleSold: Number(v.sale_sold ?? 0),
+
+    stock: Number(v.stock ?? 0),
+    isUnlimited: Boolean(v.is_unlimited),
+
+    image: v.image ?? "",
+
+    isActive: Boolean(v.is_active),
+    sortOrder: Number(v.sort_order ?? 0),
+
+    sold: Number(v.sold ?? 0),
+  };
 }
 
 /* =========================================================
-   NORMALIZE
+   MAP: APP → DB
 ========================================================= */
 
-function normalizeVariant(v: ProductVariant, index: number) {
-  console.log(`🔧 [VARIANT][NORMALIZE] index=${index}`, v);
+export function mapVariantToDB(
+  v: ProductVariant,
+  productId: string,
+  index: number
+): ProductVariantDB {
+  return {
+    product_id: productId,
 
-  const value =
-    typeof v.optionValue === "string"
-      ? v.optionValue.trim()
-      : "";
+    option_1: v.option1,
+    option_2: v.option2,
+    option_3: v.option3,
 
-  if (!value) {
-    throw new Error("INVALID_OPTION_VALUE");
-  }
+    option_label_1: v.optionLabel1,
+    option_label_2: v.optionLabel2,
+    option_label_3: v.optionLabel3,
 
-  const label =
-    typeof v.optionName === "string" && v.optionName.trim()
-      ? v.optionName.trim()
-      : "option";
+    name: v.name,
 
-  const price =
-    typeof v.price === "number" && !isNaN(v.price) && v.price >= 0
-      ? v.price
-      : 0;
+    sku: v.sku,
 
-  const salePrice =
-    typeof v.salePrice === "number" &&
-    !isNaN(v.salePrice) &&
-    v.salePrice >= 0
-      ? v.salePrice
-      : null;
+    price: v.price,
+    sale_price: v.salePrice,
+    final_price: v.finalPrice,
 
-  const finalPrice =
-    salePrice !== null && salePrice < price
-      ? salePrice
-      : price;
+    sale_enabled: v.saleEnabled,
+    sale_stock: v.saleStock,
+    sale_sold: v.saleSold,
 
-  const saleStock =
-    typeof v.saleStock === "number" && v.saleStock >= 0
-      ? v.saleStock
-      : 0;
+    stock: v.stock,
+    is_unlimited: v.isUnlimited,
 
-  const saleSold =
-    typeof v.saleSold === "number" && v.saleSold >= 0
-      ? v.saleSold
-      : 0;
+    image: v.image,
 
-  const saleEnabled =
-    typeof v.saleEnabled === "boolean"
-      ? v.saleEnabled
-      : false;
+    is_active: v.isActive,
+    sort_order: v.sortOrder ?? index,
 
-  const normalized = {
-  option_1: value,
-  option_label_1: label,
+    sold: v.sold ?? 0,
 
-  option_2: v.option_2 ?? null,
-  option_label_2: v.option_label_2 ?? null,
-
-  option_3: v.option_3 ?? null,
-  option_label_3: v.option_label_3 ?? null,
-
-  name: value,
-
-  price,
-  sale_price: salePrice,
-  final_price: finalPrice,
-
-  stock: v.stock >= 0 ? v.stock : 0,
-  is_unlimited: v.isUnlimited ?? false,
-
-  sale_enabled: saleEnabled,
-  sale_stock: saleStock,
-  sale_sold: saleSold,
-
-  sku: v.sku ?? null,
-  image: v.image ?? "",
-  sort_order: v.sortOrder ?? index,
-  is_active: v.isActive ?? true,
-};
-
-  console.log("✅ [VARIANT][NORMALIZED]:", normalized);
-
-  return normalized;
+    currency: "PI",
+  };
 }
 
 /* =========================================================
    GET VARIANTS
 ========================================================= */
 
-export async function getVariantsByProductId(productId: string) {
-  console.log("🔍 [VARIANT][GET] product:", productId);
-
+export async function getVariantsByProductId(
+  productId: string
+): Promise<ProductVariant[]> {
   const res = await query(
     `
-    SELECT
-      id,
-
-      option_1,
-      option_2,
-      option_3,
-
-      option_label_1,
-      option_label_2,
-      option_label_3,
-
-      price,
-      sale_price,
-      final_price,
-
-      stock,
-      is_unlimited,
-
-      sale_enabled,
-      sale_stock,
-      sale_sold,
-
-      sku,
-      image,
-
-      sort_order,
-      is_active,
-      sold
-
+    SELECT *
     FROM product_variants
     WHERE product_id = $1
       AND deleted_at IS NULL
@@ -198,192 +197,117 @@ export async function getVariantsByProductId(productId: string) {
     [productId]
   );
 
-  console.log("📦 [VARIANT][GET] rows:", res.rows.length);
-
-  return res.rows.map((r) => {
-    const mapped = {
-      id: r.id,
-option1: r.option_1,
-option2: r.option_2,
-option3: r.option_3,
-
-optionLabel1: r.option_label_1,
-optionLabel2: r.option_label_2,
-optionLabel3: r.option_label_3,
-
-optionValue: r.option_1,
-optionName: r.option_label_1,
-
-      /* 🔥 PRICE */
-      price: Number(r.price),
-      salePrice:
-     r.sale_price != null ? Number(r.sale_price) : null,
-     saleStock:
-      r.sale_stock != null ? Number(r.sale_stock) : 0,
-     saleSold:
-      r.sale_sold != null ? Number(r.sale_sold) : 0,
-      finalPrice: Number(r.final_price),
-
-      /* 🔥 STOCK */
-      stock: r.is_unlimited ? 999999 : r.stock,
-      isUnlimited: r.is_unlimited,
-
-      /* 🔥 FLASH SALE */
-      saleEnabled: r.sale_enabled,
-      saleStock: r.sale_stock,
-      saleSold: r.sale_sold,
-
-      /* 🔥 MEDIA */
-      sku: r.sku,
-      image: r.image,
-
-      /* 🔥 STATUS */
-      sortOrder: r.sort_order,
-      isActive: r.is_active,
-
-      sold: r.sold ?? 0,
-    };
-
-    console.log("🧩 [VARIANT][MAP]:", mapped);
-    return mapped;
-  });
+  return res.rows.map(mapVariantToApp);
 }
+
 /* =========================================================
    REPLACE VARIANTS
 ========================================================= */
 
 export async function replaceVariantsByProductId(
   productId: string,
-  input: unknown
+  input: ProductVariant[]
 ) {
-  console.log("🚀 [VARIANT][REPLACE] product:", productId);
-
-  const valid = validateVariants(input);
-
-  if (valid.length > 100) {
-    throw new Error("TOO_MANY_VARIANTS");
-  }
-
-  await withTransaction(async (client) => {
-    console.log("🧱 [VARIANT] BEGIN TRANSACTION");
-
+  return withTransaction(async (client) => {
     /* DELETE OLD */
-    console.log("🗑️ deleting old variants...");
     await client.query(
       `DELETE FROM product_variants WHERE product_id = $1`,
       [productId]
     );
 
-    if (valid.length === 0) {
-      console.warn("⚠️ no variants to insert");
-      return;
-    }
+    if (!input.length) return;
 
-    /* NORMALIZE */
-    const normalized = valid.map((v, i) =>
-      normalizeVariant(v, i)
-    );
-
-    console.log("🧩 normalized count:", normalized.length);
-
-    /* BUILD INSERT */
-    const FIELD_COUNT = 20;
-    const values: unknown[] = [];
+    /* INSERT NEW */
+    const FIELD_COUNT = 21;
+    const values: any[] = [];
     const placeholders: string[] = [];
 
-    normalized.forEach((v, i) => {
-      const idx = i * FIELD_COUNT;
+    input.forEach((v, i) => {
+      const db = mapVariantToDB(v, productId, i);
 
       const row = Array.from(
         { length: FIELD_COUNT },
-        (_, k) => `$${idx + k + 1}`
+        (_, k) => `$${i * FIELD_COUNT + k + 1}`
       ).join(",");
 
       placeholders.push(`(${row})`);
 
       values.push(
-        productId,
+        db.product_id,
 
-        v.option_1,
-        v.option_label_1,
+        db.option_1,
+        db.option_label_1,
 
-        v.option_2,
-        v.option_label_2,
+        db.option_2,
+        db.option_label_2,
 
-        v.option_3,
-        v.option_label_3,
+        db.option_3,
+        db.option_label_3,
 
-        v.name,
+        db.name,
 
-        v.price,
-        v.sale_price,
-        v.final_price,
+        db.sku,
 
-        v.stock,
-        v.is_unlimited,
+        db.price,
+        db.sale_price,
+        db.final_price,
 
-        v.sale_enabled,
-        v.sale_stock,
-        v.sale_sold,
+        db.sale_enabled,
+        db.sale_stock,
+        db.sale_sold,
 
-        v.sku,
-        v.image,
+        db.stock,
+        db.is_unlimited,
 
-        v.sort_order,
-        v.is_active
+        db.image,
+
+        db.is_active,
+        db.sort_order,
+
+        db.sold
       );
     });
 
-    console.log("📦 inserting variants...");
-    console.log("PLACEHOLDERS:", placeholders.length);
-    console.log("VALUES LENGTH:", values.length);
+    await client.query(
+      `
+      INSERT INTO product_variants (
+        product_id,
 
-    try {
-      await client.query(
-        `
-        INSERT INTO product_variants
-        (
-          product_id,
-          option_1,
-          option_label_1,
+        option_1,
+        option_label_1,
 
-          option_2,
-          option_label_2,
+        option_2,
+        option_label_2,
 
-          option_3,
-          option_label_3,
+        option_3,
+        option_label_3,
 
-          name,
+        name,
 
-          price,
-          sale_price,
-          final_price,
+        sku,
 
-          stock,
-          is_unlimited,
+        price,
+        sale_price,
+        final_price,
 
-          sale_enabled,
-          sale_stock,
-          sale_sold,
+        sale_enabled,
+        sale_stock,
+        sale_sold,
 
-          sku,
-          image,
+        stock,
+        is_unlimited,
 
-          sort_order,
-          is_active
-        )
-        VALUES ${placeholders.join(",")}
-        `,
-        values
-      );
+        image,
 
-      console.log("✅ INSERT SUCCESS");
-    } catch (err) {
-      console.error("❌ INSERT ERROR");
-      console.error("VALUES:", values);
-      console.error("ERROR:", err);
-      throw err;
-    }
+        is_active,
+        sort_order,
+
+        sold
+      )
+      VALUES ${placeholders.join(",")}
+      `,
+      values
+    );
   });
 }
 
@@ -395,20 +319,10 @@ export async function decreaseVariantStock(
   variantId: string,
   quantity: number
 ) {
-  console.log("📉 [VARIANT][DECREASE]", {
-    variantId,
-    quantity,
-  });
-
   return withTransaction(async (client) => {
     const res = await client.query(
       `
-      SELECT
-        stock,
-        is_unlimited,
-        sale_enabled,
-        sale_stock,
-        sale_sold
+      SELECT stock, is_unlimited, sale_enabled, sale_stock, sale_sold
       FROM product_variants
       WHERE id = $1
       FOR UPDATE
@@ -416,28 +330,17 @@ export async function decreaseVariantStock(
       [variantId]
     );
 
-    if (!res.rows.length) {
-      console.error("❌ VARIANT NOT FOUND:", variantId);
-      throw new Error("VARIANT_NOT_FOUND");
-    }
+    if (!res.rows.length) throw new Error("VARIANT_NOT_FOUND");
 
     const v = res.rows[0];
 
-    console.log("🔒 LOCKED VARIANT:", v);
-
     if (!v.is_unlimited && v.stock < quantity) {
-      console.error("❌ OUT OF STOCK");
       throw new Error("OUT_OF_STOCK");
     }
 
     if (v.sale_enabled) {
-      const left =
-        (v.sale_stock ?? 0) - (v.sale_sold ?? 0);
-
-      console.log("🔥 FLASH LEFT:", left);
-
+      const left = v.sale_stock - v.sale_sold;
       if (left < quantity) {
-        console.error("❌ FLASH SALE SOLD OUT");
         throw new Error("FLASH_SALE_SOLD_OUT");
       }
     }
@@ -460,9 +363,6 @@ export async function decreaseVariantStock(
       [variantId, quantity]
     );
 
-    console.log("✅ STOCK UPDATED");
-
     return { success: true };
   });
 }
-
