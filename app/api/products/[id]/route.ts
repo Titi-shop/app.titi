@@ -22,64 +22,60 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariant[] {
-  console.log("[PRODUCT][VARIANT] normalize start");
+  if (!Array.isArray(input)) return [];
 
-  if (!Array.isArray(input)) {
-    console.log("[PRODUCT][VARIANT] not array");
-    return [];
-  }
-
-  const result = input
+  return input
     .map((item, index) => {
-      if (typeof item !== "object" || item === null) return null;
+      if (!item || typeof item !== "object") return null;
 
-      const row = item as any;
+      const v: any = item;
 
+      // 🔥 FIX: lấy cả option1 OR optionValue
       const option1 =
-        typeof row.option1 === "string"
-          ? row.option1.trim()
-          : "";
+        (v.option1 ?? v.optionValue ?? "").toString().trim();
 
-      if (!option1) return null;
+      const option2 = (v.option2 ?? "").toString().trim();
+      const option3 = (v.option3 ?? "").toString().trim();
+
+      if (!option1 && !option2) return null;
 
       return {
-        id: typeof row.id === "string" ? row.id : undefined,
+        id: typeof v.id === "string" ? v.id : undefined,
 
-        /* 🔥 MAP CHUẨN */
-        optionName:
-          typeof row.optionLabel1 === "string"
-            ? row.optionLabel1
-            : "option",
-
+        optionName: v.optionLabel1 ?? "option",
         optionValue: option1,
 
-        price:
-          typeof row.price === "number" && row.price > 0
-            ? row.price
-            : 0,
+        option_1: option1,
+        option_2: option2 || null,
+        option_3: option3 || null,
 
+        option_label_1: v.optionLabel1 ?? null,
+        option_label_2: v.optionLabel2 ?? null,
+        option_label_3: v.optionLabel3 ?? null,
+
+        price: Number(v.price) || 0,
+
+        // 🔥 FIX CONSISTENT SALE FIELDS
         salePrice:
-          typeof row.salePrice === "number"
-            ? row.salePrice
+          v.salePrice !== undefined && v.salePrice !== null
+            ? Number(v.salePrice)
             : null,
 
-        stock:
-          typeof row.stock === "number"
-            ? row.stock
-            : 0,
+        stock: Number(v.stock) || 0,
 
-        /* 🔥 FLASH SALE */
-        saleEnabled: row.saleEnabled ?? false,
-        saleStock: row.saleStock ?? 0,
+        saleEnabled: !!v.saleEnabled,
 
-        sku: row.sku ?? null,
-        image: row.image ?? "",
-        sortOrder: row.sortOrder ?? index,
-        isActive: row.isActive ?? true,
+        saleStock: Number(v.saleStock ?? v.sale_stock ?? 0),
+
+        sku: v.sku ?? null,
+        image: v.image ?? "",
+
+        sortOrder: v.sortOrder ?? index,
+        isActive: v.isActive ?? true,
       };
     })
     .filter(Boolean) as ProductVariant[];
-
+}
   console.log("[PRODUCT][VARIANT] normalized:", result.length);
 
   return result;
@@ -151,12 +147,11 @@ function getTotalVariantStock(variants: ProductVariant[]) {
 
     const variants = rawVariants.map((v) => {
   const isVariantSale =
-    typeof v.salePrice === "number" &&
-    v.salePrice > 0 &&
-    start !== null &&
-    end !== null &&
-    now >= start &&
-    now <= end;
+  Number(v.sale_price ?? v.salePrice) > 0 &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
 
   const finalPrice = isVariantSale
     ? Number(v.salePrice)
@@ -166,13 +161,13 @@ function getTotalVariantStock(variants: ProductVariant[]) {
   id: v.id,
 
   /* ================= OPTIONS (SHOPEE STYLE) ================= */
-  option1: v.option_1,
-  option2: v.option_2,
-  option3: v.option_3,
+  option1: v.option_1 ?? v.option1 ?? "",
+option2: v.option_2 ?? v.option2 ?? null,
+option3: v.option_3 ?? v.option3 ?? null,
 
-  optionLabel1: v.option_label_1,
-  optionLabel2: v.option_label_2,
-  optionLabel3: v.option_label_3,
+optionLabel1: v.option_label_1 ?? v.optionLabel1 ?? null,
+optionLabel2: v.option_label_2 ?? v.optionLabel2 ?? null,
+optionLabel3: v.option_label_3 ?? v.optionLabel3 ?? null,
 
   name: v.name,
 
@@ -445,11 +440,8 @@ const saleStock =
   );
 
 const salePrices = normalizedVariants
-  .map((v) => v.salePrice)
-  .filter(
-    (p): p is number =>
-      typeof p === "number" && !Number.isNaN(p) && p > 0
-  );
+  .map(v => Number(v.salePrice))
+  .filter(v => !Number.isNaN(v) && v > 0);
 
 finalPrice = prices.length > 0 ? Math.min(...prices) : 1;
 
@@ -464,9 +456,9 @@ finalSalePrice =
   finalSalePrice = null;
 }
       finalStock = normalizedVariants.reduce(
-        (s, v) => s + (v.stock || 0),
-        0
-      );
+  (s, v) => s + (Number(v.stock) || 0),
+  0
+);
 
       console.log("💰 [PATCH] DERIVED:", {
         finalPrice,
