@@ -20,6 +20,7 @@ function mapShippingRates(rates: any[]) {
 
   for (const r of rates) {
     if (!r?.zone) continue;
+
     const price = Number(r.price);
     base[r.zone] = !Number.isNaN(price) ? price : "";
   }
@@ -28,10 +29,64 @@ function mapShippingRates(rates: any[]) {
 }
 
 /* =========================================================
+   VARIANT SAFE NORMALIZE
+========================================================= */
+function normalizeInitVariants(input: any[]): ProductVariant[] {
+  if (!Array.isArray(input)) return [];
+
+  return input.map((v: any, i: number) => ({
+    id: v.id,
+
+    option1: v.option1 ?? "",
+    option2: v.option2 ?? null,
+    option3: v.option3 ?? null,
+
+    optionLabel1: v.optionLabel1 ?? null,
+    optionLabel2: v.optionLabel2 ?? null,
+    optionLabel3: v.optionLabel3 ?? null,
+
+    optionValue: v.optionValue ?? v.option1 ?? "",
+    optionName: v.optionName ?? v.optionLabel1 ?? "",
+
+    name:
+      v.name ??
+      [v.option1, v.option2, v.option3]
+        .filter(Boolean)
+        .join(" - "),
+
+    sku: v.sku ?? null,
+
+    price: Number(v.price ?? 0),
+
+    salePrice:
+      v.salePrice !== null && v.salePrice !== undefined
+        ? Number(v.salePrice)
+        : null,
+
+    finalPrice: Number(v.finalPrice ?? v.price ?? 0),
+
+    saleEnabled: Boolean(v.saleEnabled),
+    saleStock: Number(v.saleStock ?? 0),
+    saleSold: Number(v.saleSold ?? 0),
+
+    stock: Number(v.stock ?? 0),
+    isUnlimited: Boolean(v.isUnlimited),
+
+    image: v.image ?? "",
+
+    isActive: v.isActive !== false,
+    sortOrder: Number(v.sortOrder ?? i),
+
+    sold: Number(v.sold ?? 0),
+  }));
+}
+
+/* =========================================================
    HOOK
 ========================================================= */
 export function useProductForm(initialData?: ProductPayload) {
   /* ================= BASIC ================= */
+  const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState<number | "">("");
   const [categoryId, setCategoryId] = useState("");
@@ -75,14 +130,15 @@ export function useProductForm(initialData?: ProductPayload) {
   useEffect(() => {
     if (!initialData) return;
 
-    console.log("📦 INIT PRODUCT:", initialData);
+    console.log("📦 [FORM INIT PRODUCT]:", initialData);
 
     /* ================= BASIC ================= */
+    setId(initialData.id || "");
     setName(initialData.name || "");
     setPrice(initialData.price ?? "");
-    setCategoryId(initialData.categoryId || "");
+    setCategoryId(String(initialData.categoryId || ""));
     setDescription(initialData.description || "");
-    setImages(initialData.images || []);
+    setImages(Array.isArray(initialData.images) ? initialData.images : []);
 
     /* ================= SALE ================= */
     const hasSale =
@@ -91,7 +147,7 @@ export function useProductForm(initialData?: ProductPayload) {
 
     setSaleEnabled(hasSale);
     setSalePrice(initialData.salePrice ?? "");
-    setSaleStock((initialData as any).saleStock ?? 0);
+    setSaleStock(Number((initialData as any).saleStock ?? 0));
     setSaleStart(initialData.saleStart ?? "");
     setSaleEnd(initialData.saleEnd ?? "");
 
@@ -108,21 +164,22 @@ export function useProductForm(initialData?: ProductPayload) {
     /* ================= DETAIL ================= */
     setDetail(initialData.detail || "");
 
-    /* ================= VARIANTS ================= */
-    setVariants(initialData.variants || []);
+    /* ================= VARIANTS SAFE ================= */
+    const safeVariants = normalizeInitVariants(initialData.variants || []);
+
+    console.log("🧩 [FORM SAFE VARIANTS]:", safeVariants);
+
+    setVariants(safeVariants);
 
     /* ================= SHIPPING ================= */
     setShippingRates(
       mapShippingRates(initialData.shippingRates || [])
     );
-
   }, [initialData]);
 
   /* =========================================================
-     AUTO FIX: SALE LOGIC
+     AUTO FIX: PRODUCT SALE RESET
   ========================================================= */
-
-  /* ❌ disable sale → reset */
   useEffect(() => {
     if (!saleEnabled) {
       setSalePrice("");
@@ -130,19 +187,31 @@ export function useProductForm(initialData?: ProductPayload) {
     }
   }, [saleEnabled]);
 
-  /* 🔥 ensure saleStock <= stock */
+  /* =========================================================
+     AUTO FIX: SALE STOCK <= STOCK
+  ========================================================= */
   useEffect(() => {
     if (typeof stock === "number" && saleStock > stock) {
+      console.warn("⚠️ FIX saleStock > stock");
       setSaleStock(stock);
     }
   }, [stock, saleStock]);
 
-  /* 🔥 nếu có variant → tắt sale product */
+  /* =========================================================
+     AUTO FIX: IF VARIANTS EXIST => DISABLE PRODUCT SALE
+  ========================================================= */
   useEffect(() => {
     if (variants.length > 0 && saleEnabled) {
-      console.warn("⚠️ Disable product sale because variants exist");
+      console.warn("⚠️ Disable product-level sale because variants exist");
       setSaleEnabled(false);
     }
+  }, [variants]);
+
+  /* =========================================================
+     DEBUG WATCH
+  ========================================================= */
+  useEffect(() => {
+    console.log("🧨 [FORM VARIANTS STATE]:", variants);
   }, [variants]);
 
   /* =========================================================
@@ -150,6 +219,9 @@ export function useProductForm(initialData?: ProductPayload) {
   ========================================================= */
   return {
     /* BASIC */
+    id,
+    setId,
+
     name,
     setName,
 
