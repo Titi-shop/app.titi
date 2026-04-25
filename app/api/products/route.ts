@@ -330,21 +330,24 @@ if (hasVariants) {
   }
 }
 
-/* ================= SALE ================= */
+/* =========================================================
+   SALE
+========================================================= */
 
-const saleEnabled = Boolean(body.saleEnabled);
+const saleEnabled = body.saleEnabled === true;
+
+const saleStock = saleEnabled
+  ? Number(body.saleStock ?? 0)
+  : 0;
 
 const salePrice =
-  !hasVariants && Number.isFinite(body.salePrice)
-    ? Number(body.salePrice)
+  !hasVariants && typeof body.salePrice === "number"
+    ? body.salePrice
     : null;
 
-if (!hasVariants && salePrice !== null && salePrice >= price) {
-  return bad("INVALID_SALE_PRICE", {
-    salePrice,
-    price,
-  });
-}
+console.log("🏷 saleEnabled:", saleEnabled);
+console.log("📦 saleStock:", saleStock);
+console.log("🏷 salePrice:", salePrice);
 
 /* ================= STOCK ================= */
 
