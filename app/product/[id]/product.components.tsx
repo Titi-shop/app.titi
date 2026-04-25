@@ -348,16 +348,22 @@ onTouchMove={(e) => {
                     }
                   `}
                 >
-                 {v.image ? (
-              <img
-              src={v.image}
-            className="w-6 h-6 rounded-full object-cover border"
-          />
-        ) : (
-         <div className="font-medium">
-          {v.optionValue}
-           </div>
-             )}
+                 <div className="flex flex-col items-center gap-1">
+  {v.image && (
+    <img
+      src={v.image}
+      className="w-6 h-6 rounded-full object-cover border"
+    />
+  )}
+
+  <span className="text-[11px]">
+    {v.option1 || v.optionValue || "Option"}
+  </span>
+
+  <span className="text-[10px] text-gray-400">
+    {v.stock}
+  </span>
+</div>
                   <div className="text-[11px]">
                     {v.stock}
                   </div>
