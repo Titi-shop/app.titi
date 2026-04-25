@@ -204,6 +204,7 @@ export function ProductView(props: ProductViewProps) {
 }}
 
 onTouchMove={(e) => {
+  /* PINCH ZOOM */
   if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -216,6 +217,7 @@ onTouchMove={(e) => {
     setScale(newScale);
   }
 
+  /* DRAG IMAGE */
   if (e.touches.length === 1 && dragging && scale > 1) {
     const touch = e.touches[0];
 
@@ -223,9 +225,11 @@ onTouchMove={(e) => {
       x: touch.clientX - start.x,
       y: touch.clientY - start.y,
     });
-  
-            }}
-
+  }
+}}
+            onTouchEnd={() => {
+  setDragging(false);
+}}
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
               transformOrigin: "center center",
