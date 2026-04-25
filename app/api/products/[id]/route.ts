@@ -137,13 +137,16 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     const rawVariants = await getVariantsByProductId(id);
 
     const variants = rawVariants.map((v) => {
-  const salePrice = Number(v.sale_price ?? 0);
+  const price = Number(v.price ?? 0);
+  const salePrice = v.sale_price != null ? Number(v.sale_price) : null;
   const saleStock = Number(v.sale_stock ?? 0);
   const saleSold = Number(v.sale_sold ?? 0);
-  const price = Number(v.price ?? 0);
+
+  const saleLeft = saleStock - saleSold;
 
   const isVariantSale =
     Boolean(v.sale_enabled) &&
+    salePrice !== null &&
     salePrice > 0 &&
     start !== null &&
     end !== null &&
@@ -153,46 +156,45 @@ function normalizeVariants(input: unknown): ProductVariant[] {
   return {
     id: v.id,
 
-    /* ================= OPTIONS (FIX FULL) ================= */
-    option1: v.option_1 ?? "",
-    option2: v.option_2 ?? null,
-    option3: v.option_3 ?? null,
+    /* OPTIONS */
+    option1: v.option_1,
+    option2: v.option_2,
+    option3: v.option_3,
 
-    optionLabel1: v.option_label_1 ?? null,
-    optionLabel2: v.option_label_2 ?? null,   // 🔥 FIX
-    optionLabel3: v.option_label_3 ?? null,   // 🔥 FIX
+    optionLabel1: v.option_label_1,
+    optionLabel2: v.option_label_2,
+    optionLabel3: v.option_label_3,
 
-    /* ================= CORE ================= */
-    name: v.name ?? "",
+    /* CORE */
+    name: v.name,
+    sku: v.sku,
 
-    sku: v.sku ?? null,
-
-    /* ================= PRICE ================= */
+    /* PRICE (FIXED) */
     price,
-    salePrice,                     // 🔥 FIX: đảm bảo có
-    finalPrice: isVariantSale ? salePrice : price,
+    salePrice,
+    finalPrice: Number(v.final_price ?? price),
 
-    /* ================= SALE (FIX FULL) ================= */
+    /* SALE */
     saleEnabled: Boolean(v.sale_enabled),
-    saleStock,                     // 🔥 FIX
-    saleSold,                     // 🔥 FIX
-    saleLeft: saleStock > 0 ? Math.max(0, saleStock - saleSold) : null,
+    saleStock,
+    saleSold,
+    saleLeft: Math.max(0, saleLeft),
 
-    /* ================= STOCK ================= */
+    /* STOCK */
     stock: Number(v.stock ?? 0),
     isUnlimited: Boolean(v.is_unlimited),
 
-    /* ================= MEDIA ================= */
-    image: v.image ?? null,
+    /* MEDIA */
+    image: v.image ?? "",
 
-    /* ================= STATUS ================= */
+    /* STATUS */
     isActive: Boolean(v.is_active),
 
     sortOrder: Number(v.sort_order ?? 0),
 
     sold: Number(v.sold ?? 0),
 
-    /* ================= COMPUTED ================= */
+    /* COMPUTED */
     isSale: isVariantSale,
   };
 });
