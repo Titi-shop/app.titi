@@ -35,7 +35,7 @@ export default function ProductForm({
   const form = useProductForm(initialData);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
+  const [primaryShippingCountry, setPrimaryShippingCountry] = useState("");
   /* =========================
      IDEMPOTENCY KEY
   ========================= */
@@ -245,11 +245,15 @@ return data;
       variants: form.variants,
 
       shippingRates: Object.entries(form.shippingRates).map(
-        ([zone, price]) => ({
-          zone,
-          price: Number(price),
-        })
-      ),
+      ([zone, price]) => ({
+    zone,
+    price: Number(price),
+    countryCode:
+      zone === "domestic"
+        ? form.primaryShippingCountry
+        : null,
+     })
+  ),
 
       idempotencyKey: generateKey(),
     };
@@ -432,9 +436,11 @@ return data;
 
       {/* SHIPPING */}
       <ShippingRates
-        shippingRates={form.shippingRates}
-        setShippingRates={form.setShippingRates}
-      />
+  shippingRates={form.shippingRates}
+  setShippingRates={form.setShippingRates}
+  primaryShippingCountry={form.primaryShippingCountry}
+  setPrimaryShippingCountry={form.setPrimaryShippingCountry}
+   />
 
       {/* ACTIVE */}
       <label className="flex justify-between border p-3 rounded">
