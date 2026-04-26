@@ -172,16 +172,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     showMessage(t[key] ?? key);
   }, [previewError]);
 
-  /* ========================= */
+  const unitPrice = item?.finalPrice ?? 0;
 
-  const unitPrice = item?.finalPrice ?? // ================= SHIPPING RATES CLEAN =================
+/* ================= SHIPPING RATES CLEAN ================= */
 const shippingRates = useMemo(() => {
   return Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
 }, [product?.shippingRates]);
 
-// ================= DOMESTIC COUNTRY =================
+/* ================= DOMESTIC COUNTRY ================= */
 const domesticCountry = useMemo(() => {
   return (
     shippingRates.find((r) => r.zone === "domestic")
@@ -189,10 +189,9 @@ const domesticCountry = useMemo(() => {
   );
 }, [shippingRates]);
 
-// ================= AVAILABLE REGIONS =================
+/* ================= AVAILABLE REGIONS ================= */
 const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
-
   return shippingRates;
 }, [shipping?.country, shippingRates]);
 
