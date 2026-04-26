@@ -645,23 +645,42 @@ export async function deleteProductById(
       for (const url of product.images) {
         if (typeof url !== "string") continue;
 
-        const match = url.split("/storage/v1/object/public/products/")[1];
+        const match =
+          url.split("/storage/v1/object/public/products/")[1];
+
         if (match) paths.push(match);
       }
     }
 
-    /* ================= DELETE ================= */
+    /* ================= DELETE SHIPPING RATES (FIX) ================= */
     await query(
-  `
-  UPDATE products
-  SET deleted_at = NOW()
-  WHERE id = $1
-  `,
-  [productId]
-);
+      `
+      DELETE FROM shipping_rates
+      WHERE product_id = $1
+      `,
+      [productId]
+    );
+
+    /* ================= DELETE VARIANTS (NÊN CÓ) ================= */
+    await query(
+      `
+      DELETE FROM product_variants
+      WHERE product_id = $1
+      `,
+      [productId]
+    );
+
+    /* ================= SOFT DELETE PRODUCT ================= */
+    await query(
+      `
+      UPDATE products
+      SET deleted_at = NOW()
+      WHERE id = $1
+      `,
+      [productId]
+    );
 
     return { ok: true, paths };
-
   } catch (err) {
     console.error("[DB][DELETE PRODUCT]:", err);
 
