@@ -35,10 +35,14 @@ export default function ShippingRates({
         </p>
 
         <div className="grid grid-cols-2 gap-3">
+          {/* COUNTRY */}
           <select
-       value={primaryShippingCountry}
-      onChange={(e) => setPrimaryShippingCountry(e.target.value)}
-        />
+            value={primaryShippingCountry}
+            onChange={(e) =>
+              setPrimaryShippingCountry(e.target.value)
+            }
+            className="border p-2 rounded"
+          >
             {countries.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name}
@@ -46,6 +50,7 @@ export default function ShippingRates({
             ))}
           </select>
 
+          {/* PRICE */}
           <input
             type="number"
             step="0.00001"
@@ -53,6 +58,7 @@ export default function ShippingRates({
             value={shippingRates.domestic || ""}
             onChange={(e) => {
               const val = Number(e.target.value);
+
               setShippingRates((prev: any) => ({
                 ...prev,
                 domestic: Number.isNaN(val) ? 0 : val,
@@ -67,16 +73,21 @@ export default function ShippingRates({
       <div className="grid grid-cols-2 gap-3">
         {zones.map((z) => (
           <input
-  value={shippingRates[z.key] ?? ""}
-  onChange={(e) => {
-    const val = Number(e.target.value);
+            key={z.key}
+            type="number"
+            step="0.00001"
+            placeholder={z.label}
+            value={shippingRates[z.key] || ""}
+            onChange={(e) => {
+              const val = Number(e.target.value);
 
-    setShippingRates((prev) => ({
-      ...prev,
-      [z.key]: Number.isNaN(val) ? 0 : val,
-    }));
-  }}
-/>
+              setShippingRates((prev: any) => ({
+                ...prev,
+                [z.key]: Number.isNaN(val) ? 0 : val,
+              }));
+            }}
+            className="border p-2 rounded"
+          />
         ))}
       </div>
     </div>
