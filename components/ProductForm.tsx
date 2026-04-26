@@ -204,16 +204,22 @@ return data;
 }
     }
     /* ================= PAYLOAD ================= */
-const shippingRatesPayload = Object.entries(form.shippingRates).map(
-  ([zone, price]) => ({
-    zone,
-    price: Number(price || 0),
+const shippingRatesPayload = Object.entries(form.shippingRates)
+  .filter(([zone]) => zone !== "primary_country")
+  .map(([zone, price]) => {
+    const base = {
+      zone,
+      price: Number(price || 0),
+      countryCode: null,
+    };
 
-    countryCode:
-      zone === "domestic"
-        ? form.primaryShippingCountry || null
-        : null,
-  })
+    // 👇 CHỈ inject country vào domestic
+    if (zone === "domestic") {
+      base.countryCode = form.primaryShippingCountry || null;
+    }
+
+    return base;
+  });
 );
     const payload = {
   id: form.id,
