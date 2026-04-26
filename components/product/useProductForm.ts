@@ -113,16 +113,17 @@ export function useProductForm(initialData?: ProductPayload) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   /* ================= SHIPPING ================= */
-  const [shippingRates, setShippingRates] = useState<
-    Record<string, number | "">
-  >({
-    domestic: "",
-    sea: "",
-    asia: "",
-    europe: "",
-    north_america: "",
-    rest_of_world: "",
-  });
+  const [shippingRates, setShippingRates] = useState({
+  domestic: {
+    price: "",
+    countryCode: "",
+  },
+  sea: "",
+  asia: "",
+  europe: "",
+  north_america: "",
+  rest_of_world: "",
+});
 
   /* =========================================================
      INIT DATA (EDIT MODE)
@@ -172,9 +173,21 @@ export function useProductForm(initialData?: ProductPayload) {
     setVariants(safeVariants);
 
     /* ================= SHIPPING ================= */
-    setShippingRates(
-      mapShippingRates(initialData.shippingRates || [])
-    );
+    setShippingRates({
+  domestic: {
+    price:
+      initialData.shippingRates?.find((r: any) => r.zone === "domestic")
+        ?.price ?? "",
+    countryCode:
+      initialData.shippingRates?.find((r: any) => r.zone === "domestic")
+        ?.domesticCountryCode ?? "",
+  },
+  sea: "",
+  asia: "",
+  europe: "",
+  north_america: "",
+  rest_of_world: "",
+});
   }, [initialData]);
 
   /* =========================================================
