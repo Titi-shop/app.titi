@@ -205,20 +205,12 @@ return data;
     }
     /* ================= PAYLOAD ================= */
 const shippingRatesPayload = Object.entries(form.shippingRates)
-  .filter(([zone]) => zone !== "primary_country")
-  .map(([zone, price]) => {
-    return {
-      zone,
-      price: Number(price || 0),
+  .map(([zone, price]) => ({
+    zone,
+    price: Number(price || 0),
+  }));
 
-      // 🔥 FIX: chỉ domestic mới có country
-      countryCode:
-        zone === "domestic"
-          ? form.primaryShippingCountry || null
-          : null,
-    };
-  });
-    const payload = {
+const payload = {
   id: form.id,
   name: form.name,
   categoryId: form.categoryId,
@@ -228,30 +220,23 @@ const shippingRatesPayload = Object.entries(form.shippingRates)
   thumbnail: form.images[0],
   isActive: form.isActive,
 
-  shippingRates: shippingRatesPayload, 
+  shippingRates: shippingRatesPayload,
+
+  domesticCountryCode: form.primaryShippingCountry || null,
 
   price: hasVariants ? undefined : Number(form.price),
   stock: hasVariants ? undefined : Number(form.stock || 0),
 
   salePrice:
-    hasVariants || !form.saleEnabled
-      ? null
-      : Number(form.salePrice),
+    hasVariants || !form.saleEnabled ? null : Number(form.salePrice),
 
   saleEnabled: hasVariants ? undefined : !!form.saleEnabled,
 
   saleStock:
-    hasVariants || !form.saleEnabled
-      ? 0
-      : Number(form.saleStock || 0),
+    hasVariants || !form.saleEnabled ? 0 : Number(form.saleStock || 0),
 
-  saleStart: form.saleStart
-    ? toUTCFromInput(form.saleStart)
-    : null,
-
-  saleEnd: form.saleEnd
-    ? toUTCFromInput(form.saleEnd)
-    : null,
+  saleStart: form.saleStart ? toUTCFromInput(form.saleStart) : null,
+  saleEnd: form.saleEnd ? toUTCFromInput(form.saleEnd) : null,
 
   variants: form.variants,
 
