@@ -583,11 +583,10 @@ await Promise.all([
           zone: r.zone,
           price: Number(r.price || 0),
 
-          // 🔥 FIX QUAN TRỌNG
           domesticCountryCode:
-            r.zone === "domestic"
-              ? domesticCountryCode || r.domesticCountryCode || null
-              : null,
+         r.zone === "domestic"
+    ? domesticCountryCode ?? r.domesticCountryCode ?? null
+        : null,
         })),
       })
     : Promise.resolve(),
