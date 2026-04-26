@@ -23,7 +23,6 @@ type ShippingRateRow = {
   product_id: string;
   code: string;
   price: number;
-  domestic_country_code: string | null;
 };
 
 /* =========================================================
@@ -107,29 +106,26 @@ export async function upsertShippingRates({
   let idx = 1;
 
   for (const r of cleanRates) {
-    const zoneId = zoneMap.get(r.zone);
-    if (!zoneId) continue;
+  const zoneId = zoneMap.get(r.zone);
+  if (!zoneId) continue;
 
-    placeholders.push(
-      `($${idx++}, $${idx++}, $${idx++}, $${idx++})`
-    );
+  placeholders.push(
+    `($${idx++}, $${idx++}, $${idx++})`
+  );
 
-    values.push(
-      productId,
-      zoneId,
-      r.price,
-      r.zone === "domestic"
-        ? (r.domesticCountryCode || null)
-        : null
-    );
-  }
+  values.push(
+    productId,
+    zoneId,
+    r.price
+  );
+}
 
   await query(
     `
     INSERT INTO shipping_rates (
       product_id,
       zone_id,
-      price,
+      price
     )
     VALUES ${placeholders.join(",")}
     `,
@@ -170,10 +166,9 @@ export async function getShippingRatesByProduct(
   const result = rows
     .filter((r) => isValidRegion(r.code))
     .map((r) => ({
-      zone: r.code as Region,
-      price: Number(r.price),
-      domesticCountryCode: r.domestic_country_code,
-    }));
+  zone: r.code as Region,
+  price: Number(r.price),
+   }));
 
   console.log("✅ SHIPPING GET RESULT:", result);
 
@@ -218,11 +213,9 @@ export async function getShippingRatesByProducts(
   return rows
     .filter((r) => isValidRegion(r.code))
     .map((r) => ({
-      product_id: r.product_id,
-      zone: r.code as Region,
-      price: Number(r.price),
-      domesticCountryCode: r.domestic_country_code,
-    }));
+  zone: r.code as Region,
+  price: Number(r.price),
+}));
 }
 
 /* =========================================================
@@ -278,23 +271,27 @@ export async function resolveShippingPrice({
 
   const buyer = buyerCountryCode.toUpperCase();
 
-  /* ================= DOMESTIC FIRST ================= */
-  const zone = await getZoneByCountry(buyerCountryCode);
-
-  if (domestic) {
-    console.log("🏠 MATCH DOMESTIC:", domestic.price);
-    return domestic.price;
-  }
-
-  /* ================= FALLBACK ZONE ================= */
+  /* ================= COUNTRY → ZONE ================= */
   const zone = await getZoneByCountry(buyer);
 
   console.log("🌎 BUYER ZONE:", zone);
 
-  if (!zone) {
-    const rest = rates.find((r) => r.zone === "rest_of_world");
-    return rest?.price || 0;
+  /* ================= MATCH ZONE ================= */
+  if (zone) {
+    const found = rates.find((r) => r.zone === zone);
+    if (found) {
+      console.log("✅ MATCH ZONE:", found.price);
+      return found.price;
+    }
   }
+
+  /* ================= FALLBACK ================= */
+  const rest = rates.find((r) => r.zone === "rest_of_world");
+
+  console.log("🌍 FALLBACK REST:", rest?.price || 0);
+
+  return rest?.price || 0;
+}
 
   const found = rates.find((r) => r.zone === zone);
 
