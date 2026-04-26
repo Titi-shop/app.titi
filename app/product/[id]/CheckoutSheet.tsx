@@ -175,7 +175,20 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   /* ========================= */
 
   const unitPrice = item?.finalPrice ?? 0;
+  // ================= SHIPPING RATES CLEAN =================
+const shippingRates = useMemo(() => {
+  return Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+}, [product?.shippingRates]);
 
+// ================= DOMESTIC COUNTRY =================
+const domesticCountry = useMemo(() => {
+  return (
+    shippingRates.find((r) => r.zone === "domestic")
+      ?.domesticCountryCode || ""
+  );
+}, [shippingRates]);
   const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
 
@@ -184,16 +197,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const rates = Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
-const domesticCountry = useMemo(() => {
-  return shippingRates.find((r) => r.zone === "domestic")
-    ?.domesticCountryCode || "";
-}, [shippingRates]);
+
   return rates.filter((r) => {
-    const availableRegions = useMemo(() => {
-  return Array.isArray(product?.shippingRates)
-    ? product.shippingRates
-    : [];
-}, [product?.shippingRates]);
     return true;
   });
 }, [shipping?.country, product?.shippingRates]);
