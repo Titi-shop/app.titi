@@ -78,7 +78,7 @@ export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
       region: def.region,
       district: def.district ?? "",
       ward: def.ward ?? "",
-      country: def.country || "VN",
+      country: def.country || "",
       postal_code: def.postal_code ?? null,
     };
   } catch {
