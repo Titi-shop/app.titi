@@ -214,7 +214,7 @@ return data;
       images: form.images,
       thumbnail: form.images[0],
       isActive: form.isActive,
-
+      shippingRates: shippingRatesPayload,
       price: hasVariants ? undefined : Number(form.price),
       stock: hasVariants ? undefined : Number(form.stock || 0),
 
@@ -243,16 +243,16 @@ return data;
 
       variants: form.variants,
 
-      shippingRates: Object.entries(form.shippingRates).map(
-      ([zone, price]) => ({
+      const shippingRatesPayload = Object.entries(form.shippingRates)
+  .filter(([zone]) => zone !== "primary_country")
+  .map(([zone, price]) => ({
     zone,
     price: Number(price),
     domesticCountryCode:
       zone === "domestic"
-        ? form.primaryShippingCountry
+        ? form.primaryShippingCountry || null
         : null,
-     })
-  ),
+  }));
 
       idempotencyKey: generateKey(),
     };
