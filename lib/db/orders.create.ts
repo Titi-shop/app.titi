@@ -55,26 +55,99 @@ export async function createOrder(input: CreateOrderInput) {
 
     /* ================= VALIDATE ZONE ================= */
 
-    const zoneRes = await client.query<{ code: string }>(
-      `
-      SELECT sz.code
-      FROM shipping_zone_countries szc
-      JOIN shipping_zones sz ON sz.id = szc.zone_id
-      WHERE szc.country_code = $1
-      LIMIT 1
-      `,
-      [country]
-    );
+    console.log("🟡 [ORDER][CREATE] STEP SHIPPING ZONE RESOLVE", {
+  country,
+  buyerZone: zone,
+});
 
-    if (!zoneRes.rows.length) throw new Error("INVALID_COUNTRY");
+/* =========================================================
+   LOAD PRODUCT SHIPPING RATES
+========================================================= */
 
-    const realZone = zoneRes.rows[0].code;
+const productIds = items.map((i) => i.product_id);
 
-    if (realZone !== zone) throw new Error("INVALID_REGION");
+const shippingRateRows = await client.query<{
+  product_id: string;
+  zone: string;
+  domestic_country_code: string | null;
+}>(
+  `
+  SELECT
+    sr.product_id,
+    sz.code AS zone,
+    sr.domestic_country_code
+  FROM shipping_rates sr
+  JOIN shipping_zones sz
+    ON sz.id = sr.zone_id
+  WHERE sr.product_id = ANY($1::uuid[])
+  `,
+  [productIds]
+);
+
+if (!shippingRateRows.rows.length) {
+  throw new Error("SHIPPING_NOT_AVAILABLE");
+}
+
+console.log("🧪 [ORDER][CREATE] SHIPPING RATE ROWS", shippingRateRows.rows);
+
+/* =========================================================
+   DOMESTIC CHECK
+========================================================= */
+
+let realZone: string | null = null;
+
+const domesticOk = shippingRateRows.rows.some(
+  (r) =>
+    r.zone === "domestic" &&
+    r.domestic_country_code &&
+    r.domestic_country_code.trim().toUpperCase() === country
+);
+
+if (domesticOk) {
+  realZone = "domestic";
+  console.log("🏠 [ORDER][CREATE] DOMESTIC MATCH");
+}
+
+/* =========================================================
+   GLOBAL ZONE CHECK
+========================================================= */
+
+if (!realZone) {
+  const zoneRes = await client.query<{ code: string }>(
+    `
+    SELECT sz.code
+    FROM shipping_zone_countries szc
+    JOIN shipping_zones sz ON sz.id = szc.zone_id
+    WHERE szc.country_code = $1
+    LIMIT 1
+    `,
+    [country]
+  );
+
+  if (!zoneRes.rows.length) {
+    throw new Error("INVALID_COUNTRY");
+  }
+
+  realZone = zoneRes.rows[0].code;
+  console.log("🌍 [ORDER][CREATE] GLOBAL MATCH", { realZone });
+}
+
+/* =========================================================
+   CLIENT SELECT CHECK
+========================================================= */
+
+if (realZone !== zone) {
+  console.error("❌ [ORDER][CREATE] INVALID_REGION", {
+    clientZone: zone,
+    serverZone: realZone,
+  });
+
+  throw new Error("INVALID_REGION");
+}
+
+console.log("🟢 [ORDER][CREATE] FINAL REALZONE", { realZone });
 
     /* ================= LOAD PRODUCTS ================= */
-
-    const productIds = items.map((i) => i.product_id);
 
     const { rows: products } = await client.query<{
       id: string;
