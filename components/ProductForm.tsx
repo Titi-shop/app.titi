@@ -204,16 +204,17 @@ return data;
 }
     }
     /* ================= PAYLOAD ================= */
-const shippingRatesPayload = Object.entries(form.shippingRates)
-  .filter(([zone]) => zone !== "primary_country")
-  .map(([zone, price]) => ({
+const shippingRatesPayload = Object.entries(form.shippingRates).map(
+  ([zone, price]) => ({
     zone,
-    price: Number(price),
-    domesticCountryCode:
+    price: Number(price || 0),
+
+    countryCode:
       zone === "domestic"
         ? form.primaryShippingCountry || null
         : null,
-  }));
+  })
+);
     const payload = {
   id: form.id,
   name: form.name,
