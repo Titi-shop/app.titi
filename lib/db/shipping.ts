@@ -349,3 +349,64 @@ export async function resolveShippingPrice({
 
   return fallback?.price || 0;
 }
+
+export async function resolveShippingRateForBuyer({
+  productId,
+  buyerCountryCode,
+}: {
+  productId: string;
+  buyerCountryCode: string;
+}): Promise<{
+  zone: Region;
+  price: number;
+}> {
+  const rates = await getShippingRatesByProduct(productId);
+
+  if (!rates.length) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  const buyer = buyerCountryCode.toUpperCase();
+
+  /* ===== DOMESTIC ===== */
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domesticCountryCode?.toUpperCase() === buyer
+  );
+
+  if (domestic) {
+    return {
+      zone: "domestic",
+      price: domestic.price,
+    };
+  }
+
+  /* ===== DB COUNTRY MAP ===== */
+  const buyerZone = await getZoneByCountry(buyer);
+
+  if (buyerZone) {
+    const zoneRate = rates.find((r) => r.zone === buyerZone);
+
+    if (zoneRate) {
+      return {
+        zone: buyerZone,
+        price: zoneRate.price,
+      };
+    }
+  }
+
+  /* ===== GLOBAL FALLBACK ===== */
+  const globalRate = rates.find(
+    (r) => r.zone === "rest_of_world"
+  );
+
+  if (globalRate) {
+    return {
+      zone: "rest_of_world",
+      price: globalRate.price,
+    };
+  }
+
+  throw new Error("SHIPPING_NOT_AVAILABLE");
+}
