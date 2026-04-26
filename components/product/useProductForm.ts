@@ -113,17 +113,20 @@ export function useProductForm(initialData?: ProductPayload) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   /* ================= SHIPPING ================= */
-  const [shippingRates, setShippingRates] = useState({
-  domestic: {
-    price: "",
-    countryCode: "",
-  },
-  sea: "",
-  asia: "",
-  europe: "",
-  north_america: "",
-  rest_of_world: "",
-});
+  type ShippingRate = {
+  zone: string;
+  price: number | "";
+  countryCode?: string | null;
+};
+
+const [shippingRates, setShippingRates] = useState<ShippingRate[]>([
+  { zone: "domestic", price: "", countryCode: "" },
+  { zone: "sea", price: "" },
+  { zone: "asia", price: "" },
+  { zone: "europe", price: "" },
+  { zone: "north_america", price: "" },
+  { zone: "rest_of_world", price: "" },
+]);
 
   /* =========================================================
      INIT DATA (EDIT MODE)
@@ -173,21 +176,30 @@ export function useProductForm(initialData?: ProductPayload) {
     setVariants(safeVariants);
 
     /* ================= SHIPPING ================= */
-    setShippingRates({
-  domestic: {
-    price:
-      initialData.shippingRates?.find((r: any) => r.zone === "domestic")
-        ?.price ?? "",
-    countryCode:
-      initialData.shippingRates?.find((r: any) => r.zone === "domestic")
-        ?.domesticCountryCode ?? "",
-  },
-  sea: "",
-  asia: "",
-  europe: "",
-  north_america: "",
-  rest_of_world: "",
-});
+    const zones = [
+  "domestic",
+  "sea",
+  "asia",
+  "europe",
+  "north_america",
+  "rest_of_world",
+];
+
+const map = new Map(
+  (initialData.shippingRates || []).map((r: any) => [r.zone, r])
+);
+
+setShippingRates(
+  zones.map((zone) => {
+    const existing = map.get(zone);
+
+    return {
+      zone,
+      price: existing?.price ?? "",
+      countryCode: existing?.countryCode ?? "",
+    };
+  })
+);
   }, [initialData]);
 
   /* =========================================================
