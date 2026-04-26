@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { previewOrder } from "@/lib/db/orders";
-import { getShippingRatesByProductId } from "@/lib/db/shippingRates";
+import { getShippingRatesByProductId } from "@/lib/db/shipping";
 
 export const runtime = "nodejs";
 
