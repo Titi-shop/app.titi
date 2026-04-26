@@ -184,15 +184,26 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const rates = Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
-
+const domesticCountry = useMemo(() => {
+  return shippingRates.find((r) => r.zone === "domestic")
+    ?.domesticCountryCode || "";
+}, [shippingRates]);
   return rates.filter((r) => {
-    if (country === "VN") return r.zone === "domestic";
+    const availableRegions = useMemo(() => {
+  return Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+}, [product?.shippingRates]);
     return true;
   });
 }, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? 0;
-
+const shippingRates = useMemo(() => {
+  return Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+}, [product?.shippingRates]);
   /* ========================= */
 
   const validate = () =>
@@ -262,7 +273,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             {[shipping.ward, shipping.district, shipping.region]
             .filter(Boolean)
             .join(", ")}{" "}
-           – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+           – {domesticCountry || shipping.country} – {shipping.postal_code ?? ""}
                 </p>
               </>
             ) : (
@@ -304,8 +315,10 @@ setZone(r.zone);
         `}
       >
         <div className="font-medium">
-          {labelMap[r.zone] ?? r.zone}
-        </div>
+       {r.zone === "domestic"
+    ? `Domestic (${domesticCountry})`
+    : (labelMap[r.zone] ?? r.zone)}
+     </div>
 
         <div className="text-[11px] opacity-80">
           {formatPi(r.price)} π
