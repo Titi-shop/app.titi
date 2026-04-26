@@ -17,7 +17,6 @@ export type Region =
 export type ShippingRateInput = {
   zone: Region;
   price: number;
-  domesticCountryCode?: string | null;
 };
 
 type ShippingRateRow = {
@@ -131,7 +130,6 @@ export async function upsertShippingRates({
       product_id,
       zone_id,
       price,
-      domestic_country_code
     )
     VALUES ${placeholders.join(",")}
     `,
@@ -281,11 +279,7 @@ export async function resolveShippingPrice({
   const buyer = buyerCountryCode.toUpperCase();
 
   /* ================= DOMESTIC FIRST ================= */
-  const domestic = rates.find(
-    (r) =>
-      r.zone === "domestic" &&
-      r.domesticCountryCode?.toUpperCase() === buyer
-  );
+  const zone = await getZoneByCountry(buyerCountryCode);
 
   if (domestic) {
     console.log("🏠 MATCH DOMESTIC:", domestic.price);
