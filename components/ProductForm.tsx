@@ -220,7 +220,6 @@ const shippingRatesPayload = Object.entries(form.shippingRates)
 
     return base;
   });
-);
     const payload = {
   id: form.id,
   name: form.name,
