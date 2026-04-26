@@ -1,6 +1,10 @@
 
 
 import { query } from "@/lib/db";
+import {
+  getShippingRatesByProduct,
+  getZoneByCountry,
+} from "@/lib/db/shipping";
 
 /* ================= TYPES ================= */
 
@@ -88,60 +92,48 @@ export async function previewOrder(
 
   const productIds = cleanItems.map((i) => i.product_id);
 
-  /* ================= CHECK BUYER ZONE ================= */
+/* ================= RESOLVE BUYER REAL ZONE ================= */
 
-let realZone = zone;
-/* ---------- DOMESTIC SPECIAL ---------- */
+const buyerCountry = country.toUpperCase();
+const buyerZone = await getZoneByCountry(buyerCountry);
+
+if (!buyerZone && zone !== "domestic") {
+  throw new Error("INVALID_COUNTRY");
+}
+
+/* ---------- DOMESTIC VERIFY ---------- */
 if (zone === "domestic") {
-  const { rows: domesticRows } = await query<{
-    product_id: string;
-    domestic_country_code: string | null;
-    price: number;
-  }>(
-    `
-    SELECT
-      sr.product_id,
-      sr.domestic_country_code,
-      sr.price
-    FROM shipping_rates sr
-    JOIN shipping_zones sz
-      ON sz.id = sr.zone_id
-    WHERE sr.product_id = ANY($1::uuid[])
-      AND sz.code = 'domestic'
-    `,
-    [productIds]
-  );
+  for (const item of cleanItems) {
+    const rates = await getShippingRatesByProduct(item.product_id);
 
-  const domesticMap = new Map(
-    domesticRows.map((r) => [
-      r.product_id,
-      {
-        country: r.domestic_country_code?.toUpperCase() ?? null,
-        price: Number(r.price),
-      },
-    ])
-  );
-
-  for (const pid of productIds) {
-    const domestic = domesticMap.get(pid);
+    const domestic = rates.find(
+      (r) =>
+        r.zone === "domestic" &&
+        r.domesticCountryCode?.toUpperCase() === buyerCountry
+    );
 
     if (!domestic) {
-      console.error("❌ [PREVIEW] DOMESTIC SHIPPING RATE MISSING", pid);
-      throw new Error("DOMESTIC_NOT_AVAILABLE");
-    }
-
-    if (!domestic.country || domestic.country !== country.toUpperCase()) {
-      console.error("❌ [PREVIEW] DOMESTIC COUNTRY NOT MATCH", {
-        productId: pid,
-        buyerCountry: country,
-        sellerDomestic: domestic.country,
-      });
-
+      console.error("❌ [PREVIEW] DOMESTIC NOT AVAILABLE", item.product_id);
       throw new Error("DOMESTIC_NOT_AVAILABLE");
     }
   }
 
   console.log("🏠 [ORDER][PREVIEW] DOMESTIC VERIFIED");
+}
+
+/* ---------- NON DOMESTIC VERIFY ---------- */
+else {
+  if (zone !== buyerZone && zone !== "rest_of_world") {
+    console.error("❌ [PREVIEW] INVALID BUYER REGION", {
+      buyerCountry,
+      buyerZone,
+      clientZone: zone,
+    });
+
+    throw new Error("INVALID_REGION");
+  }
+
+  console.log("🌍 [ORDER][PREVIEW] BUYER REGION VERIFIED:", buyerZone);
 }
 
   /* ================= LOAD PRODUCTS ================= */
@@ -268,46 +260,45 @@ if (item.variant_id) {
 
   /* ================= SHIPPING ================= */
 
-  const { rows: shippingRows } = await query<{
-    product_id: string;
-    shipping_price: number;
-  }>(
-    `
-    SELECT 
-      p.id AS product_id,
-      sr.price AS shipping_price
-    FROM products p
-    JOIN shipping_rates sr
-      ON sr.product_id = p.id
-    JOIN shipping_zones sz
-      ON sz.id = sr.zone_id
-      AND sz.code = $2
-    WHERE p.id = ANY($1::uuid[])
-    `,
-    [productIds, realZone]
+let shippingFee = 0;
+
+for (const item of cleanItems) {
+  const rates = await getShippingRatesByProduct(item.product_id);
+
+  let matchedPrice: number | null = null;
+
+  /* ===== DOMESTIC ===== */
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domesticCountryCode?.toUpperCase() === buyerCountry
   );
 
-  const shippingMap = new Map(
-    shippingRows.map((r) => [
-      r.product_id,
-      Number(r.shipping_price),
-    ])
-  );
-
-  let shippingFee = 0;
-
-  for (const item of cleanItems) {
-    const fee = shippingMap.get(item.product_id);
-
-    if (fee === undefined) {
-      console.error("❌ [PREVIEW] SHIPPING MISSING", item.product_id);
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
-
-    shippingFee += fee;
+  if (zone === "domestic" && domestic) {
+    matchedPrice = domestic.price;
   }
 
-  console.log("🚚 [ORDER][PREVIEW] SHIPPING:", shippingFee);
+  /* ===== BUYER REGION ===== */
+  if (matchedPrice === null && buyerZone) {
+    const regional = rates.find((r) => r.zone === buyerZone);
+    if (regional) matchedPrice = regional.price;
+  }
+
+  /* ===== GLOBAL FALLBACK ===== */
+  if (matchedPrice === null) {
+    const global = rates.find((r) => r.zone === "rest_of_world");
+    if (global) matchedPrice = global.price;
+  }
+
+  if (matchedPrice === null) {
+    console.error("❌ [PREVIEW] SHIPPING NOT AVAILABLE", item.product_id);
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  shippingFee += matchedPrice;
+}
+
+console.log("🚚 [ORDER][PREVIEW] SHIPPING:", shippingFee);
 
   /* ================= RESULT ================= */
 
