@@ -167,10 +167,10 @@ export function useProductForm(initialData?: ProductPayload) {
 
     /* ================= DOMESTIC COUNTRY ================= */
     setPrimaryShippingCountry(
-      initialData.shippingRates?.find(
-        (r: any) => r.zone === "domestic"
-      )?.countryCode ?? ""
-    );
+  initialData.shippingRates?.find(
+    (r: any) => r.zone === "domestic"
+  )?.domestic_country_code ?? ""
+);
   }, [initialData]);
 
   /* =========================================================
