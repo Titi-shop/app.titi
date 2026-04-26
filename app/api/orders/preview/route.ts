@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { previewOrder } from "@/lib/db/orders";
-
+import { getShippingRatesByProductId } from "@/lib/db/shippingRates";
 export const runtime = "nodejs";
 
 /* ================= TYPES ================= */
@@ -187,6 +187,29 @@ console.log("🧾 [ORDER][PREVIEW] FINAL ITEMS:", cleanItems);
     return NextResponse.json(
       { error: "PREVIEW_FAILED" },
       { status: 500 }
+    );
+  }
+}
+/* ================= VERIFY DOMESTIC SHIPPING ================= */
+
+for (const item of cleanItems) {
+  const shippingRates = await getShippingRatesByProductId(item.product_id);
+
+  const domesticRate = shippingRates.find((r) => r.zone === "domestic");
+
+  if (
+    zone === "domestic" &&
+    domesticRate?.domesticCountryCode &&
+    domesticRate.domesticCountryCode.toUpperCase() !== country.toUpperCase()
+  ) {
+    console.log("🔴 [ORDER][PREVIEW] DOMESTIC COUNTRY NOT MATCH", {
+      userCountry: country,
+      sellerDomestic: domesticRate.domesticCountryCode,
+    });
+
+    return NextResponse.json(
+      { error: "DOMESTIC_NOT_AVAILABLE" },
+      { status: 400 }
     );
   }
 }
