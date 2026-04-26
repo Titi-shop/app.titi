@@ -35,7 +35,6 @@ export default function ProductForm({
   const form = useProductForm(initialData);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [primaryShippingCountry, setPrimaryShippingCountry] = useState("");
   /* =========================
      IDEMPOTENCY KEY
   ========================= */
