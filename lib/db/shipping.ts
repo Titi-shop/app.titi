@@ -286,6 +286,7 @@ export async function getZoneByCountry(
     JOIN shipping_zones sz
       ON sz.id = szc.zone_id
     WHERE szc.country_code = $1
+    ORDER BY sz.id
     LIMIT 1
     `,
     [countryCode.toUpperCase()]
