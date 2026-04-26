@@ -1,4 +1,4 @@
-
+app/api/products/[id]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
@@ -583,10 +583,11 @@ await Promise.all([
           zone: r.zone,
           price: Number(r.price || 0),
 
+          // 🔥 FIX QUAN TRỌNG
           domesticCountryCode:
-         r.zone === "domestic"
-    ? domesticCountryCode ?? r.domesticCountryCode ?? null
-        : null,
+            r.zone === "domestic"
+              ? domesticCountryCode || r.domesticCountryCode || null
+              : null,
         })),
       })
     : Promise.resolve(),
