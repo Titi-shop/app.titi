@@ -169,7 +169,7 @@ export function useProductForm(initialData?: ProductPayload) {
     setPrimaryShippingCountry(
   initialData.shippingRates?.find(
     (r: any) => r.zone === "domestic"
-  )?.domestic_country_code ?? ""
+  )?.domesticCountryCode ?? ""
 );
   }, [initialData]);
 
