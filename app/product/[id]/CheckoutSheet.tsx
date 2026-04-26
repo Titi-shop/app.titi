@@ -182,7 +182,6 @@ const rates = useMemo(() => {
     : [];
 }, [product?.shippingRates]);
 
-// ================= DOMESTIC COUNTRY =================
 const domesticCountry = useMemo(() => {
   return (
     rates.find((r) => r.zone === "domestic")
@@ -190,16 +189,10 @@ const domesticCountry = useMemo(() => {
   );
 }, [rates]);
 
-// ================= AVAILABLE REGIONS =================
 const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
 
-  const country = shipping.country.toUpperCase();
-
-  return rates.filter((r) => {
-    // logic filter sau này nếu cần
-    return true;
-  });
+  return rates.filter((r) => true);
 }, [shipping?.country, rates]);
 
   const country = shipping.country.toUpperCase();
