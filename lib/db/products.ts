@@ -96,31 +96,43 @@ export type UpdateProductInput = Partial<
 ========================================================= */
 
 function toAppProduct(row: ProductRow): ProductRecord {
+  const inSaleTime = isInSaleTime(row.sale_start, row.sale_end);
+
+  const isSaleActive =
+    Boolean(row.sale_enabled) && inSaleTime;
+
+  const price = Number(row.price) || 0;
+  const salePrice =
+    row.sale_price !== null ? Number(row.sale_price) : null;
+
+  const final_price =
+    isSaleActive && salePrice !== null && salePrice < price
+      ? salePrice
+      : price;
+
   return {
     ...row,
 
-    price:
-      typeof row.price === "number"
-        ? row.price
-        : Number(row.price) || 0,
-
-    sale_price:
-      row.sale_price !== null &&
-      row.sale_price !== undefined
-        ? Number(row.sale_price)
-        : null,
-
-    final_price:
-      row.final_price !== null &&
-      row.final_price !== undefined
-        ? Number(row.final_price)
-        : Number(row.price) || 0,
+    price,
+    sale_price: salePrice,
+    final_price,
 
     images: Array.isArray(row.images) ? row.images : [],
+
     sale_stock: row.sale_stock ?? 0,
     sale_sold: row.sale_sold ?? 0,
-    sale_enabled: row.sale_enabled ?? false,
+
+    sale_enabled: isSaleActive,
   };
+}
+function isInSaleTime(start: string | null, end: string | null) {
+  if (!start || !end) return false;
+
+  const now = new Date().getTime();
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+
+  return now >= s && now <= e;
 }
 /* =========================================================
    GET — ALL PRODUCTS
@@ -208,7 +220,6 @@ export async function getSellerProducts(
     /* ✅ SALE PRICE (optional) */
     CASE
       WHEN p.sale_price > 0 
-        AND NOW() BETWEEN p.sale_start AND p.sale_end
       THEN p.sale_price
       ELSE p.price
     END AS sale_price
