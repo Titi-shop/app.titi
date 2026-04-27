@@ -198,10 +198,14 @@ export function useProductForm(initialData?: ProductPayload) {
      AUTO DISABLE SALE IF VARIANTS EXIST
   ========================================================= */
   useEffect(() => {
-    if (variants.length > 0 && saleEnabled) {
-      setSaleEnabled(false);
-    }
-  }, [variants]);
+  if (variants.length > 0) {
+    // chỉ reset product sale fields
+    setSalePrice("");
+    setSaleStock(0);
+    setSaleStart("");
+    setSaleEnd("");
+  }
+}, [variants]);
 
   /* =========================================================
      RETURN
