@@ -194,18 +194,7 @@ export function useProductForm(initialData?: ProductPayload) {
     }
   }, [stock, saleStock]);
 
-  /* =========================================================
-     AUTO DISABLE SALE IF VARIANTS EXIST
-  ========================================================= */
-  useEffect(() => {
-  if (variants.length > 0) {
-    // chỉ reset product sale fields
-    setSalePrice("");
-    setSaleStock(0);
-    setSaleStart("");
-    setSaleEnd("");
-  }
-}, [variants]);
+ 
 
   /* =========================================================
      RETURN
