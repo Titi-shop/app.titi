@@ -147,9 +147,9 @@ export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
     salePrice,
     finalPrice,
 
-    saleEnabled: false,
-   saleStock: 0,
-   saleSold: 0,
+    saleEnabled: Boolean(v.sale_enabled),
+    saleStock: Number(v.sale_stock ?? 0),
+   saleSold: Number(v.sale_sold ?? 0),
 
     stock: Number(v.stock ?? 0),
     isUnlimited: Boolean(v.is_unlimited),
@@ -182,7 +182,6 @@ export function mapVariantToDB(
 
   return {
   id: v.id,
-
   product_id: productId,
 
   option_1: v.option1 || null,
@@ -200,9 +199,10 @@ export function mapVariantToDB(
   price: safePrice,
   sale_price: safeSalePrice,
 
-  final_price: safeSalePrice && safeSalePrice < safePrice
-    ? safeSalePrice
-    : safePrice,
+  final_price:
+    safeSalePrice && safeSalePrice < safePrice
+      ? safeSalePrice
+      : safePrice,
 
   stock: safeStock,
   is_unlimited: Boolean(v.isUnlimited),
@@ -215,6 +215,11 @@ export function mapVariantToDB(
   sold: Number(v.sold || 0),
 
   currency: "PI",
+
+  // 🔥 FIX MISSING FIELDS
+  sale_enabled: Boolean(v.saleEnabled),
+  sale_stock: Number(v.saleStock || 0),
+  sale_sold: Number(v.saleSold || 0),
 };
 }
 
