@@ -96,10 +96,9 @@ export type UpdateProductInput = Partial<
 ========================================================= */
 
 function toAppProduct(row: ProductRow): ProductRecord {
-  const inSaleTime = isInSaleTime(row.sale_start, row.sale_end);
-
   const isSaleActive =
-    Boolean(row.sale_enabled) && inSaleTime;
+  Boolean(row.sale_enabled) &&
+  isInSaleTime(row.sale_start, row.sale_end);
 
   const price = Number(row.price) || 0;
   const salePrice =
@@ -109,9 +108,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
     isSaleActive && salePrice !== null && salePrice < price
       ? salePrice
       : price;
-const isSaleActive =
-  Boolean(row.sale_enabled) &&
-  isInSaleTime(row.sale_start, row.sale_end);
+
   return {
     ...row,
 
