@@ -112,7 +112,9 @@ export function ProductView(props: ProductViewProps) {
     hasVariants,
     relatedProducts,
   } = props;
-
+   const variantOnSale =
+  selectedVariant?.salePrice != null &&
+  selectedVariant.salePrice < selectedVariant.price;
   /* ================= SAFE ================= */
   if (!product) return null;
 
@@ -136,7 +138,7 @@ export function ProductView(props: ProductViewProps) {
     <div className="pb-40 bg-gray-50 min-h-screen">
       {/* ===== GALLERY ===== */}
       <div className="relative bg-white">
-        {product.saleEnabled && (
+        {product.isSale && (
           <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
             -{calcSalePercent(product.price, product.finalPrice)}%
           </div>
@@ -253,7 +255,7 @@ onTouchMove={(e) => {
           π {formatPi(selectedVariant.finalPrice)}
         </p>
 
-        {selectedVariant.isSale && (
+        {selectedVariant.salePrice && selectedVariant.salePrice < selectedVariant.price (
           <p className="text-sm text-gray-400 line-through">
             π {formatPi(selectedVariant.price)}
           </p>
