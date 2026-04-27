@@ -1,570 +1,449 @@
 import { withTransaction } from "@/lib/db";
 
-/* ================= HELPERS ================= */
+/* =========================================================
+   TYPES
+========================================================= */
 
-function isUUID(v: unknown): v is string {
-  return typeof v === "string" &&
-    /^[0-9a-f-]{36}$/i.test(v);
-}
-
-function safeQty(q: unknown): number {
-  const n = Number(q);
-  if (!Number.isInteger(n) || n <= 0) return 1;
-  if (n > 100) return 100;
-  return n;
-}
-
-/* ================= MAIN ================= */
-
-export async function processPiPayment(params: {
+type CreateIntentParams = {
   userId: string;
   productId: string;
   variantId?: string | null;
   quantity: number;
-  paymentId: string;
-  txid: string;
-  country: string;
-  zone: string;
+};
 
-  shipping: {
-    name: string;
+type CompleteIntentParams = {
+  userId: string;
+  paymentIntentId: string;
+  txid: string;
+  rpcAmount: number;
+  rpcReceiver: string;
+  rpcConfirmedAt: string;
+};
+
+type PaymentIntentRow = {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  product_id: string;
+  variant_id: string | null;
+  quantity: number;
+  expected_amount: string;
+  shipping_fee: string;
+  subtotal: string;
+  total: string;
+  currency: string;
+  merchant_wallet: string;
+  nonce: string;
+  status: string;
+
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address_line: string;
+  shipping_ward: string | null;
+  shipping_district: string | null;
+  shipping_region: string | null;
+  shipping_country: string;
+  shipping_postal_code: string | null;
+  shipping_zone: string;
+  created_at: string;
+};
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function isUUID(v: unknown): v is string {
+  return typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+function safeQty(v: unknown): number {
+  const n = Number(v);
+
+  if (!Number.isInteger(n) || n <= 0) {
+    return 1;
+  }
+
+  if (n > 100) {
+    return 100;
+  }
+
+  return n;
+}
+
+function safeNumber(v: unknown): number {
+  const n = Number(v);
+
+  if (Number.isNaN(n)) {
+    throw new Error("INVALID_NUMBER");
+  }
+
+  return n;
+}
+
+function generateNonce(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+function getMerchantWallet(): string {
+  const wallet = process.env.PI_MERCHANT_WALLET?.trim();
+
+  if (!wallet) {
+    throw new Error("MISSING_MERCHANT_WALLET");
+  }
+
+  return wallet;
+}
+
+/* =========================================================
+   SHIPPING ZONE RESOLVE
+========================================================= */
+
+async function resolveShipping(
+  client: {
+    query: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<{ rows: T[]; rowCount: number | null }>;
+  },
+  userId: string,
+  productId: string
+) {
+  const addressRes = await client.query<{
+    full_name: string;
     phone: string;
     address_line: string;
-    ward?: string | null;
-    district?: string | null;
-    region?: string | null;
-    postal_code?: string | null;
-  };
+    ward: string | null;
+    district: string | null;
+    region: string | null;
+    country: string;
+    postal_code: string | null;
+  }>(
+    `
+    SELECT
+      full_name,
+      phone,
+      address_line,
+      ward,
+      district,
+      region,
+      country,
+      postal_code
+    FROM addresses
+    WHERE user_id = $1
+      AND is_default = true
+    LIMIT 1
+    `,
+    [userId]
+  );
 
-  /** 🔥 NEW: amount từ Pi */
-  verifiedAmount: number;
-}) {
-
-  console.log("🟡 [PAYMENT] START", {
-    paymentId: params.paymentId,
-    productId: params.productId,
-  });
-
-  if (!isUUID(params.productId)) {
-    throw new Error("INVALID_PRODUCT_ID");
+  if (!addressRes.rows.length) {
+    throw new Error("ADDRESS_NOT_FOUND");
   }
+
+  const address = addressRes.rows[0];
+
+  const addressCountry = String(address.country || "")
+    .trim()
+    .toUpperCase();
+
+  if (!addressCountry) {
+    throw new Error("INVALID_COUNTRY");
+  }
+
+  const shippingRateCheck = await client.query<{
+    zone: string;
+    domestic_country_code: string | null;
+  }>(
+    `
+    SELECT
+      sz.code AS zone,
+      sr.domestic_country_code
+    FROM shipping_rates sr
+    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    WHERE sr.product_id = $1
+    `,
+    [productId]
+  );
+
+  if (!shippingRateCheck.rows.length) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  let realZone: string | null = null;
+
+  const domestic = shippingRateCheck.rows.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domestic_country_code &&
+      r.domestic_country_code.trim().toUpperCase() === addressCountry
+  );
+
+  if (domestic) {
+    realZone = "domestic";
+  }
+
+  if (!realZone) {
+    const zoneRes = await client.query<{ code: string }>(
+      `
+      SELECT sz.code
+      FROM shipping_zone_countries szc
+      JOIN shipping_zones sz ON sz.id = szc.zone_id
+      WHERE szc.country_code = $1
+      LIMIT 1
+      `,
+      [addressCountry]
+    );
+
+    if (!zoneRes.rows.length) {
+      throw new Error("INVALID_COUNTRY");
+    }
+
+    realZone = zoneRes.rows[0].code;
+  }
+
+  const shippingPriceRes = await client.query<{ price: string }>(
+    `
+    SELECT sr.price
+    FROM shipping_rates sr
+    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    WHERE sr.product_id = $1
+      AND sz.code = $2
+    LIMIT 1
+    `,
+    [productId, realZone]
+  );
+
+  if (!shippingPriceRes.rows.length) {
+    throw new Error("SHIPPING_NOT_AVAILABLE");
+  }
+
+  return {
+    address,
+    zone: realZone,
+    shippingFee: safeNumber(shippingPriceRes.rows[0].price),
+  };
+}
+
+/* =========================================================
+   PRODUCT SNAPSHOT
+========================================================= */
+
+async function resolveProduct(
+  client: {
+    query: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<{ rows: T[]; rowCount: number | null }>;
+  },
+  productId: string,
+  variantId: string | null,
+  quantity: number
+) {
+  const productRes = await client.query<{
+    id: string;
+    seller_id: string;
+    name: string;
+    price: string;
+    thumbnail: string | null;
+    sale_price: string | null;
+    sale_start: string | null;
+    sale_end: string | null;
+    is_active: boolean;
+    deleted_at: string | null;
+    stock: number;
+  }>(
+    `
+    SELECT
+      id,
+      seller_id,
+      name,
+      price,
+      thumbnail,
+      sale_price,
+      sale_start,
+      sale_end,
+      is_active,
+      deleted_at,
+      stock
+    FROM products
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  if (!productRes.rows.length) {
+    throw new Error("PRODUCT_NOT_AVAILABLE");
+  }
+
+  const product = productRes.rows[0];
+
+  if (product.is_active === false || product.deleted_at) {
+    throw new Error("PRODUCT_NOT_AVAILABLE");
+  }
+
+  if (!isUUID(product.seller_id)) {
+    throw new Error("INVALID_SELLER");
+  }
+
+  let unitPrice = safeNumber(product.price);
+
+  if (variantId) {
+    const vRes = await client.query<{
+      price: string;
+      sale_price: string | null;
+      stock: number;
+    }>(
+      `
+      SELECT price, sale_price, stock
+      FROM product_variants
+      WHERE id = $1
+        AND product_id = $2
+      LIMIT 1
+      `,
+      [variantId, productId]
+    );
+
+    if (!vRes.rows.length) {
+      throw new Error("INVALID_VARIANT");
+    }
+
+    const variant = vRes.rows[0];
+
+    if (variant.stock < quantity) {
+      throw new Error("OUT_OF_STOCK");
+    }
+
+    unitPrice =
+      variant.sale_price && safeNumber(variant.sale_price) > 0
+        ? safeNumber(variant.sale_price)
+        : safeNumber(variant.price);
+
+  } else {
+    if (product.stock < quantity) {
+      throw new Error("OUT_OF_STOCK");
+    }
+
+    const now = Date.now();
+    const start = product.sale_start ? new Date(product.sale_start).getTime() : null;
+    const end = product.sale_end ? new Date(product.sale_end).getTime() : null;
+
+    const isSale =
+      product.sale_price !== null &&
+      safeNumber(product.sale_price) > 0 &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
+
+    unitPrice = isSale
+      ? safeNumber(product.sale_price)
+      : safeNumber(product.price);
+  }
+
+  return {
+    product,
+    unitPrice,
+    subtotal: unitPrice * quantity,
+  };
+}
+
+/* =========================================================
+   CREATE PAYMENT INTENT
+========================================================= */
+
+export async function createPaymentIntent(params: CreateIntentParams) {
+  if (!isUUID(params.userId)) throw new Error("INVALID_USER_ID");
+  if (!isUUID(params.productId)) throw new Error("INVALID_PRODUCT_ID");
+
+  const variantId =
+    params.variantId && isUUID(params.variantId)
+      ? params.variantId
+      : null;
 
   const quantity = safeQty(params.quantity);
 
   return withTransaction(async (client) => {
+    const shipping = await resolveShipping(client, params.userId, params.productId);
+    const productData = await resolveProduct(client, params.productId, variantId, quantity);
 
-    /* =========================================================
-       🔒 1. IDEMPOTENCY (STRONG)
-    ========================================================= */
+    const discount = 0;
+    const itemsTotal = productData.subtotal - discount;
+    const total = itemsTotal + shipping.shippingFee;
 
-    const existingOrder = await client.query(
-      `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
-      [params.paymentId]
-    );
+    const merchantWallet = getMerchantWallet();
+    const nonce = generateNonce();
 
-    if (existingOrder.rows.length > 0) {
-      console.log("🟡 [PAYMENT] DUPLICATE ORDER");
-
-      return {
-        orderId: existingOrder.rows[0].id,
-        duplicated: true,
-      };
-    }
-
-
-    /* =========================================================
-   📍 LOAD ADDRESS (SOURCE OF TRUTH)
-========================================================= */
-
-const addressRes = await client.query(
-  `
-  SELECT 
-    full_name,
-    phone,
-    address_line,
-    ward,
-    district,
-    region,
-    country,
-    postal_code
-  FROM addresses
-  WHERE user_id = $1
-  AND is_default = true
-  LIMIT 1
-  `,
-  [params.userId]
-);
-
-if (!addressRes.rows.length) {
-  throw new Error("ADDRESS_NOT_FOUND");
-}
-
-const address = addressRes.rows[0];
-
-console.log("🧪 [DB] ADDRESS RAW", address);
-
-// 🔥 normalize country
-let addressCountry = address.country;
-
-if (typeof addressCountry !== "string") {
-  console.error("❌ [DB] COUNTRY NOT STRING", addressCountry);
-  throw new Error("INVALID_COUNTRY");
-}
-
-addressCountry = addressCountry.trim().toUpperCase();
-
-if (!addressCountry) {
-  console.error("❌ [DB] COUNTRY EMPTY");
-  throw new Error("INVALID_COUNTRY");
-}
-
-// sau khi load address + normalize country
-
-console.log("🟢 [DB] COUNTRY FINAL", addressCountry);
-
-console.log("🟡 [DB] STEP SHIPPING ZONE RESOLVE", {
-  addressCountry,
-  productId: params.productId,
-});
-
-/* =========================================================
-   1. LOAD PRODUCT SHIPPING RATES
-========================================================= */
-
-const shippingRateCheck = await client.query<{
-  zone: string;
-  domestic_country_code: string | null;
-}>(
-  `
-  SELECT
-    sz.code AS zone,
-    sr.domestic_country_code
-  FROM shipping_rates sr
-  JOIN shipping_zones sz
-    ON sz.id = sr.zone_id
-  WHERE sr.product_id = $1
-  `,
-  [params.productId]
-);
-
-if (!shippingRateCheck.rows.length) {
-  throw new Error("SHIPPING_NOT_AVAILABLE");
-}
-
-console.log("🧪 [DB] PRODUCT SHIPPING RATES", shippingRateCheck.rows);
-
-/* =========================================================
-   2. DOMESTIC FIRST
-========================================================= */
-
-let realZone: string | null = null;
-
-const domesticMatch = shippingRateCheck.rows.find(
-  (r) =>
-    r.zone === "domestic" &&
-    r.domestic_country_code &&
-    r.domestic_country_code.trim().toUpperCase() === addressCountry
-);
-
-if (domesticMatch) {
-  realZone = "domestic";
-  console.log("🏠 [DB] DOMESTIC MATCH", { addressCountry });
-}
-
-/* =========================================================
-   3. GLOBAL ZONE FALLBACK
-========================================================= */
-
-if (!realZone) {
-  const zoneRes = await client.query<{ code: string }>(
-    `
-    SELECT sz.code
-    FROM shipping_zone_countries szc
-    JOIN shipping_zones sz ON sz.id = szc.zone_id
-    WHERE szc.country_code = $1
-    LIMIT 1
-    `,
-    [addressCountry]
-  );
-
-  if (!zoneRes.rows.length) {
-    console.error("❌ [DB] INVALID_COUNTRY", addressCountry);
-    throw new Error("INVALID_COUNTRY");
-  }
-
-  realZone = zoneRes.rows[0].code;
-  console.log("🌍 [DB] GLOBAL ZONE MATCH", { realZone });
-}
-
-console.log("🟢 [DB] FINAL REALZONE", { realZone });
-    await client.query(
-  `
-  INSERT INTO pi_payments (
-    user_id,
-    pi_payment_id,
-    txid,
-    amount,
-    status,
-    country,
-    zone,
-    verified_amount
-  )
-  VALUES ($1,$2,$3,$4,'verified',$5,$6,$7)
-  ON CONFLICT (pi_payment_id) DO NOTHING
-  `,
-  [
-    params.userId,
-    params.paymentId,
-    params.txid,
-    params.verifiedAmount,
-    addressCountry,
-    realZone,
-    params.verifiedAmount,
-  ]
-);
-
-console.log("🟢 [DB] PAYMENT INSERTED");
-
-    /* =========================================================
-       📦 4. LOAD PRODUCT
-    ========================================================= */
-
-    const productRes = await client.query(
+    const insert = await client.query<{ id: string }>(
       `
-      SELECT 
-        id, seller_id, name, price, thumbnail,
-        is_active, deleted_at,
-        sale_price, sale_start, sale_end
-      FROM products
-      WHERE id=$1
-      LIMIT 1
-      `,
-      [params.productId]
-    );
+      INSERT INTO pi_payment_intents (
+        buyer_id,
+        seller_id,
+        product_id,
+        variant_id,
+        quantity,
 
-    const product = productRes.rows[0];
+        subtotal,
+        shipping_fee,
+        discount,
+        total,
+        expected_amount,
+        currency,
 
-    if (!product || product.is_active === false || product.deleted_at) {
-      throw new Error("PRODUCT_NOT_AVAILABLE");
-    }
-  if (!isUUID(product.seller_id)) {
-  throw new Error("INVALID_SELLER");
-}
-    let price = Number(product.price);
+        merchant_wallet,
+        nonce,
 
-    /* =========================================================
-       🧩 5. VARIANT PRICE
-    ========================================================= */
+        shipping_name,
+        shipping_phone,
+        shipping_address_line,
+        shipping_ward,
+        shipping_district,
+        shipping_region,
+        shipping_country,
+        shipping_postal_code,
+        shipping_zone,
 
-    if (params.variantId) {
-      const vRes = await client.query(
-        `
-        SELECT price, sale_price
-        FROM product_variants
-        WHERE id=$1 AND product_id=$2
-        LIMIT 1
-        `,
-        [params.variantId, params.productId]
-      );
-
-      if (!vRes.rows.length) throw new Error("INVALID_VARIANT");
-
-      const v = vRes.rows[0];
-
-      price =
-        v.sale_price && v.sale_price > 0
-          ? Number(v.sale_price)
-          : Number(v.price);
-
-      console.log("🎯 [PAYMENT] VARIANT PRICE:", price);
-  } else {
-  const now = Date.now();
-
-  const start = product.sale_start
-    ? new Date(product.sale_start).getTime()
-    : null;
-
-  const end = product.sale_end
-    ? new Date(product.sale_end).getTime()
-    : null;
-
-  const isSale =
-    product.sale_price !== null &&
-    product.sale_price > 0 &&
-    start &&
-    end &&
-    now >= start &&
-    now <= end;
-
-  price = isSale
-    ? Number(product.sale_price)
-    : Number(product.price);
-
-  console.log("💰 [DB] FINAL PRODUCT PRICE", {
-    price,
-    base: product.price,
-    sale: product.sale_price,
-    isSale,
-  });
-   }
-
-    /* =========================================================
-       🚚 6. SHIPPING
-    ========================================================= */
-
-    const shippingRes = await client.query<{ price: number }>(
-      `
-      SELECT sr.price
-      FROM shipping_rates sr
-      JOIN shipping_zones sz ON sz.id = sr.zone_id
-      WHERE sr.product_id = $1
-      AND sz.code = $2
-      LIMIT 1
-      `,
-      [params.productId, realZone]
-    );
-
-    if (!shippingRes.rows.length) {
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
-
-    const shippingFee = Number(shippingRes.rows[0].price);
-
-    /* =========================================================
-       💰 7. TOTAL (SERVER ONLY)
-    ========================================================= */
-
-    const subtotal = price * quantity;
-const discount = 0; // 🔥 nếu chưa có logic giảm giá
-const itemsTotal = subtotal - discount;
-const total = itemsTotal + shippingFee;
-    console.log("🧾 [ORDER][INSERT_DEBUG]", {
-  buyer_id: params.userId,
-  seller_id: product.seller_id,
-  subtotal,
-  shippingFee,
-  total,
-});
-
-    console.log("🧾 [PAYMENT] CALC", {
-      subtotal,
-      shippingFee,
-      total,
-      verified: params.verifiedAmount,
-    });
-
-    /* =========================================================
-       🔥 8. ANTI HACK (CRITICAL)
-    ========================================================= */
-
-    if (Number(params.verifiedAmount) !== Number(total)) {
-      console.error("❌ [PAYMENT] AMOUNT MISMATCH", {
-        server: total,
-        pi: params.verifiedAmount,
-      });
-
-      throw new Error("INVALID_AMOUNT");
-    }
-
-/* =========================================================
-   📉 9. STOCK (ATOMIC)
-========================================================= */
-console.log("🧪 [DB] STOCK FLOW", {
-  variantId: params.variantId,
-  productId: params.productId,
-});
-
-if (params.variantId) {
-  const stock = await client.query(
-    `
-    UPDATE product_variants
-    SET stock = stock - $1
-    WHERE id=$2 AND stock >= $1
-    RETURNING id
-    `,
-    [quantity, params.variantId]
-  );
-
-  if (!stock.rowCount) {
-    throw new Error("OUT_OF_STOCK");
-  }
-
-  await client.query(
-    `
-    UPDATE products
-    SET stock = stock - $1,
-        sold = sold + $1
-    WHERE id=$2
-    `,
-    [quantity, params.productId]
-  );
-
-} else {
-  const stock = await client.query(
-    `
-    UPDATE products
-    SET stock = stock - $1,
-        sold = sold + $1
-    WHERE id=$2 AND stock >= $1
-    RETURNING id
-    `,
-    [quantity, params.productId]
-  );
-
-  if (!stock.rowCount) {
-    throw new Error("OUT_OF_STOCK");
-  }
-}
-
-    /* =========================================================
-       🧾 10. CREATE ORDER
-    ========================================================= */
-
-    const orderRes = await client.query(
-      `
-      INSERT INTO orders (
-  order_number,
-  buyer_id,
-  seller_id,
-  pi_payment_id,
-  pi_txid,
-
-  items_total,
-  subtotal,
-  discount,
-  shipping_fee,
-  tax,
-  total,
-  currency,
-
-  payment_status,
-  paid_at,
-  status,
-
-  shipping_name,
-  shipping_phone,
-  shipping_address_line,
-  shipping_ward,
-  shipping_district,
-  shipping_region,
-  shipping_country,
-  shipping_postal_code,
-  shipping_zone,
-
-  total_items,
-  total_quantity
-)
+        status
+      )
       VALUES (
-        gen_random_uuid()::text,
-        $1,$2,
-        $3,$4,
-        $5,$6,$7,$8,$9,$10,$11,
-        'paid', NOW(),
-        'pending',
-        $12,$13,$14,$15,$16,$17,$18,$19,$20,
-        $21,$22
+        $1,$2,$3,$4,$5,
+        $6,$7,$8,$9,$10,$11,
+        $12,$13,
+        $14,$15,$16,$17,$18,$19,$20,$21,$22,
+        'pending'
       )
       RETURNING id
       `,
-     [
-  params.userId,
-  product.seller_id,
-  params.paymentId,
-  params.txid,
-  itemsTotal,   // ✅ FIX
-  subtotal,      // subtotal ✅
-  0,             // discount
-  shippingFee,
-  0,             // tax
-  total,
-  "PI",
-
-  address.full_name,
-  address.phone,
-  address.address_line,
-  address.ward ?? null,
-  address.district ?? null,
-  address.region ?? null,
-  address.country,
-  address.postal_code ?? null,
-  realZone,
-
-  1,             // total_items ❗
-  quantity,      // total_quantity ❗
-   ]
-    );
-
-    const orderId = orderRes.rows[0].id;
-
-    /* =========================================================
-       📦 11. ORDER ITEM
-    ========================================================= */
-
-    await client.query(
-      `INSERT INTO order_items (
-  order_id,
-  product_id,
-  variant_id,
-  seller_id,
-
-  product_name,
-  product_slug,
-  thumbnail,
-
-  variant_name,
-  variant_value,
-
-  unit_price,
-  quantity,
-  total_price,
-  currency
-)
-VALUES (
-  $1,$2,$3,$4,
-  $5,$6,$7,
-  $8,$9,
-  $10,$11,$12,$13
-)
-      `,
       [
-  orderId,
-  product.id,
-  params.variantId ?? null,
-  product.seller_id,
+        params.userId,
+        productData.product.seller_id,
+        params.productId,
+        variantId,
+        quantity,
 
-  product.name,
-  "",              // product_slug (tạm thời)
-  product.thumbnail ?? "",
+        productData.subtotal,
+        shipping.shippingFee,
+        discount,
+        total,
+        total,
+        "PI",
 
-  "",              // variant_name
-  "",              // variant_value
+        merchantWallet,
+        nonce,
 
-  price,
-  quantity,
-  subtotal,
-  "PI",            // currency
-]
+        shipping.address.full_name,
+        shipping.address.phone,
+        shipping.address.address_line,
+        shipping.address.ward ?? null,
+        shipping.address.district ?? null,
+        shipping.address.region ?? null,
+        shipping.address.country,
+        shipping.address.postal_code ?? null,
+        shipping.zone,
+      ]
     );
 
-    /* =========================================================
-       🔥 12. UPDATE PAYMENT FINAL
-    ========================================================= */
-
-    await client.query(
-      `
-      UPDATE pi_payments
-      SET 
-        status = 'completed',
-        order_id = $1,
-        amount = $2,
-        completed_at = NOW()
-      WHERE pi_payment_id = $3
-      `,
-      [orderId, total, params.paymentId]
-    );
-
-    console.log("🟢 [PAYMENT] SUCCESS", { orderId });
-
-    return { orderId, duplicated: false };
+    return {
+      paymentIntentId: insert.rows[0].id,
+      amount: total,
+      merchantWallet,
+      nonce,
+      currency: "PI",
+    };
   });
 }
