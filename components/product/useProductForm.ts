@@ -177,11 +177,13 @@ export function useProductForm(initialData?: ProductPayload) {
      AUTO FIX: SALE RESET
   ========================================================= */
   useEffect(() => {
-    if (!saleEnabled) {
-      setSalePrice("");
-      setSaleStock(0);
-    }
-  }, [saleEnabled]);
+  if (!saleEnabled) {
+    setSalePrice("");
+    setSaleStock(0);
+    setSaleStart("");
+    setSaleEnd("");
+  }
+}, [saleEnabled]);
 
   /* =========================================================
      AUTO FIX: STOCK CHECK
