@@ -384,18 +384,20 @@ export async function replaceVariantsByProductId(
 
 export async function decreaseVariantStock(
   variantId: string,
+   productId: string,
   quantity: number
 ) {
   return withTransaction(async (client) => {
     const res = await client.query(
-      `
-      SELECT *
-      FROM product_variants
-      WHERE id = $1
-      FOR UPDATE
-      `,
-      [variantId]
-    );
+  `
+  SELECT v.*, p.sale_enabled, p.sale_start, p.sale_end
+  FROM product_variants v
+  JOIN products p ON p.id = v.product_id
+  WHERE v.id = $1
+  FOR UPDATE
+  `,
+  [variantId]
+);
 
     if (!res.rows.length) {
       throw new Error("VARIANT_NOT_FOUND");
@@ -407,12 +409,21 @@ export async function decreaseVariantStock(
       throw new Error("OUT_OF_STOCK");
     }
 
-    if (v.sale_enabled) {
-      const left = Number(v.sale_stock) - Number(v.sale_sold);
-      if (left < quantity) {
-        throw new Error("FLASH_SALE_SOLD_OUT");
-      }
-    }
+    const now = new Date();
+
+const isSaleActive =
+  v.sale_enabled &&
+  v.sale_start &&
+  v.sale_end &&
+  now >= new Date(v.sale_start) &&
+  now <= new Date(v.sale_end);
+
+if (isSaleActive) {
+  const left = Number(v.sale_stock) - Number(v.sale_sold);
+  if (left < quantity) {
+    throw new Error("FLASH_SALE_SOLD_OUT");
+  }
+}
 
     await client.query(
       `
