@@ -333,7 +333,7 @@ onTouchMove={(e) => {
             onClick={() => {
               if (!isDisabled) {
                 setSelectedVariant(v);
-                if (v.image) {
+                if (v.image ?? null) {
               setActiveImage(v.image);
              }else {
                   setActiveImage(null);
