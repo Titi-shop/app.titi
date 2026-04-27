@@ -120,6 +120,11 @@ function buildVariantName(v: ProductVariant) {
 ========================================================= */
 
 export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
+  const saleEnabled =
+    Boolean(v.sale_enabled) &&
+    v.sale_price !== null &&
+    Number(v.sale_price) > 0;
+
   return {
     id: v.id,
 
@@ -137,11 +142,16 @@ export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
 
     price: Number(v.price ?? 0),
     salePrice: v.sale_price !== null ? Number(v.sale_price) : null,
-    finalPrice: Number(v.final_price ?? v.price ?? 0),
 
-    saleEnabled: Boolean(v.sale_enabled),
-    saleStock: Number(v.sale_stock ?? 0),
-    saleSold: Number(v.sale_sold ?? 0),
+    finalPrice: calcFinalPrice({
+      price: Number(v.price ?? 0),
+      salePrice: v.sale_price !== null ? Number(v.sale_price) : null,
+      saleEnabled,
+    }),
+
+    saleEnabled,
+    saleStock: saleEnabled ? Number(v.sale_stock ?? 0) : 0,
+    saleSold: saleEnabled ? Number(v.sale_sold ?? 0) : 0,
 
     stock: Number(v.stock ?? 0),
     isUnlimited: Boolean(v.is_unlimited),
