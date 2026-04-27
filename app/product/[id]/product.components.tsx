@@ -18,7 +18,6 @@ import "swiper/css";
 import "swiper/css/pagination";
 type Variant = {
   id: string;
-  image?: string;
   option1?: string;
   option2?: string | null;
   option3?: string | null;
