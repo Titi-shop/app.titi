@@ -14,163 +14,166 @@ type PreviewItem = {
 };
 
 type PreviewBody = {
-  country?: string;
-  zone?: string;
-  items?: PreviewItem[];
+  country: string;
+  zone: string;
+  items: PreviewItem[];
 };
 
-/* ================= UTILS ================= */
+/* ================= LOGGER ================= */
 
-function isUUID(value: string): boolean {
-  if (typeof value !== "string") return false;
+const log = {
+  info: (msg: string, data?: unknown) =>
+    console.log(`[ORDER][PREVIEW][INFO] ${msg}`, data ?? ""),
 
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    value
-  );
+  warn: (msg: string, data?: unknown) =>
+    console.log(`[ORDER][PREVIEW][WARN] ${msg}`, data ?? ""),
+
+  error: (msg: string, data?: unknown) =>
+    console.error(`[ORDER][PREVIEW][ERROR] ${msg}`, data ?? ""),
+};
+
+/* ================= RESPONSE HELPERS ================= */
+
+function error(code: string, status = 400) {
+  log.warn("RESPONSE_ERROR", { code, status });
+  return NextResponse.json({ error: code }, { status });
 }
 
 /* ================= API ================= */
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+
   try {
-    console.log("🟡 [ORDER][PREVIEW] START");
+    log.info("REQUEST_START");
 
     /* ================= AUTH ================= */
 
     const auth = await requireAuth();
 
     if (!auth.ok) {
-      console.log("🔴 [ORDER][PREVIEW] AUTH FAILED");
+      log.error("AUTH_FAILED");
       return auth.response;
     }
 
     const userId = auth.userId;
-    console.log("🟢 [ORDER][PREVIEW] USER:", userId);
+    log.info("AUTH_SUCCESS", { userId });
 
-    /* ================= BODY ================= */
+    /* ================= PARSE BODY ================= */
 
-    const body = (await req.json().catch(() => null)) as PreviewBody | null;
+    let body: PreviewBody | null = null;
 
-    console.log("🟡 [ORDER][PREVIEW] BODY:", body);
-
-    if (!body || typeof body !== "object") {
-      console.log("🔴 [ORDER][PREVIEW] INVALID BODY");
-      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    try {
+      body = await req.json();
+    } catch (e) {
+      log.error("BODY_PARSE_FAILED");
+      return error("INVALID_BODY");
     }
 
-    const { country, items } = body;
-
-    /* ================= COUNTRY ================= */
-
-    if (!country || typeof country !== "string") {
-      console.log("🔴 [ORDER][PREVIEW] INVALID COUNTRY:", country);
-      return NextResponse.json({ error: "INVALID_COUNTRY" }, { status: 400 });
+    if (!body) {
+      log.warn("EMPTY_BODY");
+      return error("INVALID_BODY");
     }
 
-    console.log("🟢 [ORDER][PREVIEW] COUNTRY:", country);
+    log.info("BODY_RECEIVED", {
+      country: body.country,
+      zone: body.zone,
+      itemsCount: body.items?.length,
+    });
 
-    /* ================= REGION ================= */
+    /* ================= BASIC VALIDATION ================= */
 
-    const zone =
-      typeof body.zone === "string"
-        ? body.zone.trim().toLowerCase()
-        : "";
-
-    if (!zone) {
-      console.log("🔴 [ORDER][PREVIEW] MISSING REGION");
-      return NextResponse.json({ error: "MISSING_REGION" }, { status: 400 });
+    if (!body.country) {
+      log.warn("INVALID_COUNTRY");
+      return error("INVALID_COUNTRY");
     }
 
-    console.log("🟢 [ORDER][PREVIEW] ZONE:", zone);
-
-    /* ================= ITEMS ================= */
-
-    if (!Array.isArray(items) || items.length === 0) {
-      console.log("🔴 [ORDER][PREVIEW] EMPTY ITEMS");
-      return NextResponse.json({ error: "INVALID_ITEMS" }, { status: 400 });
+    if (!body.zone) {
+      log.warn("INVALID_ZONE");
+      return error("INVALID_ZONE");
     }
 
-    console.log("🟡 [ORDER][PREVIEW] RAW ITEMS:", items);
+    if (!Array.isArray(body.items)) {
+      log.warn("INVALID_ITEMS_TYPE");
+      return error("INVALID_ITEMS");
+    }
+
+    /* ================= CLEAN ITEMS ================= */
 
     const cleanItems: PreviewItem[] = [];
 
-    for (const item of items) {
+    for (const item of body.items) {
       if (!item || typeof item !== "object") {
-        console.log("⚠️ [ORDER][PREVIEW] SKIP INVALID ITEM:", item);
+        log.warn("SKIP_INVALID_ITEM", item);
         continue;
       }
 
-      const productId =
+      const product_id =
         typeof item.product_id === "string"
           ? item.product_id.trim()
           : "";
 
       const quantity =
-        typeof item.quantity === "number" &&
-        Number.isInteger(item.quantity) &&
-        item.quantity > 0
+        typeof item.quantity === "number" && item.quantity > 0
           ? item.quantity
           : 0;
 
-      const variantId =
+      const variant_id =
         typeof item.variant_id === "string"
           ? item.variant_id.trim()
           : null;
 
-      if (!productId || !isUUID(productId)) {
-        console.log("🔴 INVALID PRODUCT ID:", productId);
-        continue;
-      }
-
-      if (variantId && !isUUID(variantId)) {
-        console.log("🔴 INVALID VARIANT ID:", variantId);
-        continue;
-      }
-
-      if (quantity <= 0) {
-        console.log("🔴 INVALID QUANTITY:", quantity);
+      if (!product_id || !quantity) {
+        log.warn("INVALID_ITEM_FIELDS", item);
         continue;
       }
 
       cleanItems.push({
-        product_id: productId,
+        product_id,
         quantity,
-        variant_id: variantId,
+        variant_id,
       });
     }
 
-    console.log("🟢 [ORDER][PREVIEW] CLEAN ITEMS:", cleanItems);
-
     if (cleanItems.length === 0) {
-      console.log("🔴 [ORDER][PREVIEW] NO VALID ITEMS");
-      return NextResponse.json({ error: "INVALID_ITEMS" }, { status: 400 });
+      log.warn("NO_VALID_ITEMS");
+      return error("INVALID_ITEMS");
     }
 
-    console.log("🧾 [ORDER][PREVIEW] FINAL ITEMS:", cleanItems);
-    
+    log.info("CLEAN_ITEMS_READY", {
+      count: cleanItems.length,
+    });
 
-    /* ================= CALL DB ================= */
+    /* ================= CALL BUSINESS LAYER ================= */
 
-    console.log("🟡 [ORDER][PREVIEW] CALL previewOrder");
+    log.info("CALL_PREVIEW_ORDER");
 
     const result = await previewOrder({
       userId,
-      country,
-      zone,
+      country: body.country.trim().toUpperCase(),
+      zone: body.zone.trim().toLowerCase(),
       items: cleanItems,
     });
 
-    console.log("🟢 [ORDER][PREVIEW] RESULT:", result);
+    /* ================= SUCCESS ================= */
 
-    /* ================= RESPONSE ================= */
+    const duration = Date.now() - startTime;
+
+    log.info("REQUEST_SUCCESS", {
+      duration_ms: duration,
+      subtotal: result.subtotal,
+      total: result.total,
+    });
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error("🔥 [ORDER][PREVIEW] ERROR:", err);
+    const duration = Date.now() - startTime;
 
-    return NextResponse.json(
-      { error: "PREVIEW_FAILED" },
-      { status: 500 }
-    );
+    log.error("UNHANDLED_ERROR", {
+      duration_ms: duration,
+      error: err instanceof Error ? err.message : err,
+    });
+
+    return error("PREVIEW_FAILED", 500);
   }
 }
