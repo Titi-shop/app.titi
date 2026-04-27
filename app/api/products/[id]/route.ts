@@ -516,7 +516,10 @@ export async function PATCH(
 
       /* PRICE */
       sale_price: salePrice,
-      sale_price: finalSalePrice,
+      price:
+       typeof body.price === "number"
+    ? body.price
+    : undefined,
 
       /* STOCK */
       stock: hasVariants
