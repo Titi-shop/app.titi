@@ -483,9 +483,9 @@ export async function PATCH(
        (VARIANT ALWAYS OVERRIDES PRODUCT SALE)
     ========================================================= */
 
-    const finalSaleEnabled = hasVariants ? false : saleEnabled;
-    const finalSaleStart = hasVariants ? null : saleStart;
-    const finalSaleEnd = hasVariants ? null : saleEnd;
+    const finalSaleEnabled = saleEnabled;
+   const finalSaleStart = saleStart;
+   const finalSaleEnd = saleEnd;
 
     /* ================= UPDATE PRODUCT ================= */
 
@@ -515,7 +515,7 @@ export async function PATCH(
       category_id: categoryId,
 
       /* PRICE */
-      price: finalPrice,
+      sale_price: salePrice,
       sale_price: finalSalePrice,
 
       /* STOCK */
@@ -527,10 +527,9 @@ export async function PATCH(
 
       /* SALE */
       sale_enabled: finalSaleEnabled,
-      sale_stock:
-        typeof body.saleStock === "number" ? body.saleStock : undefined,
-      sale_start: finalSaleStart,
-      sale_end: finalSaleEnd,
+     sale_stock: body.saleStock,
+     sale_start: saleStart,
+     sale_end: saleEnd,
 
       is_active:
         typeof body.isActive === "boolean"
