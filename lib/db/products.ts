@@ -13,38 +13,54 @@ type ProductStatus =
 
 type ProductRow = {
   id: string;
+  seller_id: string;
+
   name: string;
   slug?: string | null;
+
   short_description?: string | null;
   description: string;
   detail: string;
+
   thumbnail: string | null;
   images: string[];
+
   detail_images?: string[] | null;
   video_url?: string | null;
+
   price: number;
   sale_price: number | null;
+  final_price?: number | null;
+
   currency?: string | null;
+
   stock: number;
   is_unlimited?: boolean | null;
-  is_active?: boolean | null;
-  category_id: number | null;
-  seller_id: string;
-  views?: number | null;
+
   sold?: number | null;
-   final_price?: number | null;
+  views?: number | null;
+
   rating_avg?: number | null;
   rating_count?: number | null;
-  status?: ProductStatus | null;
+
+  is_active?: boolean | null;
   is_featured?: boolean | null;
   is_digital?: boolean | null;
+
+  status?: ProductStatus | null;
+
+  category_id: number | null;
+
   sale_start: string | null;
   sale_end: string | null;
-   sale_stock?: number | null;
+
+  sale_stock?: number | null;
   sale_sold?: number | null;
   sale_enabled?: boolean | null;
+
   meta_title?: string | null;
   meta_description?: string | null;
+
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -62,12 +78,19 @@ export type CreateProductInput = {
   images: string[];
   thumbnail: string | null;
   category_id: number | null;
+
   price: number;
   sale_price: number | null;
+
   sale_start: string | null;
   sale_end: string | null;
+
+  sale_stock?: number;
+  sale_enabled?: boolean;
+
   stock: number;
   is_active: boolean;
+
   views?: number;
   sold?: number;
 };
@@ -85,6 +108,9 @@ export type UpdateProductInput = Partial<
     | "sale_price"
     | "sale_start"
     | "sale_end"
+    | "sale_stock"
+    | "sale_sold"
+    | "sale_enabled"
     | "stock"
     | "is_active"
     | "status"
@@ -95,195 +121,169 @@ export type UpdateProductInput = Partial<
    HELPERS
 ========================================================= */
 
-function toAppProduct(row: ProductRow): ProductRecord {
-  const isSaleActive =
-  Boolean(row.sale_enabled) &&
-  isInSaleTime(row.sale_start, row.sale_end);
+function isUUID(str: string): boolean {
+  return /^[0-9a-fA-F-]{36}$/.test(str);
+}
 
-  const price = Number(row.price) || 0;
+function isInSaleTime(start: string | null, end: string | null): boolean {
+  if (!start || !end) return false;
+
+  const now = Date.now();
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+
+  return now >= s && now <= e;
+}
+
+function toAppProduct(row: ProductRow): ProductRecord {
+  const price = Number(row.price ?? 0);
   const salePrice =
     row.sale_price !== null ? Number(row.sale_price) : null;
 
-  const final_price =
-    isSaleActive && salePrice !== null && salePrice < price
-      ? salePrice
-      : price;
+  const saleActive =
+    Boolean(row.sale_enabled) &&
+    salePrice !== null &&
+    salePrice > 0 &&
+    salePrice < price &&
+    isInSaleTime(row.sale_start, row.sale_end);
+
+  const final_price = saleActive ? salePrice : price;
 
   return {
     ...row,
-
     price,
     sale_price: salePrice,
     final_price,
 
     images: Array.isArray(row.images) ? row.images : [],
 
-    sale_stock: row.sale_stock ?? 0,
-    sale_sold: row.sale_sold ?? 0,
+    sale_stock: Number(row.sale_stock ?? 0),
+    sale_sold: Number(row.sale_sold ?? 0),
+    sale_enabled: Boolean(row.sale_enabled),
 
-    sale_enabled: row.sale_enabled ?? false,
+    sold: Number(row.sold ?? 0),
+    views: Number(row.views ?? 0),
+
+    is_active: row.is_active !== false,
   };
 }
-function isInSaleTime(start: string | null, end: string | null) {
-  if (!start || !end) return false;
 
-  const now = new Date().getTime();
-  const s = new Date(start).getTime();
-  const e = new Date(end).getTime();
+function mapDbError(err: unknown): string {
+  const code =
+    typeof err === "object" &&
+    err &&
+    "code" in err
+      ? String((err as { code?: string }).code)
+      : "";
 
-  return now >= s && now <= e;
+  if (code === "23505") return "DUPLICATE";
+  if (code === "23503") return "INVALID_REFERENCE";
+
+  return "DB_ERROR";
 }
-/* =========================================================
-   GET — ALL PRODUCTS
-========================================================= */
-export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
-  const { rows } = await query<ProductRecord>(
-    `
-    SELECT 
-  id,
-  name,
-  slug,
-  short_description,
-  description,
-  detail,
-  thumbnail,
-  images,
-  detail_images,
-  video_url,
-  price,
-  sale_price,
-  final_price,
-  currency,
-  stock,
-  is_unlimited,
-  sold,
-  views,
-  rating_avg,
-  rating_count,
-  is_active,
-  is_featured,
-  is_digital,
-  status,
-  category_id,
-  sale_start,
-  sale_end,
-  
-  sale_stock,
-  sale_sold,
-  sale_enabled,
 
-  meta_title,
-  meta_description,
-  created_at,
-  updated_at,
-  deleted_at,
-  seller_id
-  FROM products
+/* =========================================================
+   GET ALL
+========================================================= */
+
+export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
+  console.log("[DB][PRODUCT][GET_ALL] start", { limit });
+
+  const { rows } = await query<ProductRow>(
+    `
+    SELECT *
+    FROM products
     WHERE is_active = true
-  AND deleted_at IS NULL
+      AND deleted_at IS NULL
     ORDER BY created_at DESC
     LIMIT $1
     `,
     [limit]
   );
 
+  console.log("[DB][PRODUCT][GET_ALL] rows:", rows.length);
+
   return rows.map(toAppProduct);
 }
+
 /* =========================================================
-   GET — SELLER PRODUCTS
+   GET SELLER PRODUCTS
 ========================================================= */
 
 export async function getSellerProducts(
   sellerId: string
 ): Promise<ProductRecord[]> {
-    const { rows } = await query(
-  `
-  SELECT 
-    p.*,
+  console.log("[DB][PRODUCT][GET_SELLER] start", { sellerId });
 
-    /* ✅ MIN VARIANT PRICE (đúng chuẩn ecommerce) */
-    (
-      SELECT MIN(
-        CASE
-          WHEN v.sale_price > 0 
-            AND NOW() BETWEEN p.sale_start AND p.sale_end
-          THEN v.sale_price
-          ELSE v.price
-        END
-      )
-      FROM product_variants v
-      WHERE v.product_id = p.id
-        AND v.is_active = TRUE
-   ) AS min_variant_price,
+  if (!isUUID(sellerId)) {
+    console.warn("[DB][PRODUCT][GET_SELLER] invalid sellerId");
+    return [];
+  }
 
-    /* ✅ SALE PRICE (optional) */
-    CASE
-      WHEN p.sale_price > 0 
-      THEN p.sale_price
-      ELSE p.price
-    END AS sale_price
+  const { rows } = await query<ProductRow>(
+    `
+    SELECT *
+    FROM products
+    WHERE seller_id = $1
+      AND deleted_at IS NULL
+    ORDER BY created_at DESC
+    `,
+    [sellerId]
+  );
 
-  FROM products p
-  WHERE p.seller_id = $1
-    AND p.deleted_at IS NULL
-
-  ORDER BY p.created_at DESC
-  `,
-  [sellerId]
-);
+  console.log("[DB][PRODUCT][GET_SELLER] rows:", rows.length);
 
   return rows.map(toAppProduct);
 }
 
 /* =========================================================
-   GET — BY IDS
+   GET BY IDS
 ========================================================= */
 
 export async function getProductsByIds(
   ids: string[]
 ): Promise<ProductRecord[]> {
-  if (!ids.length) return [];
+  console.log("[DB][PRODUCT][GET_BY_IDS] start", { count: ids.length });
 
-  const { rows } = await query(
+  const safeIds = ids.filter(isUUID);
+
+  if (!safeIds.length) {
+    console.warn("[DB][PRODUCT][GET_BY_IDS] no valid ids");
+    return [];
+  }
+
+  const { rows } = await query<ProductRow>(
     `
     SELECT *
     FROM products
     WHERE id = ANY($1::uuid[])
-    AND deleted_at IS NULL
-    AND is_active = true
+      AND deleted_at IS NULL
+      AND is_active = true
     `,
-    [ids]
+    [safeIds]
   );
+
+  console.log("[DB][PRODUCT][GET_BY_IDS] rows:", rows.length);
 
   return rows.map(toAppProduct);
 }
 
 /* =========================================================
-   GET — BY ID
+   GET BY ID
 ========================================================= */
-
-function isUUID(str: string): boolean {
-  return /^[0-9a-fA-F-]{36}$/.test(str);
-}
 
 export async function getProductById(
   id: string
 ): Promise<ProductRecord | null> {
   console.log("[DB][PRODUCT][GET_BY_ID] start", { id });
 
-  if (!id || typeof id !== "string") {
-    console.warn("[DB][PRODUCT][GET_BY_ID] invalid id type");
-    return null;
-  }
-
-  // ✅ FIX QUAN TRỌNG
   if (!isUUID(id)) {
-    console.warn("[DB][PRODUCT][GET_BY_ID] invalid UUID:", id);
+    console.warn("[DB][PRODUCT][GET_BY_ID] invalid UUID");
     return null;
   }
 
   try {
-    const { rows } = await query(
+    const { rows } = await query<ProductRow>(
       `
       SELECT *
       FROM products
@@ -295,7 +295,7 @@ export async function getProductById(
     );
 
     if (!rows.length) {
-      console.log("[DB][PRODUCT][GET_BY_ID] not found");
+      console.warn("[DB][PRODUCT][GET_BY_ID] not found");
       return null;
     }
 
@@ -303,7 +303,7 @@ export async function getProductById(
 
     return toAppProduct(rows[0]);
   } catch (err) {
-    console.error("[DB][PRODUCT][GET_BY_ID] ERROR:", err);
+    console.error("[DB][PRODUCT][GET_BY_ID] ERROR:", mapDbError(err));
     return null;
   }
 }
@@ -316,98 +316,118 @@ export async function createProduct(
   sellerId: string,
   product: CreateProductInput
 ): Promise<ProductRecord> {
+  console.log("[DB][PRODUCT][CREATE] start", {
+    sellerId,
+    product,
+  });
 
-  /* ================= CALC ================= */
-
-  const slug = product.name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-");
-
-  const finalPrice =
-    product.sale_price !== null &&
-    product.sale_price < product.price
-      ? product.sale_price
-      : product.price;
-
-  /* ================= INSERT ================= */
-
-  const { rows } = await query(
-    `
-    INSERT INTO products (
-      name,
-      slug,
-      description,
-      detail,
-      images,
-      thumbnail,
-      category_id,
-
-      price,
-      sale_price,
-      final_price,
-
-      sale_start,
-      sale_end,
-
-      sale_stock,
-      sale_sold,
-      sale_enabled,
-
-      stock,
-      is_active,
-
-      views,
-      sold,
-
-      seller_id
-    )
-    VALUES (
-      $1,$2,$3,$4,$5,$6,$7,
-      $8,$9,$10,
-      $11,$12,
-      $13,$14,$15,
-      $16,$17,
-      $18,$19,
-      $20
-    )
-    RETURNING *
-    `,
-    [
-      product.name.trim(),
-      slug,
-      product.description ?? "",
-      product.detail ?? "",
-      product.images ?? [],
-      product.thumbnail ?? "",
-      product.category_id ? Number(product.category_id) : null,
-
-      product.price,
-      product.sale_price,
-      finalPrice,
-
-      product.sale_start,
-      product.sale_end,
-      product.sale_stock ?? 0,
-      0,
-      product.sale_enabled ?? false,
-      product.stock,
-      product.is_active,
-      product.views ?? 0,
-      product.sold ?? 0,
-      sellerId,
-    ]
-  );
-
-  if (!rows.length) {
-    throw new Error("FAILED_TO_CREATE_PRODUCT");
+  if (!isUUID(sellerId)) {
+    throw new Error("INVALID_SELLER_ID");
   }
 
-  return toAppProduct(rows[0]);
+  const slug = product.name.toLowerCase().trim().replace(/\s+/g, "-");
+
+  const price = Number(product.price || 0);
+  const salePrice =
+    product.sale_price !== null ? Number(product.sale_price) : null;
+
+  const finalPrice =
+    salePrice !== null &&
+    salePrice > 0 &&
+    salePrice < price
+      ? salePrice
+      : price;
+
+  try {
+    const { rows } = await query<ProductRow>(
+      `
+      INSERT INTO products (
+        name,
+        slug,
+        description,
+        detail,
+        images,
+        thumbnail,
+        category_id,
+
+        price,
+        sale_price,
+        final_price,
+
+        sale_start,
+        sale_end,
+
+        sale_stock,
+        sale_sold,
+        sale_enabled,
+
+        stock,
+        is_active,
+
+        views,
+        sold,
+
+        seller_id
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,
+        $8,$9,$10,
+        $11,$12,
+        $13,$14,$15,
+        $16,$17,
+        $18,$19,
+        $20
+      )
+      RETURNING *
+      `,
+      [
+        product.name.trim(),
+        slug,
+        product.description ?? "",
+        product.detail ?? "",
+        product.images ?? [],
+        product.thumbnail ?? "",
+        product.category_id,
+
+        price,
+        salePrice,
+        finalPrice,
+
+        product.sale_start,
+        product.sale_end,
+
+        Number(product.sale_stock ?? 0),
+        0,
+        Boolean(product.sale_enabled),
+
+        Number(product.stock ?? 0),
+        Boolean(product.is_active),
+
+        Number(product.views ?? 0),
+        Number(product.sold ?? 0),
+
+        sellerId,
+      ]
+    );
+
+    if (!rows.length) {
+      throw new Error("FAILED_TO_CREATE_PRODUCT");
+    }
+
+    console.log("[DB][PRODUCT][CREATE] success", rows[0].id);
+
+    return toAppProduct(rows[0]);
+
+  } catch (err) {
+    console.error("[DB][PRODUCT][CREATE] ERROR:", mapDbError(err));
+    throw new Error(mapDbError(err));
+  }
 }
+
 /* =========================================================
-   UPDATE
+   UPDATE — FORENSIC VERSION
 ========================================================= */
+
 export async function updateProductBySeller(
   sellerId: string,
   productId: string,
@@ -416,48 +436,51 @@ export async function updateProductBySeller(
   console.log("[DB][PRODUCT][UPDATE] start", {
     sellerId,
     productId,
-    data,
+    incoming: data,
   });
 
-  if (!sellerId || !productId) {
+  if (!isUUID(sellerId) || !isUUID(productId)) {
     console.warn("[DB][PRODUCT][UPDATE] invalid ids");
     return null;
   }
 
+  const allowedFields = [
+    "name",
+    "description",
+    "detail",
+    "images",
+    "thumbnail",
+    "category_id",
+    "price",
+    "sale_price",
+    "sale_start",
+    "sale_end",
+    "sale_stock",
+    "sale_sold",
+    "sale_enabled",
+    "stock",
+    "is_active",
+    "status",
+  ] as const;
+
   const fields: string[] = [];
   const values: unknown[] = [];
+  const accepted: Record<string, unknown> = {};
+  const skipped: Record<string, unknown> = {};
+
   let idx = 1;
-
-  const allowedFields = [
-  "name",
-  "description",
-  "detail",
-  "images",
-  "thumbnail",
-  "category_id",
-  "price",
-  "sale_price",
-  "sale_start",
-  "sale_end",
-  "stock",
-  "is_active",
-  "status",
-
-  "sale_stock",
-  "sale_sold",
-  "sale_enabled",
-] as const;
 
   for (const key of allowedFields) {
     const value = data[key];
 
-    if (value === undefined) continue;
+    if (value === undefined) {
+      skipped[key] = "undefined";
+      continue;
+    }
 
-    /* ================= VALIDATE ================= */
-
-    if (key === "price") {
+    if (key === "price" || key === "stock" || key === "sale_stock" || key === "sale_sold") {
       if (typeof value !== "number" || Number.isNaN(value)) {
-        console.warn("[DB][UPDATE] invalid price");
+        skipped[key] = value;
         continue;
       }
     }
@@ -467,24 +490,22 @@ export async function updateProductBySeller(
         value !== null &&
         (typeof value !== "number" || Number.isNaN(value))
       ) {
-        console.warn("[DB][UPDATE] invalid sale_price");
+        skipped[key] = value;
         continue;
       }
     }
 
-    if (key === "stock") {
-      if (typeof value !== "number" || value < 0) {
-        console.warn("[DB][UPDATE] invalid stock");
-        continue;
-      }
-    }
-
+    accepted[key] = value;
     fields.push(`${key} = $${idx++}`);
     values.push(value);
   }
 
+  console.log("[DB][PRODUCT][UPDATE] accepted:", accepted);
+  console.log("[DB][PRODUCT][UPDATE] skipped:", skipped);
+  console.log("[DB][PRODUCT][UPDATE] sql_fields:", fields);
+
   if (!fields.length) {
-    console.warn("[DB][UPDATE] no fields");
+    console.warn("[DB][PRODUCT][UPDATE] no valid fields");
     return null;
   }
 
@@ -501,124 +522,39 @@ export async function updateProductBySeller(
       [...values, productId, sellerId]
     );
 
+    console.log("[DB][PRODUCT][UPDATE] sql_values:", [
+      ...values,
+      productId,
+      sellerId,
+    ]);
+
     if (!rows.length) {
-      console.warn("[DB][UPDATE] not found");
+      console.warn("[DB][PRODUCT][UPDATE] not found");
       return null;
     }
 
-    console.log("[DB][UPDATE] success");
+    console.log("[DB][PRODUCT][UPDATE] returned_row:", {
+      id: rows[0].id,
+      price: rows[0].price,
+      sale_price: rows[0].sale_price,
+      sale_enabled: rows[0].sale_enabled,
+      sale_stock: rows[0].sale_stock,
+      sale_start: rows[0].sale_start,
+      sale_end: rows[0].sale_end,
+      stock: rows[0].stock,
+    });
 
     return toAppProduct(rows[0]);
 
   } catch (err) {
-    console.error("[DB][UPDATE] ERROR:", err);
+    console.error("[DB][PRODUCT][UPDATE] ERROR:", mapDbError(err));
     return null;
   }
 }
-/* =========================================================
-   SOFT DELETE
-========================================================= */
-
-export async function deleteProductBySeller(
-  sellerId: string,
-  productId: string
-): Promise<boolean> {
-  const { rowCount } = await query(
-    `
-    UPDATE products
-    SET deleted_at = NOW()
-    WHERE id = $1
-      AND seller_id = $2
-    `,
-    [productId, sellerId]
-  );
-
-  return (rowCount ?? 0) > 0;
-}
 
 /* =========================================================
-   SOLD COUNT
+   DELETE PRODUCT BY ID
 ========================================================= */
-
-export async function getSoldByProduct(
-  productId: string
-): Promise<number> {
-  const { rows } = await query(
-    `
-    SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    WHERE oi.product_id = $1
-      AND o.status != 'cancelled'
-    `,
-    [productId]
-  );
-
-  return rows[0]?.sold ?? 0;
-}
-
-/* =========================================================
-   INCREMENT VIEW
-========================================================= */
-
-export async function incrementProductView(
-  productId: string
-): Promise<number> {
-  const { rows } = await query(
-    `
-    UPDATE products
-    SET views = COALESCE(views, 0) + 1
-    WHERE id = $1
-    RETURNING views
-    `,
-    [productId]
-  );
-
-  return rows[0]?.views ?? 0;
-}
-
-/* =========================================================
-   GET — PRODUCTS BY SELLER
-========================================================= */
-
-export type SellerProductRecord = {
-  id: string;
-  name: string;
-  price: number;
-  sale_price: number | null;
-  thumbnail: string | null;
-  stock: number;
-  is_active: boolean;
-  created_at: string;
-};
-
-export async function getProductsBySeller(
-  userId: string
-): Promise<SellerProductRecord[]> {
-  if (!userId) {
-    throw new Error("INVALID_USER_ID");
-  }
-
-  const { rows } = await query<ProductRecord>(
-    `
-    SELECT
-      id,
-      name,
-      price,
-      sale_price,
-      thumbnail,
-      stock,
-      is_active,
-      created_at
-    FROM products
-    WHERE seller_id = $1
-    ORDER BY created_at DESC
-    `,
-    [userId]
-  );
-
-  return rows;
-}
 
 export async function deleteProductById(
   productId: string,
@@ -628,6 +564,12 @@ export async function deleteProductById(
   paths: string[];
   error?: string;
 }> {
+  console.log("[DB][PRODUCT][DELETE] start", { productId, userId });
+
+  if (!isUUID(productId) || !isUUID(userId)) {
+    return { ok: false, paths: [], error: "INVALID_ID" };
+  }
+
   try {
     const res = await query(
       `
@@ -638,7 +580,7 @@ export async function deleteProductById(
       [productId]
     );
 
-    if (res.rowCount === 0) {
+    if (!res.rows.length) {
       return { ok: false, paths: [], error: "NOT_FOUND" };
     }
 
@@ -648,52 +590,26 @@ export async function deleteProductById(
       return { ok: false, paths: [], error: "FORBIDDEN" };
     }
 
-    /* ================= EXTRACT PATH ================= */
     const paths: string[] = [];
 
     if (Array.isArray(product.images)) {
       for (const url of product.images) {
         if (typeof url !== "string") continue;
-
-        const match =
-          url.split("/storage/v1/object/public/products/")[1];
-
-        if (match) paths.push(match);
+        const p = url.split("/storage/v1/object/public/products/")[1];
+        if (p) paths.push(p);
       }
     }
 
-    /* ================= DELETE SHIPPING RATES (FIX) ================= */
-    await query(
-      `
-      DELETE FROM shipping_rates
-      WHERE product_id = $1
-      `,
-      [productId]
-    );
+    await query(`DELETE FROM shipping_rates WHERE product_id = $1`, [productId]);
+    await query(`DELETE FROM product_variants WHERE product_id = $1`, [productId]);
+    await query(`UPDATE products SET deleted_at = NOW() WHERE id = $1`, [productId]);
 
-    /* ================= DELETE VARIANTS (NÊN CÓ) ================= */
-    await query(
-      `
-      DELETE FROM product_variants
-      WHERE product_id = $1
-      `,
-      [productId]
-    );
-
-    /* ================= SOFT DELETE PRODUCT ================= */
-    await query(
-      `
-      UPDATE products
-      SET deleted_at = NOW()
-      WHERE id = $1
-      `,
-      [productId]
-    );
+    console.log("[DB][PRODUCT][DELETE] success");
 
     return { ok: true, paths };
-  } catch (err) {
-    console.error("[DB][DELETE PRODUCT]:", err);
 
+  } catch (err) {
+    console.error("[DB][PRODUCT][DELETE] ERROR:", mapDbError(err));
     return { ok: false, paths: [], error: "DB_ERROR" };
   }
 }
