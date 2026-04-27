@@ -120,10 +120,13 @@ function buildVariantName(v: ProductVariant) {
 ========================================================= */
 
 export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
-  const saleEnabled =
-    Boolean(v.sale_enabled) &&
-    v.sale_price !== null &&
-    Number(v.sale_price) > 0;
+  const price = Number(v.price ?? 0);
+  const salePrice = v.sale_price !== null ? Number(v.sale_price) : null;
+
+  const finalPrice =
+    salePrice !== null && salePrice > 0 && salePrice < price
+      ? salePrice
+      : price;
 
   return {
     id: v.id,
@@ -140,24 +143,20 @@ export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
 
     sku: v.sku ?? null,
 
-    price: Number(v.price ?? 0),
-    salePrice: v.sale_price !== null ? Number(v.sale_price) : null,
+    price,
+    salePrice,
+    finalPrice,
 
-    finalPrice: calcFinalPrice({
-      price: Number(v.price ?? 0),
-      salePrice: v.sale_price !== null ? Number(v.sale_price) : null,
-      saleEnabled,
-    }),
+    // ❌ KHÔNG còn saleEnabled
+    saleEnabled: undefined,
 
-    saleEnabled,
-    saleStock: saleEnabled ? Number(v.sale_stock ?? 0) : 0,
-    saleSold: saleEnabled ? Number(v.sale_sold ?? 0) : 0,
+    saleStock: 0,
+    saleSold: 0,
 
     stock: Number(v.stock ?? 0),
     isUnlimited: Boolean(v.is_unlimited),
 
     image: v.image ?? "",
-
     isActive: Boolean(v.is_active),
     sortOrder: Number(v.sort_order ?? 0),
 
@@ -184,46 +183,41 @@ export function mapVariantToDB(
   const safeSaleStock = Number(v.saleStock || 0);
 
   return {
-    id: v.id,
+  id: v.id,
 
-    product_id: productId,
+  product_id: productId,
 
-    option_1: v.option1 || null,
-    option_2: v.option2 || null,
-    option_3: v.option3 || null,
+  option_1: v.option1 || null,
+  option_2: v.option2 || null,
+  option_3: v.option3 || null,
 
-    option_label_1: v.optionLabel1 || null,
-    option_label_2: v.optionLabel2 || null,
-    option_label_3: v.optionLabel3 || null,
+  option_label_1: v.optionLabel1 || null,
+  option_label_2: v.optionLabel2 || null,
+  option_label_3: v.optionLabel3 || null,
 
-    name: v.name || buildVariantName(v),
+  name: v.name || buildVariantName(v),
 
-    sku: v.sku || null,
+  sku: v.sku || null,
 
-    price: safePrice,
-    sale_price: safeSalePrice,
-    final_price: calcFinalPrice({
-      ...v,
-      price: safePrice,
-      salePrice: safeSalePrice,
-    }),
+  price: safePrice,
+  sale_price: safeSalePrice,
 
-    sale_enabled: Boolean(v.saleEnabled),
-    sale_stock: safeSaleStock,
-    sale_sold: Number(v.saleSold || 0),
+  final_price: safeSalePrice && safeSalePrice < safePrice
+    ? safeSalePrice
+    : safePrice,
 
-    stock: safeStock,
-    is_unlimited: Boolean(v.isUnlimited),
+  stock: safeStock,
+  is_unlimited: Boolean(v.isUnlimited),
 
-    image: v.image || "",
+  image: v.image || "",
 
-    is_active: v.isActive !== false,
-    sort_order: sortOrder,
+  is_active: v.isActive !== false,
+  sort_order: sortOrder,
 
-    sold: Number(v.sold || 0),
+  sold: Number(v.sold || 0),
 
-    currency: "PI",
-  };
+  currency: "PI",
+};
 }
 
 /* =========================================================
