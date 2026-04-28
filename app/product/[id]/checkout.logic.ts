@@ -316,50 +316,48 @@ export function useCheckoutPay({
         variantId: product.variant_id ?? null,
       });
 
-      const payment = await window.Pi.createPayment({
-  amount: Number(intent.amount),
-  memo: String(intent.memo),
-  metadata: JSON.stringify(intent.metadata),
-});
-        },
-        {
-          onReadyForServerApproval: async (_paymentId, callback) => {
-            callback();
-          },
+      await window.Pi?.createPayment(
+  {
+    amount: intent.amount,
+    memo: intent.memo,
+    metadata: intent.metadata, // ❗ KHÔNG stringify
+  },
+  {
+    onReadyForServerApproval: async (_paymentId, callback) => {
+      callback();
+    },
 
-          onReadyForServerCompletion: async (piPaymentId, txid) => {
-            try {
-              await submitPiPayment({
-                paymentIntentId: intent.paymentIntentId,
-                piPaymentId,
-                txid,
-              });
+    onReadyForServerCompletion: async (piPaymentId, txid) => {
+      try {
+        await submitPiPayment({
+          paymentIntentId: intent.paymentIntentId,
+          piPaymentId,
+          txid,
+        });
 
-              onClose();
-              router.replace("/customer/orders?tab=pending");
-              showMessage(t.payment_success ?? "success", "success");
-            } catch (err) {
-              console.error("SUBMIT ERROR:", err);
-              showMessage(t.payment_failed ?? "payment_failed");
-            } finally {
-              processingRef.current = false;
-              setProcessing(false);
-            }
-          },
+        onClose();
+        router.replace("/customer/orders?tab=pending");
+        showMessage(t.payment_success ?? "success", "success");
+      } catch (err) {
+        console.error("SUBMIT ERROR:", err);
+        showMessage(t.payment_failed ?? "payment_failed");
+      } finally {
+        processingRef.current = false;
+        setProcessing(false);
+      }
+    },
 
-          onCancel: () => {
-            processingRef.current = false;
-            setProcessing(false);
-            showMessage(t.payment_cancelled ?? "cancelled");
-          },
+    onCancel: () => {
+      processingRef.current = false;
+      setProcessing(false);
+    },
 
-          onError: () => {
-            processingRef.current = false;
-            setProcessing(false);
-            showMessage(t.payment_failed ?? "payment_failed");
-          },
-        }
-      );
+    onError: () => {
+      processingRef.current = false;
+      setProcessing(false);
+    },
+  }
+);
     } catch (err) {
       processingRef.current = false;
       setProcessing(false);
