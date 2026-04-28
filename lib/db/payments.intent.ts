@@ -254,12 +254,12 @@ export async function createPiPaymentIntent(
     return {
   paymentIntentId: String(paymentIntentId),
   amount: Number(total),
-  memo: `ORDER-${String(paymentIntentId).slice(0, 8)}`,
+  memo: String(memo),
   metadata: {
     paymentIntentId,
     nonce,
-
-      currency: "PI",
+  },
+  currency: "PI",
     };
   });
 }
