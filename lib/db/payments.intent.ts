@@ -252,10 +252,13 @@ export async function createPiPaymentIntent(
     console.log("🟢 [PAYMENT_INTENT] CREATED", insert.rows[0].id);
 
     return {
-      paymentIntentId: insert.rows[0].id,
-      amount: total,
-      merchantWallet,
-      nonce,
+  paymentIntentId: String(paymentIntentId),
+  amount: Number(total),
+  memo: `ORDER-${String(paymentIntentId).slice(0, 8)}`,
+  metadata: {
+    paymentIntentId,
+    nonce,
+
       currency: "PI",
     };
   });
