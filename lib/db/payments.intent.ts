@@ -258,13 +258,7 @@ export async function createPiPaymentIntent(
         country,
         zone,
 
-        shipping_name,
-        shipping_phone,
-        shipping_address_line,
-        shipping_ward,
-        shipping_district,
-        shipping_region,
-        shipping_postal_code,
+        shipping_snapshot,
 
         unit_price,
         subtotal,
@@ -297,9 +291,17 @@ export async function createPiPaymentIntent(
         params.country,
         params.zone,
 
-        params.shipping.name,
-        params.shipping.phone,
-        params.shipping.address_line,
+        shipping_snapshot: JSON.stringify({
+  name: params.shipping.name,
+  phone: params.shipping.phone,
+  address_line: params.shipping.address_line,
+  ward: params.shipping.ward,
+  district: params.shipping.district,
+  region: params.shipping.region,
+  postal_code: params.shipping.postal_code,
+  country: params.country,
+  zone: params.zone
+})
         params.shipping.ward ?? null,
         params.shipping.district ?? null,
         params.shipping.region ?? null,
