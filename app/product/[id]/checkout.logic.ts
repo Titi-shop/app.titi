@@ -316,11 +316,18 @@ export function useCheckoutPay({
         variantId: product.variant_id ?? null,
       });
 
-      await window.Pi?.createPayment(
+      if (!window.Pi) {
+  throw new Error("PI_SDK_NOT_LOADED");
+}
+
+await window.Pi.createPayment(
   {
-    amount: intent.amount,
-    memo: intent.memo,
-    metadata: intent.metadata, // ❗ KHÔNG stringify
+    amount: Number(intent.amount),
+    memo: String(intent.memo),
+    metadata: {
+      payment_intent_id: String(intent.paymentIntentId),
+      nonce: String(intent.nonce),
+    },
   },
   {
     onReadyForServerApproval: async (_paymentId, callback) => {
