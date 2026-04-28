@@ -15,7 +15,7 @@ type ShippingInput = {
 };
 
 type CreateIntentParams = {
-  userId: string;
+  userId: string; // buyerId (UUID after auth mapping)
   productId: string;
   variantId?: string | null;
   quantity: number;
@@ -28,8 +28,8 @@ type CreateIntentResult = {
   paymentIntentId: string;
   amount: number;
   merchantWallet: string;
-  memo: string;
   nonce: string;
+  currency: "PI";
 };
 
 /* =========================
@@ -45,25 +45,18 @@ function isUUID(v: unknown): v is string {
 
 function safeQty(v: number): number {
   if (!Number.isInteger(v) || v <= 0) return 1;
-  if (v > 10) return 10;
+  if (v > 100) return 100;
   return v;
 }
 
-function randomNonce(): string {
-  return (
-    Date.now().toString(36) +
-    Math.random().toString(36).slice(2, 12)
-  ).toUpperCase();
+function getMerchantWallet(): string {
+  const w = process.env.PI_MERCHANT_WALLET;
+  if (!w) throw new Error("MISSING_MERCHANT_WALLET");
+  return w.trim();
 }
 
-function requireMerchantWallet(): string {
-  const wallet = process.env.PI_MERCHANT_WALLET;
-
-  if (!wallet || typeof wallet !== "string" || wallet.trim().length < 20) {
-    throw new Error("MERCHANT_WALLET_NOT_CONFIGURED");
-  }
-
-  return wallet.trim();
+function generateNonce(): string {
+  return crypto.randomUUID().replace(/-/g, "");
 }
 
 /* =========================
@@ -76,49 +69,34 @@ export async function createPiPaymentIntent(
   if (!isUUID(params.userId)) throw new Error("INVALID_USER_ID");
   if (!isUUID(params.productId)) throw new Error("INVALID_PRODUCT_ID");
 
-  if (params.variantId && !isUUID(params.variantId)) {
-    throw new Error("INVALID_VARIANT_ID");
-  }
+  const variantId =
+    params.variantId && isUUID(params.variantId)
+      ? params.variantId
+      : null;
 
   const quantity = safeQty(params.quantity);
-  const merchantWallet = requireMerchantWallet();
+  const merchantWallet = getMerchantWallet();
+  const nonce = generateNonce();
 
   return withTransaction(async (client) => {
-    console.log("🟡 [DB][PAYMENT_INTENT] START", {
-      userId: params.userId,
+    console.log("🟡 [PAYMENT_INTENT] START", {
+      buyerId: params.userId,
       productId: params.productId,
     });
 
     /* =========================
-       1. LOAD PRODUCT
+       1. PRODUCT
     ========================= */
 
     const productRes = await client.query<{
       id: string;
       seller_id: string;
-      name: string;
       price: string;
       sale_price: string | null;
-      sale_start: string | null;
-      sale_end: string | null;
-      thumbnail: string | null;
       stock: number;
-      is_active: boolean;
-      deleted_at: string | null;
     }>(
       `
-      SELECT
-        id,
-        seller_id,
-        name,
-        price,
-        sale_price,
-        sale_start,
-        sale_end,
-        thumbnail,
-        stock,
-        is_active,
-        deleted_at
+      SELECT id, seller_id, price, sale_price, stock
       FROM products
       WHERE id = $1
       LIMIT 1
@@ -126,215 +104,159 @@ export async function createPiPaymentIntent(
       [params.productId]
     );
 
-    if (!productRes.rows.length) {
-      throw new Error("PRODUCT_NOT_FOUND");
-    }
+    if (!productRes.rows.length) throw new Error("PRODUCT_NOT_FOUND");
 
     const product = productRes.rows[0];
 
-    if (!product.is_active || product.deleted_at) {
-      throw new Error("PRODUCT_NOT_AVAILABLE");
-    }
-
-    if (!isUUID(product.seller_id)) {
-      throw new Error("INVALID_SELLER_ID");
-    }
-
-    /* =========================
-       2. RESOLVE PRICE
-    ========================= */
-
     let unitPrice = Number(product.price);
 
-    if (params.variantId) {
-      const variantRes = await client.query<{
-        id: string;
+    /* =========================
+       2. VARIANT
+    ========================= */
+
+    if (variantId) {
+      const v = await client.query<{
         price: string;
         sale_price: string | null;
         stock: number;
       }>(
         `
-        SELECT id, price, sale_price, stock
+        SELECT price, sale_price, stock
         FROM product_variants
-        WHERE id = $1
-        AND product_id = $2
+        WHERE id = $1 AND product_id = $2
         LIMIT 1
         `,
-        [params.variantId, params.productId]
+        [variantId, params.productId]
       );
 
-      if (!variantRes.rows.length) {
-        throw new Error("INVALID_VARIANT");
-      }
+      if (!v.rows.length) throw new Error("INVALID_VARIANT");
 
-      const variant = variantRes.rows[0];
+      const variant = v.rows[0];
 
-      if (variant.stock < quantity) {
-        throw new Error("OUT_OF_STOCK");
-      }
+      if (variant.stock < quantity) throw new Error("OUT_OF_STOCK");
 
       unitPrice =
         variant.sale_price && Number(variant.sale_price) > 0
           ? Number(variant.sale_price)
           : Number(variant.price);
     } else {
-      if (product.stock < quantity) {
-        throw new Error("OUT_OF_STOCK");
-      }
-
-      const now = Date.now();
-      const start = product.sale_start ? new Date(product.sale_start).getTime() : null;
-      const end = product.sale_end ? new Date(product.sale_end).getTime() : null;
-
-      const onSale =
-        product.sale_price !== null &&
-        Number(product.sale_price) > 0 &&
-        start !== null &&
-        end !== null &&
-        now >= start &&
-        now <= end;
-
-      unitPrice = onSale
-        ? Number(product.sale_price)
-        : Number(product.price);
+      if (product.stock < quantity) throw new Error("OUT_OF_STOCK");
     }
 
     /* =========================
-       3. SHIPPING VERIFY
+       3. SHIPPING RATE
     ========================= */
 
-    const shippingRes = await client.query<{ price: string }>(
+    const ship = await client.query<{ price: string }>(
       `
       SELECT sr.price
       FROM shipping_rates sr
-      JOIN shipping_zones sz
-        ON sz.id = sr.zone_id
-      WHERE sr.product_id = $1
-      AND sz.code = $2
+      JOIN shipping_zones sz ON sz.id = sr.zone_id
+      WHERE sr.product_id = $1 AND sz.code = $2
       LIMIT 1
       `,
       [params.productId, params.zone]
     );
 
-    if (!shippingRes.rows.length) {
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
+    if (!ship.rows.length) throw new Error("SHIPPING_NOT_AVAILABLE");
 
-    const shippingFee = Number(shippingRes.rows[0].price);
+    const shippingFee = Number(ship.rows[0].price);
 
     /* =========================
-       4. TOTAL SERVER CALC
+       4. TOTAL CALC
     ========================= */
 
     const subtotal = unitPrice * quantity;
-    const discount = 0;
-    const itemsTotal = subtotal - discount;
-    const total = itemsTotal + shippingFee;
+    const total = subtotal + shippingFee;
 
     if (!Number.isFinite(total) || total <= 0) {
       throw new Error("INVALID_TOTAL");
     }
 
     /* =========================
-       5. NONCE
+       5. SHIPPING SNAPSHOT (FIXED)
     ========================= */
 
-    const nonce = randomNonce();
+    const shipping_snapshot = {
+      name: params.shipping.name,
+      phone: params.shipping.phone,
+      address_line: params.shipping.address_line,
+      ward: params.shipping.ward ?? null,
+      district: params.shipping.district ?? null,
+      region: params.shipping.region ?? null,
+      postal_code: params.shipping.postal_code ?? null,
+      country: params.country,
+      zone: params.zone,
+    };
 
     /* =========================
-       6. INSERT SNAPSHOT INTENT
+       6. INSERT INTENT (FIXED SQL)
     ========================= */
 
-    const intentRes = await client.query<{ id: string }>(
+    const insert = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
         buyer_id,
         seller_id,
         product_id,
         variant_id,
-
         quantity,
-
-        country,
-        zone,
-
-        shipping_snapshot,
 
         unit_price,
         subtotal,
-        discount,
         shipping_fee,
-        total,
+        total_amount,
+        currency,
+
+        shipping_snapshot,
+
+        country,
+        zone,
 
         merchant_wallet,
         nonce,
         status
       )
       VALUES (
-        $1,$2,$3,$4,
-        $5,
-        $6,$7,
-        $8,$9,$10,$11,$12,$13,$14,
-        $15,$16,$17,$18,$19,
-        $20,$21,'created'
+        $1,$2,$3,$4,$5,
+        $6,$7,$8,$9,$10,
+        $11,
+        $12,$13,
+        $14,$15,'created'
       )
       RETURNING id
       `,
       [
-        params.buyer_id,
-        product.seller_id,
-        product.id,
-        params.variantId ?? null,
-
+        params.userId,       // buyer_id
+        product.seller_id,   // seller_id
+        params.productId,
+        variantId,
         quantity,
-
-        params.country,
-        params.zone,
-
-        shipping_snapshot: JSON.stringify({
-  name: params.shipping.name,
-  phone: params.shipping.phone,
-  address_line: params.shipping.address_line,
-  ward: params.shipping.ward,
-  district: params.shipping.district,
-  region: params.shipping.region,
-  postal_code: params.shipping.postal_code,
-  country: params.country,
-  zone: params.zone
-})
-        params.shipping.ward ?? null,
-        params.shipping.district ?? null,
-        params.shipping.region ?? null,
-        params.shipping.postal_code ?? null,
 
         unitPrice,
         subtotal,
-        discount,
         shippingFee,
         total,
+        "PI",
+
+        JSON.stringify(shipping_snapshot),
+
+        params.country,
+        params.zone,
 
         merchantWallet,
         nonce,
       ]
     );
 
-    const paymentIntentId = intentRes.rows[0].id;
-
-    console.log("🟢 [DB][PAYMENT_INTENT] CREATED", {
-      paymentIntentId,
-      total,
-    });
-
-    /* =========================
-       7. RETURN CLIENT SAFE DATA
-    ========================= */
+    console.log("🟢 [PAYMENT_INTENT] CREATED", insert.rows[0].id);
 
     return {
-      paymentIntentId,
+      paymentIntentId: insert.rows[0].id,
       amount: total,
       merchantWallet,
-      memo: `ORDER-${paymentIntentId.slice(0, 8)}`,
       nonce,
+      currency: "PI",
     };
   });
 }
