@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback } from "react";
@@ -21,14 +22,6 @@ type PreviewPayload = {
   item: Item;
   quantity: number;
   variant_id?: string | null;
-};
-
-type PaymentIntentResponse = {
-  paymentIntentId: string;
-  amount: number;
-  merchantWallet: string;
-  memo: string;
-  nonce: string;
 };
 
 type ValidateParams = {
@@ -55,7 +48,7 @@ type UseCheckoutPayParams = {
   processingRef: { current: boolean };
   t: Record<string, string>;
   user: unknown;
-  router: { replace: (path: string) => void };
+  router: { push: (path: string) => void };
   onClose: () => void;
   zone: Region | null;
   product: { variant_id?: string | null };
@@ -65,7 +58,7 @@ type UseCheckoutPayParams = {
 };
 
 /* =========================
-   PREVIEW DIRECT (UI ONLY)
+   PREVIEW DIRECT (SAFE)
 ========================= */
 
 async function previewOrderDirect({
@@ -92,12 +85,12 @@ async function previewOrderDirect({
         ward: shipping.ward,
       },
       items: [
-        {
-          product_id: item.id,
-          variant_id: variant_id ?? null,
-          quantity,
-        },
-      ],
+  {
+    product_id: item.id,
+    variant_id: variant_id ?? null,
+    quantity,
+  },
+],
     }),
   });
 
@@ -108,81 +101,6 @@ async function previewOrderDirect({
   }
 
   return data as { total: number };
-}
-
-/* =========================
-   CREATE PAYMENT INTENT
-========================= */
-
-async function createPiPaymentIntent(params: {
-  item: Item;
-  quantity: number;
-  shipping: ShippingInfo;
-  zone: Region;
-  variantId?: string | null;
-}) {
-  const token = await getPiAccessToken();
-
-  const res = await fetch("/api/payments/pi/create-intent", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      product_id: params.item.id,
-      variant_id: params.variantId ?? null,
-      quantity: params.quantity,
-      country: params.shipping.country.toUpperCase(),
-      shipping: {
-        name: params.shipping.name,
-        phone: params.shipping.phone,
-        address_line: params.shipping.address_line,
-        ward: params.shipping.ward,
-        district: params.shipping.district,
-        region: params.shipping.region,
-        postal_code: params.shipping.postal_code,
-      },
-      zone: params.zone,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data?.error || "CREATE_INTENT_FAILED");
-  }
-
-  return data as PaymentIntentResponse;
-}
-
-/* =========================
-   SUBMIT PAYMENT
-========================= */
-
-async function submitPiPayment(params: {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-}) {
-  const token = await getPiAccessToken();
-
-  const res = await fetch("/api/payments/pi/submit", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data?.error || "SUBMIT_FAILED");
-  }
-
-  return data as { success: true; orderId: string };
 }
 
 /* =========================
@@ -197,8 +115,6 @@ export const getErrorKey = (code?: string) => {
     SHIPPING_NOT_AVAILABLE: "shipping_not_available",
     OUT_OF_STOCK: "error_out_of_stock",
     INVALID_QUANTITY: "error_invalid_quantity",
-    CREATE_INTENT_FAILED: "payment_intent_failed",
-    SUBMIT_FAILED: "payment_submit_failed",
   };
 
   return map[code || ""] || "unknown_error";
@@ -231,14 +147,19 @@ export function validateBeforePay({
     showMessage(t.pi_not_ready ?? "pi_not_ready");
     return false;
   }
-
+   
   if (!shipping) {
     showMessage(t.please_add_shipping_address ?? "no_address");
     return false;
   }
 
-  if (!shipping.country || !shipping.region) {
+  if (!shipping.country) {
     showMessage(t.invalid_shipping_country ?? "invalid_country");
+    return false;
+  }
+
+  if (!shipping.region) {
+    showMessage(t.invalid_shipping_region ?? "invalid_region");
     return false;
   }
 
@@ -247,7 +168,7 @@ export function validateBeforePay({
     return false;
   }
 
-  if (!item?.id) {
+  if (!item || !item.id) {
     showMessage(t.invalid_product ?? "invalid_product");
     return false;
   }
@@ -266,12 +187,15 @@ export function validateBeforePay({
 }
 
 /* =========================
-   PAY FINAL
+   PAY (PRODUCTION SAFE)
 ========================= */
 
 export function useCheckoutPay({
   item,
   quantity,
+  total,
+  shipping,
+  unitPrice,
   processing,
   setProcessing,
   processingRef,
@@ -284,97 +208,147 @@ export function useCheckoutPay({
   showMessage,
   validate,
   preview,
-  shipping,
 }: UseCheckoutPayParams) {
   return useCallback(async () => {
+    /* ===== BLOCK DOUBLE CLICK ===== */
     if (processingRef.current || processing) return;
+
     if (!validate()) return;
+if (!preview || typeof preview.total !== "number") {
+  showMessage(t.order_preview_error ?? "Đang tính giá, vui lòng chờ...");
+  return;
+}
 
     processingRef.current = true;
     setProcessing(true);
 
     try {
-      if (!preview && shipping && zone && item) {
-        await previewOrderDirect({
-          shipping,
-          zone,
-          item,
-          quantity,
-          variant_id: product.variant_id ?? null,
-        });
-      }
+      /* ===== ENSURE PREVIEW ===== */
+      let finalPreview = preview;
 
-      if (!shipping || !zone || !item) {
-        throw new Error("INVALID_CHECKOUT_DATA");
-      }
-
-      const intent = await createPiPaymentIntent({
-        item,
-        quantity,
-        shipping,
-        zone,
-        variantId: product.variant_id ?? null,
+      if (!finalPreview && shipping && zone && item) {
+        try {
+          finalPreview = await previewOrderDirect({
+      shipping,
+      zone,
+      item,
+      quantity,
+      variant_id: product.variant_id ?? null,
       });
-
-      if (!window.Pi) {
-  throw new Error("PI_SDK_NOT_LOADED");
-}
-
-await window.Pi.createPayment(
-  {
-    amount: Number(intent.amount),
-    memo: String(intent.memo),
-    metadata: {
-      payment_intent_id: String(intent.paymentIntentId),
-      nonce: String(intent.nonce),
-    },
-  },
-  {
-    onReadyForServerApproval: async (_paymentId, callback) => {
-      callback();
-    },
-
-    onReadyForServerCompletion: async (piPaymentId, txid) => {
-      try {
-        await submitPiPayment({
-          paymentIntentId: intent.paymentIntentId,
-          piPaymentId,
-          txid,
-        });
-
-        onClose();
-        router.replace("/customer/orders?tab=pending");
-        showMessage(t.payment_success ?? "success", "success");
-      } catch (err) {
-        console.error("SUBMIT ERROR:", err);
-        showMessage(t.payment_failed ?? "payment_failed");
-      } finally {
-        processingRef.current = false;
-        setProcessing(false);
+        } catch (err) {
+          const key = getErrorKey((err as Error).message);
+          showMessage(t[key] ?? key);
+          throw err;
+        }
       }
-    },
 
-    onCancel: () => {
-      processingRef.current = false;
-      setProcessing(false);
-    },
+      if (!finalPreview) {
+        showMessage(t.order_preview_error ?? "preview_error");
+        return;
+      }
 
-    onError: () => {
-      processingRef.current = false;
-      setProcessing(false);
-    },
+      /* ===== PI PAYMENT ===== */
+      await window.Pi?.createPayment(
+        {
+          amount: finalPreview.total,
+          memo: t.payment_memo_order ?? "order_payment",
+          metadata: {
+     product_id: item?.id,
+     variant_id: product.variant_id ?? null,
+       quantity,
+       },
+        },
+        {
+          onReadyForServerApproval: async (paymentId, callback) => {
+            try {
+              const token = await getPiAccessToken();
+
+              const res = await fetch("/api/payments/pi/approve-intent", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paymentId }),
+              });
+
+              if (!res.ok) {
+                showMessage(t.payment_approve_failed ?? "approve_failed");
+                throw new Error("APPROVE_FAILED");
+              }
+
+              callback();
+            } catch {
+              showMessage(t.payment_approve_error ?? "approve_error");
+              throw new Error("APPROVE_ERROR");
+            }
+          },
+
+          onReadyForServerCompletion: async (paymentId, txid) => {
+  try {
+    const token = await getPiAccessToken();
+
+    const res = await fetch("/api/pi/complete", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+  paymentId,
+  txid,
+     }),
+    });
+
+    if (!res.ok) {
+      showMessage(t.payment_complete_failed ?? "complete_failed");
+      throw new Error("COMPLETE_FAILED");
+    }
+
+    /* =========================
+       SUCCESS → REDIRECT
+    ========================= */
+    onClose();
+
+    router.replace("/customer/orders?tab=pending");
+
+    showMessage(t.payment_success ?? "success", "success");
+
+  } catch (err) {
+    console.error("COMPLETE ERROR:", err);
+
+    showMessage(t.payment_failed ?? "payment_failed");
+
+  } finally {
+    processingRef.current = false;
+    setProcessing(false);
   }
-);
-    } catch (err) {
+},
+
+          onCancel: () => {
+            processingRef.current = false;
+            setProcessing(false);
+            showMessage(t.payment_cancelled ?? "cancelled");
+          },
+
+          onError: () => {
+            processingRef.current = false;
+            setProcessing(false);
+            showMessage(t.payment_failed ?? "payment_failed");
+          },
+        }
+      );
+    } catch {
       processingRef.current = false;
       setProcessing(false);
-
-      const key = getErrorKey((err as Error).message);
-      showMessage(t[key] ?? key);
+      showMessage(t.transaction_failed ?? "transaction_failed");
     }
   }, [
     item,
     quantity,
+    total,
+    shipping,
+    unitPrice,
     processing,
     setProcessing,
     processingRef,
@@ -387,6 +361,5 @@ await window.Pi.createPayment(
     preview,
     validate,
     showMessage,
-    shipping,
   ]);
 }
