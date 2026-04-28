@@ -246,14 +246,36 @@ if (!preview || typeof preview.total !== "number") {
         showMessage(t.order_preview_error ?? "preview_error");
         return;
       }
+const token = await getPiAccessToken();
 
+const intentRes = await fetch("/api/payments/pi/create-intent", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: item.id,
+    variant_id: product.variant_id ?? null,
+    quantity,
+    country: shipping.country,
+    zone,
+    shipping,
+  }),
+});
+
+const intentData = await intentRes.json();
+
+if (!intentRes.ok) {
+  throw new Error(intentData?.error || "CREATE_INTENT_FAILED");
+}
       /* ===== PI PAYMENT ===== */
       await window.Pi?.createPayment(
   {
     amount: finalPreview.total,
     memo: t.payment_memo_order ?? "order_payment",
     metadata: {
-      intent_id: intent.paymentIntentId, // 🔥 BẮT BUỘC
+      intent_id: intentData.paymentIntentId, 
       product_id: item?.id,
       variant_id: product.variant_id ?? null,
       quantity,
@@ -275,10 +297,10 @@ if (!preview || typeof preview.total !== "number") {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        payment_intent_id: metadata.intent_id, // 🔥 LẤY TỪ METADATA
-        pi_payment_id: piPaymentId,
-        txid,
-      }),
+  payment_intent_id: intentData.paymentIntentId, // ✅ FIX
+  pi_payment_id: piPaymentId,
+  txid,
+}),
     });
 
     if (!res.ok) throw new Error("SUBMIT_FAILED");
