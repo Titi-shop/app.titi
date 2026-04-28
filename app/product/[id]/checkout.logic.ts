@@ -322,26 +322,23 @@ export function useCheckoutPay({
 
 await window.Pi.createPayment(
   {
-    amount: Number(intent.amount),
-    memo: String(intent.memo),
+    amount: intent.amount,
+    memo: intent.memo,
     metadata: {
-      payment_intent_id: String(intent.paymentIntentId),
-      nonce: String(intent.nonce),
+      pi: intent.paymentIntentId,
+      n: intent.nonce,
     },
   },
   {
-    onReadyForServerApproval: async (_paymentId, callback) => {
-      callback();
-    },
-
     onReadyForServerCompletion: async (piPaymentId, txid) => {
-      try {
-        await submitPiPayment({
+      await fetch("/api/payments/pi/submit", {
+        method: "POST",
+        body: JSON.stringify({
           paymentIntentId: intent.paymentIntentId,
           piPaymentId,
           txid,
-        });
-
+        }),
+      
         onClose();
         router.replace("/customer/orders?tab=pending");
         showMessage(t.payment_success ?? "success", "success");
