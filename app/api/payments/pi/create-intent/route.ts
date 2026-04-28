@@ -188,10 +188,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({
-  paymentIntentId: intent.paymentIntentId,
-  amount: intent.amount,
-  memo: intent.memo,
-  nonce: intent.nonce,
+   paymentIntentId: intent.paymentIntentId,
+   amount: intent.amount,
+   memo: intent.memo,
+   nonce: intent.nonce,
+   merchantWallet: intent.merchantWallet,
 });
   } catch (err) {
     const code =
