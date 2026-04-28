@@ -316,14 +316,11 @@ export function useCheckoutPay({
         variantId: product.variant_id ?? null,
       });
 
-      await window.Pi?.createPayment(
-        {
-          amount: intent.amount,
-          memo: intent.memo,
-          metadata: {
-            payment_intent_id: intent.paymentIntentId,
-            nonce: intent.nonce,
-          },
+      const payment = await window.Pi.createPayment({
+  amount: Number(intent.amount),
+  memo: String(intent.memo),
+  metadata: JSON.stringify(intent.metadata),
+});
         },
         {
           onReadyForServerApproval: async (_paymentId, callback) => {
