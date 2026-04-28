@@ -249,15 +249,16 @@ if (!preview || typeof preview.total !== "number") {
 
       /* ===== PI PAYMENT ===== */
       await window.Pi?.createPayment(
-        {
-          amount: finalPreview.total,
-          memo: t.payment_memo_order ?? "order_payment",
-          metadata: {
-     product_id: item?.id,
-     variant_id: product.variant_id ?? null,
-       quantity,
-       },
-        },
+  {
+    amount: finalPreview.total,
+    memo: t.payment_memo_order ?? "order_payment",
+    metadata: {
+      intent_id: intent.paymentIntentId, // 🔥 BẮT BUỘC
+      product_id: item?.id,
+      variant_id: product.variant_id ?? null,
+      quantity,
+    },
+  },
         {
           onReadyForServerApproval: (paymentId, callback) => {
   callback();
@@ -274,15 +275,13 @@ if (!preview || typeof preview.total !== "number") {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        payment_intent_id: piPaymentId,
+        payment_intent_id: metadata.intent_id, // 🔥 LẤY TỪ METADATA
         pi_payment_id: piPaymentId,
         txid,
       }),
     });
 
-    if (!res.ok) {
-      throw new Error("SUBMIT_FAILED");
-    }
+    if (!res.ok) throw new Error("SUBMIT_FAILED");
 
     onClose();
     router.replace("/customer/orders?tab=pending");
