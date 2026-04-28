@@ -294,6 +294,7 @@ export function useCheckoutPay({
     setProcessing(true);
 
     try {
+      // 1. preview (optional)
       if (!preview && shipping && zone && item) {
         await previewOrderDirect({
           shipping,
@@ -308,6 +309,7 @@ export function useCheckoutPay({
         throw new Error("INVALID_CHECKOUT_DATA");
       }
 
+      // 2. chỉ gọi backend tạo intent
       const intent = await createPiPaymentIntent({
         item,
         quantity,
@@ -316,59 +318,26 @@ export function useCheckoutPay({
         variantId: product.variant_id ?? null,
       });
 
-      if (!window.Pi) {
-  throw new Error("PI_SDK_NOT_LOADED");
-}
+      console.log("🟢 INTENT CREATED:", intent.paymentIntentId);
 
-await window.Pi.createPayment(
-  {
-    amount: intent.amount,
-    memo: intent.memo,
-    metadata: {
-      pi: intent.paymentIntentId,
-      n: intent.nonce,
-    },
-  },
-  {
-    onReadyForServerCompletion: async (piPaymentId, txid) => {
-  try {
-    await submitPiPayment({
-      paymentIntentId: intent.paymentIntentId,
-      piPaymentId,
-      txid,
-    });
+      // 3. KHÔNG mở ví
+      // 👉 chỉ redirect sang trạng thái chờ thanh toán
+      onClose();
 
-    onClose();
+      router.replace(
+        `/customer/orders?tab=pending&intent=${intent.paymentIntentId}`
+      );
 
-    router.replace("/customer/orders?tab=pending");
-
-    showMessage(t.payment_success ?? "success", "success");
-  } catch (err) {
-    console.error("SUBMIT ERROR:", err);
-    showMessage(t.payment_failed ?? "payment_failed");
-  } finally {
-    processingRef.current = false;
-    setProcessing(false);
-  }
-},
-
-    onCancel: () => {
-      processingRef.current = false;
-      setProcessing(false);
-    },
-
-    onError: () => {
-      processingRef.current = false;
-      setProcessing(false);
-    },
-  }
-);
+      showMessage("Payment created. Waiting for confirmation...", "success");
     } catch (err) {
-      processingRef.current = false;
-      setProcessing(false);
+      console.error("CHECKOUT ERROR:", err);
 
       const key = getErrorKey((err as Error).message);
       showMessage(t[key] ?? key);
+
+    } finally {
+      processingRef.current = false;
+      setProcessing(false);
     }
   }, [
     item,
