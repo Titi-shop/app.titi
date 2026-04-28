@@ -249,17 +249,19 @@ export async function createPiPaymentIntent(
       ]
     );
 
-    console.log("🟢 [PAYMENT_INTENT] CREATED", insert.rows[0].id);
+    const paymentIntentId = insert.rows[0].id;
 
-    return {
+console.log("🟢 [PAYMENT_INTENT] CREATED", paymentIntentId);
+
+return {
   paymentIntentId: String(paymentIntentId),
   amount: Number(total),
-  memo: String(memo),
+  memo: `ORDER-${String(paymentIntentId).slice(0, 8)}`,
   metadata: {
     paymentIntentId,
     nonce,
   },
   currency: "PI",
-    };
+};
   });
 }
