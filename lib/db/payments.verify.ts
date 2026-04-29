@@ -205,3 +205,93 @@ export async function verifyPiPaymentForReconcile({
     receiverWallet: piReceiver,
   };
 }
+type VerifyPiPaymentParams = {
+  piPaymentId: string;
+  paymentIntentId: string;
+};
+
+type VerifyPiResult = {
+  ok: true;
+  piPaymentId: string;
+  amount: number;
+  from: string;
+  to: string;
+  raw: unknown;
+};
+
+function getPiServerKey(): string {
+  const key = process.env.PI_SERVER_API_KEY?.trim();
+
+  if (!key) {
+    throw new Error("MISSING_PI_SERVER_API_KEY");
+  }
+
+  return key;
+}
+
+export async function verifyPiPaymentForReconcile({
+  piPaymentId,
+  paymentIntentId,
+}: VerifyPiPaymentParams): Promise<VerifyPiResult> {
+  console.log("🟡 [PI VERIFY] START", {
+    piPaymentId,
+    paymentIntentId,
+  });
+
+  const serverKey = getPiServerKey();
+
+  const res = await fetch(`https://api.minepi.com/v2/payments/${piPaymentId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Key ${serverKey}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  console.log("🟡 [PI VERIFY] RAW_RESPONSE", data);
+
+  if (!res.ok || !data) {
+    throw new Error("PI_PAYMENT_FETCH_FAILED");
+  }
+
+  if (!data.identifier || data.identifier !== piPaymentId) {
+    throw new Error("PI_PAYMENT_ID_MISMATCH");
+  }
+
+  const amount = Number(data.amount || 0);
+
+  if (Number.isNaN(amount) || amount <= 0) {
+    throw new Error("INVALID_PI_AMOUNT");
+  }
+
+  const metadataIntentId =
+    data.metadata?.payment_intent_id ||
+    data.metadata?.paymentIntentId ||
+    null;
+
+  if (!metadataIntentId || metadataIntentId !== paymentIntentId) {
+    throw new Error("PI_METADATA_MISMATCH");
+  }
+
+  if (!data.transaction || !data.transaction.txid) {
+    throw new Error("PI_TX_NOT_FOUND");
+  }
+
+  console.log("🟢 [PI VERIFY] VERIFIED", {
+    amount,
+    txid: data.transaction.txid,
+    to: data.to_address,
+  });
+
+  return {
+    ok: true,
+    piPaymentId,
+    amount,
+    from: String(data.from_address || ""),
+    to: String(data.to_address || ""),
+    raw: data,
+  };
+}
