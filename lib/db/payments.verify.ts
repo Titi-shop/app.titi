@@ -1,36 +1,32 @@
+import type { PoolClient } from "pg";
 import { query } from "@/lib/db";
 
 /* =========================================================
    ENV
 ========================================================= */
 
-const PI_API = "https://api.minepi.com/v2";
-const PI_KEY = process.env.PI_SERVER_API_KEY!;
+const PI_API = process.env.PI_API_URL!;
+const PI_KEY = process.env.PI_API_KEY!;
 
 /* =========================================================
    TYPES
 ========================================================= */
 
-type VerifyPiParams = {
-  paymentIntentId: string;
-  userId: string;
-  piPaymentId: string;
-};
-
-type PiPaymentResponse = {
+export type PiPaymentResponse = {
   identifier: string;
+  user_uid: string;
   amount: number;
   memo: string;
   from_address: string;
   to_address: string;
-  metadata?: Record<string, unknown>;
-  status: {
-    developer_approved: boolean;
-    transaction_verified: boolean;
-    developer_completed: boolean;
-    cancelled: boolean;
-    user_cancelled: boolean;
+  status?: {
+    developer_approved?: boolean;
+    transaction_verified?: boolean;
+    developer_completed?: boolean;
+    cancelled?: boolean;
+    user_cancelled?: boolean;
   };
+  metadata?: Record<string, unknown>;
   transaction?: {
     txid?: string;
     verified?: boolean;
@@ -38,18 +34,55 @@ type PiPaymentResponse = {
   };
 };
 
+type BindParams = {
+  userId: string;
+  paymentIntentId: string;
+  piPaymentId: string;
+  piUid: string;
+  verifiedAmount: number;
+  piPayload: unknown;
+};
+
 /* =========================================================
-   HELPERS
+   VERIFY PI USER FROM TOKEN
 ========================================================= */
 
-function safeNumber(v: unknown): number {
-  const n = Number(v);
-  if (Number.isNaN(n)) throw new Error("INVALID_NUMBER");
-  return n;
+export async function verifyPiUser(authHeader: string): Promise<string> {
+  console.log("🟡 [PI VERIFY] VERIFY_PI_USER");
+
+  const bearer = authHeader.replace("Bearer ", "").trim();
+
+  if (!bearer) {
+    throw new Error("MISSING_PI_BEARER");
+  }
+
+  const res = await fetch(`${PI_API}/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${bearer}`,
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  console.log("🟡 [PI VERIFY] /me RESPONSE", data);
+
+  if (!res.ok || !data?.uid) {
+    throw new Error("INVALID_PI_USER");
+  }
+
+  return String(data.uid);
 }
 
-async function fetchPiPayment(piPaymentId: string): Promise<PiPaymentResponse> {
-  console.log("🟡 [PI_VERIFY] FETCH_PI_PAYMENT", piPaymentId);
+/* =========================================================
+   FETCH PI PAYMENT FROM PI SERVER
+========================================================= */
+
+export async function fetchPiPayment(
+  piPaymentId: string
+): Promise<PiPaymentResponse> {
+  console.log("🟡 [PI VERIFY] FETCH_PI_PAYMENT", piPaymentId);
 
   const res = await fetch(`${PI_API}/payments/${piPaymentId}`, {
     method: "GET",
@@ -61,55 +94,182 @@ async function fetchPiPayment(piPaymentId: string): Promise<PiPaymentResponse> {
 
   const data = await res.json().catch(() => null);
 
-  if (!res.ok || !data) {
-    console.error("🔥 [PI_VERIFY] PI_FETCH_FAIL", res.status);
+  console.log("🟡 [PI VERIFY] PAYMENT_RESPONSE", data);
+
+  if (!res.ok || !data?.identifier) {
     throw new Error("PI_PAYMENT_FETCH_FAILED");
   }
 
-  console.log("🟢 [PI_VERIFY] PI_FETCH_OK", {
-    identifier: data?.identifier,
-    amount: data?.amount,
-    to: data?.to_address,
-    approved: data?.status?.developer_approved,
-    completed: data?.status?.developer_completed,
-    tx_verified: data?.status?.transaction_verified,
-    txid: data?.transaction?.txid,
-  });
-
-  return data;
+  return data as PiPaymentResponse;
 }
 
 /* =========================================================
-   MAIN
+   BIND PI PAYMENT TO PAYMENT INTENT
+   STATUS: created -> wallet_opened
 ========================================================= */
 
-export async function verifyPiPaymentForReconcile({
-  paymentIntentId,
-  userId,
-  piPaymentId,
-}: VerifyPiParams) {
-  console.log("🟡 [PI_VERIFY] START", {
-    paymentIntentId,
+export async function bindPiPaymentToIntent(
+  client: PoolClient,
+  {
     userId,
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    verifiedAmount,
+    piPayload,
+  }: BindParams
+) {
+  console.log("🟡 [PI VERIFY] BIND_INTENT_START", {
+    paymentIntentId,
     piPaymentId,
   });
 
-  const db = await query<{
+  /* =========================
+     LOCK PAYMENT INTENT
+  ========================= */
+
+  const lock = await client.query<{
     id: string;
     buyer_id: string;
     total_amount: string;
-    merchant_wallet: string;
-    pi_payment_id: string | null;
     status: string;
+    pi_payment_id: string | null;
   }>(
     `
     SELECT
       id,
       buyer_id,
       total_amount,
-      merchant_wallet,
+      status,
+      pi_payment_id
+    FROM payment_intents
+    WHERE id = $1
+    FOR UPDATE
+    `,
+    [paymentIntentId]
+  );
+
+  if (!lock.rows.length) {
+    throw new Error("PAYMENT_INTENT_NOT_FOUND");
+  }
+
+  const intent = lock.rows[0];
+
+  console.log("🟡 [PI VERIFY] INTENT_LOCKED", intent);
+
+  if (intent.buyer_id !== userId) {
+    throw new Error("FORBIDDEN");
+  }
+
+  if (intent.status !== "created") {
+    throw new Error("INVALID_PAYMENT_STATE");
+  }
+
+  if (intent.pi_payment_id && intent.pi_payment_id !== piPaymentId) {
+    throw new Error("PI_PAYMENT_ALREADY_BOUND");
+  }
+
+  const expectedAmount = Number(Number(intent.total_amount).toFixed(7));
+  const gotAmount = Number(Number(verifiedAmount).toFixed(7));
+
+  console.log("🟡 [PI VERIFY] AMOUNT_COMPARE", {
+    expectedAmount,
+    gotAmount,
+  });
+
+  if (expectedAmount !== gotAmount) {
+    throw new Error("PI_AMOUNT_MISMATCH");
+  }
+
+  /* =========================
+     UPDATE PAYMENT INTENT
+  ========================= */
+
+  await client.query(
+    `
+    UPDATE payment_intents
+    SET
+      pi_payment_id = $2,
+      pi_user_uid = $3,
+      pi_payment_payload = $4,
+      status = 'wallet_opened',
+      updated_at = now()
+    WHERE id = $1
+    `,
+    [
+      paymentIntentId,
+      piPaymentId,
+      piUid,
+      JSON.stringify(piPayload ?? {}),
+    ]
+  );
+
+  console.log("🟢 [PI VERIFY] INTENT_BOUND_OK");
+
+  /* =========================
+     OPTIONAL AUTHORIZE LOG
+  ========================= */
+
+  await client.query(
+    `
+    INSERT INTO payment_authorize_logs (
+      payment_intent_id,
       pi_payment_id,
-      status
+      pi_uid,
+      verified_amount,
+      payload,
+      created_at
+    )
+    VALUES ($1,$2,$3,$4,$5,now())
+    `,
+    [
+      paymentIntentId,
+      piPaymentId,
+      piUid,
+      verifiedAmount,
+      JSON.stringify(piPayload ?? {}),
+    ]
+  );
+
+  console.log("🟢 [PI VERIFY] AUTHORIZE_LOG_OK");
+}
+
+/* =========================================================
+   RECONCILE VERIFY PI PAYMENT
+   CALLED FROM /reconcile
+========================================================= */
+
+export async function verifyPiPaymentForReconcile({
+  paymentIntentId,
+  piPaymentId,
+  userId,
+  txid,
+}: {
+  paymentIntentId: string;
+  piPaymentId: string;
+  userId: string;
+  txid: string;
+}) {
+  console.log("🟡 [PI RECON VERIFY] START", {
+    paymentIntentId,
+    piPaymentId,
+    txid,
+  });
+
+  const db = await query<{
+    buyer_id: string;
+    total_amount: string;
+    merchant_wallet: string;
+    status: string;
+    pi_payment_id: string | null;
+  }>(
+    `
+    SELECT
+      buyer_id,
+      total_amount,
+      merchant_wallet,
+      status,
+      pi_payment_id
     FROM payment_intents
     WHERE id = $1
     LIMIT 1
@@ -117,35 +277,15 @@ export async function verifyPiPaymentForReconcile({
     [paymentIntentId]
   );
 
-  if (!db.rows.length) {
-    throw new Error("PAYMENT_INTENT_NOT_FOUND");
-  }
+  if (!db.rows.length) throw new Error("PAYMENT_INTENT_NOT_FOUND");
 
   const intent = db.rows[0];
 
-  console.log("🟡 [PI_VERIFY] DB_INTENT", intent);
-
-  if (intent.buyer_id !== userId) {
-    throw new Error("FORBIDDEN");
-  }
-
-  if (!intent.pi_payment_id || intent.pi_payment_id !== piPaymentId) {
-    throw new Error("PI_PAYMENT_ID_MISMATCH");
-  }
-
-  if (
-    intent.status !== "verifying" &&
-    intent.status !== "submitted" &&
-    intent.status !== "wallet_opened"
-  ) {
-    throw new Error("INVALID_PAYMENT_STATE");
-  }
+  if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
+  if (intent.pi_payment_id !== piPaymentId) throw new Error("PI_PAYMENT_ID_MISMATCH");
+  if (intent.status !== "verifying") throw new Error("INVALID_PAYMENT_STATE");
 
   const pi = await fetchPiPayment(piPaymentId);
-
-  if (!pi.identifier || pi.identifier !== piPaymentId) {
-    throw new Error("PI_IDENTIFIER_INVALID");
-  }
 
   if (pi.status?.cancelled || pi.status?.user_cancelled) {
     throw new Error("PI_PAYMENT_CANCELLED");
@@ -155,41 +295,26 @@ export async function verifyPiPaymentForReconcile({
     throw new Error("PI_NOT_APPROVED");
   }
 
-  if (!pi.transaction?.txid) {
-    throw new Error("PI_TXID_NOT_FOUND");
-  }
+  const expectedAmount = Number(Number(intent.total_amount).toFixed(7));
+  const piAmount = Number(Number(pi.amount).toFixed(7));
 
-  const expectedAmount = safeNumber(intent.total_amount);
-  const piAmount = safeNumber(pi.amount);
-
-  console.log("🟡 [PI_VERIFY] AMOUNT_COMPARE", {
-    expectedAmount,
-    piAmount,
-  });
-
-  if (Number(expectedAmount.toFixed(7)) !== Number(piAmount.toFixed(7))) {
+  if (expectedAmount !== piAmount) {
     throw new Error("PI_AMOUNT_MISMATCH");
   }
 
-  const expectedReceiver = String(intent.merchant_wallet).trim();
-  const piReceiver = String(pi.to_address || "").trim();
+  const receiver = String(pi.to_address || "").trim();
+  const expectedReceiver = String(intent.merchant_wallet || "").trim();
 
-  console.log("🟡 [PI_VERIFY] RECEIVER_COMPARE", {
-    expectedReceiver,
-    piReceiver,
-  });
-
-  if (!piReceiver || piReceiver !== expectedReceiver) {
+  if (!receiver || receiver !== expectedReceiver) {
     throw new Error("PI_RECEIVER_MISMATCH");
   }
 
-  console.log("🟢 [PI_VERIFY] VERIFIED_SUCCESS");
+  console.log("🟢 [PI RECON VERIFY] SUCCESS");
 
   return {
     ok: true,
-    txid: String(pi.transaction.txid),
     verifiedAmount: piAmount,
-    receiverWallet: piReceiver,
+    receiverWallet: receiver,
     piPayload: pi,
   };
 }
