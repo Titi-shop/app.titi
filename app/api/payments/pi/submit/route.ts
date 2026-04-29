@@ -21,17 +21,17 @@ function isUUID(v: unknown): v is string {
   );
 }
 
-async function callPiApprove(piPaymentId: string) {
-  console.log("🟡 [PI_SUBMIT] CALL_PI_APPROVE", piPaymentId);
-
-  const res = await fetch(`${PI_API}/payments/${piPaymentId}/approve`, {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${PI_KEY}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
+async function callPiApproveSafe(piPaymentId: string) {
+  try {
+    return await callPiApprove(piPaymentId);
+  } catch (err: any) {
+    if (err?.message?.includes("already_approved")) {
+      console.log("🟡 [PI_SUBMIT] ALREADY_APPROVED_SAFE_SKIP");
+      return true;
+    }
+    throw err;
+  }
+}
 
   const text = await res.text();
 
@@ -146,7 +146,11 @@ export async function POST(req: Request) {
          MERCHANT APPROVE TO PI
       ========================= */
 
-      await callPiApprove(piPaymentId);
+      if (!intent.pi_payment_id) {
+  await callPiApprove(piPaymentId);
+} else {
+  console.log("🟡 [PI_SUBMIT] SKIP_APPROVE_ALREADY_EXISTS");
+}
 
       /* =========================
          SAVE DB AFTER APPROVE
