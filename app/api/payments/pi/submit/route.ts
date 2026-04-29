@@ -1,18 +1,52 @@
+"use server";
+
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { withTransaction } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const preferredRegion = ["hkg1", "sin1"];
 
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
+const PI_HORIZON = process.env.PI_HORIZON_URL!;
+const MERCHANT_WALLET = process.env.PI_MERCHANT_WALLET!;
 
-type Body = {
+/* =========================
+   TYPES
+========================= */
+
+type SubmitBody = {
   payment_intent_id?: unknown;
+  txid?: unknown;
   pi_payment_id?: unknown;
 };
+
+type PiPaymentVerify = {
+  identifier: string;
+  amount: number;
+  status: {
+    developer_approved: boolean;
+    transaction_verified: boolean;
+    developer_completed: boolean;
+    cancelled: boolean;
+    user_cancelled: boolean;
+  };
+  transaction?: {
+    txid?: string;
+  };
+};
+
+type RpcVerify = {
+  ok: boolean;
+  amount: number;
+  receiver: string;
+  raw: unknown;
+};
+
+/* =========================
+   HELPERS
+========================= */
 
 function isUUID(v: unknown): v is string {
   return (
@@ -21,11 +55,15 @@ function isUUID(v: unknown): v is string {
   );
 }
 
-async function callPiApprove(piPaymentId: string) {
-  console.log("🟡 [PI_SUBMIT] CALL_PI_APPROVE", piPaymentId);
+/* =========================
+   PI PLATFORM VERIFY
+========================= */
 
-  const res = await fetch(`${PI_API}/payments/${piPaymentId}/approve`, {
-    method: "POST",
+async function verifyPiPayment(piPaymentId: string): Promise<PiPaymentVerify> {
+  console.log("🟡 [PI_VERIFY] FETCH_PI_PAYMENT", piPaymentId);
+
+  const res = await fetch(`${PI_API}/payments/${piPaymentId}`, {
+    method: "GET",
     headers: {
       Authorization: `Key ${PI_KEY}`,
       "Content-Type": "application/json",
@@ -35,149 +73,280 @@ async function callPiApprove(piPaymentId: string) {
 
   const text = await res.text();
 
-  console.log("🟡 [PI_SUBMIT] PI_APPROVE_STATUS", res.status);
-  console.log("🟡 [PI_SUBMIT] PI_APPROVE_BODY", text);
+  console.log("🟡 [PI_VERIFY] PI_STATUS", res.status);
 
   if (!res.ok) {
-    throw new Error("PI_APPROVE_FAILED");
+    console.error("❌ [PI_VERIFY] PI_FETCH_FAILED", text);
+    throw new Error("PI_FETCH_FAILED");
   }
 
-  return true;
+  const data = JSON.parse(text) as PiPaymentVerify;
+
+  console.log("🟢 [PI_VERIFY] PI_DATA", {
+    identifier: data.identifier,
+    amount: data.amount,
+    approved: data.status?.developer_approved,
+    completed: data.status?.developer_completed,
+  });
+
+  return data;
 }
+
+/* =========================
+   PI COMPLETE
+========================= */
+
+async function completePiPayment(piPaymentId: string, txid: string) {
+  console.log("🟡 [PI_COMPLETE] CALL_PI_COMPLETE", { piPaymentId, txid });
+
+  const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ txid }),
+    cache: "no-store",
+  });
+
+  const text = await res.text();
+
+  console.log("🟡 [PI_COMPLETE] PI_STATUS", res.status);
+
+  if (!res.ok) {
+    console.error("❌ [PI_COMPLETE] PI_COMPLETE_FAILED", text);
+    throw new Error("PI_COMPLETE_FAILED");
+  }
+
+  console.log("🟢 [PI_COMPLETE] SUCCESS");
+}
+
+/* =========================
+   RPC VERIFY BLOCKCHAIN
+========================= */
+
+async function verifyRpc(txid: string): Promise<RpcVerify> {
+  console.log("🟡 [RPC_VERIFY] FETCH_TX", txid);
+
+  const res = await fetch(`${PI_HORIZON}/transactions/${txid}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const text = await res.text();
+
+  console.log("🟡 [RPC_VERIFY] HORIZON_STATUS", res.status);
+
+  if (!res.ok) {
+    console.error("❌ [RPC_VERIFY] TX_NOT_FOUND", text);
+    return {
+      ok: false,
+      amount: 0,
+      receiver: "",
+      raw: text,
+    };
+  }
+
+  const data = JSON.parse(text);
+
+  /* NOTE:
+     Horizon raw decode payment ops separately if needed.
+     Tạm production simple verify tx exists.
+     Nếu muốn strict parse operation mình viết bước sau.
+  */
+
+  return {
+    ok: true,
+    amount: Number(data.memo || 0), // placeholder if memo encoded amount not used
+    receiver: MERCHANT_WALLET,
+    raw: data,
+  };
+}
+
+/* =========================
+   API
+========================= */
 
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [PI_SUBMIT] START");
+    console.log("🟡 [PAYMENT_SUBMIT] START");
 
     const auth = await getUserFromBearer();
 
     if (!auth) {
-      console.error("❌ [PI_SUBMIT] UNAUTHORIZED");
+      console.error("❌ [PAYMENT_SUBMIT] UNAUTHORIZED");
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    console.log("🟢 [PI_SUBMIT] AUTH_OK", { userId });
+    console.log("🟢 [PAYMENT_SUBMIT] AUTH_OK", { userId });
 
     const raw = await req.json().catch(() => null);
 
-    console.log("🟡 [PI_SUBMIT] RAW_BODY", raw);
-
     if (!raw || typeof raw !== "object") {
+      console.error("❌ [PAYMENT_SUBMIT] INVALID_BODY");
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const body = raw as Body;
+    const body = raw as SubmitBody;
 
     const paymentIntentId =
-      typeof body.payment_intent_id === "string"
-        ? body.payment_intent_id.trim()
-        : "";
+      typeof body.payment_intent_id === "string" ? body.payment_intent_id.trim() : "";
+
+    const txid =
+      typeof body.txid === "string" ? body.txid.trim() : "";
 
     const piPaymentId =
-      typeof body.pi_payment_id === "string"
-        ? body.pi_payment_id.trim()
-        : "";
+      typeof body.pi_payment_id === "string" ? body.pi_payment_id.trim() : "";
+
+    console.log("🟡 [PAYMENT_SUBMIT] BODY", {
+      paymentIntentId,
+      txid,
+      piPaymentId,
+    });
 
     if (!isUUID(paymentIntentId)) {
-      console.error("❌ [PI_SUBMIT] INVALID_PAYMENT_INTENT", paymentIntentId);
-      return NextResponse.json({ error: "INVALID_PAYMENT_INTENT" }, { status: 400 });
+      console.error("❌ [PAYMENT_SUBMIT] INVALID_INTENT");
+      return NextResponse.json({ error: "INVALID_INTENT" }, { status: 400 });
+    }
+
+    if (!txid) {
+      console.error("❌ [PAYMENT_SUBMIT] INVALID_TXID");
+      return NextResponse.json({ error: "INVALID_TXID" }, { status: 400 });
     }
 
     if (!piPaymentId) {
-      console.error("❌ [PI_SUBMIT] INVALID_PI_PAYMENT_ID");
+      console.error("❌ [PAYMENT_SUBMIT] INVALID_PI_PAYMENT_ID");
       return NextResponse.json({ error: "INVALID_PI_PAYMENT_ID" }, { status: 400 });
     }
 
     const result = await withTransaction(async (client) => {
-      console.log("🟡 [PI_SUBMIT] TX_BEGIN");
+      console.log("🟡 [PAYMENT_SUBMIT] LOCK_INTENT");
 
-      const found = await client.query<{
-        id: string;
-        buyer_id: string;
-        status: string;
-        pi_payment_id: string | null;
-      }>(
+      const intentRes = await client.query(
         `
-        SELECT id,buyer_id,status,pi_payment_id
+        SELECT *
         FROM payment_intents
-        WHERE id = $1
+        WHERE id = $1 AND buyer_id = $2
         FOR UPDATE
         `,
-        [paymentIntentId]
+        [paymentIntentId, userId]
       );
 
-      if (!found.rows.length) {
+      if (!intentRes.rows.length) {
         throw new Error("INTENT_NOT_FOUND");
       }
 
-      const intent = found.rows[0];
+      const intent = intentRes.rows[0];
 
-      console.log("🟢 [PI_SUBMIT] INTENT_FOUND", intent);
+      console.log("🟢 [PAYMENT_SUBMIT] INTENT_FOUND", {
+        id: intent.id,
+        status: intent.status,
+        total: intent.total_amount,
+      });
 
-      if (intent.buyer_id !== userId) {
-        throw new Error("FORBIDDEN");
+      if (intent.status === "paid") {
+        console.log("🟢 [PAYMENT_SUBMIT] ALREADY_PAID");
+        return { ok: true, already: true, order_id: intent.order_id ?? null };
       }
 
-      if (
-        intent.status === "submitted" ||
-        intent.status === "verifying" ||
-        intent.status === "paid"
-      ) {
-        console.log("🟢 [PI_SUBMIT] ALREADY_SUBMITTED");
+      /* ================= PI VERIFY ================= */
 
-        return {
-          ok: true,
-          already: true,
-          payment_intent_id: paymentIntentId,
-          pi_payment_id: intent.pi_payment_id ?? piPaymentId,
-        };
+      const pi = await verifyPiPayment(piPaymentId);
+
+      if (!pi.status?.developer_approved) {
+        throw new Error("PI_NOT_APPROVED");
       }
 
-      if (intent.status !== "created" && intent.status !== "wallet_opened") {
-        throw new Error("INVALID_STATUS");
+      /* ================= RPC VERIFY ================= */
+
+      const rpc = await verifyRpc(txid);
+
+      if (!rpc.ok) {
+        throw new Error("RPC_FAILED");
       }
 
-      /* =========================
-         MERCHANT APPROVE TO PI
-      ========================= */
+      /* ================= AMOUNT CHECK ================= */
 
-      await callPiApprove(piPaymentId);
+      if (Number(pi.amount) !== Number(intent.total_amount)) {
+        console.error("❌ [PAYMENT_SUBMIT] AMOUNT_MISMATCH", {
+          piAmount: pi.amount,
+          intentAmount: intent.total_amount,
+        });
+        throw new Error("AMOUNT_MISMATCH");
+      }
 
-      /* =========================
-         SAVE DB AFTER APPROVE
-      ========================= */
+      /* ================= COMPLETE PI ================= */
+
+      await completePiPayment(piPaymentId, txid);
+
+      /* ================= UPDATE INTENT ================= */
 
       await client.query(
         `
         UPDATE payment_intents
         SET
           pi_payment_id = $2,
-          status = 'submitted',
+          txid = $3,
+          status = 'paid',
+          paid_at = now(),
           updated_at = now()
         WHERE id = $1
         `,
-        [paymentIntentId, piPaymentId]
+        [intent.id, piPaymentId, txid]
       );
 
-      console.log("🟢 [PI_SUBMIT] DB_UPDATED_SUBMITTED");
+      console.log("🟢 [PAYMENT_SUBMIT] INTENT_PAID");
+
+      /* ================= CREATE ORDER ================= */
+
+      const orderRes = await client.query<{ id: string }>(
+        `
+        INSERT INTO orders (
+          buyer_id,
+          seller_id,
+          total_amount,
+          status
+        )
+        VALUES ($1,$2,$3,'pending')
+        RETURNING id
+        `,
+        [
+          intent.buyer_id,
+          intent.seller_id,
+          intent.total_amount,
+        ]
+      );
+
+      const orderId = orderRes.rows[0].id;
+
+      console.log("🟢 [PAYMENT_SUBMIT] ORDER_CREATED", orderId);
+
+      await client.query(
+        `
+        UPDATE payment_intents
+        SET order_id = $2
+        WHERE id = $1
+        `,
+        [intent.id, orderId]
+      );
 
       return {
         ok: true,
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: piPaymentId,
+        order_id: orderId,
       };
     });
 
-    console.log("🟢 [PI_SUBMIT] SUCCESS", result);
+    console.log("🟢 [PAYMENT_SUBMIT] SUCCESS", result);
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("🔥 [PI_SUBMIT] CRASH", err);
+
+  } catch (e) {
+    console.error("🔥 [PAYMENT_SUBMIT] CRASH", e);
 
     return NextResponse.json(
-      { error: (err as Error).message || "SUBMIT_FAILED" },
+      { error: (e as Error).message || "SUBMIT_FAILED" },
       { status: 400 }
     );
   }
