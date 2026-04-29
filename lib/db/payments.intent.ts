@@ -1,3 +1,4 @@
+
 import { withTransaction } from "@/lib/db";
 
 type ShippingInput = {
@@ -32,13 +33,14 @@ type CreateIntentResult = {
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{3}-[0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
 
 function safeQty(v: number): number {
   if (!Number.isInteger(v) || v <= 0) return 1;
-  return Math.min(v, 100);
+  if (v > 100) return 100;
+  return v;
 }
 
 function getMerchantWallet(): string {
@@ -54,20 +56,19 @@ function generateNonce(): string {
 export async function createPiPaymentIntent(
   params: CreateIntentParams
 ): Promise<CreateIntentResult> {
-  if (!params.userId || typeof params.userId !== "string") {
-  throw new Error("INVALID_USER_ID");
-}
+  if (!isUUID(params.userId)) throw new Error("INVALID_USER_ID");
   if (!isUUID(params.productId)) throw new Error("INVALID_PRODUCT_ID");
 
   const variantId =
-    params.variantId && isUUID(params.variantId) ? params.variantId : null;
+    params.variantId && isUUID(params.variantId)
+      ? params.variantId
+      : null;
 
   const quantity = safeQty(params.quantity);
   const merchantWallet = getMerchantWallet();
   const nonce = generateNonce();
 
   return withTransaction(async (client) => {
-    /* ================= PRODUCT ================= */
     const productRes = await client.query<{
       id: string;
       seller_id: string;
@@ -75,10 +76,7 @@ export async function createPiPaymentIntent(
       sale_price: string | null;
       stock: number;
     }>(
-      `SELECT id, seller_id, price, sale_price, stock 
-       FROM products 
-       WHERE id=$1 
-       FOR UPDATE`,
+      `SELECT id,seller_id,price,sale_price,stock FROM products WHERE id=$1 LIMIT 1`,
       [params.productId]
     );
 
@@ -87,17 +85,13 @@ export async function createPiPaymentIntent(
     const product = productRes.rows[0];
     let unitPrice = Number(product.sale_price || product.price);
 
-    /* ================= VARIANT ================= */
     if (variantId) {
       const vr = await client.query<{
         price: string;
         sale_price: string | null;
         stock: number;
       }>(
-        `SELECT price, sale_price, stock 
-         FROM product_variants 
-         WHERE id=$1 AND product_id=$2
-         FOR UPDATE`,
+        `SELECT price,sale_price,stock FROM product_variants WHERE id=$1 AND product_id=$2 LIMIT 1`,
         [variantId, params.productId]
       );
 
@@ -112,7 +106,6 @@ export async function createPiPaymentIntent(
       if (product.stock < quantity) throw new Error("OUT_OF_STOCK");
     }
 
-    /* ================= SHIPPING ================= */
     const ship = await client.query<{ price: string }>(
       `
       SELECT sr.price
@@ -127,37 +120,28 @@ export async function createPiPaymentIntent(
     if (!ship.rows.length) throw new Error("SHIPPING_NOT_AVAILABLE");
 
     const shippingFee = Number(ship.rows[0].price);
-
     const subtotal = unitPrice * quantity;
     const total = subtotal + shippingFee;
 
-    /* ================= SNAPSHOT ================= */
     const shipping_snapshot = {
-      ...params.shipping,
+      name: params.shipping.name,
+      phone: params.shipping.phone,
+      address_line: params.shipping.address_line,
+      ward: params.shipping.ward ?? null,
+      district: params.shipping.district ?? null,
+      region: params.shipping.region ?? null,
+      postal_code: params.shipping.postal_code ?? null,
       country: params.country,
       zone: params.zone,
     };
 
-    /* ================= INSERT INTENT ================= */
     const insert = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
-        buyer_id,
-        seller_id,
-        product_id,
-        variant_id,
-        quantity,
-        unit_price,
-        subtotal,
-        shipping_fee,
-        total_amount,
-        currency,
-        shipping_snapshot,
-        country,
-        zone,
-        merchant_wallet,
-        nonce,
-        status
+        buyer_id,seller_id,product_id,variant_id,quantity,
+        unit_price,subtotal,shipping_fee,total_amount,currency,
+        shipping_snapshot,country,zone,
+        merchant_wallet,nonce,status
       )
       VALUES (
         $1,$2,$3,$4,$5,
@@ -185,10 +169,12 @@ export async function createPiPaymentIntent(
       ]
     );
 
+    const paymentIntentId = insert.rows[0].id;
+
     return {
-      paymentIntentId: insert.rows[0].id,
+      paymentIntentId,
       amount: total,
-      memo: `ORDER-${insert.rows[0].id.slice(0, 8)}`,
+      memo: `ORDER-${paymentIntentId.slice(0, 8)}`,
       nonce,
       merchantWallet,
       currency: "PI",
