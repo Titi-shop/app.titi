@@ -5,17 +5,17 @@ import { markPaymentVerifying } from "@/lib/db/payments.submit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   VALIDATION
-========================= */
-
 function isUUID(v: unknown): v is string {
-  return typeof v === "string" && v.length > 10;
+  return (
+    typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
 }
 
-/* =========================
-   API
-========================= */
+type Body = {
+  payment_intent_id?: unknown;
+  pi_payment_id?: unknown;
+};
 
 export async function POST(req: Request) {
   try {
@@ -24,42 +24,37 @@ export async function POST(req: Request) {
     const auth = await getUserFromBearer();
 
     if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    const body = await req.json().catch(() => null);
+    const raw = await req.json().catch(() => null);
 
-    console.log("🟡 [SUBMIT] RAW_BODY", body);
+    console.log("🟡 [SUBMIT] RAW_BODY", raw);
 
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
+    if (!raw || typeof raw !== "object") {
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const paymentIntentId = body.payment_intent_id;
-    const piPaymentId = body.pi_payment_id;
+    const body = raw as Body;
+
+    const paymentIntentId =
+      typeof body.payment_intent_id === "string"
+        ? body.payment_intent_id.trim()
+        : "";
+
+    const piPaymentId =
+      typeof body.pi_payment_id === "string"
+        ? body.pi_payment_id.trim()
+        : "";
 
     if (!isUUID(paymentIntentId) || !piPaymentId) {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
     console.log("🟡 [SUBMIT] CALL_DB");
 
-    /**
-     * 🚨 IMPORTANT:
-     * KHÔNG transaction ở đây
-     * CHỈ lock state qua lib/db
-     */
     const result = await markPaymentVerifying({
       paymentIntentId,
       userId,
@@ -68,19 +63,12 @@ export async function POST(req: Request) {
 
     console.log("🟢 [SUBMIT] SUCCESS", result);
 
-    return NextResponse.json({
-      ok: true,
-      status: "verifying",
-      payment_intent_id: paymentIntentId,
-      pi_payment_id: piPaymentId,
-    });
+    return NextResponse.json(result);
   } catch (err) {
     console.error("🔥 [SUBMIT] CRASH", err);
 
     return NextResponse.json(
-      {
-        error: err instanceof Error ? err.message : "SUBMIT_FAILED",
-      },
+      { error: err instanceof Error ? err.message : "SUBMIT_FAILED" },
       { status: 400 }
     );
   }
