@@ -239,6 +239,10 @@ export function useCheckoutPay({
         }
       }
 
+      /* =========================
+         CREATE PAYMENT INTENT
+      ========================= */
+
       const token = await getPiAccessToken();
 
       const intentRes = await fetch("/api/payments/pi/create-intent", {
@@ -277,7 +281,9 @@ export function useCheckoutPay({
       }
 
       const paymentIntentId = intentData.paymentIntentId;
+
       const lockedAmount = Number(Number(intentData.amount || 0).toFixed(7));
+
       const lockedMemo =
         typeof intentData.memo === "string" && intentData.memo.trim()
           ? intentData.memo.trim().slice(0, 120)
@@ -296,22 +302,30 @@ export function useCheckoutPay({
         return;
       }
 
+      /* =========================
+         OPEN PI WALLET
+      ========================= */
+
       window.Pi.createPayment(
         {
           amount: lockedAmount,
           memo: lockedMemo,
           metadata: {
-            intent: paymentIntentId.slice(0, 12),
+            payment_intent_id: paymentIntentId,
           },
         },
         {
+          /* =========================================
+             STAGE 1 = SERVER APPROVAL ONLY
+             CALL /authorize
+          ========================================= */
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
               console.log("🟡 [CHECKOUT] APPROVAL_STAGE", { paymentId });
 
               const token = await getPiAccessToken();
 
-              const res = await fetch("/api/payments/pi/submit", {
+              const res = await fetch("/api/payments/pi/authorize", {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -325,7 +339,7 @@ export function useCheckoutPay({
 
               const data = await res.json().catch(() => null);
 
-              console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+              console.log("🟡 [CHECKOUT] AUTHORIZE_RESPONSE", {
                 status: res.status,
                 data,
               });
@@ -333,10 +347,11 @@ export function useCheckoutPay({
               if (!res.ok) {
                 const key = getErrorKey(data?.error);
                 showMessage(t[key] ?? data?.error ?? "approve_failed");
-                throw new Error(data?.error || "SUBMIT_FAILED");
+                throw new Error(data?.error || "AUTHORIZE_FAILED");
               }
 
-              console.log("🟢 [CHECKOUT] SUBMIT_OK");
+              console.log("🟢 [CHECKOUT] AUTHORIZE_OK");
+
               callback();
             } catch (err) {
               console.error("🔥 [CHECKOUT] APPROVAL_FAIL", err);
@@ -346,6 +361,10 @@ export function useCheckoutPay({
             }
           },
 
+          /* =========================================
+             STAGE 2 = BLOCKCHAIN COMPLETE
+             CALL /submit
+          ========================================= */
           onReadyForServerCompletion: async (paymentId, txid, callback) => {
             try {
               console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
@@ -355,7 +374,7 @@ export function useCheckoutPay({
 
               const token = await getPiAccessToken();
 
-              const res = await fetch("/api/payments/pi/reconcile", {
+              const res = await fetch("/api/payments/pi/submit", {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -370,7 +389,7 @@ export function useCheckoutPay({
 
               const data = await res.json().catch(() => null);
 
-              console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
+              console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
                 status: res.status,
                 data,
               });
@@ -378,10 +397,10 @@ export function useCheckoutPay({
               if (!res.ok) {
                 const key = getErrorKey(data?.error);
                 showMessage(t[key] ?? data?.error ?? "payment_failed");
-                throw new Error(data?.error || "RECONCILE_FAILED");
+                throw new Error(data?.error || "SUBMIT_FAILED");
               }
 
-              console.log("🟢 [CHECKOUT] RECONCILE_OK", data);
+              console.log("🟢 [CHECKOUT] SUBMIT_OK", data);
 
               callback();
 
