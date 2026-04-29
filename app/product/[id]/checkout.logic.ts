@@ -239,10 +239,6 @@ export function useCheckoutPay({
         }
       }
 
-      /* =========================
-         CREATE PAYMENT INTENT
-      ========================= */
-
       const token = await getPiAccessToken();
 
       const intentRes = await fetch("/api/payments/pi/create-intent", {
@@ -281,11 +277,7 @@ export function useCheckoutPay({
       }
 
       const paymentIntentId = intentData.paymentIntentId;
-
-      const lockedAmount = Number(
-        Number(intentData.amount || 0).toFixed(7)
-      );
-
+      const lockedAmount = Number(Number(intentData.amount || 0).toFixed(7));
       const lockedMemo =
         typeof intentData.memo === "string" && intentData.memo.trim()
           ? intentData.memo.trim().slice(0, 120)
@@ -304,15 +296,6 @@ export function useCheckoutPay({
         return;
       }
 
-      console.log("🟡 [CHECKOUT] OPEN_PI_WALLET", {
-        amount: lockedAmount,
-        memo: lockedMemo,
-      });
-
-      /* =========================
-         OPEN PI WALLET
-      ========================= */
-
       window.Pi.createPayment(
         {
           amount: lockedAmount,
@@ -322,10 +305,6 @@ export function useCheckoutPay({
           },
         },
         {
-          /* =========================
-             STAGE 1 MERCHANT APPROVE
-             => CALL SUBMIT
-          ========================= */
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
               console.log("🟡 [CHECKOUT] APPROVAL_STAGE", { paymentId });
@@ -358,8 +337,7 @@ export function useCheckoutPay({
               }
 
               console.log("🟢 [CHECKOUT] SUBMIT_OK");
-
-              return callback();
+              callback();
             } catch (err) {
               console.error("🔥 [CHECKOUT] APPROVAL_FAIL", err);
               processingRef.current = false;
@@ -368,10 +346,6 @@ export function useCheckoutPay({
             }
           },
 
-          /* =========================
-             STAGE 2 BLOCKCHAIN VERIFY + ORDER CREATE
-             => CALL RECONCILE
-          ========================= */
           onReadyForServerCompletion: async (paymentId, txid, callback) => {
             try {
               console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
@@ -409,7 +383,11 @@ export function useCheckoutPay({
 
               console.log("🟢 [CHECKOUT] RECONCILE_OK", data);
 
-              return callback();
+              callback();
+
+              onClose();
+              router.replace("/customer/orders?tab=pending");
+              showMessage(t.payment_success ?? "success", "success");
             } catch (err) {
               console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
               processingRef.current = false;
@@ -419,10 +397,6 @@ export function useCheckoutPay({
               processingRef.current = false;
               setProcessing(false);
             }
-
-            onClose();
-            router.replace("/customer/orders?tab=pending");
-            showMessage(t.payment_success ?? "success", "success");
           },
 
           onCancel: () => {
@@ -466,6 +440,3 @@ export function useCheckoutPay({
     showMessage,
   ]);
 }
-  return true;
-}
-
