@@ -54,7 +54,9 @@ function generateNonce(): string {
 export async function createPiPaymentIntent(
   params: CreateIntentParams
 ): Promise<CreateIntentResult> {
-  if (!isUUID(params.userId)) throw new Error("INVALID_USER_ID");
+  if (!params.userId || typeof params.userId !== "string") {
+  throw new Error("INVALID_USER_ID");
+}
   if (!isUUID(params.productId)) throw new Error("INVALID_PRODUCT_ID");
 
   const variantId =
