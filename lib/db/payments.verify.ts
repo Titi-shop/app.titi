@@ -4,8 +4,8 @@ import { query } from "@/lib/db";
    ENV
 ========================================================= */
 
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
+const PI_API = "https://api.minepi.com/v2";
+const PI_KEY = process.env.PI_SERVER_API_KEY!;
 
 /* =========================================================
    TYPES
@@ -19,11 +19,11 @@ type VerifyPiParams = {
 
 type PiPaymentResponse = {
   identifier: string;
-  user_uid: string;
   amount: number;
   memo: string;
   from_address: string;
   to_address: string;
+  metadata?: Record<string, unknown>;
   status: {
     developer_approved: boolean;
     transaction_verified: boolean;
@@ -36,7 +36,6 @@ type PiPaymentResponse = {
     verified?: boolean;
     _link?: string;
   };
-  metadata?: Record<string, unknown>;
 };
 
 /* =========================================================
@@ -60,12 +59,12 @@ async function fetchPiPayment(piPaymentId: string): Promise<PiPaymentResponse> {
     cache: "no-store",
   });
 
-  if (!res.ok) {
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || !data) {
     console.error("🔥 [PI_VERIFY] PI_FETCH_FAIL", res.status);
     throw new Error("PI_PAYMENT_FETCH_FAILED");
   }
-
-  const data = await res.json();
 
   console.log("🟢 [PI_VERIFY] PI_FETCH_OK", {
     identifier: data?.identifier,
@@ -74,13 +73,14 @@ async function fetchPiPayment(piPaymentId: string): Promise<PiPaymentResponse> {
     approved: data?.status?.developer_approved,
     completed: data?.status?.developer_completed,
     tx_verified: data?.status?.transaction_verified,
+    txid: data?.transaction?.txid,
   });
 
   return data;
 }
 
 /* =========================================================
-   MAIN VERIFY
+   MAIN
 ========================================================= */
 
 export async function verifyPiPaymentForReconcile({
@@ -93,10 +93,6 @@ export async function verifyPiPaymentForReconcile({
     userId,
     piPaymentId,
   });
-
-  /* =========================
-     DB SNAPSHOT
-  ========================= */
 
   const db = await query<{
     id: string;
@@ -122,7 +118,6 @@ export async function verifyPiPaymentForReconcile({
   );
 
   if (!db.rows.length) {
-    console.error("🔥 [PI_VERIFY] INTENT_NOT_FOUND");
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
 
@@ -146,15 +141,7 @@ export async function verifyPiPaymentForReconcile({
     throw new Error("INVALID_PAYMENT_STATE");
   }
 
-  /* =========================
-     FETCH PI PLATFORM PAYMENT
-  ========================= */
-
   const pi = await fetchPiPayment(piPaymentId);
-
-  /* =========================
-     BASIC CHECKS
-  ========================= */
 
   if (!pi.identifier || pi.identifier !== piPaymentId) {
     throw new Error("PI_IDENTIFIER_INVALID");
@@ -168,8 +155,8 @@ export async function verifyPiPaymentForReconcile({
     throw new Error("PI_NOT_APPROVED");
   }
 
-  if (pi.status?.developer_completed) {
-    console.log("🟡 [PI_VERIFY] ALREADY_COMPLETED_ON_PI");
+  if (!pi.transaction?.txid) {
+    throw new Error("PI_TXID_NOT_FOUND");
   }
 
   const expectedAmount = safeNumber(intent.total_amount);
@@ -200,98 +187,9 @@ export async function verifyPiPaymentForReconcile({
 
   return {
     ok: true,
-    piPayload: pi,
+    txid: String(pi.transaction.txid),
     verifiedAmount: piAmount,
     receiverWallet: piReceiver,
-  };
-}
-type VerifyPiPaymentParams = {
-  piPaymentId: string;
-  paymentIntentId: string;
-};
-
-type VerifyPiResult = {
-  ok: true;
-  piPaymentId: string;
-  amount: number;
-  from: string;
-  to: string;
-  raw: unknown;
-};
-
-function getPiServerKey(): string {
-  const key = process.env.PI_SERVER_API_KEY?.trim();
-
-  if (!key) {
-    throw new Error("MISSING_PI_SERVER_API_KEY");
-  }
-
-  return key;
-}
-
-export async function verifyPiPaymentForReconcile({
-  piPaymentId,
-  paymentIntentId,
-}: VerifyPiPaymentParams): Promise<VerifyPiResult> {
-  console.log("🟡 [PI VERIFY] START", {
-    piPaymentId,
-    paymentIntentId,
-  });
-
-  const serverKey = getPiServerKey();
-
-  const res = await fetch(`https://api.minepi.com/v2/payments/${piPaymentId}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Key ${serverKey}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  const data = await res.json().catch(() => null);
-
-  console.log("🟡 [PI VERIFY] RAW_RESPONSE", data);
-
-  if (!res.ok || !data) {
-    throw new Error("PI_PAYMENT_FETCH_FAILED");
-  }
-
-  if (!data.identifier || data.identifier !== piPaymentId) {
-    throw new Error("PI_PAYMENT_ID_MISMATCH");
-  }
-
-  const amount = Number(data.amount || 0);
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    throw new Error("INVALID_PI_AMOUNT");
-  }
-
-  const metadataIntentId =
-    data.metadata?.payment_intent_id ||
-    data.metadata?.paymentIntentId ||
-    null;
-
-  if (!metadataIntentId || metadataIntentId !== paymentIntentId) {
-    throw new Error("PI_METADATA_MISMATCH");
-  }
-
-  if (!data.transaction || !data.transaction.txid) {
-    throw new Error("PI_TX_NOT_FOUND");
-  }
-
-  console.log("🟢 [PI VERIFY] VERIFIED", {
-    amount,
-    txid: data.transaction.txid,
-    to: data.to_address,
-  });
-
-  return {
-    ok: true,
-    piPaymentId,
-    amount,
-    from: String(data.from_address || ""),
-    to: String(data.to_address || ""),
-    raw: data,
+    piPayload: pi,
   };
 }
