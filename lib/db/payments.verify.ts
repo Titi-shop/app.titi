@@ -90,3 +90,63 @@ export function assertPiPaymentReady(params: {
 
   console.log("🟢 [VERIFY] PI_PAYMENT_READY");
 }
+
+
+export async function bindPiPaymentToIntent(
+  client: any,
+  params: {
+    userId: string;
+    paymentIntentId: string;
+    piPaymentId: string;
+    piUid: string;
+    verifiedAmount: number;
+    piPayload: any;
+  }
+) {
+  console.log("🟡 [DB] bindPiPaymentToIntent START", params);
+
+  const {
+    userId,
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    verifiedAmount,
+    piPayload,
+  } = params;
+
+  // 1. lock payment intent
+  const intent = await client.query(
+    `SELECT * FROM payment_intents WHERE id = $1 FOR UPDATE`,
+    [paymentIntentId]
+  );
+
+  if (!intent.rows.length) {
+    throw new Error("PAYMENT_INTENT_NOT_FOUND");
+  }
+
+  const data = intent.rows[0];
+
+  if (data.status === "paid") {
+    throw new Error("ALREADY_PAID");
+  }
+
+  // 2. update intent → pending approval state
+  await client.query(
+    `
+    UPDATE payment_intents
+    SET
+      pi_payment_id = $1,
+      pi_uid = $2,
+      amount_verified = $3,
+      status = 'processing',
+      pi_payload = $4,
+      updated_at = NOW()
+    WHERE id = $5
+    `,
+    [piPaymentId, piUid, verifiedAmount, piPayload, paymentIntentId]
+  );
+
+  console.log("🟢 [DB] bind OK");
+
+  return { ok: true };
+}
