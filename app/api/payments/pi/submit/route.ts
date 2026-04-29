@@ -15,6 +15,7 @@ function isUUID(v: unknown): v is string {
 type Body = {
   payment_intent_id?: unknown;
   pi_payment_id?: unknown;
+  txid?: unknown;
 };
 
 export async function POST(req: Request) {
@@ -37,16 +38,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const body = raw as Body;
-
     const paymentIntentId =
-      typeof body.payment_intent_id === "string"
-        ? body.payment_intent_id.trim()
+      typeof (raw as any).payment_intent_id === "string"
+        ? (raw as any).payment_intent_id.trim()
         : "";
 
     const piPaymentId =
-      typeof body.pi_payment_id === "string"
-        ? body.pi_payment_id.trim()
+      typeof (raw as any).pi_payment_id === "string"
+        ? (raw as any).pi_payment_id.trim()
+        : "";
+
+    const txid =
+      typeof (raw as any).txid === "string"
+        ? (raw as any).txid.trim()
         : "";
 
     if (!isUUID(paymentIntentId) || !piPaymentId) {
@@ -59,11 +63,44 @@ export async function POST(req: Request) {
       paymentIntentId,
       userId,
       piPaymentId,
+      txid: txid || null,
     });
 
-    console.log("🟢 [SUBMIT] SUCCESS", result);
+    console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
 
-    return NextResponse.json(result);
+    /**
+     * 🔥 IMPORTANT FIX:
+     * fire reconcile async server-side
+     * không phụ thuộc client callback
+     */
+    queueMicrotask(async () => {
+      try {
+        console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
+
+        await fetch(`${process.env.APP_URL}/api/payments/pi/reconcile`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: req.headers.get("authorization") || "",
+          },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntentId,
+            pi_payment_id: piPaymentId,
+            txid,
+          }),
+        });
+
+        console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
+      } catch (e) {
+        console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      status: "verifying",
+      paymentIntentId,
+    });
   } catch (err) {
     console.error("🔥 [SUBMIT] CRASH", err);
 
