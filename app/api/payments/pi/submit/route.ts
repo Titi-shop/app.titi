@@ -134,9 +134,13 @@ export async function POST(req: Request) {
         };
       }
 
-      if (intent.status !== "created" && intent.status !== "wallet_opened") {
-        throw new Error("INVALID_STATUS");
-      }
+      if (
+  intent.status !== "created" &&
+  intent.status !== "wallet_opened" &&
+  intent.status !== "verifying"
+) {
+  throw new Error("INVALID_STATUS");
+}
 
       /* =========================
          MERCHANT APPROVE TO PI
