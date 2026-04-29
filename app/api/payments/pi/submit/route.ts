@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { withTransaction } from "@/lib/db";
-import { verifyPiUser, fetchPiPayment, assertPiPaymentReady } from "@/lib/db/payments.verify";
+import {
+  verifyPiUser,
+  fetchPiPayment,
+  assertPiPaymentReady,
+} from "@/lib/db/payments.verify";
 import { verifyRpcTransaction } from "@/lib/db/payments.rpc";
 import { submitPiPayment } from "@/lib/db/payments.submit";
 
@@ -31,6 +35,31 @@ function isUUID(v: unknown): v is string {
     typeof v === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
+}
+
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchPiPaymentRetry(piPaymentId: string) {
+  let lastErr: unknown = null;
+
+  for (let i = 1; i <= 4; i++) {
+    try {
+      console.log(`🟡 [PI_SUBMIT] FETCH_PI_PAYMENT_ATTEMPT_${i}`, piPaymentId);
+
+      const payment = await fetchPiPayment(piPaymentId);
+
+      console.log(`🟢 [PI_SUBMIT] FETCH_PI_PAYMENT_OK_${i}`);
+      return payment;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`🟡 [PI_SUBMIT] FETCH_PI_PAYMENT_RETRY_${i}`, err);
+      await sleep(600);
+    }
+  }
+
+  throw lastErr instanceof Error ? lastErr : new Error("PI_PAYMENT_NOT_READY");
 }
 
 async function callPiApprove(piPaymentId: string) {
@@ -71,6 +100,7 @@ async function callPiComplete(piPaymentId: string, txid: string) {
   });
 
   const raw = await res.text();
+
   console.log("🟡 [PI_SUBMIT] PI_COMPLETE_STATUS", res.status);
   console.log("🟡 [PI_SUBMIT] PI_COMPLETE_BODY", raw);
 
@@ -122,6 +152,7 @@ export async function POST(req: Request) {
     console.log("🟡 [PI_SUBMIT] RAW_BODY", raw);
 
     if (!raw || typeof raw !== "object") {
+      console.error("❌ [PI_SUBMIT] INVALID_BODY");
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
@@ -142,19 +173,36 @@ export async function POST(req: Request) {
         ? body.txid.trim()
         : "";
 
+    console.log("🟡 [PI_SUBMIT] BODY_PARSED", {
+      paymentIntentId,
+      piPaymentId,
+      txid,
+    });
+
     if (!isUUID(paymentIntentId)) {
+      console.error("❌ [PI_SUBMIT] INVALID_PAYMENT_INTENT", paymentIntentId);
       return NextResponse.json({ error: "INVALID_PAYMENT_INTENT" }, { status: 400 });
     }
 
+    console.log("🟢 [PI_SUBMIT] PAYMENT_INTENT_OK");
+
     if (!piPaymentId) {
+      console.error("❌ [PI_SUBMIT] INVALID_PI_PAYMENT_ID");
       return NextResponse.json({ error: "INVALID_PI_PAYMENT_ID" }, { status: 400 });
     }
 
+    console.log("🟢 [PI_SUBMIT] PI_PAYMENT_ID_OK");
+
     if (!txid) {
+      console.error("❌ [PI_SUBMIT] INVALID_TXID");
       return NextResponse.json({ error: "INVALID_TXID" }, { status: 400 });
     }
 
+    console.log("🟢 [PI_SUBMIT] TXID_OK");
+
     /* ================= VERIFY PI USER TOKEN ================= */
+
+    console.log("🟡 [PI_SUBMIT] VERIFY_PI_USER_START");
 
     const piUid = await verifyPiUser(req.headers.get("authorization") || "");
 
@@ -162,22 +210,29 @@ export async function POST(req: Request) {
 
     /* ================= FETCH PI PAYMENT ================= */
 
-    const payment = await fetchPiPayment(piPaymentId);
+    const payment = await fetchPiPaymentRetry(piPaymentId);
 
     console.log("🟢 [PI_SUBMIT] PI_PAYMENT_FETCHED", {
       amount: payment.amount,
       user_uid: payment.user_uid,
       txid: payment.transaction?.txid,
-      status: payment.status,
+      developer_approved: payment.status?.developer_approved,
+      developer_completed: payment.status?.developer_completed,
     });
 
     /* ================= MERCHANT APPROVE ================= */
 
     if (!payment.status?.developer_approved) {
+      console.log("🟡 [PI_SUBMIT] NEED_PI_APPROVE");
       await callPiApprove(piPaymentId);
+      console.log("🟢 [PI_SUBMIT] PI_APPROVED");
+    } else {
+      console.log("🟢 [PI_SUBMIT] PI_ALREADY_APPROVED");
     }
 
     /* ================= VERIFY PI READY ================= */
+
+    console.log("🟡 [PI_SUBMIT] ASSERT_PI_READY_START");
 
     assertPiPaymentReady({
       payment,
@@ -188,6 +243,8 @@ export async function POST(req: Request) {
     console.log("🟢 [PI_SUBMIT] PI_PAYMENT_READY");
 
     /* ================= VERIFY RPC ================= */
+
+    console.log("🟡 [PI_SUBMIT] VERIFY_RPC_START");
 
     const rpc = await verifyRpcTransaction(txid);
 
@@ -203,8 +260,12 @@ export async function POST(req: Request) {
 
     /* ================= DB ORCHESTRATION ================= */
 
+    console.log("🟡 [PI_SUBMIT] DB_SETTLEMENT_START");
+
     const result = await withTransaction(async (client) => {
-      return await submitPiPayment(client, {
+      console.log("🟡 [PI_SUBMIT] DB_TX_BEGIN");
+
+      const r = await submitPiPayment(client, {
         userId,
         paymentIntentId,
         piPaymentId,
@@ -214,6 +275,10 @@ export async function POST(req: Request) {
         rpcPayload: rpc.raw ?? null,
         piPayload: payment,
       });
+
+      console.log("🟢 [PI_SUBMIT] DB_TX_DONE", r);
+
+      return r;
     });
 
     console.log("🟢 [PI_SUBMIT] DB_SETTLEMENT_OK", result);
@@ -221,7 +286,11 @@ export async function POST(req: Request) {
     /* ================= PI COMPLETE ================= */
 
     if (!payment.status?.developer_completed) {
+      console.log("🟡 [PI_SUBMIT] NEED_PI_COMPLETE");
       await callPiComplete(piPaymentId, txid);
+      console.log("🟢 [PI_SUBMIT] PI_COMPLETED");
+    } else {
+      console.log("🟢 [PI_SUBMIT] PI_ALREADY_COMPLETED");
     }
 
     console.log("🟢 [PI_SUBMIT] SUCCESS");
@@ -233,7 +302,6 @@ export async function POST(req: Request) {
       pi_payment_id: piPaymentId,
       txid,
     });
-
   } catch (err) {
     console.error("🔥 [PI_SUBMIT] CRASH", err);
 
