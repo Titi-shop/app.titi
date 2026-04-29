@@ -9,10 +9,18 @@ export const preferredRegion = ["hkg1", "sin1"];
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
+/* =========================
+   TYPES
+========================= */
+
 type Body = {
   payment_intent_id?: unknown;
   pi_payment_id?: unknown;
 };
+
+/* =========================
+   VALIDATION
+========================= */
 
 function isUUID(v: unknown): v is string {
   return (
@@ -21,29 +29,48 @@ function isUUID(v: unknown): v is string {
   );
 }
 
-async function callPiApproveSafe(piPaymentId: string) {
-  try {
-    return await callPiApprove(piPaymentId);
-  } catch (err: any) {
-    if (err?.message?.includes("already_approved")) {
-      console.log("🟡 [PI_SUBMIT] ALREADY_APPROVED_SAFE_SKIP");
-      return true;
-    }
-    throw err;
-  }
-}
+/* =========================
+   PI APPROVE (SAFE + IDEMPOTENT)
+========================= */
+
+async function callPiApprove(piPaymentId: string) {
+  console.log("🟡 [PI_SUBMIT] CALL_PI_APPROVE", piPaymentId);
+
+  const res = await fetch(`${PI_API}/payments/${piPaymentId}/approve`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
 
   const text = await res.text();
 
-  console.log("🟡 [PI_SUBMIT] PI_APPROVE_STATUS", res.status);
-  console.log("🟡 [PI_SUBMIT] PI_APPROVE_BODY", text);
+  let data: any = null;
+  try {
+    data = JSON.parse(text);
+  } catch {}
 
+  console.log("🟡 [PI_SUBMIT] PI_APPROVE_STATUS", res.status);
+  console.log("🟡 [PI_SUBMIT] PI_APPROVE_BODY", data || text);
+
+  // ✅ HANDLE IDEMPOTENT CASE
   if (!res.ok) {
-    throw new Error("PI_APPROVE_FAILED");
+    if (data?.error === "already_approved") {
+      console.log("🟢 [PI_SUBMIT] ALREADY_APPROVED_SAFE");
+      return true;
+    }
+
+    throw new Error(data?.error || "PI_APPROVE_FAILED");
   }
 
   return true;
 }
+
+/* =========================
+   MAIN API
+========================= */
 
 export async function POST(req: Request) {
   try {
@@ -82,13 +109,23 @@ export async function POST(req: Request) {
 
     if (!isUUID(paymentIntentId)) {
       console.error("❌ [PI_SUBMIT] INVALID_PAYMENT_INTENT", paymentIntentId);
-      return NextResponse.json({ error: "INVALID_PAYMENT_INTENT" }, { status: 400 });
+      return NextResponse.json(
+        { error: "INVALID_PAYMENT_INTENT" },
+        { status: 400 }
+      );
     }
 
     if (!piPaymentId) {
       console.error("❌ [PI_SUBMIT] INVALID_PI_PAYMENT_ID");
-      return NextResponse.json({ error: "INVALID_PI_PAYMENT_ID" }, { status: 400 });
+      return NextResponse.json(
+        { error: "INVALID_PI_PAYMENT_ID" },
+        { status: 400 }
+      );
     }
+
+    /* =========================
+       DB TRANSACTION
+    ========================= */
 
     const result = await withTransaction(async (client) => {
       console.log("🟡 [PI_SUBMIT] TX_BEGIN");
@@ -100,7 +137,7 @@ export async function POST(req: Request) {
         pi_payment_id: string | null;
       }>(
         `
-        SELECT id,buyer_id,status,pi_payment_id
+        SELECT id, buyer_id, status, pi_payment_id
         FROM payment_intents
         WHERE id = $1
         FOR UPDATE
@@ -120,12 +157,12 @@ export async function POST(req: Request) {
         throw new Error("FORBIDDEN");
       }
 
-      if (
-    intent.status === "submitted" ||
-     intent.status === "paid"
-      ) {
-        console.log("🟢 [PI_SUBMIT] ALREADY_SUBMITTED");
+      /* =========================
+         IDEMPOTENCY CHECK
+      ========================= */
 
+      if (intent.status === "paid") {
+        console.log("🟢 [PI_SUBMIT] ALREADY_PAID");
         return {
           ok: true,
           already: true,
@@ -134,26 +171,35 @@ export async function POST(req: Request) {
         };
       }
 
-      if (
-  intent.status !== "created" &&
-  intent.status !== "wallet_opened" &&
-  intent.status !== "verifying"
-) {
-  throw new Error("INVALID_STATUS");
-}
+      if (intent.status === "submitted" || intent.status === "verifying") {
+        console.log("🟢 [PI_SUBMIT] ALREADY_IN_PROGRESS");
+        return {
+          ok: true,
+          already: true,
+          payment_intent_id: paymentIntentId,
+          pi_payment_id: intent.pi_payment_id ?? piPaymentId,
+        };
+      }
 
       /* =========================
-         MERCHANT APPROVE TO PI
+         STATUS GUARD
       ========================= */
 
-      if (!intent.pi_payment_id) {
-  await callPiApprove(piPaymentId);
-} else {
-  console.log("🟡 [PI_SUBMIT] SKIP_APPROVE_ALREADY_EXISTS");
-}
+      const ALLOW = ["created", "wallet_opened"];
+
+      if (!ALLOW.includes(intent.status)) {
+        console.error("❌ [PI_SUBMIT] INVALID_STATUS", intent.status);
+        throw new Error("INVALID_STATUS");
+      }
 
       /* =========================
-         SAVE DB AFTER APPROVE
+         APPROVE PI (SAFE)
+      ========================= */
+
+      await callPiApprove(piPaymentId);
+
+      /* =========================
+         UPDATE INTENT -> VERIFYING
       ========================= */
 
       await client.query(
@@ -161,14 +207,14 @@ export async function POST(req: Request) {
         UPDATE payment_intents
         SET
           pi_payment_id = $2,
-          status = 'submitted',
+          status = 'verifying',
           updated_at = now()
         WHERE id = $1
         `,
         [paymentIntentId, piPaymentId]
       );
 
-      console.log("🟢 [PI_SUBMIT] DB_UPDATED_SUBMITTED");
+      console.log("🟢 [PI_SUBMIT] STATUS_SET_VERIFYING");
 
       return {
         ok: true,
