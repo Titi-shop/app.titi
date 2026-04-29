@@ -20,24 +20,17 @@ type RpcTransaction = {
   successful: boolean;
   ledger: number;
   created_at: string;
-  source_account: string;
-  fee_account: string;
-  fee_charged: string;
-  operation_count: number;
-  envelope_xdr: string;
-  result_xdr: string;
-  result_meta_xdr: string;
 };
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function safeNumber(v: unknown): number {
   const n = Number(v);
   if (Number.isNaN(n)) throw new Error("INVALID_NUMBER");
   return n;
 }
+
+/* =========================================================
+   RPC CALL
+========================================================= */
 
 async function rpcCall(method: string, params: unknown) {
   console.log("🟡 [RPC_VERIFY] RPC_CALL", { method, params });
@@ -56,15 +49,13 @@ async function rpcCall(method: string, params: unknown) {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    console.error("🔥 [RPC_VERIFY] RPC_HTTP_FAIL", res.status);
+  const json = await res.json().catch(() => null);
+
+  if (!res.ok || !json) {
     throw new Error("RPC_HTTP_FAIL");
   }
 
-  const json = await res.json();
-
   if (json.error) {
-    console.error("🔥 [RPC_VERIFY] RPC_JSON_ERROR", json.error);
     throw new Error("RPC_JSON_FAIL");
   }
 
@@ -72,30 +63,15 @@ async function rpcCall(method: string, params: unknown) {
 }
 
 async function fetchTransaction(txid: string): Promise<RpcTransaction> {
-  /**
-   * Pi RPC protocol 20/21 style
-   * getTransaction by hash
-   */
-  const tx = await rpcCall("getTransaction", {
-    hash: txid,
-  });
+  const tx = await rpcCall("getTransaction", { hash: txid });
 
-  console.log("🟢 [RPC_VERIFY] TX_FETCH_OK", {
-    hash: tx?.hash,
-    successful: tx?.successful,
-    ledger: tx?.ledger,
-  });
+  console.log("🟢 [RPC_VERIFY] TX_FETCH_OK", tx);
 
   return tx;
 }
 
 async function fetchPaymentOps(txid: string) {
-  /**
-   * lấy operation detail để parse amount + receiver
-   */
-  const ops = await rpcCall("getOperationsForTransaction", {
-    hash: txid,
-  });
+  const ops = await rpcCall("getOperationsForTransaction", { hash: txid });
 
   console.log("🟢 [RPC_VERIFY] OPS_FETCH_OK", ops);
 
@@ -103,7 +79,43 @@ async function fetchPaymentOps(txid: string) {
 }
 
 /* =========================================================
-   MAIN VERIFY
+   LOG TABLE
+========================================================= */
+
+async function logRpc(
+  paymentIntentId: string,
+  txid: string,
+  verified: boolean,
+  reason: string,
+  payload: unknown
+) {
+  try {
+    await query(
+      `
+      INSERT INTO rpc_verification_logs (
+        payment_intent_id,
+        txid,
+        verified,
+        reason,
+        payload
+      )
+      VALUES ($1,$2,$3,$4,$5)
+      `,
+      [
+        paymentIntentId,
+        txid,
+        verified,
+        reason,
+        JSON.stringify(payload ?? {}),
+      ]
+    );
+  } catch (err) {
+    console.error("🔥 [RPC_VERIFY] LOG_FAIL", err);
+  }
+}
+
+/* =========================================================
+   MAIN
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
@@ -114,10 +126,6 @@ export async function verifyRpcPaymentForReconcile({
     paymentIntentId,
     txid,
   });
-
-  /* =========================
-     TX REPLAY CHECK
-  ========================= */
 
   const replay = await query(
     `
@@ -130,13 +138,8 @@ export async function verifyRpcPaymentForReconcile({
   );
 
   if (replay.rows.length) {
-    console.error("🔥 [RPC_VERIFY] TXID_ALREADY_USED");
     throw new Error("TXID_ALREADY_USED");
   }
-
-  /* =========================
-     PAYMENT INTENT SNAPSHOT
-  ========================= */
 
   const db = await query<{
     merchant_wallet: string;
@@ -157,15 +160,9 @@ export async function verifyRpcPaymentForReconcile({
 
   const intent = db.rows[0];
 
-  console.log("🟡 [RPC_VERIFY] DB_INTENT", intent);
-
-  /* =========================
-     FETCH TX
-  ========================= */
-
   const tx = await fetchTransaction(txid);
 
-  if (!tx || !tx.hash) {
+  if (!tx?.hash) {
     await logRpc(paymentIntentId, txid, false, "TX_NOT_FOUND", tx);
     throw new Error("RPC_TX_NOT_FOUND");
   }
@@ -175,16 +172,10 @@ export async function verifyRpcPaymentForReconcile({
     throw new Error("RPC_TX_FAILED");
   }
 
-  /* =========================
-     FETCH OPERATIONS
-  ========================= */
-
   const ops = await fetchPaymentOps(txid);
 
   const paymentOp = ops.find(
-    (o: any) =>
-      o.type === "payment" ||
-      o.type_i === 1
+    (o: any) => o.type === "payment" || o.type_i === 1
   );
 
   if (!paymentOp) {
@@ -193,15 +184,11 @@ export async function verifyRpcPaymentForReconcile({
   }
 
   const rpcReceiver = String(
-    paymentOp.to ||
-    paymentOp.destination ||
-    ""
+    paymentOp.to || paymentOp.destination || ""
   ).trim();
 
   const rpcAmount = safeNumber(
-    paymentOp.amount ||
-    paymentOp.amount_value ||
-    0
+    paymentOp.amount || paymentOp.amount_value || 0
   );
 
   const expectedAmount = safeNumber(intent.total_amount);
@@ -244,216 +231,5 @@ export async function verifyRpcPaymentForReconcile({
       paymentOp,
     },
     rpcConfirmedAt: tx.created_at || new Date().toISOString(),
-  };
-}
-
-/* =========================================================
-   RPC LOG TABLE
-========================================================= */
-
-async function logRpc(
-  paymentIntentId: string,
-  txid: string,
-  verified: boolean,
-  reason: string,
-  payload: unknown
-) {
-  try {
-    await query(
-      `
-      INSERT INTO rpc_verification_logs (
-        payment_intent_id,
-        txid,
-        verified,
-        reason,
-        payload
-      )
-      VALUES ($1,$2,$3,$4,$5)
-      `,
-      [
-        paymentIntentId,
-        txid,
-        verified,
-        reason,
-        JSON.stringify(payload ?? {}),
-      ]
-    );
-
-    console.log("🟢 [RPC_VERIFY] LOG_SAVED", {
-      txid,
-      verified,
-      reason,
-    });
-  } catch (err) {
-    console.error("🔥 [RPC_VERIFY] LOG_FAIL", err);
-  }
-}
-
-type VerifyRpcParams = {
-  paymentIntentId: string;
-  txid: string;
-};
-
-type VerifyRpcResult = {
-  ok: true;
-  txid: string;
-  amount: number;
-  receiverWallet: string;
-  raw: unknown;
-};
-
-function getRpcUrl(): string {
-  const url = process.env.PI_RPC_URL?.trim();
-
-  if (!url) {
-    throw new Error("MISSING_PI_RPC_URL");
-  }
-
-  return url;
-}
-
-async function writeRpcLog({
-  paymentIntentId,
-  txid,
-  verified,
-  reason,
-  payload,
-}: {
-  paymentIntentId: string;
-  txid: string;
-  verified: boolean;
-  reason?: string;
-  payload?: unknown;
-}) {
-  try {
-    await query(
-      `
-      INSERT INTO rpc_verification_logs (
-        payment_intent_id,
-        txid,
-        verified,
-        reason,
-        payload
-      )
-      VALUES ($1,$2,$3,$4,$5)
-      `,
-      [
-        paymentIntentId,
-        txid,
-        verified,
-        reason || null,
-        JSON.stringify(payload || null),
-      ]
-    );
-  } catch (e) {
-    console.error("🔥 [RPC LOG WRITE FAIL]", e);
-  }
-}
-
-export async function verifyRpcPaymentForReconcile({
-  paymentIntentId,
-  txid,
-}: VerifyRpcParams): Promise<VerifyRpcResult> {
-  console.log("🟡 [RPC VERIFY] START", {
-    paymentIntentId,
-    txid,
-  });
-
-  const rpcUrl = getRpcUrl();
-
-  const res = await fetch(`${rpcUrl}/tx/${txid}`, {
-    method: "GET",
-    cache: "no-store",
-  });
-
-  const data = await res.json().catch(() => null);
-
-  console.log("🟡 [RPC VERIFY] RAW", data);
-
-  if (!res.ok || !data) {
-    await writeRpcLog({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "RPC_FETCH_FAILED",
-      payload: data,
-    });
-
-    throw new Error("RPC_FETCH_FAILED");
-  }
-
-  const amount = Number(
-    data.amount ??
-    data.nativeAmount ??
-    data.value ??
-    0
-  );
-
-  const receiverWallet = String(
-    data.to ??
-    data.destination ??
-    data.receiver ??
-    ""
-  );
-
-  const confirmed =
-    Boolean(data.confirmed) ||
-    data.status === "success" ||
-    data.success === true;
-
-  if (!confirmed) {
-    await writeRpcLog({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "TX_NOT_CONFIRMED",
-      payload: data,
-    });
-
-    throw new Error("TX_NOT_CONFIRMED");
-  }
-
-  if (!receiverWallet) {
-    await writeRpcLog({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "INVALID_RECEIVER",
-      payload: data,
-    });
-
-    throw new Error("INVALID_RECEIVER");
-  }
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    await writeRpcLog({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "INVALID_AMOUNT",
-      payload: data,
-    });
-
-    throw new Error("INVALID_AMOUNT");
-  }
-
-  await writeRpcLog({
-    paymentIntentId,
-    txid,
-    verified: true,
-    payload: data,
-  });
-
-  console.log("🟢 [RPC VERIFY] VERIFIED", {
-    amount,
-    receiverWallet,
-  });
-
-  return {
-    ok: true,
-    txid,
-    amount,
-    receiverWallet,
-    raw: data,
   };
 }
