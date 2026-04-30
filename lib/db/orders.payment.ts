@@ -156,9 +156,12 @@ export async function finalizePaidOrderFromIntent({
       throw new Error("AMOUNT_MISMATCH");
     }
 
-    if (intent.merchant_wallet !== receiverWallet) {
-      throw new Error("RECEIVER_MISMATCH");
-    }
+    if (
+  (intent.merchant_wallet || "").trim() !==
+  (receiverWallet || "").trim()
+) {
+  throw new Error("RECEIVER_MISMATCH");
+}
 
     console.log("🟢 [DB FINALIZE] MONEY_VERIFIED");
 
