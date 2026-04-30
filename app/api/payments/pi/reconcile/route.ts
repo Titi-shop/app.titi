@@ -151,10 +151,9 @@ let rpcVerified = null;
 
 try {
   rpcVerified = await verifyRpcPaymentForReconcile({
-    paymentIntentId,
-    piPaymentId,
-    txid,
-  });
+  paymentIntentId,
+  txid,
+});
 
   console.log("🟢 [RPC_OK]", rpcVerified);
 } catch (err) {
