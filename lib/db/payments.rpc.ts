@@ -4,7 +4,8 @@ import { query } from "@/lib/db";
    ENV
 ========================================================= */
 
-const PI_RPC = process.env.PI_RPC_URL || "https://rpc.testnet.minepi.com";
+const PI_RPC =
+  process.env.PI_RPC_URL || "https://rpc.testnet.minepi.com";
 
 /* =========================================================
    TYPES
@@ -16,11 +17,31 @@ type VerifyRpcParams = {
 };
 
 type RpcTransaction = {
-  hash: string;
+  txHash: string;
   successful: boolean;
-  ledger: number;
-  created_at: string;
+  ledger?: number;
+  created_at?: string;
 };
+
+type RpcOperation = {
+  type?: string;
+  type_i?: number;
+
+  to?: string;
+  destination?: string;
+
+  amount?: number | string;
+  amount_value?: number | string;
+};
+
+type PaymentIntentRow = {
+  merchant_wallet: string;
+  total_amount: string;
+};
+
+/* =========================================================
+   SAFE UTIL
+========================================================= */
 
 function safeNumber(v: unknown): number {
   const n = Number(v);
@@ -28,11 +49,18 @@ function safeNumber(v: unknown): number {
   return n;
 }
 
+function toTrimmedString(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
 /* =========================================================
    RPC CALL
 ========================================================= */
 
-async function rpcCall(method: string, params: unknown) {
+async function rpcCall<T>(
+  method: string,
+  params: unknown
+): Promise<T> {
   console.log("🟡 [RPC_VERIFY] RPC_CALL", { method, params });
 
   const res = await fetch(PI_RPC, {
@@ -49,29 +77,54 @@ async function rpcCall(method: string, params: unknown) {
     cache: "no-store",
   });
 
-  const json = await res.json().catch(() => null);
+  const json: unknown = await res
+    .json()
+    .catch(() => null);
 
   if (!res.ok || !json) {
     throw new Error("RPC_HTTP_FAIL");
   }
 
-  if (json.error) {
+  const obj = json as { error?: unknown; result?: T };
+
+  if (obj.error) {
     throw new Error("RPC_JSON_FAIL");
   }
 
-  return json.result;
+  if (!obj.result) {
+    throw new Error("RPC_EMPTY_RESULT");
+  }
+
+  return obj.result;
 }
 
-async function fetchTransaction(txid: string): Promise<RpcTransaction> {
-  const tx = await rpcCall("getTransaction", { hash: txid });
+/* =========================================================
+   FETCH TX
+========================================================= */
+
+async function fetchTransaction(
+  txid: string
+): Promise<RpcTransaction> {
+  const tx = await rpcCall<RpcTransaction>("getTransaction", {
+    hash: txid,
+  });
 
   console.log("🟢 [RPC_VERIFY] TX_FETCH_OK", tx);
 
   return tx;
 }
 
-async function fetchPaymentOps(txid: string) {
-  const ops = await rpcCall("getOperationsForTransaction", { hash: txid });
+/* =========================================================
+   FETCH OPS
+========================================================= */
+
+async function fetchPaymentOps(
+  txid: string
+): Promise<RpcOperation[]> {
+  const ops = await rpcCall<RpcOperation[]>(
+    "getOperationsForTransaction",
+    { hash: txid }
+  );
 
   console.log("🟢 [RPC_VERIFY] OPS_FETCH_OK", ops);
 
@@ -79,7 +132,7 @@ async function fetchPaymentOps(txid: string) {
 }
 
 /* =========================================================
-   LOG TABLE
+   LOG RPC
 ========================================================= */
 
 async function logRpc(
@@ -115,7 +168,7 @@ async function logRpc(
 }
 
 /* =========================================================
-   MAIN
+   MAIN VERIFY
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
@@ -126,6 +179,10 @@ export async function verifyRpcPaymentForReconcile({
     paymentIntentId,
     txid,
   });
+
+  /* =====================================================
+     1. REPLAY CHECK
+  ===================================================== */
 
   const replay = await query(
     `
@@ -141,10 +198,11 @@ export async function verifyRpcPaymentForReconcile({
     throw new Error("TXID_ALREADY_USED");
   }
 
-  const db = await query<{
-    merchant_wallet: string;
-    total_amount: string;
-  }>(
+  /* =====================================================
+     2. LOAD INTENT
+  ===================================================== */
+
+  const db = await query<PaymentIntentRow>(
     `
     SELECT merchant_wallet, total_amount
     FROM payment_intents
@@ -160,41 +218,83 @@ export async function verifyRpcPaymentForReconcile({
 
   const intent = db.rows[0];
 
+  /* =====================================================
+     3. FETCH TX
+  ===================================================== */
+
   const tx = await fetchTransaction(txid);
 
-  const txHash = tx?.txHash || tx?.hash;
+  const txHash =
+    tx?.txHash || "";
 
-if (!txHash) {
-  await logRpc(paymentIntentId, txid, false, "TX_NOT_FOUND", tx);
-  throw new Error("RPC_TX_NOT_FOUND");
-}
+  if (!txHash) {
+    await logRpc(
+      paymentIntentId,
+      txid,
+      false,
+      "TX_NOT_FOUND",
+      tx
+    );
+    throw new Error("RPC_TX_NOT_FOUND");
+  }
 
   if (tx.successful !== true) {
-    await logRpc(paymentIntentId, txid, false, "TX_NOT_SUCCESSFUL", tx);
+    await logRpc(
+      paymentIntentId,
+      txid,
+      false,
+      "TX_NOT_SUCCESSFUL",
+      tx
+    );
     throw new Error("RPC_TX_FAILED");
   }
+
+  /* =====================================================
+     4. FETCH OPS
+  ===================================================== */
 
   const ops = await fetchPaymentOps(txid);
 
   const paymentOp = ops.find(
-    (o: any) => o.type === "payment" || o.type_i === 1
+    (o) =>
+      o.type === "payment" ||
+      o.type_i === 1
   );
 
   if (!paymentOp) {
-    await logRpc(paymentIntentId, txid, false, "PAYMENT_OP_NOT_FOUND", ops);
+    await logRpc(
+      paymentIntentId,
+      txid,
+      false,
+      "PAYMENT_OP_NOT_FOUND",
+      ops
+    );
     throw new Error("RPC_PAYMENT_OP_NOT_FOUND");
   }
 
-  const rpcReceiver = String(
-    paymentOp.to || paymentOp.destination || ""
-  ).trim();
+  /* =====================================================
+     5. EXTRACT DATA
+  ===================================================== */
 
-  const rpcAmount = safeNumber(
-    paymentOp.amount || paymentOp.amount_value || 0
+  const rpcReceiver = toTrimmedString(
+    paymentOp.to ?? paymentOp.destination
   );
 
-  const expectedAmount = safeNumber(intent.total_amount);
-  const expectedReceiver = String(intent.merchant_wallet).trim();
+  const rpcAmount = safeNumber(
+    paymentOp.amount ?? paymentOp.amount_value ?? 0
+  );
+
+  const expectedAmount = safeNumber(
+    intent.total_amount
+  );
+
+  const expectedReceiver = toTrimmedString(
+    intent.merchant_wallet
+  );
+
+  /* =====================================================
+     6. COMPARE
+  ===================================================== */
 
   console.log("🟡 [RPC_VERIFY] AMOUNT_COMPARE", {
     expectedAmount,
@@ -206,20 +306,45 @@ if (!txHash) {
     rpcReceiver,
   });
 
-  if (Number(expectedAmount.toFixed(7)) !== Number(rpcAmount.toFixed(7))) {
-    await logRpc(paymentIntentId, txid, false, "RPC_AMOUNT_MISMATCH", paymentOp);
+  if (
+    Number(expectedAmount.toFixed(7)) !==
+    Number(rpcAmount.toFixed(7))
+  ) {
+    await logRpc(
+      paymentIntentId,
+      txid,
+      false,
+      "RPC_AMOUNT_MISMATCH",
+      paymentOp
+    );
     throw new Error("RPC_AMOUNT_MISMATCH");
   }
 
   if (!rpcReceiver || rpcReceiver !== expectedReceiver) {
-    await logRpc(paymentIntentId, txid, false, "RPC_RECEIVER_MISMATCH", paymentOp);
+    await logRpc(
+      paymentIntentId,
+      txid,
+      false,
+      "RPC_RECEIVER_MISMATCH",
+      paymentOp
+    );
     throw new Error("RPC_RECEIVER_MISMATCH");
   }
 
-  await logRpc(paymentIntentId, txid, true, "VERIFIED", {
-    tx,
-    paymentOp,
-  });
+  /* =====================================================
+     7. SUCCESS
+  ===================================================== */
+
+  await logRpc(
+    paymentIntentId,
+    txid,
+    true,
+    "VERIFIED",
+    {
+      tx,
+      paymentOp,
+    }
+  );
 
   console.log("🟢 [RPC_VERIFY] VERIFIED_SUCCESS");
 
@@ -232,6 +357,7 @@ if (!txHash) {
       tx,
       paymentOp,
     },
-    rpcConfirmedAt: tx.created_at || new Date().toISOString(),
+    rpcConfirmedAt:
+      tx.created_at ?? new Date().toISOString(),
   };
 }
