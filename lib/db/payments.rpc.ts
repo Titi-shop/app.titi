@@ -9,27 +9,10 @@ type VerifyRpcParams = {
   txid: string;
 };
 
-type RpcResponse<T> = {
-  jsonrpc?: string;
-  id?: number | string;
-  result?: T;
-  error?: {
-    code: number;
-    message: string;
-  };
-};
-
 type RpcTx = {
-  hash?: string;
   txid?: string;
-  successful?: boolean;
-  status?: string;
   ledger?: number;
-
-  /* Pi Network extension fields (may exist depending RPC version) */
-  amount?: number;
-  from_address?: string;
-  to_address?: string;
+  status?: string;
 };
 
 /* =========================================================
@@ -40,7 +23,7 @@ const PI_RPC =
   process.env.PI_RPC_URL ?? "https://rpc.testnet.minepi.com";
 
 /* =========================================================
-   SAFE RPC CALL
+   RPC CALL (RAW BLOCKCHAIN ONLY)
 ========================================================= */
 
 async function rpcCall<T>(
@@ -62,7 +45,7 @@ async function rpcCall<T>(
 
   const text = await res.text();
 
-  let json: RpcResponse<T>;
+  let json;
 
   try {
     json = JSON.parse(text);
@@ -75,14 +58,14 @@ async function rpcCall<T>(
   }
 
   if (json?.error) {
-    throw new Error(`RPC_ERROR_${json.error.code}`);
+    throw new Error("RPC_ERROR_" + json.error.code);
   }
 
   return json.result as T;
 }
 
 /* =========================================================
-   LOG RPC (CLEAN + NO NULL NOISE)
+   AUDIT LOG (CLEAN)
 ========================================================= */
 
 async function logRpc(params: {
@@ -90,9 +73,7 @@ async function logRpc(params: {
   txid: string;
   verified: boolean;
   reason: string;
-  stage: "FETCH" | "VERIFY" | "PARSE" | "FINALIZE" | "ERROR";
-  amount?: number;
-  receiver?: string;
+  stage: "RPC";
   payload?: unknown;
 }) {
   try {
@@ -104,18 +85,14 @@ async function logRpc(params: {
         verified,
         reason,
         stage,
-        amount,
-        receiver,
         payload
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6)
       ON CONFLICT (txid)
       DO UPDATE SET
         verified = EXCLUDED.verified,
         reason = EXCLUDED.reason,
         stage = EXCLUDED.stage,
-        amount = EXCLUDED.amount,
-        receiver = EXCLUDED.receiver,
         payload = EXCLUDED.payload
       `,
       [
@@ -124,8 +101,6 @@ async function logRpc(params: {
         params.verified,
         params.reason,
         params.stage,
-        params.amount ?? null,
-        params.receiver ?? null,
         JSON.stringify(params.payload ?? {}),
       ]
     );
@@ -135,47 +110,29 @@ async function logRpc(params: {
 }
 
 /* =========================================================
-   NORMALIZE TX (🔥 IMPORTANT FIX)
-========================================================= */
-
-function normalizeTx(tx: RpcTx) {
-  return {
-    txid: tx.txid ?? tx.hash ?? null,
-    ledger: tx.ledger ?? null,
-    status: tx.status ?? "unknown",
-    successful: tx.successful ?? false,
-
-    // Pi optional fields
-    amount: typeof tx.amount === "number" ? tx.amount : null,
-    receiver: tx.to_address ?? null,
-    sender: tx.from_address ?? null,
-  };
-}
-
-/* =========================================================
-   MAIN FUNCTION (RPC V2)
+   MAIN RPC V3
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams) {
-  console.log("🟡 [RPC_V2] START", {
+  console.log("🟡 [RPC_V3] START", {
     paymentIntentId,
     txid,
   });
 
   /* =========================================================
-     STEP 0: IDEMPOTENCY CHECK
+     IDEMPOTENCY CHECK
   ========================================================= */
 
-  const receipt = await query(
-    `SELECT id FROM payment_receipts WHERE txid = $1 LIMIT 1`,
+  const existing = await query(
+    `SELECT id FROM rpc_verification_logs WHERE txid = $1 LIMIT 1`,
     [txid]
   );
 
-  if (receipt.rows.length > 0) {
-    console.log("🟢 [RPC_V2] ALREADY_DONE");
+  if (existing.rows.length > 0) {
+    console.log("🟢 [RPC_V3] ALREADY_DONE");
 
     return {
       ok: true,
@@ -184,29 +141,31 @@ export async function verifyRpcPaymentForReconcile({
   }
 
   /* =========================================================
-     STEP 1: FETCH RPC TX
+     FETCH TX
   ========================================================= */
 
-  let tx: RpcTx;
+  let tx: RpcTx | null = null;
 
   try {
     tx = await rpcCall<RpcTx>("getTransaction", {
       hash: txid,
     });
   } catch (err) {
+    console.warn("[RPC_V3_TX_FAIL]", err);
+
     await logRpc({
       paymentIntentId,
       txid,
       verified: false,
-      reason: "RPC_FETCH_FAILED",
-      stage: "FETCH",
+      reason: "RPC_TX_FAIL",
+      stage: "RPC",
       payload: err,
     });
 
     return {
       ok: true,
       skipped: true,
-      reason: "RPC_UNAVAILABLE",
+      reason: "RPC_TX_UNAVAILABLE",
     };
   }
 
@@ -216,7 +175,8 @@ export async function verifyRpcPaymentForReconcile({
       txid,
       verified: false,
       reason: "TX_NULL",
-      stage: "FETCH",
+      stage: "RPC",
+      payload: null,
     });
 
     return {
@@ -227,51 +187,7 @@ export async function verifyRpcPaymentForReconcile({
   }
 
   /* =========================================================
-     STEP 2: NORMALIZE + VALIDATE
-  ========================================================= */
-
-  const normalized = normalizeTx(tx);
-
-  await logRpc({
-    paymentIntentId,
-    txid,
-    verified: true,
-    reason: "RPC_FETCH_OK",
-    stage: "VERIFY",
-    payload: normalized,
-  });
-
-  /* =========================================================
-     STEP 3: PARSE CRITICAL DATA (FIX YOUR NULL ISSUE)
-  ========================================================= */
-
-  const amount = normalized.amount;
-  const receiver = normalized.receiver;
-
-  if (!amount || !receiver) {
-    await logRpc({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "RPC_MISSING_FIELDS",
-      stage: "PARSE",
-      payload: normalized,
-    });
-
-    console.warn("⚠️ [RPC_V2] MISSING_FIELDS", {
-      amount,
-      receiver,
-    });
-
-    return {
-      ok: true,
-      skipped: true,
-      reason: "INCOMPLETE_TX",
-    };
-  }
-
-  /* =========================================================
-     STEP 4: FINAL AUDIT OK
+     AUDIT ONLY (NO BUSINESS LOGIC)
   ========================================================= */
 
   await logRpc({
@@ -279,23 +195,16 @@ export async function verifyRpcPaymentForReconcile({
     txid,
     verified: true,
     reason: "RPC_AUDIT_OK",
-    stage: "FINALIZE",
-    amount,
-    receiver,
-    payload: normalized,
+    stage: "RPC",
+    payload: tx,
   });
 
-  console.log("🟢 [RPC_V2] DONE", {
-    amount,
-    receiver,
-  });
+  console.log("🟢 [RPC_V3] DONE");
 
   return {
     ok: true,
-    ledger: normalized.ledger,
-    status: normalized.status,
-    amount,
-    receiver,
+    ledger: tx.ledger ?? null,
+    status: tx.status ?? "unknown",
     audited: true,
   };
 }
