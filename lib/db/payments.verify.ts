@@ -285,7 +285,13 @@ if (intent.status === "paid") {
 }
   if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
   if (intent.pi_payment_id !== piPaymentId) throw new Error("PI_PAYMENT_ID_MISMATCH");
-  const allowedStates = ["verifying", "submitted", "wallet_opened"];
+  const allowedStates = [
+  "pending",
+  "created",
+  "verifying",
+  "submitted",
+  "wallet_opened",
+];
 
 if (!allowedStates.includes(intent.status)) {
   throw new Error("INVALID_PAYMENT_STATE");
