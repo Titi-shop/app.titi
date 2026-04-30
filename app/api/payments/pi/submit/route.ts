@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -63,31 +62,50 @@ export async function POST(req: Request) {
 
     /**
      * =====================================================
-     * ASYNC TRIGGER (SAFE VERSION)
+     * ASYNC RECONCILE TRIGGER
      * =====================================================
      */
+    const runReconcile = async () => {
+      try {
+        console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
 
-    queueMicrotask(() => {
-      void runReconcileJob({
-        paymentIntentId,
-        piPaymentId,
-        txid: txid || null,
-        authorization: req.headers.get("authorization") ?? "",
-      });
-    });
+        const { POST: reconcile } = await import(
+          "@/app/api/payments/pi/reconcile/route"
+        );
+
+        const fakeReq = new Request("http://internal/reconcile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: req.headers.get("authorization") || "",
+          },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntentId,
+            pi_payment_id: piPaymentId,
+            txid,
+          }),
+        });
+
+        await reconcile(fakeReq as any);
+
+        console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
+      } catch (e) {
+        console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
+      }
+    };
+
+    queueMicrotask(runReconcile);
 
     return NextResponse.json({
       success: true,
       status: "verifying",
       paymentIntentId,
     });
-  } catch (err: unknown) {
+  } catch (err) {
     console.error("🔥 [SUBMIT] CRASH", err);
 
     return NextResponse.json(
-      {
-        error: err instanceof Error ? err.message : "SUBMIT_FAILED",
-      },
+      { error: err instanceof Error ? err.message : "SUBMIT_FAILED" },
       { status: 400 }
     );
   }
