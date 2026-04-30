@@ -202,9 +202,9 @@ export async function verifyRpcPaymentForReconcile({
     throw new Error("RPC_JSON_FAIL");
   }
 
-  const paymentOp = ops.find(
-    (o) => o.type === "payment" || o.type_i === 1
-  );
+  const paymentOp = ops.find((o) => {
+  return o.type === "payment" && o.amount && (o.to || o.destination);
+});
 
   if (!paymentOp) {
     await logRpc(paymentIntentId, txid, false, "NO_PAYMENT_OP", ops);
