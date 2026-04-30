@@ -86,26 +86,29 @@ async function logRpc(
 ) {
   try {
     await query(
-      `
-      INSERT INTO rpc_verification_logs (
-        payment_intent_id,
-        txid,
-        verified,
-        reason,
-        payload
-      )
-      VALUES ($1,$2,$3,$4,$5)
-      ON CONFLICT (txid)
-      DO NOTHING
-      `,
-      [
-        paymentIntentId,
-        txid,
-        verified,
-        reason,
-        JSON.stringify(payload ?? {}),
-      ]
-    );
+  `
+  INSERT INTO rpc_verification_logs (
+    payment_intent_id,
+    txid,
+    verified,
+    reason,
+    payload
+  )
+  VALUES ($1,$2,$3,$4,$5)
+  ON CONFLICT (txid)
+  DO UPDATE SET
+    verified = EXCLUDED.verified,
+    reason = EXCLUDED.reason,
+    payload = EXCLUDED.payload
+  `,
+  [
+    paymentIntentId,
+    txid,
+    verified,
+    reason,
+    JSON.stringify(payload ?? {}),
+  ]
+);
   } catch (e) {
     console.error("[RPC_LOG_FAIL]", e);
   }
