@@ -132,11 +132,15 @@ export async function POST(req: Request) {
 
     console.log("🟡 [RECONCILE] STEP_2_VERIFY_RPC");
 
-    const rpcVerified = await verifyRpcPaymentForReconcile({
-      paymentIntentId,
-      piPaymentId,
-      txid,
-    });
+    let rpcVerified = null;
+
+  queueMicrotask(async () => {
+  try {
+    rpcVerified = await verifyRpcPaymentForReconcile(...);
+  } catch (e) {
+    console.error("[RPC_AUDIT_FAIL]", e);
+  }
+  });
 
     console.log("🟢 [RECONCILE] RPC_OK", rpcVerified);
 
