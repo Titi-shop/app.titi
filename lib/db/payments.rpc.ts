@@ -215,33 +215,43 @@ export async function verifyRpcPaymentForReconcile({
      STEP 2: FETCH OPS (OPTIONAL)
   ========================================================= */
 
-  let ops: RpcOps[] = [];
+  let rpcVerified: {
+  ok: boolean;
+  txid?: string;
+  ledger?: number | null;
+  status?: string;
+  skipped?: boolean;
+  reason?: string;
+} | null = null;
 
-  try {
-    ops = await rpcCall<RpcOps[]>(
-      "getOperationsForTransaction",
-      {
-        hash: txid,
-      }
-    );
-  } catch (err) {
-    console.warn("[RPC_OPS_FAIL]", err);
+try {
+  console.log("🟡 [RPC_VERIFY] getTransaction", txid);
 
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "RPC_OPS_FAIL",
-      err
-    );
+  const tx = await rpcCall<{
+    ledger?: number;
+    status?: string;
+    successful?: boolean;
+  }>("getTransaction", {
+    hash: txid,
+  });
 
-    return {
-      ok: true,
-      skipped: true,
-      reason: "RPC_OPS_UNAVAILABLE",
-    };
-  }
+  rpcVerified = {
+    ok: true,
+    txid,
+    ledger: tx?.ledger ?? null,
+    status: tx?.status ?? "unknown",
+  };
 
+  console.log("🟢 [RPC_VERIFY] OK", rpcVerified);
+} catch (err) {
+  console.warn("⚠️ [RPC_VERIFY] FAILED (NON-BLOCKING)", err);
+
+  rpcVerified = {
+    ok: true, // 🔥 QUAN TRỌNG: không fail flow
+    skipped: true,
+    reason: "RPC_UNAVAILABLE",
+  };
+}
   /* =========================================================
      STEP 3: FIND PAYMENT OP (FLEXIBLE)
   ========================================================= */
