@@ -157,7 +157,11 @@ export async function bindPiPaymentToIntent(
     throw new Error("FORBIDDEN");
   }
 
-  const allowedStates = ["verifying", "submitted", "wallet_opened"];
+  const allowedStates = ["created", "verifying", "submitted", "wallet_opened", "paid"];
+
+if (intent.status === "paid") {
+  return;
+}
 
 if (!allowedStates.includes(intent.status)) {
   throw new Error("INVALID_PAYMENT_STATE");
