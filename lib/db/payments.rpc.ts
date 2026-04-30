@@ -100,13 +100,16 @@ function toNumber(v: unknown): number {
    LOG RPC (AUDIT ONLY)
 ========================================================= */
 
-async function logRpc(
-  paymentIntentId: string,
-  txid: string,
-  verified: boolean,
-  reason: string,
-  payload: unknown
-) {
+async function logRpc(params: {
+  paymentIntentId: string;
+  txid: string;
+  verified: boolean;
+  reason: string;
+  stage: "VERIFY" | "FINALIZE" | "PI" | "RPC";
+  amount?: number | null;
+  receiver?: string | null;
+  payload?: unknown;
+}) {
   try {
     await query(
       `
@@ -115,21 +118,30 @@ async function logRpc(
         txid,
         verified,
         reason,
+        stage,
+        amount,
+        receiver,
         payload
       )
-      VALUES ($1,$2,$3,$4,$5)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       ON CONFLICT (txid)
       DO UPDATE SET
         verified = EXCLUDED.verified,
         reason = EXCLUDED.reason,
+        stage = EXCLUDED.stage,
+        amount = EXCLUDED.amount,
+        receiver = EXCLUDED.receiver,
         payload = EXCLUDED.payload
       `,
       [
-        paymentIntentId,
-        txid,
-        verified,
-        reason,
-        JSON.stringify(payload ?? {}),
+        params.paymentIntentId,
+        params.txid,
+        params.verified,
+        params.reason,
+        params.stage,
+        params.amount ?? null,
+        params.receiver ?? null,
+        JSON.stringify(params.payload ?? {}),
       ]
     );
   } catch (e) {
