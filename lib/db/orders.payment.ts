@@ -589,7 +589,8 @@ export async function finalizePaidOrderFromIntent({
         now(),
         now()
       )
-     ON CONFLICT DO NOTHING
+     ON CONFLICT (pi_payment_id)
+        DO UPDATE SET
         txid = EXCLUDED.txid,
         status = 'completed',
         verified_amount = EXCLUDED.verified_amount,
