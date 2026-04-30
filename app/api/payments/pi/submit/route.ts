@@ -70,28 +70,11 @@ export async function POST(req: Request) {
      * 🔥 FIX: KHÔNG DÙNG process.env.APP_URL + KHÔNG FETCH
      * =====================================================
      */
-    const runReconcile = async () => {
-      try {
-        console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
-
-        const { POST: reconcile } = await import(
-          "@/app/api/payments/pi/reconcile/route"
-        );
-
-        const fakeReq = new Request("http://internal/reconcile", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            authorization: req.headers.get("authorization") || "",
-          },
-          body: JSON.stringify({
-            payment_intent_id: paymentIntentId,
-            pi_payment_id: piPaymentId,
-            txid,
-          }),
-        });
-
-        await reconcile(fakeReq as any);
+    return NextResponse.json({
+  success: true,
+  status: "verifying",
+  paymentIntentId,
+});
 
         console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
       } catch (e) {
