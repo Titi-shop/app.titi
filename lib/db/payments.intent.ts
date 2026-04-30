@@ -1,6 +1,10 @@
 
 import { withTransaction } from "@/lib/db";
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 type ShippingInput = {
   name: string;
   phone: string;
@@ -30,10 +34,16 @@ type CreateIntentResult = {
   currency: "PI";
 };
 
+/* =========================================================
+   VALIDATION
+========================================================= */
+
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v
+    )
   );
 }
 
@@ -45,7 +55,7 @@ function safeQty(v: number): number {
 
 function safeMoney(v: unknown): number {
   const n = Number(v);
-  if (Number.isNaN(n) || n < 0) throw new Error("INVALID_AMOUNT");
+  if (!Number.isFinite(n) || n < 0) throw new Error("INVALID_AMOUNT");
   return Number(n.toFixed(7));
 }
 
@@ -59,11 +69,33 @@ function generateNonce(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
+/* =========================================================
+   MAIN FUNCTION
+========================================================= */
+
 export async function createPiPaymentIntent(
   params: CreateIntentParams
 ): Promise<CreateIntentResult> {
-  if (!isUUID(params.userId)) throw new Error("INVALID_USER_ID");
-  if (!isUUID(params.productId)) throw new Error("INVALID_PRODUCT_ID");
+  console.log("🟡 [CREATE_INTENT] START", {
+    userId: params.userId,
+    productId: params.productId,
+    variantId: params.variantId ?? null,
+    quantity: params.quantity,
+    country: params.country,
+    zone: params.zone,
+  });
+
+  /* =========================
+     VALIDATION LAYER
+  ========================= */
+
+  if (!isUUID(params.userId)) {
+    throw new Error("INVALID_USER_ID");
+  }
+
+  if (!isUUID(params.productId)) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
 
   const variantId =
     params.variantId && isUUID(params.variantId)
@@ -74,7 +106,17 @@ export async function createPiPaymentIntent(
   const merchantWallet = getMerchantWallet();
   const nonce = generateNonce();
 
+  /* =========================
+     TRANSACTION (ATOMIC)
+  ========================= */
+
   return withTransaction(async (client) => {
+    console.log("🟡 [CREATE_INTENT] DB_TX_START");
+
+    /* =====================================================
+       STEP 1: LOCK PRODUCT
+    ===================================================== */
+
     const productRes = await client.query<{
       id: string;
       seller_id: string;
@@ -83,9 +125,9 @@ export async function createPiPaymentIntent(
       stock: number;
     }>(
       `
-      SELECT id,seller_id,price,sale_price,stock
+      SELECT id, seller_id, price, sale_price, stock
       FROM products
-      WHERE id=$1
+      WHERE id = $1
       LIMIT 1
       FOR UPDATE
       `,
@@ -98,6 +140,16 @@ export async function createPiPaymentIntent(
 
     const product = productRes.rows[0];
 
+    console.log("🟢 [CREATE_INTENT] PRODUCT_LOCKED", {
+      productId: product.id,
+      sellerId: product.seller_id,
+      stock: product.stock,
+    });
+
+    /* =====================================================
+       STEP 2: PRICE RESOLUTION
+    ===================================================== */
+
     let unitPrice = safeMoney(product.sale_price || product.price);
 
     if (variantId) {
@@ -107,9 +159,9 @@ export async function createPiPaymentIntent(
         stock: number;
       }>(
         `
-        SELECT price,sale_price,stock
+        SELECT price, sale_price, stock
         FROM product_variants
-        WHERE id=$1 AND product_id=$2
+        WHERE id = $1 AND product_id = $2
         LIMIT 1
         FOR UPDATE
         `,
@@ -123,23 +175,33 @@ export async function createPiPaymentIntent(
       const variant = vr.rows[0];
 
       if (variant.stock < quantity) {
-        throw new Error("OUT_OF_STOCK");
+        throw new Error("OUT_OF_STOCK_VARIANT");
       }
 
       unitPrice = safeMoney(variant.sale_price || variant.price);
+
+      console.log("🟢 [CREATE_INTENT] VARIANT_LOCKED", {
+        variantId,
+        stock: variant.stock,
+        unitPrice,
+      });
     } else {
       if (product.stock < quantity) {
         throw new Error("OUT_OF_STOCK");
       }
     }
 
+    /* =====================================================
+       STEP 3: SHIPPING FEE
+    ===================================================== */
+
     const ship = await client.query<{ price: string }>(
       `
       SELECT sr.price
       FROM shipping_rates sr
       JOIN shipping_zones sz ON sz.id = sr.zone_id
-      WHERE sr.product_id=$1
-        AND sz.code=$2
+      WHERE sr.product_id = $1
+        AND sz.code = $2
       LIMIT 1
       `,
       [params.productId, params.zone]
@@ -150,9 +212,32 @@ export async function createPiPaymentIntent(
     }
 
     const shippingFee = safeMoney(ship.rows[0].price);
+
+    console.log("🟢 [CREATE_INTENT] SHIPPING_OK", {
+      shippingFee,
+      zone: params.zone,
+    });
+
+    /* =====================================================
+       STEP 4: PRICE CALCULATION
+    ===================================================== */
+
     const subtotal = safeMoney(unitPrice * quantity);
     const discount = safeMoney(0);
     const total = safeMoney(subtotal - discount + shippingFee);
+
+    console.log("🟢 [CREATE_INTENT] PRICE_CALCULATED", {
+      unitPrice,
+      quantity,
+      subtotal,
+      discount,
+      shippingFee,
+      total,
+    });
+
+    /* =====================================================
+       STEP 5: SHIPPING SNAPSHOT
+    ===================================================== */
 
     const shippingSnapshot = {
       name: params.shipping.name,
@@ -166,6 +251,10 @@ export async function createPiPaymentIntent(
       zone: params.zone,
     };
 
+    /* =====================================================
+       STEP 6: INSERT PAYMENT INTENT
+    ===================================================== */
+
     const insert = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
@@ -174,15 +263,18 @@ export async function createPiPaymentIntent(
         product_id,
         variant_id,
         quantity,
+
         unit_price,
         subtotal,
         discount,
         shipping_fee,
         total_amount,
+
         currency,
         shipping_snapshot,
         country,
         zone,
+
         merchant_wallet,
         nonce,
         status
@@ -202,14 +294,17 @@ export async function createPiPaymentIntent(
         params.productId,
         variantId,
         quantity,
+
         unitPrice,
         subtotal,
         discount,
         shippingFee,
         total,
+
         JSON.stringify(shippingSnapshot),
         params.country,
         params.zone,
+
         merchantWallet,
         nonce,
       ]
@@ -217,7 +312,17 @@ export async function createPiPaymentIntent(
 
     const paymentIntentId = insert.rows[0].id;
 
-    return {
+    console.log("🟢 [CREATE_INTENT] DB_INSERT_OK", {
+      paymentIntentId,
+      total,
+      nonce,
+    });
+
+    /* =====================================================
+       RETURN
+    ===================================================== */
+
+    const result: CreateIntentResult = {
       paymentIntentId,
       amount: total,
       memo: `ORDER-${paymentIntentId.slice(0, 8)}`,
@@ -225,5 +330,9 @@ export async function createPiPaymentIntent(
       merchantWallet,
       currency: "PI",
     };
+
+    console.log("🟢 [CREATE_INTENT] SUCCESS", result);
+
+    return result;
   });
 }
