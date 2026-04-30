@@ -227,7 +227,7 @@ export async function POST(req: Request) {
       success: true,
       order_id: paid.orderId,
       amount: piVerified.verifiedAmount,
-      rpc_verified: !rpcVerified?.skipped,
+      rpc_audited: rpcVerified?.audited ?? false,
     });
   } catch (err) {
     console.error("🔥 [RECONCILE_CRASH]", err);
