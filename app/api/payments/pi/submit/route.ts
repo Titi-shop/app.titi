@@ -1,3 +1,4 @@
+import { reconcilePayment } from "@/lib/services/payment/reconcile.service";
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
@@ -100,17 +101,12 @@ export async function POST(req: Request) {
       baseUrl,
     });
 
-    const reconcileRes = await fetch(`${baseUrl}/api/payments/pi/reconcile`, {
-      method: "POST",
-      headers: {
-        Authorization: req.headers.get("authorization") || "",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id,
-        pi_payment_id,
-        txid,
-      }),
+    const reconcileRes = await reconcilePayment({
+  userId,
+  paymentIntentId: payment_intent_id,
+  piPaymentId: pi_payment_id,
+  txid,
+});
       cache: "no-store",
     });
 
