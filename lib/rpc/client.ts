@@ -139,18 +139,22 @@ export async function rpcGetTransaction(
    EXTRACT PAYMENT DATA FROM TX
 ========================================================= */
 
-export function extractPaymentOperation(
-  tx: RpcTransaction | null
-): {
-  amount: number | null;
-  receiver: string | null;
-} {
-  if (!tx?.operations || !Array.isArray(tx.operations)) {
+export function extractPaymentOperation(tx: RpcTransaction | null) {
+  if (!tx?.operations?.length) {
+    return { amount: null, receiver: null };
+  }
+
+  for (const op of tx.operations) {
+    if (!op.to || !op.amount) continue;
+
     return {
-      amount: null,
-      receiver: null,
+      amount: Number(op.amount) || null,
+      receiver: op.to.trim() || null,
     };
   }
+
+  return { amount: null, receiver: null };
+}
 
   for (const op of tx.operations) {
     const type = String(op.type || "").toLowerCase();
