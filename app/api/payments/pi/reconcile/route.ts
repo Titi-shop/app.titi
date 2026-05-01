@@ -8,229 +8,212 @@ import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================================================
-   CONFIG
-========================================================= */
-
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
-/* =========================================================
-   TYPES
-========================================================= */
-
-type Body = {
-  payment_intent_id?: string;
-  pi_payment_id?: string;
-  txid?: string;
+type ReconcileBody = {
+  payment_intent_id: string;
+  pi_payment_id: string;
+  txid: string;
 };
-
-/* =========================================================
-   VALIDATION
-========================================================= */
 
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      v
-    )
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
 
-function isString(v: unknown): v is string {
-  return typeof v === "string" && v.length > 0;
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
 }
 
-/* =========================================================
-   PI COMPLETE (SAFE + IDEMPOTENT)
-========================================================= */
+function parseBody(raw: unknown): ReconcileBody | null {
+  if (!isRecord(raw)) return null;
 
-async function callPiComplete(piPaymentId: string, txid: string) {
+  const paymentIntentId =
+    typeof raw.payment_intent_id === "string"
+      ? raw.payment_intent_id.trim()
+      : "";
+
+  const piPaymentId =
+    typeof raw.pi_payment_id === "string"
+      ? raw.pi_payment_id.trim()
+      : "";
+
+  const txid =
+    typeof raw.txid === "string"
+      ? raw.txid.trim()
+      : "";
+
+  if (!isUUID(paymentIntentId) || !piPaymentId || !txid) {
+    return null;
+  }
+
+  return {
+    payment_intent_id: paymentIntentId,
+    pi_payment_id: piPaymentId,
+    txid,
+  };
+}
+
+async function callPiComplete(
+  piPaymentId: string,
+  txid: string
+): Promise<boolean> {
   try {
-    const res = await fetch(
-      `${PI_API}/payments/${piPaymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${PI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
+    const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+      cache: "no-store",
+    });
 
     const text = await res.text();
 
     if (!res.ok) {
-      if (text.includes("already_completed")) return true;
+      if (text.includes("already_completed")) {
+        console.log("[PAYMENT][RECONCILE] PI_ALREADY_COMPLETED");
+        return true;
+      }
+
+      console.warn("[PAYMENT][RECONCILE] PI_COMPLETE_HTTP_FAIL", {
+        status: res.status,
+        body: text,
+      });
+
       return false;
     }
 
+    console.log("[PAYMENT][RECONCILE] PI_COMPLETE_OK");
     return true;
   } catch (err) {
-    console.error("🔥 [PI_COMPLETE_FAIL]", err);
+    console.error("[PAYMENT][RECONCILE] PI_COMPLETE_CRASH", err);
     return false;
   }
 }
 
-/* =========================================================
-   MAIN
-========================================================= */
-
 export async function POST(req: Request) {
-  console.log("🟡 [RECONCILE_V2] START");
+  console.log("[PAYMENT][RECONCILE] START");
 
   try {
-    /* =========================================================
-       AUTH (Bearer → userId UUID)
-    ========================================================= */
-
     const auth = await getUserFromBearer();
 
     if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    /* =========================================================
-       BODY PARSE (SAFE)
-    ========================================================= */
-
     const raw = await req.json().catch(() => null);
+    const body = parseBody(raw);
 
-    if (!raw || typeof raw !== "object") {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
+    if (!body) {
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const body = raw as Body;
-
-    const paymentIntentId = body.payment_intent_id?.trim();
-    const piPaymentId = body.pi_payment_id?.trim();
-    const txid = body.txid?.trim();
-
-    if (!isUUID(paymentIntentId)) {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_INTENT" },
-        { status: 400 }
-      );
-    }
-
-    if (!isString(piPaymentId) || !isString(txid)) {
-      return NextResponse.json(
-        { error: "INVALID_INPUT" },
-        { status: 400 }
-      );
-    }
+    const { payment_intent_id, pi_payment_id, txid } = body;
 
     /* =========================================================
-       STEP 1: PI VERIFY (SOURCE OF TRUTH)
+       STEP 1 — PI VERIFY
     ========================================================= */
 
-    console.log("🟡 [STEP_1_PI_VERIFY]");
+    console.log("[PAYMENT][RECONCILE] STEP1_PI_VERIFY");
 
     const piVerified = await verifyPiPaymentForReconcile({
-      paymentIntentId,
-      piPaymentId,
+      paymentIntentId: payment_intent_id,
+      piPaymentId: pi_payment_id,
       userId,
       txid,
     });
 
-    if (!piVerified?.ok) {
+    if (!piVerified.ok) {
+      console.warn("[PAYMENT][RECONCILE] PI_VERIFY_FAIL");
+
       return NextResponse.json(
         { error: "PI_NOT_VERIFIED" },
         { status: 400 }
       );
     }
 
-    console.log("🟢 [PI_OK]", {
+    console.log("[PAYMENT][RECONCILE] PI_VERIFY_OK", {
       amount: piVerified.verifiedAmount,
     });
 
     /* =========================================================
-       STEP 2: RPC VERIFY (AUDIT ONLY - NON BLOCKING)
+       STEP 2 — RPC VERIFY (BLOCKING GATE)
     ========================================================= */
 
-    console.log("🟡 [STEP_2_RPC_VERIFY]");
+    console.log("[PAYMENT][RECONCILE] STEP2_RPC_VERIFY");
 
-    let rpcVerified: {
-      ok?: boolean;
-      skipped?: boolean;
-      reason?: string;
-      ledger?: number | null;
-      status?: string;
-    } = {};
+    const rpcVerified = await verifyRpcPaymentForReconcile({
+      paymentIntentId: payment_intent_id,
+      txid,
+    });
 
-    try {
-      rpcVerified = await verifyRpcPaymentForReconcile({
-        paymentIntentId,
-        txid,
+    if (!rpcVerified.ok) {
+      console.warn("[PAYMENT][RECONCILE] RPC_VERIFY_FAIL", {
+        reason: rpcVerified.reason,
       });
 
-      console.log("🟢 [RPC_OK]");
-    } catch (err) {
-      console.warn("⚠️ [RPC_FAIL_IGNORE]", {
-        paymentIntentId,
-        txid,
-        message: err instanceof Error ? err.message : String(err),
-      });
-
-      rpcVerified = {
-        skipped: true,
-        reason: "RPC_FAILED",
-      };
+      return NextResponse.json(
+        {
+          error: rpcVerified.reason || "RPC_NOT_VERIFIED",
+        },
+        { status: 400 }
+      );
     }
 
+    console.log("[PAYMENT][RECONCILE] RPC_VERIFY_OK", {
+      amount: rpcVerified.amount,
+      ledger: rpcVerified.ledger,
+    });
+
     /* =========================================================
-       STEP 3: FINALIZE ORDER (ATOMIC DB LAYER)
+       STEP 3 — FINALIZE ORDER + PAYMENT RECEIPT (ATOMIC)
     ========================================================= */
 
-    console.log("🟡 [STEP_3_FINALIZE]");
+    console.log("[PAYMENT][RECONCILE] STEP3_FINALIZE");
 
     const paid = await finalizePaidOrderFromIntent({
-      paymentIntentId,
-      piPaymentId,
+      paymentIntentId: payment_intent_id,
+      piPaymentId: pi_payment_id,
       txid,
       verifiedAmount: piVerified.verifiedAmount,
       receiverWallet: piVerified.receiverWallet,
       piPayload: piVerified.piPayload,
       rpcPayload: rpcVerified,
-      userId, // 👈 enforce auth-centric DB layer
+      userId,
     });
 
-    console.log("🟢 [DB_OK]", {
+    console.log("[PAYMENT][RECONCILE] FINALIZE_OK", {
       orderId: paid.orderId,
     });
 
     /* =========================================================
-       STEP 4: PI COMPLETE (IDEMPOTENT)
+       STEP 4 — PI COMPLETE
     ========================================================= */
 
-    console.log("🟡 [STEP_4_PI_COMPLETE]");
+    console.log("[PAYMENT][RECONCILE] STEP4_PI_COMPLETE");
 
-    await callPiComplete(piPaymentId, txid);
+    const piCompleted = await callPiComplete(pi_payment_id, txid);
 
-    console.log("🟢 [RECONCILE_V2_DONE]");
-
-    /* =========================================================
-       RESPONSE
-    ========================================================= */
+    console.log("[PAYMENT][RECONCILE] DONE", {
+      piCompleted,
+    });
 
     return NextResponse.json({
       success: true,
       order_id: paid.orderId,
       amount: piVerified.verifiedAmount,
-      rpc_audited: rpcVerified?.audited ?? false,
+      rpc_audited: rpcVerified.audited,
+      pi_completed: piCompleted,
     });
   } catch (err) {
-    console.error("🔥 [RECONCILE_CRASH]", err);
+    console.error("[PAYMENT][RECONCILE] CRASH", err);
 
     return NextResponse.json(
       { error: "RECONCILE_FAILED" },
