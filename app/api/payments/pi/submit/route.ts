@@ -6,157 +6,92 @@ import { enqueueReconcileJob } from "@/lib/db/payment.jobs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type SubmitBody = {
+type Body = {
   payment_intent_id: string;
   pi_payment_id: string;
   txid: string;
 };
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
-}
-
-function parseBody(raw: unknown): SubmitBody | null {
-  if (!isRecord(raw)) return null;
-
-  const paymentIntentId =
-    typeof raw.payment_intent_id === "string"
-      ? raw.payment_intent_id.trim()
-      : "";
-
-  const piPaymentId =
-    typeof raw.pi_payment_id === "string"
-      ? raw.pi_payment_id.trim()
-      : "";
-
-  const txid =
-    typeof raw.txid === "string"
-      ? raw.txid.trim()
-      : "";
-
-  if (!paymentIntentId || !piPaymentId || !txid) return null;
-
-  return {
-    payment_intent_id: paymentIntentId,
-    pi_payment_id: piPaymentId,
-    txid,
-  };
+function isUUID(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]-[1-5][0-9a-f]-[89ab][0-9a-f]-[0-9a-f]{12}$/i.test(v);
 }
 
 export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
 
-  console.log("🟡 [PAYMENT][SUBMIT] START", { requestId });
+  console.log("🟡 [SUBMIT] START", { requestId });
 
   try {
     /* =========================
-       AUTH CHECK
+       AUTH
     ========================= */
     const auth = await getUserFromBearer();
-
     if (!auth) {
-      console.warn("🔴 [PAYMENT][SUBMIT] UNAUTHORIZED", { requestId });
-
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    console.log("🟢 [PAYMENT][SUBMIT] AUTH_OK", {
-      requestId,
-      userId,
-    });
-
     /* =========================
-       PARSE BODY
+       BODY
     ========================= */
-    const raw = await req.json().catch((e) => {
-      console.error("🔥 [PAYMENT][SUBMIT] INVALID_JSON", {
-        requestId,
-        error: e,
-      });
-      return null;
-    });
+    const raw = await req.json().catch(() => null);
 
-    const body = parseBody(raw);
+    const payment_intent_id = raw?.payment_intent_id?.trim();
+    const pi_payment_id = raw?.pi_payment_id?.trim();
+    const txid = raw?.txid?.trim();
 
-    if (!body) {
-      console.warn("🟠 [PAYMENT][SUBMIT] INVALID_BODY", {
-        requestId,
-        raw,
-      });
-
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
+    if (!payment_intent_id || !pi_payment_id) {
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const {
-      payment_intent_id,
-      pi_payment_id,
-      txid,
-    } = body;
-
-    console.log("🟡 [PAYMENT][SUBMIT] BODY_PARSED", {
+    console.log("🟡 [SUBMIT] BODY_OK", {
       requestId,
       payment_intent_id,
       pi_payment_id,
-      txid,
     });
 
     /* =========================
-       STEP 1 - MARK VERIFYING
+       STEP 1: LOCK PAYMENT INTENT
     ========================= */
-    console.log("🟡 [PAYMENT][SUBMIT] STEP1_MARK_VERIFYING");
+    console.log("🟡 [SUBMIT] LOCK_INTENT");
 
     await markPaymentVerifying({
       paymentIntentId: payment_intent_id,
       userId,
       piPaymentId: pi_payment_id,
-      txid,
+      txid: txid || null,
     });
 
-    console.log("🟢 [PAYMENT][SUBMIT] MARK_VERIFYING_OK", {
-      requestId,
-    });
+    console.log("🟢 [SUBMIT] LOCKED");
 
     /* =========================
-       STEP 2 - ENQUEUE RECONCILE JOB
+       STEP 2: ENQUEUE RECONCILE JOB
     ========================= */
-    console.log("🟡 [PAYMENT][SUBMIT] STEP2_ENQUEUE_JOB");
+    console.log("🟡 [SUBMIT] ENQUEUE_JOB");
 
     const job = await enqueueReconcileJob({
       paymentIntentId: payment_intent_id,
       piPaymentId: pi_payment_id,
       txid,
+      userId,
     });
 
-    console.log("🟢 [PAYMENT][SUBMIT] JOB_ENQUEUED", {
-      requestId,
-      jobId: job?.id,
+    console.log("🟢 [SUBMIT] JOB_CREATED", {
+      jobId: job.id,
     });
 
     /* =========================
        RESPONSE
     ========================= */
-    console.log("🟢 [PAYMENT][SUBMIT] DONE", {
-      requestId,
-      status: "processing",
-    });
-
     return NextResponse.json({
       success: true,
       status: "processing",
-      request_id: requestId,
+      requestId,
+      jobId: job.id,
     });
   } catch (err) {
-    console.error("🔥 [PAYMENT][SUBMIT] FAIL", {
-      error: err,
-    });
+    console.error("🔥 [SUBMIT] FAIL", err);
 
     return NextResponse.json(
       { error: "SUBMIT_FAILED" },
