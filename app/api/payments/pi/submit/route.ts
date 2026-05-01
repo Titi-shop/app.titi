@@ -5,8 +5,6 @@ import { markPaymentVerifying } from "@/lib/db/payments.submit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.APP_URL!;
-
 type SubmitBody = {
   payment_intent_id: string;
   pi_payment_id: string;
@@ -53,6 +51,19 @@ function parseBody(raw: unknown): SubmitBody | null {
   };
 }
 
+function getBaseUrl(req: Request): string {
+  const host = req.headers.get("host");
+  const proto =
+    req.headers.get("x-forwarded-proto") ||
+    (host?.includes("localhost") ? "http" : "https");
+
+  if (!host) {
+    throw new Error("HOST_NOT_FOUND");
+  }
+
+  return `${proto}://${host}`;
+}
+
 export async function POST(req: Request) {
   try {
     console.log("[PAYMENT][SUBMIT] START");
@@ -83,9 +94,13 @@ export async function POST(req: Request) {
       txid,
     });
 
-    console.log("[PAYMENT][SUBMIT] CALL_RECONCILE_HTTP");
+    const baseUrl = getBaseUrl(req);
 
-    const reconcileRes = await fetch(`${APP_URL}/api/payments/pi/reconcile`, {
+    console.log("[PAYMENT][SUBMIT] CALL_RECONCILE_HTTP", {
+      baseUrl,
+    });
+
+    const reconcileRes = await fetch(`${baseUrl}/api/payments/pi/reconcile`, {
       method: "POST",
       headers: {
         Authorization: req.headers.get("authorization") || "",
@@ -109,7 +124,10 @@ export async function POST(req: Request) {
     if (!reconcileRes.ok) {
       return NextResponse.json(
         {
-          error: reconcileData?.error || "RECONCILE_FAILED",
+          error:
+            isRecord(reconcileData) && typeof reconcileData.error === "string"
+              ? reconcileData.error
+              : "RECONCILE_FAILED",
         },
         { status: 400 }
       );
@@ -117,14 +135,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      ...reconcileData,
+      ...(isRecord(reconcileData) ? reconcileData : {}),
     });
   } catch (err) {
     console.error("[PAYMENT][SUBMIT] FAIL", err);
 
-    return NextResponse.json(
-      { error: "SUBMIT_FAILED" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "SUBMIT_FAILED" }, { status: 400 });
   }
 }
