@@ -1,10 +1,17 @@
-
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const APP_URL = process.env.APP_URL!;
+
+type SubmitBody = {
+  payment_intent_id: string;
+  pi_payment_id: string;
+  txid: string;
+};
 
 function isUUID(v: unknown): v is string {
   return (
@@ -13,11 +20,45 @@ function isUUID(v: unknown): v is string {
   );
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function parseBody(raw: unknown): SubmitBody | null {
+  if (!isRecord(raw)) return null;
+
+  const paymentIntentId =
+    typeof raw.payment_intent_id === "string"
+      ? raw.payment_intent_id.trim()
+      : "";
+
+  const piPaymentId =
+    typeof raw.pi_payment_id === "string"
+      ? raw.pi_payment_id.trim()
+      : "";
+
+  const txid =
+    typeof raw.txid === "string"
+      ? raw.txid.trim()
+      : "";
+
+  if (!isUUID(paymentIntentId) || !piPaymentId || !txid) {
+    return null;
+  }
+
+  return {
+    payment_intent_id: paymentIntentId,
+    pi_payment_id: piPaymentId,
+    txid,
+  };
+}
+
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [SUBMIT] START");
+    console.log("[PAYMENT][SUBMIT] START");
 
     const auth = await getUserFromBearer();
+
     if (!auth) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
@@ -25,87 +66,64 @@ export async function POST(req: Request) {
     const userId = auth.userId;
 
     const raw = await req.json().catch(() => null);
+    const body = parseBody(raw);
 
-    if (!raw || typeof raw !== "object") {
+    if (!body) {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const paymentIntentId =
-      typeof (raw as any).payment_intent_id === "string"
-        ? (raw as any).payment_intent_id.trim()
-        : "";
+    const { payment_intent_id, pi_payment_id, txid } = body;
 
-    const piPaymentId =
-      typeof (raw as any).pi_payment_id === "string"
-        ? (raw as any).pi_payment_id.trim()
-        : "";
+    console.log("[PAYMENT][SUBMIT] LOCK_VERIFYING");
 
-    const txid =
-      typeof (raw as any).txid === "string"
-        ? (raw as any).txid.trim()
-        : "";
-
-    if (!isUUID(paymentIntentId) || !piPaymentId) {
-      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
-    }
-
-    console.log("🟡 [SUBMIT] CALL_DB");
-
-    const result = await markPaymentVerifying({
-      paymentIntentId,
+    await markPaymentVerifying({
+      paymentIntentId: payment_intent_id,
       userId,
-      piPaymentId,
-      txid: txid || null,
+      piPaymentId: pi_payment_id,
+      txid,
     });
 
-    console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
+    console.log("[PAYMENT][SUBMIT] CALL_RECONCILE_HTTP");
 
-    /**
-     * =====================================================
-     * ASYNC RECONCILE TRIGGER
-     * =====================================================
-     */
-    const runReconcile = async () => {
-      try {
-        console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
+    const reconcileRes = await fetch(`${APP_URL}/api/payments/pi/reconcile`, {
+      method: "POST",
+      headers: {
+        Authorization: req.headers.get("authorization") || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        payment_intent_id,
+        pi_payment_id,
+        txid,
+      }),
+      cache: "no-store",
+    });
 
-        const { POST: reconcile } = await import(
-          "@/app/api/payments/pi/reconcile/route"
-        );
+    const reconcileData = await reconcileRes.json().catch(() => null);
 
-        const fakeReq = new Request("http://internal/reconcile", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            authorization: req.headers.get("authorization") || "",
-          },
-          body: JSON.stringify({
-            payment_intent_id: paymentIntentId,
-            pi_payment_id: piPaymentId,
-            txid,
-          }),
-        });
+    console.log("[PAYMENT][SUBMIT] RECONCILE_RESULT", {
+      status: reconcileRes.status,
+      reconcileData,
+    });
 
-        await reconcile(fakeReq as any);
-
-        console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
-      } catch (e) {
-        console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
-      }
-    };
-
-    queueMicrotask(runReconcile);
+    if (!reconcileRes.ok) {
+      return NextResponse.json(
+        {
+          error: reconcileData?.error || "RECONCILE_FAILED",
+        },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      status: "verifying",
-      paymentIntentId,
+      ...reconcileData,
     });
   } catch (err) {
-    console.error("🔥 [SUBMIT] CRASH", err);
+    console.error("[PAYMENT][SUBMIT] FAIL", err);
 
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "SUBMIT_FAILED" },
+      { error: "SUBMIT_FAILED" },
       { status: 400 }
     );
   }
