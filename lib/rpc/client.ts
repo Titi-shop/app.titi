@@ -171,3 +171,4 @@ export function extractPaymentOperation(
     receiver: null,
   };
 }
+export { rpcGetTransaction as getRpcTransaction };
