@@ -9,16 +9,21 @@ export async function reconcilePayment({
   piPaymentId: string;
   txid: string;
 }) {
-  // TODO: move logic từ route reconcile sang đây
+  // 👉 MOVE ENTIRE LOGIC FROM ROUTE HERE
 
-  console.log("[RECONCILE][SERVICE] START", {
-    userId,
-    paymentIntentId,
-    txid,
-  });
+  const piVerified = await verifyPiPaymentForReconcile(...);
+  const rpcVerified = await verifyRpcPaymentForReconcile(...);
+
+  if (!piVerified.ok) throw new Error("PI_NOT_VERIFIED");
+  if (!rpcVerified.ok) throw new Error("RPC_NOT_VERIFIED");
+
+  const paid = await finalizePaidOrderFromIntent(...);
+
+  await callPiComplete(piPaymentId, txid);
 
   return {
     success: true,
-    order_id: paymentIntentId,
+    order_id: paid.orderId,
+    amount: piVerified.verifiedAmount,
   };
 }
