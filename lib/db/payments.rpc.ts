@@ -22,7 +22,7 @@ type RpcVerifyResult = {
 
 type PaymentIntentRow = {
   id: string;
-  amount_pi: string;
+  total_amount: string;
   merchant_wallet: string | null;
 };
 
@@ -39,14 +39,14 @@ function normalizeWallet(v: string | null): string {
 
 async function getPaymentIntent(paymentIntentId: string): Promise<PaymentIntentRow | null> {
   const sql = `
-    SELECT
-      id,
-      amount_pi,
-      merchant_wallet
-    FROM payment_intents
-    WHERE id = $1
-    LIMIT 1
-  `;
+  SELECT
+    id,
+    total_amount,
+    merchant_wallet
+  FROM payment_intents
+  WHERE id = $1
+  LIMIT 1
+`;
 
   const result = await query<PaymentIntentRow>(sql, [paymentIntentId]);
   return result.rows[0] || null;
@@ -133,7 +133,7 @@ export async function verifyRpcPaymentForReconcile({
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
 
-  const expectedAmount = Number(paymentIntent.amount_pi);
+  const expectedAmount = Number(paymentIntent.total_amount);
   const expectedReceiver = normalizeWallet(paymentIntent.merchant_wallet);
 
   const rpcTx = await getRpcTransaction(txid);
