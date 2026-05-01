@@ -2,25 +2,43 @@ import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
 
-type Params = {
-  userId: string;
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-};
+const PI_API = process.env.PI_API_URL!;
+const PI_KEY = process.env.PI_API_KEY!;
+
+async function callPiComplete(piPaymentId: string, txid: string) {
+  try {
+    const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      if (text.includes("already_completed")) return true;
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("🔥 PI_COMPLETE_FAIL", err);
+    return false;
+  }
+}
 
 export async function reconcilePayment({
   userId,
   paymentIntentId,
   piPaymentId,
   txid,
-}: Params) {
-  console.log("[RECONCILE][SERVICE] START");
+}: any) {
+  console.log("[RECONCILE] START");
 
-  /* =========================
-     STEP 1: PI VERIFY
-  ========================= */
-
+  /* STEP 1 */
   const piVerified = await verifyPiPaymentForReconcile({
     paymentIntentId,
     piPaymentId,
@@ -28,31 +46,17 @@ export async function reconcilePayment({
     txid,
   });
 
-  if (!piVerified.ok) {
-    throw new Error("PI_NOT_VERIFIED");
-  }
+  if (!piVerified.ok) throw new Error("PI_NOT_VERIFIED");
 
-  console.log("[RECONCILE][SERVICE] PI_OK");
-
-  /* =========================
-     STEP 2: RPC VERIFY
-  ========================= */
-
+  /* STEP 2 */
   const rpcVerified = await verifyRpcPaymentForReconcile({
     paymentIntentId,
     txid,
   });
 
-  if (!rpcVerified.ok) {
-    throw new Error(rpcVerified.reason || "RPC_NOT_VERIFIED");
-  }
+  if (!rpcVerified.ok) throw new Error("RPC_NOT_VERIFIED");
 
-  console.log("[RECONCILE][SERVICE] RPC_OK");
-
-  /* =========================
-     STEP 3: FINALIZE ORDER
-  ========================= */
-
+  /* STEP 3 - FINALIZE ORDER */
   const paid = await finalizePaidOrderFromIntent({
     paymentIntentId,
     piPaymentId,
@@ -64,11 +68,20 @@ export async function reconcilePayment({
     userId,
   });
 
-  console.log("[RECONCILE][SERVICE] ORDER_PAID", paid.orderId);
+  console.log("[RECONCILE] ORDER_PAID", paid.orderId);
+
+  /* STEP 4 - 🔥 CRITICAL: COMPLETE PI */
+  const completed = await callPiComplete(piPaymentId, txid);
+
+  if (!completed) {
+    console.error("[RECONCILE] PI_COMPLETE_FAILED");
+    throw new Error("PI_COMPLETE_FAILED");
+  }
+
+  console.log("[RECONCILE] DONE");
 
   return {
     success: true,
     order_id: paid.orderId,
-    amount: piVerified.verifiedAmount,
   };
 }
