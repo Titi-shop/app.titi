@@ -1,7 +1,7 @@
-import { reconcilePayment } from "@/lib/services/payment/reconcile.service";
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
+import { reconcilePayment } from "@/lib/services/payment/reconcile.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,19 +52,6 @@ function parseBody(raw: unknown): SubmitBody | null {
   };
 }
 
-function getBaseUrl(req: Request): string {
-  const host = req.headers.get("host");
-  const proto =
-    req.headers.get("x-forwarded-proto") ||
-    (host?.includes("localhost") ? "http" : "https");
-
-  if (!host) {
-    throw new Error("HOST_NOT_FOUND");
-  }
-
-  return `${proto}://${host}`;
-}
-
 export async function POST(req: Request) {
   try {
     console.log("[PAYMENT][SUBMIT] START");
@@ -72,6 +59,7 @@ export async function POST(req: Request) {
     const auth = await getUserFromBearer();
 
     if (!auth) {
+      console.warn("[PAYMENT][SUBMIT] UNAUTHORIZED");
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
@@ -81,13 +69,21 @@ export async function POST(req: Request) {
     const body = parseBody(raw);
 
     if (!body) {
+      console.warn("[PAYMENT][SUBMIT] INVALID_BODY");
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
     const { payment_intent_id, pi_payment_id, txid } = body;
 
-    console.log("[PAYMENT][SUBMIT] LOCK_VERIFYING");
+    console.log("[PAYMENT][SUBMIT] LOCK_VERIFYING", {
+      payment_intent_id,
+      pi_payment_id,
+      txid,
+    });
 
+    /**
+     * 1. Mark intent as verifying (DB lock)
+     */
     await markPaymentVerifying({
       paymentIntentId: payment_intent_id,
       userId,
@@ -95,47 +91,38 @@ export async function POST(req: Request) {
       txid,
     });
 
-    const baseUrl = getBaseUrl(req);
+    /**
+     * 2. CALL RECONCILE DIRECTLY (NO HTTP FETCH ❌)
+     */
+    console.log("[PAYMENT][SUBMIT] RECONCILE_START");
 
-    console.log("[PAYMENT][SUBMIT] CALL_RECONCILE_HTTP", {
-      baseUrl,
+    const result = await reconcilePayment({
+      userId,
+      paymentIntentId: payment_intent_id,
+      piPaymentId: pi_payment_id,
+      txid,
     });
 
-    const reconcileRes = await reconcilePayment({
-  userId,
-  paymentIntentId: payment_intent_id,
-  piPaymentId: pi_payment_id,
-  txid,
-});
-      cache: "no-store",
+    console.log("[PAYMENT][SUBMIT] RECONCILE_DONE", {
+      ok: result?.success,
+      orderId: result?.order_id,
     });
 
-    const reconcileData = await reconcileRes.json().catch(() => null);
-
-    console.log("[PAYMENT][SUBMIT] RECONCILE_RESULT", {
-      status: reconcileRes.status,
-      reconcileData,
-    });
-
-    if (!reconcileRes.ok) {
-      return NextResponse.json(
-        {
-          error:
-            isRecord(reconcileData) && typeof reconcileData.error === "string"
-              ? reconcileData.error
-              : "RECONCILE_FAILED",
-        },
-        { status: 400 }
-      );
-    }
-
+    /**
+     * 3. RETURN FINAL RESULT
+     */
     return NextResponse.json({
       success: true,
-      ...(isRecord(reconcileData) ? reconcileData : {}),
+      ...result,
     });
   } catch (err) {
     console.error("[PAYMENT][SUBMIT] FAIL", err);
 
-    return NextResponse.json({ error: "SUBMIT_FAILED" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: err instanceof Error ? err.message : "SUBMIT_FAILED",
+      },
+      { status: 500 }
+    );
   }
 }
