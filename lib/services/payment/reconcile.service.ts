@@ -1,25 +1,70 @@
+import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
+import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
+import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
+
+type Params = {
+  userId: string;
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+};
+
 export async function reconcilePayment({
   userId,
   paymentIntentId,
   piPaymentId,
   txid,
-}: {
-  userId: string;
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-}) {
-  // 👉 MOVE ENTIRE LOGIC FROM ROUTE HERE
+}: Params) {
+  console.log("[RECONCILE][SERVICE] START");
 
-  const piVerified = await verifyPiPaymentForReconcile(...);
-  const rpcVerified = await verifyRpcPaymentForReconcile(...);
+  /* =========================
+     STEP 1: PI VERIFY
+  ========================= */
 
-  if (!piVerified.ok) throw new Error("PI_NOT_VERIFIED");
-  if (!rpcVerified.ok) throw new Error("RPC_NOT_VERIFIED");
+  const piVerified = await verifyPiPaymentForReconcile({
+    paymentIntentId,
+    piPaymentId,
+    userId,
+    txid,
+  });
 
-  const paid = await finalizePaidOrderFromIntent(...);
+  if (!piVerified.ok) {
+    throw new Error("PI_NOT_VERIFIED");
+  }
 
-  await callPiComplete(piPaymentId, txid);
+  console.log("[RECONCILE][SERVICE] PI_OK");
+
+  /* =========================
+     STEP 2: RPC VERIFY
+  ========================= */
+
+  const rpcVerified = await verifyRpcPaymentForReconcile({
+    paymentIntentId,
+    txid,
+  });
+
+  if (!rpcVerified.ok) {
+    throw new Error(rpcVerified.reason || "RPC_NOT_VERIFIED");
+  }
+
+  console.log("[RECONCILE][SERVICE] RPC_OK");
+
+  /* =========================
+     STEP 3: FINALIZE ORDER
+  ========================= */
+
+  const paid = await finalizePaidOrderFromIntent({
+    paymentIntentId,
+    piPaymentId,
+    txid,
+    verifiedAmount: piVerified.verifiedAmount,
+    receiverWallet: piVerified.receiverWallet,
+    piPayload: piVerified.piPayload,
+    rpcPayload: rpcVerified,
+    userId,
+  });
+
+  console.log("[RECONCILE][SERVICE] ORDER_PAID", paid.orderId);
 
   return {
     success: true,
