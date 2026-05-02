@@ -6,36 +6,33 @@ const PI_RPC_URL =
    TYPES
 ========================================================= */
 
+type RpcError = {
+  code?: number;
+  message?: string;
+};
+
 type RpcEnvelope = {
   jsonrpc?: string;
   id?: string | number;
-  result?: Record<string, unknown>;
-  error?: {
-    code?: number;
-    message?: string;
-  };
+  result?: unknown;
+  error?: RpcError;
+};
+
+type RpcResult = {
+  transaction?: unknown;
+  ledger?: unknown;
+  status?: unknown;
+  hash?: unknown;
+  successful?: unknown;
+  source_account?: unknown;
 };
 
 export type ParsedRpcTransaction = {
   hash: string | null;
   ledger: number | null;
-
-  amount: number | null;
-  sender: string | null;
-  receiver: string | null;
-
   confirmed: boolean;
   rpcReachable: boolean;
-
   raw: unknown;
-
-  debug: {
-    amountFound: boolean;
-    senderFound: boolean;
-    receiverFound: boolean;
-    hasMeta: boolean;
-    hasEvents: boolean;
-  };
 };
 
 /* =========================================================
@@ -43,11 +40,30 @@ export type ParsedRpcTransaction = {
 ========================================================= */
 
 function log(tag: string, data?: unknown) {
-  console.log(`[RPC CLIENT V3] ${tag}`, data ?? "");
+  console.log(`[RPC CLIENT V4] ${tag}`, data ?? "");
 }
 
 function err(tag: string, data?: unknown) {
-  console.error(`[RPC CLIENT V3] ${tag}`, data ?? "");
+  console.error(`[RPC CLIENT V4] ${tag}`, data ?? "");
+}
+
+/* =========================================================
+   SAFE CAST HELPERS
+========================================================= */
+
+function asObject(v: unknown): Record<string, unknown> {
+  return v !== null && typeof v === "object"
+    ? (v as Record<string, unknown>)
+    : {};
+}
+
+function toString(v: unknown): string | null {
+  return typeof v === "string" ? v.trim() : null;
+}
+
+function toNumber(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 /* =========================================================
@@ -57,7 +73,7 @@ function err(tag: string, data?: unknown) {
 async function rpcCall(
   method: string,
   params: Record<string, unknown>
-): Promise<Record<string, unknown>> {
+): Promise<unknown> {
   log("RPC_CALL_START", { method, params });
 
   let res: Response;
@@ -79,14 +95,14 @@ async function rpcCall(
     throw new Error("RPC_UNREACHABLE");
   }
 
-  const rawText = await res.text();
+  const text = await res.text();
 
   let json: RpcEnvelope;
 
   try {
-    json = JSON.parse(rawText);
+    json = JSON.parse(text) as RpcEnvelope;
   } catch {
-    err("RPC_INVALID_JSON", rawText);
+    err("RPC_INVALID_JSON", text);
     throw new Error("RPC_INVALID_JSON");
   }
 
@@ -100,107 +116,13 @@ async function rpcCall(
     throw new Error("RPC_ERROR");
   }
 
-  if (!json.result) {
-    err("RPC_EMPTY_RESULT");
-    throw new Error("RPC_EMPTY_RESULT");
-  }
-
   log("RPC_CALL_OK");
 
-  return json.result;
+  return json.result ?? {};
 }
 
 /* =========================================================
-   SAFE HELPERS
-========================================================= */
-
-function asObj(v: unknown): Record<string, unknown> {
-  return typeof v === "object" && v !== null
-    ? (v as Record<string, unknown>)
-    : {};
-}
-
-function num(v: unknown): number | null {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function str(v: unknown): string | null {
-  return typeof v === "string" ? v.trim() : null;
-}
-
-/* =========================================================
-   EXTRACT LOGIC (PI RPC SAFE MODE)
-========================================================= */
-
-function extractTx(tx: Record<string, unknown>) {
-  const meta = tx.resultMetaXdr;
-  const envelope = tx.envelopeXdr;
-
-  const events =
-    (tx as any)?.events?.transactionEventsXdr ??
-    (tx as any)?.events ??
-    [];
-
-  let amount: number | null = null;
-  let sender: string | null = null;
-  let receiver: string | null = null;
-
-  /* =====================================================
-     LAYER 1: direct fields (PI API sometimes inject)
-  ===================================================== */
-  if (typeof (tx as any).amount === "number") {
-    amount = (tx as any).amount;
-  }
-
-  sender =
-    str((tx as any).from_address) ||
-    str((tx as any).source_account) ||
-    str((tx as any).source);
-
-  receiver =
-    str((tx as any).to_address) ||
-    str((tx as any).destination);
-
-  /* =====================================================
-     LAYER 2: envelope fallback (VERY IMPORTANT)
-  ===================================================== */
-  if ((amount === null || amount === 0) && typeof envelope === "string") {
-    const m = envelope.match(/amount.*?([0-9]+(\.[0-9]+)?)/i);
-    if (m?.[1]) amount = Number(m[1]);
-  }
-
-  /* =====================================================
-     LAYER 3: resultMeta / events fallback (CRITICAL FIX)
-  ===================================================== */
-  if ((amount === null || amount === 0) && Array.isArray(events)) {
-    for (const e of events) {
-      const raw = JSON.stringify(e);
-
-      const amt = raw.match(/amount[^0-9]*([0-9]+(\.[0-9]+)?)/i);
-      if (amt?.[1]) {
-        amount = Number(amt[1]);
-      }
-
-      const to = raw.match(/to[_-]?address["']?\s*:\s*["']([A-Z0-9]+)/i);
-      const from = raw.match(/from[_-]?address["']?\s*:\s*["']([A-Z0-9]+)/i);
-
-      if (to?.[1]) receiver = to[1];
-      if (from?.[1]) sender = from[1];
-    }
-  }
-
-  return {
-    amount: Number.isFinite(amount) ? amount : null,
-    sender,
-    receiver,
-    hasMeta: !!meta,
-    hasEvents: Array.isArray(events) && events.length > 0,
-  };
-}
-
-/* =========================================================
-   MAIN
+   MAIN RPC FUNCTION
 ========================================================= */
 
 export async function getRpcTransaction(
@@ -215,58 +137,43 @@ export async function getRpcTransaction(
   }
 
   try {
-    const result = await rpcCall("getTransaction", {
+    const result = (await rpcCall("getTransaction", {
       hash: clean,
-    });
+    })) as RpcResult;
 
-    const tx = asObj(result.transaction ?? result);
+    const tx = asObject(result.transaction ?? result);
 
-    const parsed = extractTx(tx);
+    /* =====================================================
+       ONLY SAFE FIELDS FROM RPC
+    ===================================================== */
 
-    const ledger = num(tx.ledger);
+    const hash = toString(tx.hash) ?? clean;
+    const ledger = toNumber(tx.ledger);
+
+    const status = toString(tx.status);
+    const successful = tx.successful === true;
 
     const confirmed =
-      tx.status === "SUCCESS" ||
-      (tx.successful === true) ||
+      status === "SUCCESS" ||
+      successful ||
       ledger !== null;
 
-    const amountFound = parsed.amount !== null;
-    const senderFound = parsed.sender !== null;
-    const receiverFound = parsed.receiver !== null;
-
     log("PARSE_RESULT", {
-      txid: clean,
-      amount: parsed.amount,
-      sender: parsed.sender,
-      receiver: parsed.receiver,
+      hash,
       ledger,
       confirmed,
     });
 
-    log("DEBUG", {
-      amountFound,
-      senderFound,
-      receiverFound,
-      hasMeta: parsed.hasMeta,
-      hasEvents: parsed.hasEvents,
-    });
+    /* =====================================================
+       RETURN CLEAN RESULT
+    ===================================================== */
 
     return {
-      hash: str(tx.hash) || clean,
+      hash,
       ledger,
-      amount: parsed.amount,
-      sender: parsed.sender,
-      receiver: parsed.receiver,
       confirmed,
       rpcReachable: true,
       raw: result,
-      debug: {
-        amountFound,
-        senderFound,
-        receiverFound,
-        hasMeta: parsed.hasMeta,
-        hasEvents: parsed.hasEvents,
-      },
     };
   } catch (e) {
     err("GET_TX_FAIL", e);
@@ -274,19 +181,9 @@ export async function getRpcTransaction(
     return {
       hash: clean,
       ledger: null,
-      amount: null,
-      sender: null,
-      receiver: null,
       confirmed: false,
       rpcReachable: false,
       raw: {},
-      debug: {
-        amountFound: false,
-        senderFound: false,
-        receiverFound: false,
-        hasMeta: false,
-        hasEvents: false,
-      },
     };
   }
 }
