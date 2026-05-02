@@ -74,6 +74,26 @@ async function callPiComplete(
 }
 
 /* =========================================================
+   SAFE DEFAULT RPC RESULT
+========================================================= */
+
+function emptyRpc(): RpcAuditResult {
+  return {
+    ok: false,
+    audited: false,
+    amount: null,
+    sender: null,
+    receiver: null,
+    ledger: null,
+    confirmed: false,
+    chainReference: null,
+    stage: "UNSET",
+    reason: "NOT_EXECUTED",
+    payload: {},
+  };
+}
+
+/* =========================================================
    MAIN ORCHESTRATOR
 ========================================================= */
 
@@ -130,7 +150,7 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP 2 — LOCK (ANTI DOUBLE SPEND)
+     STEP 2 — LOCK
   ===================================================== */
 
   const lock = await acquirePaymentSettlementLock(paymentIntentId);
@@ -152,7 +172,7 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP 3 — PI VERIFY
+     STEP 3 — PI VERIFY (SOURCE OF TRUTH)
   ===================================================== */
 
   const piVerified = await verifyPiPaymentForReconcile({
@@ -162,14 +182,21 @@ export async function runPaymentSettlement({
     txid,
   });
 
- if (!rpcVerified.ok) {
-  await auditRpcFailed(paymentIntentId, {
-    source,
-    reason: rpcVerified.reason,
-  });
+  if (!piVerified?.ok) {
+    await auditManualReview(paymentIntentId, "PI_VERIFY_FAIL", {
+      source,
+      txid,
+    });
 
-  console.warn("[RPC SOFT FAIL - CONTINUE FLOW]");
-}
+    return {
+      ok: false,
+      orderId: null,
+      amount: 0,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
+    };
+  }
 
   await auditPiVerified(paymentIntentId, {
     source,
@@ -179,67 +206,45 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 4 — RPC VERIFY (HARD BLOCK)
+     STEP 4 — RPC VERIFY (SAFE, NON BLOCKING CRASH PROOF)
   ===================================================== */
 
-  let rpcVerified: RpcAuditResult;
+  let rpcVerified: RpcAuditResult = emptyRpc();
 
   try {
-    rpcVerified = await verifyRpcPaymentForReconcile({
+    const result = await verifyRpcPaymentForReconcile({
       paymentIntentId,
       txid,
     });
-  } catch (e) {
-    await auditRpcFailed(paymentIntentId, {
-      source,
-      reason: e instanceof Error ? e.message : String(e),
-    });
 
-    return {
-      ok: false,
-      orderId: null,
-      amount: piVerified.verifiedAmount,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
+    if (result) {
+      rpcVerified = result;
+    }
+  } catch (e) {
+    console.warn("[RPC VERIFY CRASH]", e);
+    rpcVerified = emptyRpc();
   }
 
   if (!rpcVerified.ok) {
     await auditRpcFailed(paymentIntentId, {
       source,
-      reason: rpcVerified.reason,
+      reason: rpcVerified.reason ?? "RPC_INVALID",
+    });
+
+    console.warn("[RPC BLOCKED BUT CONTINUE FLOW]");
+  } else {
+    await auditRpcVerified(paymentIntentId, {
+      source,
+      txid,
       amount: rpcVerified.amount,
+      sender: rpcVerified.sender,
       receiver: rpcVerified.receiver,
       ledger: rpcVerified.ledger,
     });
-
-    await auditManualReview(paymentIntentId, "RPC_BLOCKED", {
-      source,
-      txid,
-    });
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: piVerified.verifiedAmount,
-      piCompleted: false,
-      rpcAudited: true,
-      source,
-    };
   }
 
-  await auditRpcVerified(paymentIntentId, {
-    source,
-    txid,
-    amount: rpcVerified.amount,
-    sender: rpcVerified.sender,
-    receiver: rpcVerified.receiver,
-    ledger: rpcVerified.ledger,
-  });
-
   /* =====================================================
-     STEP 5 — PI COMPLETE
+     STEP 5 — PI COMPLETE (HARD GATE)
   ===================================================== */
 
   const piCompleted = await callPiComplete(piPaymentId, txid);
@@ -255,7 +260,7 @@ export async function runPaymentSettlement({
       orderId: null,
       amount: piVerified.verifiedAmount,
       piCompleted: false,
-      rpcAudited: true,
+      rpcAudited: rpcVerified.ok,
       source,
     };
   }
@@ -286,7 +291,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 7 — LEDGER (ESCROW + SETTLEMENT)
+     STEP 7 — LEDGER
   ===================================================== */
 
   try {
@@ -330,7 +335,7 @@ export async function runPaymentSettlement({
     orderId: paid.orderId,
     amount: piVerified.verifiedAmount,
     piCompleted: true,
-    rpcAudited: true,
+    rpcAudited: rpcVerified.ok,
     source,
   };
 }
