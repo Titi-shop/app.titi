@@ -58,20 +58,20 @@ export async function guardPaymentForReconcile({
   const rs = await query<{
     buyer_id: string;
     status: PaymentStatus;
-    total_amount_pi: string;
+    total_amount: string;
     pi_payment_id: string | null;
     txid: string | null;
   }>(
     `
     SELECT
-      buyer_id,
-      status,
-      total_amount_pi,
-      pi_payment_id,
-      txid
-    FROM payment_intents
-    WHERE id = $1
-    LIMIT 1
+  buyer_id,
+  status,
+  total_amount,
+  pi_payment_id,
+  txid
+FROM payment_intents
+WHERE id = $1
+LIMIT 1
     `,
     [paymentIntentId]
   );
@@ -101,7 +101,7 @@ export async function guardPaymentForReconcile({
   return {
     ok: true,
     status: row.status,
-    amount: Number(row.total_amount_pi),
+    amount: Number(row.total_amount),
     alreadyPaid: false,
     piPaymentId: row.pi_payment_id,
     txid: row.txid,
