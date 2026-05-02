@@ -209,6 +209,15 @@ try {
 
     const piCompleted = await callPiComplete(pi_payment_id, txid);
 
+   if (!piCompleted) {
+  console.error("[PAYMENT][RECONCILE] PI_COMPLETE_FAIL");
+
+  return NextResponse.json(
+    { error: "PI_COMPLETE_FAILED" },
+    { status: 500 }
+  );
+}
+
     console.log("[PAYMENT][RECONCILE] DONE", {
       piCompleted,
     });
