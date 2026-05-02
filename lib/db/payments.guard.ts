@@ -1,4 +1,8 @@
 import { query } from "@/lib/db";
+import type {
+  GuardPaymentResult,
+  PaymentLockResult,
+} from "@/lib/payments/payment.types";
 
 type PaymentStatus =
   | "initiated"
@@ -10,31 +14,17 @@ type PaymentStatus =
 
 type GuardInput = {
   paymentIntentId: string;
-  userId: string;
+  userId: string | null;
+  systemMode?: boolean;
 };
 
-type GuardResult =
-  | {
-      ok: true;
-      status: PaymentStatus;
-      amount: number;
-      alreadyPaid: boolean;
-      piPaymentId: string | null;
-      txid: string | null;
-    }
-  | {
-      ok: false;
-      code:
-        | "PAYMENT_NOT_FOUND"
-        | "PAYMENT_FORBIDDEN"
-        | "PAYMENT_CANCELLED"
-        | "PAYMENT_FAILED"
-        | "PAYMENT_ALREADY_PAID";
-    };
-
-type LockResult =
-  | { ok: true }
-  | { ok: false; code: "LOCK_DENIED" };
+type PaymentIntentGuardRow = {
+  buyer_id: string;
+  status: PaymentStatus;
+  total_amount: string;
+  pi_payment_id: string | null;
+  txid: string | null;
+};
 
 function isUUID(v: unknown): v is string {
   return (
@@ -44,34 +34,29 @@ function isUUID(v: unknown): v is string {
 }
 
 /* =========================================================
-   LOAD PAYMENT INTENT STATE
+   MAIN GUARD
 ========================================================= */
 
 export async function guardPaymentForReconcile({
   paymentIntentId,
   userId,
-}: GuardInput): Promise<GuardResult> {
-  if (!isUUID(paymentIntentId) || !isUUID(userId)) {
+  systemMode = false,
+}: GuardInput): Promise<GuardPaymentResult> {
+  if (!isUUID(paymentIntentId)) {
     return { ok: false, code: "PAYMENT_NOT_FOUND" };
   }
 
-  const rs = await query<{
-    buyer_id: string;
-    status: PaymentStatus;
-    total_amount: string;
-    pi_payment_id: string | null;
-    txid: string | null;
-  }>(
+  const rs = await query<PaymentIntentGuardRow>(
     `
     SELECT
-  buyer_id,
-  status,
-  total_amount,
-  pi_payment_id,
-  txid
-FROM payment_intents
-WHERE id = $1
-LIMIT 1
+      buyer_id,
+      status,
+      total_amount,
+      pi_payment_id,
+      txid
+    FROM payment_intents
+    WHERE id = $1
+    LIMIT 1
     `,
     [paymentIntentId]
   );
@@ -82,9 +67,19 @@ LIMIT 1
 
   const row = rs.rows[0];
 
-  if (row.buyer_id !== userId) {
-    return { ok: false, code: "PAYMENT_FORBIDDEN" };
+  /* =========================================
+     CLIENT OWNERSHIP CHECK ONLY WHEN NEEDED
+  ========================================= */
+
+  if (!systemMode) {
+    if (!userId || !isUUID(userId) || row.buyer_id !== userId) {
+      return { ok: false, code: "PAYMENT_FORBIDDEN" };
+    }
   }
+
+  /* =========================================
+     STATUS BLOCKERS
+  ========================================= */
 
   if (row.status === "cancelled") {
     return { ok: false, code: "PAYMENT_CANCELLED" };
@@ -102,7 +97,6 @@ LIMIT 1
     ok: true,
     status: row.status,
     amount: Number(row.total_amount),
-    alreadyPaid: false,
     piPaymentId: row.pi_payment_id,
     txid: row.txid,
   };
@@ -110,12 +104,12 @@ LIMIT 1
 
 /* =========================================================
    SETTLEMENT LOCK
-   only one reconcile process can continue
+   one process only
 ========================================================= */
 
 export async function acquirePaymentSettlementLock(
   paymentIntentId: string
-): Promise<LockResult> {
+): Promise<PaymentLockResult> {
   if (!isUUID(paymentIntentId)) {
     return { ok: false, code: "LOCK_DENIED" };
   }
@@ -123,7 +117,9 @@ export async function acquirePaymentSettlementLock(
   const rs = await query<{ id: string }>(
     `
     UPDATE payment_intents
-    SET updated_at = now()
+    SET
+      status = 'verifying',
+      updated_at = now()
     WHERE id = $1
       AND status IN ('authorized','verifying')
     RETURNING id
