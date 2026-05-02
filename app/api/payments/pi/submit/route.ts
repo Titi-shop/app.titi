@@ -1,73 +1,33 @@
+
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
-import { enqueueReconcileJob } from "@/lib/db/payment.jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   TYPES
-========================= */
-
-type SubmitBody = {
-  payment_intent_id: string;
-  pi_payment_id: string;
-  txid: string;
-};
-
-/* =========================
-   VALIDATION
-========================= */
-
-function isUUID(v: string) {
+function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
 
-/* =========================
-   MAIN
-========================= */
-
 export async function POST(req: Request) {
-  const requestId = crypto.randomUUID();
-
-  console.log("🟡 [PAYMENT][SUBMIT] START", { requestId });
-
   try {
-    /* =========================
-       AUTH (NETWORK-FIRST)
-    ========================= */
+    console.log("🟡 [SUBMIT] START");
 
     const auth = await getUserFromBearer();
-
     if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    console.log("🟢 [PAYMENT][SUBMIT] AUTH_OK", {
-      requestId,
-      userId,
-    });
-
-    /* =========================
-       PARSE BODY
-    ========================= */
-
     const raw = await req.json().catch(() => null);
 
     if (!raw || typeof raw !== "object") {
-      return NextResponse.json(
-        { error: "INVALID_BODY" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
     const paymentIntentId =
@@ -85,78 +45,68 @@ export async function POST(req: Request) {
         ? (raw as any).txid.trim()
         : "";
 
-    /* =========================
-       VALIDATION
-    ========================= */
-
-    if (!isUUID(paymentIntentId)) {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_INTENT" },
-        { status: 400 }
-      );
+    if (!isUUID(paymentIntentId) || !piPaymentId) {
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    if (!piPaymentId || !txid) {
-      return NextResponse.json(
-        { error: "INVALID_INPUT" },
-        { status: 400 }
-      );
-    }
+    console.log("🟡 [SUBMIT] CALL_DB");
 
-    console.log("🟡 [PAYMENT][SUBMIT] BODY_OK", {
-      paymentIntentId,
-      piPaymentId,
-      txid,
-    });
-
-    /* =========================
-       STEP 1 — LOCK PAYMENT INTENT
-    ========================= */
-
-    console.log("🟡 [PAYMENT][SUBMIT] LOCKING_INTENT");
-
-    await markPaymentVerifying({
+    const result = await markPaymentVerifying({
       paymentIntentId,
       userId,
       piPaymentId,
-      txid,
+      txid: txid || null,
     });
 
-    console.log("🟢 [PAYMENT][SUBMIT] INTENT_LOCKED");
+    console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
 
-    /* =========================
-       STEP 2 — ENQUEUE RECONCILE JOB
-    ========================= */
+    /**
+     * =====================================================
+     * ASYNC RECONCILE TRIGGER
+     * =====================================================
+     */
+    const runReconcile = async () => {
+      try {
+        console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
 
-    console.log("🟡 [PAYMENT][SUBMIT] ENQUEUE_JOB");
+        const { POST: reconcile } = await import(
+          "@/app/api/payments/pi/reconcile/route"
+        );
 
-    const job = await enqueueReconcileJob({
-      paymentIntentId,
-      piPaymentId,
-      txid,
-      userId,
-    });
+        const fakeReq = new Request("http://internal/reconcile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: req.headers.get("authorization") || "",
+          },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntentId,
+            pi_payment_id: piPaymentId,
+            txid,
+          }),
+        });
 
-    console.log("🟢 [PAYMENT][SUBMIT] JOB_CREATED", {
-      jobId: job.id,
-    });
+        await reconcile(fakeReq as any);
 
-    /* =========================
-       RESPONSE (FAST RETURN)
-    ========================= */
+        console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
+      } catch (e) {
+        console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
+      }
+    };
+
+    queueMicrotask(runReconcile);
 
     return NextResponse.json({
       success: true,
-      status: "processing",
-      requestId,
-      jobId: job.id,
+      status: "verifying",
+      paymentIntentId,
     });
   } catch (err) {
-    console.error("🔥 [PAYMENT][SUBMIT] FAIL", err);
+    console.error("🔥 [SUBMIT] CRASH", err);
 
     return NextResponse.json(
-      { error: "SUBMIT_FAILED" },
-      { status: 500 }
+      { error: err instanceof Error ? err.message : "SUBMIT_FAILED" },
+      { status: 400 }
     );
   }
 }
