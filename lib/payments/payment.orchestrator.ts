@@ -1,4 +1,8 @@
-import { guardPaymentForReconcile, acquirePaymentSettlementLock } from "@/lib/db/payments.guard";
+import {
+  guardPaymentForReconcile,
+  acquirePaymentSettlementLock,
+} from "@/lib/db/payments.guard";
+
 import {
   auditDuplicateSubmit,
   auditFinalizeDone,
@@ -14,22 +18,18 @@ import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
 import { SettlementLedger } from "@/lib/db/settlement.ledger";
 
+import type {
+  RunPaymentSettlementInput,
+  PaymentSettlementResult,
+  RpcAuditResult,
+} from "@/lib/payments/payment.types";
+
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
-export type PaymentTriggerSource =
-  | "submit"
-  | "reconcile"
-  | "webhook"
-  | "cron";
-
-type RunSettlementParams = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-  userId: string;
-  source: PaymentTriggerSource;
-};
+/* =========================================================
+   PI COMPLETE
+========================================================= */
 
 async function callPiComplete(
   piPaymentId: string,
@@ -46,17 +46,17 @@ async function callPiComplete(
       cache: "no-store",
     });
 
-    const text = await res.text();
+    const txt = await res.text();
 
     if (!res.ok) {
-      if (text.includes("already_completed")) {
+      if (txt.includes("already_completed")) {
         console.log("[ORCHESTRATOR] PI_ALREADY_COMPLETED");
         return true;
       }
 
       console.warn("[ORCHESTRATOR] PI_COMPLETE_FAIL", {
         status: res.status,
-        body: text,
+        body: txt,
       });
 
       return false;
@@ -70,27 +70,31 @@ async function callPiComplete(
   }
 }
 
+/* =========================================================
+   MAIN HARD SETTLEMENT ENGINE
+========================================================= */
+
 export async function runPaymentSettlement({
   paymentIntentId,
   piPaymentId,
   txid,
   userId,
   source,
-}: RunSettlementParams) {
+}: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
   console.log("[ORCHESTRATOR] START", {
     paymentIntentId,
+    piPaymentId,
+    txid,
     source,
   });
 
   /* =====================================================
-     STEP A — PAYMENT GUARD
+     STEP A — GUARD STATE
   ===================================================== */
-
-  console.log("[ORCHESTRATOR] STEP_A_GUARD");
 
   const guard = await guardPaymentForReconcile({
     paymentIntentId,
-    userId,
+    userId: userId ?? "",
   });
 
   if (!guard.ok) {
@@ -104,26 +108,33 @@ export async function runPaymentSettlement({
 
       return {
         ok: true,
-        alreadyPaid: true,
-        code: guard.code,
+        orderId: null,
+        amount: 0,
+        piCompleted: true,
+        rpcAudited: true,
+        source,
       };
     }
 
-    await auditManualReview(paymentIntentId, guard.code, {
-      source,
-    });
+    await auditManualReview(paymentIntentId, guard.code, { source });
 
     return {
       ok: false,
-      code: guard.code,
+      orderId: null,
+      amount: 0,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
     };
   }
+
+  /* =====================================================
+     STEP B — LOCK
+  ===================================================== */
 
   const lock = await acquirePaymentSettlementLock(paymentIntentId);
 
   if (!lock.ok) {
-    console.warn("[ORCHESTRATOR] LOCK_DENIED");
-
     await auditDuplicateSubmit(paymentIntentId, {
       source,
       reason: "LOCK_DENIED",
@@ -131,20 +142,22 @@ export async function runPaymentSettlement({
 
     return {
       ok: false,
-      code: "LOCK_DENIED",
+      orderId: null,
+      amount: 0,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
     };
   }
 
   /* =====================================================
-     STEP B — PI VERIFY (OFFICIAL SOURCE OF TRUTH)
+     STEP C — PI VERIFY
   ===================================================== */
-
-  console.log("[ORCHESTRATOR] STEP_B_PI_VERIFY");
 
   const piVerified = await verifyPiPaymentForReconcile({
     paymentIntentId,
     piPaymentId,
-    userId,
+    userId: userId ?? guard.piPaymentId ?? "",
     txid,
   });
 
@@ -156,59 +169,113 @@ export async function runPaymentSettlement({
 
     return {
       ok: false,
-      code: "PI_VERIFY_FAIL",
+      orderId: null,
+      amount: 0,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
     };
   }
 
   await auditPiVerified(paymentIntentId, {
+    source,
+    txid,
     amount: piVerified.verifiedAmount,
     receiverWallet: piVerified.receiverWallet,
-    txid,
-    source,
   });
 
   /* =====================================================
-     STEP C — RPC VERIFY (NON BLOCKING AUDIT)
+     STEP D — RPC VERIFY (HARD BLOCK)
   ===================================================== */
 
-  console.log("[ORCHESTRATOR] STEP_C_RPC_AUDIT");
-
-  let rpcVerified: any = {
-    ok: false,
-    audited: false,
-    reason: "RPC_SKIPPED",
-  };
+  let rpcVerified: RpcAuditResult;
 
   try {
     rpcVerified = await verifyRpcPaymentForReconcile({
       paymentIntentId,
       txid,
     });
-
-    if (rpcVerified.ok) {
-      await auditRpcVerified(paymentIntentId, {
-        amount: rpcVerified.amount,
-        sender: rpcVerified.sender,
-        receiver: rpcVerified.receiver,
-        ledger: rpcVerified.ledger,
-      });
-    } else {
-      await auditRpcFailed(paymentIntentId, {
-        reason: rpcVerified.reason,
-        ledger: rpcVerified.ledger,
-      });
-    }
   } catch (err) {
     await auditRpcFailed(paymentIntentId, {
+      source,
       reason: err instanceof Error ? err.message : String(err),
     });
+
+    return {
+      ok: false,
+      orderId: null,
+      amount: piVerified.verifiedAmount,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
+    };
   }
 
+  if (!rpcVerified.ok) {
+    await auditRpcFailed(paymentIntentId, {
+      source,
+      reason: rpcVerified.reason,
+      amount: rpcVerified.amount,
+      receiver: rpcVerified.receiver,
+      ledger: rpcVerified.ledger,
+    });
+
+    await auditManualReview(paymentIntentId, "RPC_BLOCKED", {
+      source,
+      txid,
+      reason: rpcVerified.reason,
+    });
+
+    return {
+      ok: false,
+      orderId: null,
+      amount: piVerified.verifiedAmount,
+      piCompleted: false,
+      rpcAudited: true,
+      source,
+    };
+  }
+
+  await auditRpcVerified(paymentIntentId, {
+    source,
+    txid,
+    amount: rpcVerified.amount,
+    sender: rpcVerified.sender,
+    receiver: rpcVerified.receiver,
+    ledger: rpcVerified.ledger,
+  });
+
   /* =====================================================
-     STEP D — FINALIZE ORDER ATOMICALLY
+     STEP E — PI COMPLETE HARD GATE
   ===================================================== */
 
-  console.log("[ORCHESTRATOR] STEP_D_FINALIZE");
+  const piCompleted = await callPiComplete(piPaymentId, txid);
+
+  if (!piCompleted) {
+    await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
+      source,
+      txid,
+    });
+
+    return {
+      ok: false,
+      orderId: null,
+      amount: piVerified.verifiedAmount,
+      piCompleted: false,
+      rpcAudited: true,
+      source,
+    };
+  }
+
+  await auditPiCompleted(paymentIntentId, {
+    source,
+    piPaymentId,
+    txid,
+  });
+
+  /* =====================================================
+     STEP F — FINALIZE ORDER (NOW SAFE)
+  ===================================================== */
 
   const paid = await finalizePaidOrderFromIntent({
     paymentIntentId,
@@ -221,74 +288,56 @@ export async function runPaymentSettlement({
   });
 
   await auditFinalizeDone(paymentIntentId, {
-    orderId: paid.orderId,
     source,
+    orderId: paid.orderId,
   });
 
   /* =====================================================
-     STEP E — ESCROW LEDGER WRITE
+     STEP G — LEDGER WRITE
   ===================================================== */
 
-  console.log("[ORCHESTRATOR] STEP_E_LEDGER");
-
   try {
-    const escrow = await SettlementLedger.createEscrow({
-      paymentIntentId,
-      orderId: paid.orderId,
-      buyerId: userId,
-      sellerId: "AUTO_FROM_ORDER",
-      amount: piVerified.verifiedAmount,
-      currency: "PI",
-    });
+    if (paid.orderId) {
+      const escrow = await SettlementLedger.createEscrow({
+        paymentIntentId,
+        orderId: paid.orderId,
+        buyerId: userId ?? "SYSTEM",
+        sellerId: "SYSTEM_SELLER_RESOLVE",
+        amount: piVerified.verifiedAmount,
+        currency: "PI",
+      });
 
-    await SettlementLedger.markPaymentConfirmed({
-      escrowId: escrow.id,
-      txid,
-      source: "PI",
-    });
+      await SettlementLedger.markPaymentConfirmed({
+        escrowId: escrow.id,
+        txid,
+        source: "PI",
+      });
 
-    if (rpcVerified?.ok) {
       await SettlementLedger.markPaymentConfirmed({
         escrowId: escrow.id,
         txid,
         source: "RPC",
       });
+
+      await SettlementLedger.linkOrder({
+        escrowId: escrow.id,
+        orderId: paid.orderId,
+      });
     }
-
-    await SettlementLedger.linkOrder({
-      escrowId: escrow.id,
-      orderId: paid.orderId,
-    });
   } catch (err) {
-    console.error("[ORCHESTRATOR] ESCROW_LEDGER_FAIL", err);
+    console.error("[ORCHESTRATOR] LEDGER_FAIL", err);
   }
 
-  /* =====================================================
-     STEP F — PI COMPLETE
-  ===================================================== */
-
-  console.log("[ORCHESTRATOR] STEP_F_PI_COMPLETE");
-
-  const piCompleted = await callPiComplete(piPaymentId, txid);
-
-  if (piCompleted) {
-    await auditPiCompleted(paymentIntentId, {
-      piPaymentId,
-      txid,
-    });
-  } else {
-    await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
-      piPaymentId,
-      txid,
-    });
-  }
-
-  console.log("[ORCHESTRATOR] DONE");
+  console.log("[ORCHESTRATOR] SUCCESS", {
+    orderId: paid.orderId,
+  });
 
   return {
     ok: true,
     orderId: paid.orderId,
-    piCompleted,
-    rpcAudited: rpcVerified?.audited ?? false,
+    amount: piVerified.verifiedAmount,
+    piCompleted: true,
+    rpcAudited: true,
+    source,
   };
 }
