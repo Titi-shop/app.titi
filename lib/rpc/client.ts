@@ -135,29 +135,63 @@ function str(v: unknown): string | null {
 
 function extractTx(tx: Record<string, unknown>) {
   const meta = tx.resultMetaXdr;
-  const events = (tx as { events?: { transactionEventsXdr?: unknown[] } }).events
-    ?.transactionEventsXdr;
+  const envelope = tx.envelopeXdr;
 
-  const amountRaw =
-    tx.amount ??
-    tx.value ??
-    (tx as { payment?: { amount?: unknown } }).payment?.amount ??
-    null;
+  const events =
+    (tx as any)?.events?.transactionEventsXdr ??
+    (tx as any)?.events ??
+    [];
 
-  const sender =
-    str(tx.from_address) ||
-    str(tx.source_account) ||
-    str(tx.source) ||
-    null;
+  let amount: number | null = null;
+  let sender: string | null = null;
+  let receiver: string | null = null;
 
-  const receiver =
-    str(tx.to_address) ||
-    str(tx.destination) ||
-    (tx as { payment?: { destination?: string } }).payment?.destination ||
-    null;
+  /* =====================================================
+     LAYER 1: direct fields (PI API sometimes inject)
+  ===================================================== */
+  if (typeof (tx as any).amount === "number") {
+    amount = (tx as any).amount;
+  }
+
+  sender =
+    str((tx as any).from_address) ||
+    str((tx as any).source_account) ||
+    str((tx as any).source);
+
+  receiver =
+    str((tx as any).to_address) ||
+    str((tx as any).destination);
+
+  /* =====================================================
+     LAYER 2: envelope fallback (VERY IMPORTANT)
+  ===================================================== */
+  if ((amount === null || amount === 0) && typeof envelope === "string") {
+    const m = envelope.match(/amount.*?([0-9]+(\.[0-9]+)?)/i);
+    if (m?.[1]) amount = Number(m[1]);
+  }
+
+  /* =====================================================
+     LAYER 3: resultMeta / events fallback (CRITICAL FIX)
+  ===================================================== */
+  if ((amount === null || amount === 0) && Array.isArray(events)) {
+    for (const e of events) {
+      const raw = JSON.stringify(e);
+
+      const amt = raw.match(/amount[^0-9]*([0-9]+(\.[0-9]+)?)/i);
+      if (amt?.[1]) {
+        amount = Number(amt[1]);
+      }
+
+      const to = raw.match(/to[_-]?address["']?\s*:\s*["']([A-Z0-9]+)/i);
+      const from = raw.match(/from[_-]?address["']?\s*:\s*["']([A-Z0-9]+)/i);
+
+      if (to?.[1]) receiver = to[1];
+      if (from?.[1]) sender = from[1];
+    }
+  }
 
   return {
-    amount: num(amountRaw),
+    amount: Number.isFinite(amount) ? amount : null,
     sender,
     receiver,
     hasMeta: !!meta,
