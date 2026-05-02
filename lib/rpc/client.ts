@@ -18,16 +18,17 @@ type RpcEnvelope = {
 
 export type ParsedRpcTransaction = {
   hash: string | null;
-  status: string | null;
   ledger: number | null;
   amount: number | null;
   sender: string | null;
   receiver: string | null;
+  confirmed: boolean;
+  rpcReachable: boolean;
   raw: unknown;
 };
 
 /* =========================================================
-   LOW LEVEL CALL
+   LOW LEVEL RPC CALL
 ========================================================= */
 
 async function rpcCall(
@@ -59,7 +60,7 @@ async function rpcCall(
   }
 
   if (!res.ok) {
-    throw new Error("RPC_HTTP_ERROR");
+    throw new Error(`RPC_HTTP_${res.status}`);
   }
 
   if (json.error) {
@@ -74,7 +75,7 @@ async function rpcCall(
 }
 
 /* =========================================================
-   SAFE PARSER
+   SAFE HELPERS
 ========================================================= */
 
 function asObj(v: unknown): Record<string, unknown> {
@@ -84,7 +85,9 @@ function asObj(v: unknown): Record<string, unknown> {
 }
 
 function asArray(v: unknown): Record<string, unknown>[] {
-  return Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+  return Array.isArray(v)
+    ? (v as Record<string, unknown>[])
+    : [];
 }
 
 function num(v: unknown): number | null {
@@ -93,11 +96,11 @@ function num(v: unknown): number | null {
 }
 
 function str(v: unknown): string | null {
-  return typeof v === "string" ? v : null;
+  return typeof v === "string" ? v.trim() : null;
 }
 
 /* =========================================================
-   MAIN METHOD
+   MAIN RPC PARSER
 ========================================================= */
 
 export async function getRpcTransaction(
@@ -119,36 +122,66 @@ export async function getRpcTransaction(
 
     let amount: number | null = null;
     let receiver: string | null = null;
+    let sender: string | null = null;
 
     for (const op of ops) {
       const opType = str(op.type);
 
-      if (opType && opType !== "payment") continue;
+      if (opType && opType !== "payment") {
+        continue;
+      }
 
-      amount = num(op.amount);
-      receiver = str(op.to);
+      const opAmount = num(op.amount);
 
-      if (amount !== null || receiver !== null) {
+      const opReceiver =
+        str(op.destination) ||
+        str(op.to);
+
+      const opSender =
+        str(op.from) ||
+        str(op.source);
+
+      if (opAmount !== null) {
+        amount = opAmount;
+      }
+
+      if (opReceiver) {
+        receiver = opReceiver;
+      }
+
+      if (opSender) {
+        sender = opSender;
+      }
+
+      if (amount !== null && receiver !== null) {
         break;
       }
     }
 
-    const sender =
+    sender =
+      sender ||
       str(tx.source_account) ||
+      str(tx.source) ||
       str(tx.fee_account) ||
       null;
+
+    const ledger = num(tx.ledger);
 
     const successful =
       tx.successful === true ||
       String(tx.successful || "").toLowerCase() === "true";
 
+    const confirmed =
+      ledger !== null || successful === true;
+
     return {
       hash: str(tx.hash) || clean,
-      status: successful ? "confirmed" : "pending",
-      ledger: num(tx.ledger),
+      ledger,
       amount,
       sender,
       receiver,
+      confirmed,
+      rpcReachable: true,
       raw: result,
     };
   } catch (err) {
@@ -156,11 +189,12 @@ export async function getRpcTransaction(
 
     return {
       hash: clean,
-      status: "rpc_error",
       ledger: null,
       amount: null,
       sender: null,
       receiver: null,
+      confirmed: false,
+      rpcReachable: false,
       raw: {},
     };
   }
