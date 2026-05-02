@@ -8,8 +8,8 @@ const PI_RPC_URL =
 
 type RpcEnvelope = {
   jsonrpc?: string;
-  id?: number | string;
-  result?: Record<string, unknown>;
+  id?: string | number;
+  result?: unknown;
   error?: {
     code?: number;
     message?: string;
@@ -18,28 +18,50 @@ type RpcEnvelope = {
 
 export type ParsedRpcTransaction = {
   hash: string | null;
+  status: string | null;
   ledger: number | null;
+
   amount: number | null;
   sender: string | null;
   receiver: string | null;
-  confirmed: boolean;
-  rpcReachable: boolean;
+
   raw: unknown;
+
+  debug: {
+    amountPath: string | null;
+    senderPath: string | null;
+    receiverPath: string | null;
+  };
 };
 
 /* =========================================================
-   LOW LEVEL RPC CALL
+   HELPERS
+========================================================= */
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function toNum(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toStr(v: unknown): string | null {
+  return typeof v === "string" ? v : null;
+}
+
+/* =========================================================
+   RPC CALL
 ========================================================= */
 
 async function rpcCall(
   method: string,
   params: Record<string, unknown>
-): Promise<Record<string, unknown>> {
+): Promise<unknown> {
   const res = await fetch(PI_RPC_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     cache: "no-store",
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -49,153 +71,165 @@ async function rpcCall(
     }),
   });
 
-  const rawText = await res.text();
+  const text = await res.text();
 
   let json: RpcEnvelope;
 
   try {
-    json = JSON.parse(rawText);
+    json = JSON.parse(text);
   } catch {
     throw new Error("RPC_INVALID_JSON");
   }
 
-  if (!res.ok) {
-    throw new Error(`RPC_HTTP_${res.status}`);
-  }
-
-  if (json.error) {
-    throw new Error(`RPC_ERROR_${json.error.code ?? "UNKNOWN"}`);
-  }
-
-  if (!json.result || typeof json.result !== "object") {
-    throw new Error("RPC_EMPTY_RESULT");
-  }
+  if (!res.ok) throw new Error("RPC_HTTP_ERROR");
+  if (json.error) throw new Error(`RPC_ERROR_${json.error.code}`);
 
   return json.result;
 }
 
 /* =========================================================
-   SAFE HELPERS
+   EXTRACTORS (CORE FIX)
 ========================================================= */
 
-function asObj(v: unknown): Record<string, unknown> {
-  return typeof v === "object" && v !== null
-    ? (v as Record<string, unknown>)
-    : {};
+function extractAmount(tx: any): { value: number | null; path: string | null } {
+  // 1. direct fields
+  if (tx.amount != null) {
+    return { value: toNum(tx.amount), path: "tx.amount" };
+  }
+
+  if (tx.value != null) {
+    return { value: toNum(tx.value), path: "tx.value" };
+  }
+
+  // 2. operations style (Stellar-like)
+  const ops =
+    tx.operations ??
+    tx.ops ??
+    tx.tx?.operations ??
+    [];
+
+  if (Array.isArray(ops)) {
+    for (const op of ops) {
+      if (!isObject(op)) continue;
+
+      const amount =
+        toNum(op.amount ?? op.value ?? op.asset_amount);
+
+      if (amount != null) {
+        return { value: amount, path: "operations[].amount/value" };
+      }
+    }
+  }
+
+  // 3. fallback nested
+  if (tx.transaction?.amount) {
+    return { value: toNum(tx.transaction.amount), path: "transaction.amount" };
+  }
+
+  return { value: null, path: null };
 }
 
-function asArray(v: unknown): Record<string, unknown>[] {
-  return Array.isArray(v)
-    ? (v as Record<string, unknown>[])
-    : [];
+function extractReceiver(tx: any): { value: string | null; path: string | null } {
+  const direct =
+    toStr(tx.receiver ?? tx.to ?? tx.destination);
+
+  if (direct) return { value: direct, path: "tx.receiver/to/destination" };
+
+  const ops =
+    tx.operations ??
+    tx.ops ??
+    [];
+
+  if (Array.isArray(ops)) {
+    for (const op of ops) {
+      if (!isObject(op)) continue;
+
+      const r =
+        toStr(op.to ?? op.destination ?? op.receiver);
+
+      if (r) {
+        return { value: r, path: "operations[].to/destination" };
+      }
+    }
+  }
+
+  return { value: null, path: null };
 }
 
-function num(v: unknown): number | null {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+function extractSender(tx: any): { value: string | null; path: string | null } {
+  const sender =
+    toStr(tx.sender ?? tx.from ?? tx.source_account);
 
-function str(v: unknown): string | null {
-  return typeof v === "string" ? v.trim() : null;
+  if (sender) {
+    return { value: sender, path: "tx.sender/from/source_account" };
+  }
+
+  return { value: null, path: null };
 }
 
 /* =========================================================
-   MAIN RPC PARSER
+   MAIN FUNCTION
 ========================================================= */
 
 export async function getRpcTransaction(
   txid: string
 ): Promise<ParsedRpcTransaction> {
-  const clean = txid.trim();
+  const cleanTx = txid.trim();
 
-  if (!clean) {
-    throw new Error("RPC_TXID_REQUIRED");
-  }
+  console.log("[RPC V2] FETCH_START", { txid: cleanTx });
 
-  try {
-    const result = await rpcCall("getTransaction", {
-      hash: clean,
-    });
+  const result: any = await rpcCall("getTransaction", {
+    hash: cleanTx,
+  });
 
-    const tx = asObj(result.transaction ?? result);
-    const ops = asArray(result.operations ?? tx.operations);
+  const tx =
+    result.transaction ??
+    result.tx ??
+    result ??
+    {};
 
-    let amount: number | null = null;
-    let receiver: string | null = null;
-    let sender: string | null = null;
+  /* =====================================================
+     EXTRACTION
+  ===================================================== */
 
-    for (const op of ops) {
-      const opType = str(op.type);
+  const amount = extractAmount(tx);
+  const receiver = extractReceiver(tx);
+  const sender = extractSender(tx);
 
-      if (opType && opType !== "payment") {
-        continue;
-      }
+  const status =
+    tx.successful === true
+      ? "confirmed"
+      : tx.status || "pending";
 
-      const opAmount = num(op.amount);
+  const ledger =
+    toNum(tx.ledger ?? tx.ledger_index);
 
-      const opReceiver =
-        str(op.destination) ||
-        str(op.to);
+  console.log("[RPC V2] PARSE_RESULT", {
+    txid: cleanTx,
+    amount,
+    sender,
+    receiver,
+    ledger,
+    status,
+  });
 
-      const opSender =
-        str(op.from) ||
-        str(op.source);
+  /* =====================================================
+     RETURN
+  ===================================================== */
 
-      if (opAmount !== null) {
-        amount = opAmount;
-      }
+  return {
+    hash: toStr(tx.hash) || cleanTx,
+    status,
+    ledger,
+    amount: amount.value,
+    sender: sender.value,
+    receiver: receiver.value,
+    raw: result,
 
-      if (opReceiver) {
-        receiver = opReceiver;
-      }
-
-      if (opSender) {
-        sender = opSender;
-      }
-
-      if (amount !== null && receiver !== null) {
-        break;
-      }
-    }
-
-    sender =
-      sender ||
-      str(tx.source_account) ||
-      str(tx.source) ||
-      str(tx.fee_account) ||
-      null;
-
-    const ledger = num(tx.ledger);
-
-    const successful =
-      tx.successful === true ||
-      String(tx.successful || "").toLowerCase() === "true";
-
-    const confirmed =
-      ledger !== null || successful === true;
-
-    return {
-      hash: str(tx.hash) || clean,
-      ledger,
-      amount,
-      sender,
-      receiver,
-      confirmed,
-      rpcReachable: true,
-      raw: result,
-    };
-  } catch (err) {
-    console.error("[RPC CLIENT] GET_TX_FAIL", err);
-
-    return {
-      hash: clean,
-      ledger: null,
-      amount: null,
-      sender: null,
-      receiver: null,
-      confirmed: false,
-      rpcReachable: false,
-      raw: {},
-    };
-  }
+    debug: {
+      amountPath: amount.path,
+      senderPath: sender.path,
+      receiverPath: receiver.path,
+    },
+  };
 }
