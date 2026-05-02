@@ -1,46 +1,23 @@
 import { query } from "@/lib/db/index";
 import { getRpcTransaction } from "@/lib/rpc/client";
 
-/* =========================================================
-   TYPES
-========================================================= */
-
 type VerifyRpcParams = {
   paymentIntentId: string;
   txid: string;
 };
 
-type RpcStage =
-  | "RPC_OK"
-  | "RPC_UNREACHABLE"
-  | "RPC_PARSE_FAIL"
-  | "RPC_VALIDATION_FAIL";
-
-type RpcFailReason =
-  | "RPC_UNREACHABLE"
-  | "TX_NOT_CONFIRMED"
-  | "AMOUNT_NOT_FOUND"
-  | "AMOUNT_MISMATCH"
-  | "RECEIVER_NOT_FOUND"
-  | "RECEIVER_MISMATCH"
-  | null;
-
 type RpcVerifyResult = {
   ok: boolean;
   audited: boolean;
-
+  verified: boolean;
   amount: number | null;
   sender: string | null;
   receiver: string | null;
   ledger: number | null;
-
   confirmed: boolean;
   chainReference: string | null;
-
-  stage: RpcStage;
-  reason: RpcFailReason;
-
   payload: unknown;
+  reason: string | null;
 };
 
 type PaymentIntentRow = {
@@ -49,30 +26,35 @@ type PaymentIntentRow = {
   merchant_wallet: string | null;
 };
 
-/* =========================================================
-   UTIL
-========================================================= */
+type InsertRpcLogParams = {
+  paymentIntentId: string;
+  txid: string;
+  verified: boolean;
+  stage: string;
+  reason: string | null;
+  amount: number | null;
+  sender: string | null;
+  receiver: string | null;
+  ledger: number | null;
+  txStatus: string | null;
+  chainReference: string | null;
+  payload: unknown;
+};
 
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      v
-    )
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
 
 function normalizeWallet(v: string | null): string {
-  return (v ?? "").trim().toLowerCase();
+  return (v || "").trim().toLowerCase();
 }
 
 function sameAmount(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.0000001;
 }
-
-/* =========================================================
-   DB
-========================================================= */
 
 async function getPaymentIntent(
   paymentIntentId: string
@@ -90,26 +72,9 @@ async function getPaymentIntent(
   return rs.rows[0] || null;
 }
 
-/* =========================================================
-   LOG
-========================================================= */
-
-async function insertRpcLog(input: {
-  paymentIntentId: string;
-  txid: string;
-  verified: boolean;
-  stage: RpcStage;
-  reason: RpcFailReason;
-
-  amount: number | null;
-  sender: string | null;
-  receiver: string | null;
-  ledger: number | null;
-  txStatus: string | null;
-  chainReference: string | null;
-
-  payload: unknown;
-}) {
+async function insertRpcVerificationLog(
+  params: InsertRpcLogParams
+): Promise<void> {
   await query(
     `
     INSERT INTO rpc_verification_logs (
@@ -144,120 +109,81 @@ async function insertRpcLog(input: {
       payload = EXCLUDED.payload
     `,
     [
-      input.paymentIntentId,
-      input.txid,
-      input.verified,
-      input.stage,
-      input.reason,
-      input.amount,
-      input.sender,
-      input.receiver,
-      input.ledger,
-      input.txStatus,
-      input.chainReference,
-      JSON.stringify(input.payload ?? {}),
+      params.paymentIntentId,
+      params.txid,
+      params.verified,
+      params.stage,
+      params.reason,
+      params.amount,
+      params.sender,
+      params.receiver,
+      params.ledger,
+      params.txStatus,
+      params.chainReference,
+      JSON.stringify(params.payload ?? {}),
     ]
   );
 }
 
-/* =========================================================
-   MAIN
-========================================================= */
-
-export async function verifyRpcPaymentV3({
+export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams): Promise<RpcVerifyResult> {
-  console.log("[RPC V3] START", { paymentIntentId, txid });
+  if (!isUUID(paymentIntentId) || !txid.trim()) {
+    throw new Error("INVALID_RPC_VERIFY_INPUT");
+  }
 
-  /* =====================================================
-     STEP 1 — LOAD INTENT
-  ===================================================== */
+  console.log("[PAYMENT][RPC] START", {
+    paymentIntentId,
+    txid,
+  });
 
-  const intent = await getPaymentIntent(paymentIntentId);
+  const paymentIntent = await getPaymentIntent(paymentIntentId);
 
-  if (!intent) {
+  if (!paymentIntent) {
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
 
-  const expectedAmount = Number(intent.total_amount);
-  const expectedReceiver = normalizeWallet(intent.merchant_wallet);
+  const expectedAmount = Number(paymentIntent.total_amount);
+  const expectedReceiver = normalizeWallet(paymentIntent.merchant_wallet);
 
-  /* =====================================================
-     STEP 2 — FETCH RPC
-  ===================================================== */
-
-  let rpcTx;
-
-  try {
-    rpcTx = await getRpcTransaction(txid);
-  } catch (err) {
-    await insertRpcLog({
-      paymentIntentId,
-      txid,
-      verified: false,
-      stage: "RPC_UNREACHABLE",
-      reason: "RPC_UNREACHABLE",
-      amount: null,
-      sender: null,
-      receiver: null,
-      ledger: null,
-      txStatus: null,
-      chainReference: null,
-      payload: {},
-    });
-
-    return {
-      ok: false,
-      audited: true,
-      amount: null,
-      sender: null,
-      receiver: null,
-      ledger: null,
-      confirmed: false,
-      chainReference: null,
-      stage: "RPC_UNREACHABLE",
-      reason: "RPC_UNREACHABLE",
-      payload: {},
-    };
-  }
-
-  /* =====================================================
-     STEP 3 — PARSE VALIDATION
-  ===================================================== */
-
-  const confirmed = rpcTx.status === "confirmed";
+  const rpcTx = await getRpcTransaction(txid);
 
   let verified = true;
-  let stage: RpcStage = "RPC_OK";
-  let reason: RpcFailReason = null;
+  let stage = "RPC_OK";
+  let reason: string | null = null;
 
-  const hasData =
-    rpcTx.amount !== null ||
-    rpcTx.sender !== null ||
-    rpcTx.receiver !== null;
-
-  if (!hasData) {
+  if (!rpcTx.rpcReachable) {
     verified = false;
-    stage = "RPC_PARSE_FAIL";
-    reason = "AMOUNT_NOT_FOUND";
+    stage = "RPC_FAIL";
+    reason = "RPC_UNREACHABLE";
   }
 
-  if (verified && !confirmed) {
+  if (verified && !rpcTx.confirmed) {
     verified = false;
-    stage = "RPC_VALIDATION_FAIL";
+    stage = "RPC_FAIL";
     reason = "TX_NOT_CONFIRMED";
   }
 
-  if (verified && rpcTx.amount !== null && !sameAmount(rpcTx.amount, expectedAmount)) {
+  if (verified && rpcTx.amount === null) {
     verified = false;
-    stage = "RPC_VALIDATION_FAIL";
+    stage = "RPC_FAIL";
+    reason = "AMOUNT_NOT_FOUND";
+  }
+
+  if (
+    verified &&
+    rpcTx.amount !== null &&
+    !sameAmount(rpcTx.amount, expectedAmount)
+  ) {
+    verified = false;
+    stage = "RPC_FAIL";
     reason = "AMOUNT_MISMATCH";
   }
 
   if (verified && !rpcTx.receiver) {
     verified = false;
-    stage = "RPC_VALIDATION_FAIL";
+    stage = "RPC_FAIL";
     reason = "RECEIVER_NOT_FOUND";
   }
 
@@ -267,57 +193,44 @@ export async function verifyRpcPaymentV3({
     normalizeWallet(rpcTx.receiver) !== expectedReceiver
   ) {
     verified = false;
-    stage = "RPC_VALIDATION_FAIL";
+    stage = "RPC_FAIL";
     reason = "RECEIVER_MISMATCH";
   }
 
-  /* =====================================================
-     STEP 4 — WRITE LOG (ALWAYS)
-  ===================================================== */
-
-  await insertRpcLog({
+  await insertRpcVerificationLog({
     paymentIntentId,
     txid,
     verified,
     stage,
     reason,
-
     amount: rpcTx.amount,
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
     ledger: rpcTx.ledger,
-    txStatus: rpcTx.status,
+    txStatus: rpcTx.confirmed ? "confirmed" : "unconfirmed",
     chainReference: rpcTx.hash,
     payload: rpcTx.raw,
   });
 
-  console.log("[RPC V3] DONE", {
+  console.log("[PAYMENT][RPC] DONE", {
     verified,
-    stage,
     reason,
     amount: rpcTx.amount,
+    receiver: rpcTx.receiver,
+    ledger: rpcTx.ledger,
   });
-
-  /* =====================================================
-     RESULT
-  ===================================================== */
 
   return {
     ok: verified,
     audited: true,
-
+    verified,
     amount: rpcTx.amount,
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
     ledger: rpcTx.ledger,
-
-    confirmed,
-
+    confirmed: rpcTx.confirmed,
     chainReference: rpcTx.hash,
-
-    stage,
-    reason,
-
     payload: rpcTx.raw,
+    reason,
   };
 }
