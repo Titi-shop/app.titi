@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 
+import {
+  runPaymentSettlement,
+  fetchPiPayment,
+} from "@/lib/payments/payment.orchestrator";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/* =========================================================
+   TYPES
+========================================================= */
 
 type PiWebhookBody = {
   paymentId?: string;
@@ -9,18 +18,31 @@ type PiWebhookBody = {
   pi_payment_id?: string;
 };
 
-function extractPiPaymentId(raw: any): string | null {
-  const id =
-    typeof raw?.paymentId === "string"
-      ? raw.paymentId
-      : typeof raw?.payment_id === "string"
-      ? raw.payment_id
-      : typeof raw?.pi_payment_id === "string"
-      ? raw.pi_payment_id
-      : null;
-
-  return id?.trim() || null;
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
 }
+
+function extractPiPaymentId(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+
+  const id =
+    typeof raw.paymentId === "string"
+      ? raw.paymentId
+      : typeof raw.payment_id === "string"
+        ? raw.payment_id
+        : typeof raw.pi_payment_id === "string"
+          ? raw.pi_payment_id
+          : null;
+
+  if (!id) return null;
+
+  const clean = id.trim();
+  return clean.length ? clean : null;
+}
+
+/* =========================================================
+   WEBHOOK HANDLER
+========================================================= */
 
 export async function POST(req: Request) {
   console.log("[PI WEBHOOK] START");
@@ -34,83 +56,80 @@ export async function POST(req: Request) {
 
     if (!piPaymentId) {
       console.warn("[PI WEBHOOK] NO_PAYMENT_ID");
-      return NextResponse.json({ ok: false }, { status: 400 });
+
+      return NextResponse.json(
+        { ok: false, error: "NO_PAYMENT_ID" },
+        { status: 400 }
+      );
     }
 
     /* =====================================================
-       STEP 1: FETCH REAL PAYMENT FROM PI API
+       STEP 1 — FETCH REAL PAYMENT FROM PI PLATFORM
     ===================================================== */
 
-    const PI_API = process.env.PI_API_URL!;
-    const PI_KEY = process.env.PI_API_KEY!;
+    console.log("[PI WEBHOOK] FETCH_PI_PAYMENT");
 
-    const piRes = await fetch(`${PI_API}/payments/${piPaymentId}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Key ${PI_KEY}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
+    const piPayment = await fetchPiPayment(piPaymentId);
+
+    if (!piPayment) {
+      console.warn("[PI WEBHOOK] PI_PAYMENT_NOT_FOUND");
+
+      return NextResponse.json(
+        { ok: false, error: "PI_PAYMENT_NOT_FOUND" },
+        { status: 400 }
+      );
+    }
+
+    console.log("[PI WEBHOOK] PI_PAYMENT_OK", {
+      piPaymentId,
     });
 
-    if (!piRes.ok) {
-      const txt = await piRes.text();
-      console.warn("[PI WEBHOOK] PI_FETCH_FAIL", txt);
-
-      return NextResponse.json({ ok: false }, { status: 400 });
-    }
-
-    const piPayment = await piRes.json();
-
-    console.log("[PI WEBHOOK] PI_PAYMENT", piPayment);
-
     const paymentIntentId =
-      piPayment?.metadata?.payment_intent_id ||
-      null;
+      typeof piPayment.metadata?.payment_intent_id === "string"
+        ? piPayment.metadata.payment_intent_id.trim()
+        : "";
 
     const txid =
-      piPayment?.transaction?.txid ||
-      null;
+      typeof piPayment.transaction?.txid === "string"
+        ? piPayment.transaction.txid.trim()
+        : "";
 
     if (!paymentIntentId || !txid) {
-      console.warn("[PI WEBHOOK] INCOMPLETE_PAYMENT_DATA");
-      return NextResponse.json({ ok: true });
+      console.warn("[PI WEBHOOK] PAYMENT_NOT_READY", {
+        paymentIntentId,
+        txid,
+      });
+
+      return NextResponse.json({
+        success: true,
+        waiting: true,
+      });
     }
 
     /* =====================================================
-       STEP 2: CALL INTERNAL RECONCILE ENGINE
+       STEP 2 — RUN SAME CORE SETTLEMENT ENGINE
     ===================================================== */
 
-    try {
-      console.log("[PI WEBHOOK] TRIGGER_RECONCILE");
+    console.log("[PI WEBHOOK] RUN_SETTLEMENT");
 
-      const { POST: reconcile } = await import(
-        "@/app/api/payments/pi/reconcile/route"
-      );
+    const result = await runPaymentSettlement({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      userId: null,
+      source: "webhook",
+    });
 
-      const fakeReq = new Request("http://internal/reconcile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: "Bearer WEBHOOK_INTERNAL",
-        },
-        body: JSON.stringify({
-          payment_intent_id: paymentIntentId,
-          pi_payment_id: piPaymentId,
-          txid,
-          internal_webhook: true,
-        }),
-      });
-
-      await reconcile(fakeReq as any);
-
-      console.log("[PI WEBHOOK] RECONCILE_DONE");
-    } catch (err) {
-      console.error("[PI WEBHOOK] RECONCILE_FAIL", err);
-    }
+    console.log("[PI WEBHOOK] SETTLEMENT_DONE", {
+      ok: result.ok,
+      orderId: result.orderId,
+      alreadyPaid: result.alreadyPaid,
+    });
 
     return NextResponse.json({
       success: true,
+      order_id: result.orderId,
+      already_paid: result.alreadyPaid,
     });
   } catch (err) {
     console.error("[PI WEBHOOK] CRASH", err);
