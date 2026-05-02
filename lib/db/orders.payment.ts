@@ -8,12 +8,11 @@ type FinalizePaidOrderParams = {
   paymentIntentId: string;
   piPaymentId: string;
   txid: string;
-
   verifiedAmount: number;
   receiverWallet: string;
-
   piPayload: unknown;
   rpcPayload: unknown;
+  userId?: string;
 };
 
 type PaymentIntentRow = {
