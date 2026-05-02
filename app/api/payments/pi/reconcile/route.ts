@@ -174,42 +174,23 @@ try {
   });
 
   rpcVerified = {
-    ok: false,
-    audited: false,
-    reason: "RPC_AUDIT_SKIPPED",
-  };
+  ok: false,
+  audited: false,
+  reason: "RPC_AUDIT_SKIPPED",
+  ledger: null,
+  amount: piVerified.verifiedAmount,
+};
 }
 
-    /* =========================================================
-       STEP 3 — FINALIZE ORDER + PAYMENT RECEIPT (ATOMIC)
-    ========================================================= */
+   /* =========================================================
+   STEP 3 — PI COMPLETE FIRST (HARD GATE)
+========================================================= */
 
-    console.log("[PAYMENT][RECONCILE] STEP3_FINALIZE");
+console.log("[PAYMENT][RECONCILE] STEP3_PI_COMPLETE");
 
-    const paid = await finalizePaidOrderFromIntent({
-      paymentIntentId: payment_intent_id,
-      piPaymentId: pi_payment_id,
-      txid,
-      verifiedAmount: piVerified.verifiedAmount,
-      receiverWallet: piVerified.receiverWallet,
-      piPayload: piVerified.piPayload,
-      rpcPayload: rpcVerified,
-      userId,
-    });
+const piCompleted = await callPiComplete(pi_payment_id, txid);
 
-    console.log("[PAYMENT][RECONCILE] FINALIZE_OK", {
-      orderId: paid.orderId,
-    });
-
-    /* =========================================================
-       STEP 4 — PI COMPLETE
-    ========================================================= */
-
-    console.log("[PAYMENT][RECONCILE] STEP4_PI_COMPLETE");
-
-    const piCompleted = await callPiComplete(pi_payment_id, txid);
-
-   if (!piCompleted) {
+if (!piCompleted) {
   console.error("[PAYMENT][RECONCILE] PI_COMPLETE_FAIL");
 
   return NextResponse.json(
@@ -218,9 +199,28 @@ try {
   );
 }
 
-    console.log("[PAYMENT][RECONCILE] DONE", {
-      piCompleted,
-    });
+console.log("[PAYMENT][RECONCILE] PI_COMPLETE_OK");
+
+/* =========================================================
+   STEP 4 — FINALIZE ORDER + PAYMENT RECEIPT (ATOMIC)
+========================================================= */
+
+console.log("[PAYMENT][RECONCILE] STEP4_FINALIZE");
+
+const paid = await finalizePaidOrderFromIntent({
+  paymentIntentId: payment_intent_id,
+  piPaymentId: pi_payment_id,
+  txid,
+  verifiedAmount: piVerified.verifiedAmount,
+  receiverWallet: piVerified.receiverWallet,
+  piPayload: piVerified.piPayload,
+  rpcPayload: rpcVerified,
+  userId,
+});
+
+console.log("[PAYMENT][RECONCILE] FINALIZE_OK", {
+  orderId: paid.orderId,
+});
 
     return NextResponse.json({
       success: true,
