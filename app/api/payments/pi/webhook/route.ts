@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import {
   runPaymentSettlement,
-  fetchPiPayment,
 } from "@/lib/payments/payment.orchestrator";
 
 export const runtime = "nodejs";
