@@ -28,7 +28,7 @@ const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
 /* =========================================================
-   PI COMPLETE
+   PI COMPLETE (IDEMPOTENT SAFE)
 ========================================================= */
 
 async function callPiComplete(
@@ -36,42 +36,45 @@ async function callPiComplete(
   txid: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${PI_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ txid }),
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${PI_API}/payments/${piPaymentId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${PI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ txid }),
+        cache: "no-store",
+      }
+    );
 
-    const txt = await res.text();
+    const text = await res.text();
 
     if (!res.ok) {
-      if (txt.includes("already_completed")) {
-        console.log("[ORCHESTRATOR] PI_ALREADY_COMPLETED");
+      if (text.includes("already_completed")) {
+        console.log("[PI COMPLETE] already_completed");
         return true;
       }
 
-      console.warn("[ORCHESTRATOR] PI_COMPLETE_FAIL", {
+      console.warn("[PI COMPLETE FAIL]", {
         status: res.status,
-        body: txt,
+        body: text,
       });
 
       return false;
     }
 
-    console.log("[ORCHESTRATOR] PI_COMPLETE_OK");
+    console.log("[PI COMPLETE OK]");
     return true;
-  } catch (err) {
-    console.error("[ORCHESTRATOR] PI_COMPLETE_CRASH", err);
+  } catch (e) {
+    console.error("[PI COMPLETE CRASH]", e);
     return false;
   }
 }
 
 /* =========================================================
-   MAIN HARD SETTLEMENT ENGINE
+   MAIN ORCHESTRATOR
 ========================================================= */
 
 export async function runPaymentSettlement({
@@ -81,7 +84,7 @@ export async function runPaymentSettlement({
   userId,
   source,
 }: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
-  console.log("[ORCHESTRATOR] START", {
+  console.log("[ORCHESTRATOR START]", {
     paymentIntentId,
     piPaymentId,
     txid,
@@ -89,7 +92,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP A — GUARD STATE
+     STEP 1 — GUARD
   ===================================================== */
 
   const guard = await guardPaymentForReconcile({
@@ -98,8 +101,6 @@ export async function runPaymentSettlement({
   });
 
   if (!guard.ok) {
-    console.warn("[ORCHESTRATOR] GUARD_FAIL", guard.code);
-
     if (guard.code === "PAYMENT_ALREADY_PAID") {
       await auditDuplicateSubmit(paymentIntentId, {
         source,
@@ -129,7 +130,7 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP B — LOCK
+     STEP 2 — LOCK (ANTI DOUBLE SPEND)
   ===================================================== */
 
   const lock = await acquirePaymentSettlementLock(paymentIntentId);
@@ -151,13 +152,13 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP C — PI VERIFY
+     STEP 3 — PI VERIFY
   ===================================================== */
 
   const piVerified = await verifyPiPaymentForReconcile({
     paymentIntentId,
     piPaymentId,
-    userId: userId ?? guard.piPaymentId ?? "",
+    userId: userId ?? "",
     txid,
   });
 
@@ -185,7 +186,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP D — RPC VERIFY (HARD BLOCK)
+     STEP 4 — RPC VERIFY (HARD BLOCK)
   ===================================================== */
 
   let rpcVerified: RpcAuditResult;
@@ -195,10 +196,10 @@ export async function runPaymentSettlement({
       paymentIntentId,
       txid,
     });
-  } catch (err) {
+  } catch (e) {
     await auditRpcFailed(paymentIntentId, {
       source,
-      reason: err instanceof Error ? err.message : String(err),
+      reason: e instanceof Error ? e.message : String(e),
     });
 
     return {
@@ -223,7 +224,6 @@ export async function runPaymentSettlement({
     await auditManualReview(paymentIntentId, "RPC_BLOCKED", {
       source,
       txid,
-      reason: rpcVerified.reason,
     });
 
     return {
@@ -246,7 +246,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP E — PI COMPLETE HARD GATE
+     STEP 5 — PI COMPLETE
   ===================================================== */
 
   const piCompleted = await callPiComplete(piPaymentId, txid);
@@ -274,7 +274,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP F — FINALIZE ORDER (NOW SAFE)
+     STEP 6 — FINALIZE ORDER
   ===================================================== */
 
   const paid = await finalizePaidOrderFromIntent({
@@ -293,7 +293,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP G — LEDGER WRITE
+     STEP 7 — LEDGER (ESCROW + SETTLEMENT)
   ===================================================== */
 
   try {
@@ -302,7 +302,7 @@ export async function runPaymentSettlement({
         paymentIntentId,
         orderId: paid.orderId,
         buyerId: userId ?? "SYSTEM",
-        sellerId: "SYSTEM_SELLER_RESOLVE",
+        sellerId: "SYSTEM",
         amount: piVerified.verifiedAmount,
         currency: "PI",
       });
@@ -324,11 +324,11 @@ export async function runPaymentSettlement({
         orderId: paid.orderId,
       });
     }
-  } catch (err) {
-    console.error("[ORCHESTRATOR] LEDGER_FAIL", err);
+  } catch (e) {
+    console.error("[LEDGER FAIL]", e);
   }
 
-  console.log("[ORCHESTRATOR] SUCCESS", {
+  console.log("[ORCHESTRATOR SUCCESS]", {
     orderId: paid.orderId,
   });
 
