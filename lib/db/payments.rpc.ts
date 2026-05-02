@@ -1,4 +1,4 @@
-import { query } from "@/lib/db/index";
+import { query } from "@/lib/db";
 import { getRpcTransaction } from "@/lib/rpc/client";
 
 type VerifyRpcParams = {
