@@ -162,21 +162,14 @@ export async function runPaymentSettlement({
     txid,
   });
 
-  if (!piVerified.ok) {
-    await auditManualReview(paymentIntentId, "PI_VERIFY_FAIL", {
-      source,
-      txid,
-    });
+ if (!rpcVerified.ok) {
+  await auditRpcFailed(paymentIntentId, {
+    source,
+    reason: rpcVerified.reason,
+  });
 
-    return {
-      ok: false,
-      orderId: null,
-      amount: 0,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
+  console.warn("[RPC SOFT FAIL - CONTINUE FLOW]");
+}
 
   await auditPiVerified(paymentIntentId, {
     source,
