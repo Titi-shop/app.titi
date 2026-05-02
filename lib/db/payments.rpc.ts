@@ -14,7 +14,7 @@ type RpcVerifyResult = {
   sender: string | null;
   receiver: string | null;
   ledger: number | null;
-  txStatus: string | null;
+  confirmed: boolean;
   chainReference: string | null;
   payload: unknown;
   reason: string | null;
@@ -25,32 +25,6 @@ type PaymentIntentRow = {
   total_amount: string;
   merchant_wallet: string | null;
 };
-
-function isUUID(v: unknown): v is string {
-  return (
-    typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
-  );
-}
-
-function normalizeWallet(v: string | null): string {
-  return (v || "").trim().toLowerCase();
-}
-
-async function getPaymentIntent(paymentIntentId: string): Promise<PaymentIntentRow | null> {
-  const sql = `
-  SELECT
-    id,
-    total_amount,
-    merchant_wallet
-  FROM payment_intents
-  WHERE id = $1
-  LIMIT 1
-`;
-
-  const result = await query<PaymentIntentRow>(sql, [paymentIntentId]);
-  return result.rows[0] || null;
-}
 
 type InsertRpcLogParams = {
   paymentIntentId: string;
@@ -67,8 +41,42 @@ type InsertRpcLogParams = {
   payload: unknown;
 };
 
-async function insertRpcVerificationLog(params: InsertRpcLogParams): Promise<void> {
-  const sql = `
+function isUUID(v: unknown): v is string {
+  return (
+    typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
+}
+
+function normalizeWallet(v: string | null): string {
+  return (v || "").trim().toLowerCase();
+}
+
+function sameAmount(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.0000001;
+}
+
+async function getPaymentIntent(
+  paymentIntentId: string
+): Promise<PaymentIntentRow | null> {
+  const rs = await query<PaymentIntentRow>(
+    `
+    SELECT id, total_amount, merchant_wallet
+    FROM payment_intents
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [paymentIntentId]
+  );
+
+  return rs.rows[0] || null;
+}
+
+async function insertRpcVerificationLog(
+  params: InsertRpcLogParams
+): Promise<void> {
+  await query(
+    `
     INSERT INTO rpc_verification_logs (
       payment_intent_id,
       txid,
@@ -99,22 +107,22 @@ async function insertRpcVerificationLog(params: InsertRpcLogParams): Promise<voi
       tx_status = EXCLUDED.tx_status,
       chain_reference = EXCLUDED.chain_reference,
       payload = EXCLUDED.payload
-  `;
-
-  await query(sql, [
-    params.paymentIntentId,
-    params.txid,
-    params.verified,
-    params.stage,
-    params.reason,
-    params.amount,
-    params.sender,
-    params.receiver,
-    params.ledger,
-    params.txStatus,
-    params.chainReference,
-    JSON.stringify(params.payload ?? {}),
-  ]);
+    `,
+    [
+      params.paymentIntentId,
+      params.txid,
+      params.verified,
+      params.stage,
+      params.reason,
+      params.amount,
+      params.sender,
+      params.receiver,
+      params.ledger,
+      params.txStatus,
+      params.chainReference,
+      JSON.stringify(params.payload ?? {}),
+    ]
+  );
 }
 
 export async function verifyRpcPaymentForReconcile({
@@ -125,7 +133,10 @@ export async function verifyRpcPaymentForReconcile({
     throw new Error("INVALID_RPC_VERIFY_INPUT");
   }
 
-  console.log("[PAYMENT][RPC] START", { paymentIntentId });
+  console.log("[PAYMENT][RPC] START", {
+    paymentIntentId,
+    txid,
+  });
 
   const paymentIntent = await getPaymentIntent(paymentIntentId);
 
@@ -138,33 +149,52 @@ export async function verifyRpcPaymentForReconcile({
 
   const rpcTx = await getRpcTransaction(txid);
 
-  const chainAmount = rpcTx.amount;
-  const chainSender = rpcTx.sender;
-  const chainReceiver = rpcTx.receiver;
-  const chainLedger = rpcTx.ledger;
-  const chainStatus = rpcTx.status;
-  const chainReference = rpcTx.hash;
-
   let verified = true;
+  let stage = "RPC_OK";
   let reason: string | null = null;
-  let stage = "RPC_DONE";
 
-  if (chainStatus !== "success" && chainStatus !== "confirmed") {
+  if (!rpcTx.rpcReachable) {
     verified = false;
+    stage = "RPC_FAIL";
+    reason = "RPC_UNREACHABLE";
+  }
+
+  if (verified && !rpcTx.confirmed) {
+    verified = false;
+    stage = "RPC_FAIL";
     reason = "TX_NOT_CONFIRMED";
-    stage = "RPC_FAIL";
   }
 
-  if (verified && Number(chainAmount.toFixed(7)) !== Number(expectedAmount.toFixed(7))) {
+  if (verified && rpcTx.amount === null) {
     verified = false;
+    stage = "RPC_FAIL";
+    reason = "AMOUNT_NOT_FOUND";
+  }
+
+  if (
+    verified &&
+    rpcTx.amount !== null &&
+    !sameAmount(rpcTx.amount, expectedAmount)
+  ) {
+    verified = false;
+    stage = "RPC_FAIL";
     reason = "AMOUNT_MISMATCH";
-    stage = "RPC_FAIL";
   }
 
-  if (verified && normalizeWallet(chainReceiver) !== expectedReceiver) {
+  if (verified && !rpcTx.receiver) {
     verified = false;
-    reason = "RECEIVER_MISMATCH";
     stage = "RPC_FAIL";
+    reason = "RECEIVER_NOT_FOUND";
+  }
+
+  if (
+    verified &&
+    rpcTx.receiver &&
+    normalizeWallet(rpcTx.receiver) !== expectedReceiver
+  ) {
+    verified = false;
+    stage = "RPC_FAIL";
+    reason = "RECEIVER_MISMATCH";
   }
 
   await insertRpcVerificationLog({
@@ -173,31 +203,33 @@ export async function verifyRpcPaymentForReconcile({
     verified,
     stage,
     reason,
-    amount: chainAmount,
-    sender: chainSender,
-    receiver: chainReceiver,
-    ledger: chainLedger,
-    txStatus: chainStatus,
-    chainReference,
+    amount: rpcTx.amount,
+    sender: rpcTx.sender,
+    receiver: rpcTx.receiver,
+    ledger: rpcTx.ledger,
+    txStatus: rpcTx.confirmed ? "confirmed" : "unconfirmed",
+    chainReference: rpcTx.hash,
     payload: rpcTx.raw,
   });
 
-  console.log("[PAYMENT][RPC] AUDIT_WRITTEN", {
+  console.log("[PAYMENT][RPC] DONE", {
     verified,
     reason,
-    amount: chainAmount,
+    amount: rpcTx.amount,
+    receiver: rpcTx.receiver,
+    ledger: rpcTx.ledger,
   });
 
   return {
     ok: verified,
     audited: true,
     verified,
-    amount: chainAmount,
-    sender: chainSender,
-    receiver: chainReceiver,
-    ledger: chainLedger,
-    txStatus: chainStatus,
-    chainReference,
+    amount: rpcTx.amount,
+    sender: rpcTx.sender,
+    receiver: rpcTx.receiver,
+    ledger: rpcTx.ledger,
+    confirmed: rpcTx.confirmed,
+    chainReference: rpcTx.hash,
     payload: rpcTx.raw,
     reason,
   };
