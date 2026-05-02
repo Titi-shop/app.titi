@@ -1,57 +1,39 @@
-/* =========================================================
-   PI RPC CLIENT (PRODUCTION FIXED)
-   Centralized blockchain read interface
-========================================================= */
-
 const PI_RPC_URL =
   process.env.PI_RPC_URL?.trim() ||
   "https://rpc.testnet.minepi.com";
 
 /* =========================================================
-   BASE TYPES
+   TYPES
 ========================================================= */
 
-type RpcEnvelope<T> = {
+type RpcEnvelope = {
   jsonrpc?: string;
   id?: number | string;
-  result?: T;
+  result?: Record<string, unknown>;
   error?: {
     code?: number;
     message?: string;
   };
 };
 
-export type RpcPaymentOperation = {
-  from?: string;
-  to?: string;
-  amount?: string | number;
-  asset?: string;
-};
-
-export type RpcTransaction = {
-  hash?: string;
-  successful?: boolean;
-  ledger?: number;
-  created_at?: string;
-  source_account?: string;
-  fee_account?: string;
-  memo?: string;
-  operation_count?: number;
-  operations?: RpcPaymentOperation[];
-};
-
-export type RpcHealth = {
-  status?: string;
+export type ParsedRpcTransaction = {
+  hash: string | null;
+  status: string | null;
+  ledger: number | null;
+  amount: number | null;
+  sender: string | null;
+  receiver: string | null;
+  raw: unknown;
 };
 
 /* =========================================================
-   LOW LEVEL RPC CALL
+   LOW LEVEL CALL
 ========================================================= */
 
-async function rpcCall<T>(
+async function rpcCall(
   method: string,
   params: Record<string, unknown>
-): Promise<T> {
+): Promise<Record<string, unknown>> {
   const res = await fetch(PI_RPC_URL, {
     method: "POST",
     headers: {
@@ -66,12 +48,12 @@ async function rpcCall<T>(
     }),
   });
 
-  const raw = await res.text();
+  const rawText = await res.text();
 
-  let json: RpcEnvelope<T>;
+  let json: RpcEnvelope;
 
   try {
-    json = JSON.parse(raw);
+    json = JSON.parse(rawText);
   } catch {
     throw new Error("RPC_INVALID_JSON");
   }
@@ -84,7 +66,7 @@ async function rpcCall<T>(
     throw new Error(`RPC_ERROR_${json.error.code ?? "UNKNOWN"}`);
   }
 
-  if (!json.result) {
+  if (!json.result || typeof json.result !== "object") {
     throw new Error("RPC_EMPTY_RESULT");
   }
 
@@ -92,16 +74,35 @@ async function rpcCall<T>(
 }
 
 /* =========================================================
-   PUBLIC METHODS
+   SAFE PARSER
 ========================================================= */
 
-export async function rpcHealthCheck(): Promise<RpcHealth> {
-  return rpcCall<RpcHealth>("getHealth", {});
+function asObj(v: unknown): Record<string, unknown> {
+  return typeof v === "object" && v !== null
+    ? (v as Record<string, unknown>)
+    : {};
 }
 
-export async function rpcGetTransaction(
+function asArray(v: unknown): Record<string, unknown>[] {
+  return Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+}
+
+function num(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function str(v: unknown): string | null {
+  return typeof v === "string" ? v : null;
+}
+
+/* =========================================================
+   MAIN METHOD
+========================================================= */
+
+export async function getRpcTransaction(
   txid: string
-): Promise<RpcTransaction | null> {
+): Promise<ParsedRpcTransaction> {
   const clean = txid.trim();
 
   if (!clean) {
@@ -109,78 +110,58 @@ export async function rpcGetTransaction(
   }
 
   try {
-    return await rpcCall<RpcTransaction>("getTransaction", {
+    const result = await rpcCall("getTransaction", {
       hash: clean,
     });
-  } catch {
-    return null;
-  }
-}
 
-/* =========================================================
-   SAFE PAYMENT EXTRACTOR (FIXED CORE BUG)
-========================================================= */
+    const tx = asObj(result.transaction ?? result);
+    const ops = asArray(result.operations ?? tx.operations);
 
-export function extractPaymentOperation(
-  tx: RpcTransaction | null
-): {
-  amount: number | null;
-  receiver: string | null;
-  sender: string | null;
-} {
-  if (!tx) {
-    return { amount: null, receiver: null, sender: null };
-  }
+    let amount: number | null = null;
+    let receiver: string | null = null;
 
-  // fallback: sometimes RPC puts sender here
-  const sender = tx.source_account ?? null;
+    for (const op of ops) {
+      const opType = str(op.type);
 
-  const ops = Array.isArray(tx.operations) ? tx.operations : [];
+      if (opType && opType !== "payment") continue;
 
-  for (const op of ops) {
-    const hasValue = op?.to && op?.amount;
+      amount = num(op.amount);
+      receiver = str(op.to);
 
-    if (!hasValue) continue;
+      if (amount !== null || receiver !== null) {
+        break;
+      }
+    }
 
-    const amount =
-      typeof op.amount === "string"
-        ? Number(op.amount)
-        : typeof op.amount === "number"
-          ? op.amount
-          : null;
+    const sender =
+      str(tx.source_account) ||
+      str(tx.fee_account) ||
+      null;
+
+    const successful =
+      tx.successful === true ||
+      String(tx.successful || "").toLowerCase() === "true";
 
     return {
-      amount: Number.isFinite(amount as number) ? (amount as number) : null,
-      receiver: typeof op.to === "string" ? op.to : null,
+      hash: str(tx.hash) || clean,
+      status: successful ? "confirmed" : "pending",
+      ledger: num(tx.ledger),
+      amount,
       sender,
+      receiver,
+      raw: result,
+    };
+  } catch (err) {
+    console.error("[RPC CLIENT] GET_TX_FAIL", err);
+
+    return {
+      hash: clean,
+      status: "rpc_error",
+      ledger: null,
+      amount: null,
+      sender: null,
+      receiver: null,
+      raw: {},
     };
   }
-
-  return {
-    amount: null,
-    receiver: null,
-    sender,
-  };
 }
-
-/* =========================================================
-   CONFIRMATION HELPERS
-========================================================= */
-
-export function isTransactionConfirmed(tx: RpcTransaction | null): boolean {
-  if (!tx) return false;
-
-  // Ledger existence is strongest proof in RPC systems
-  if (typeof tx.ledger === "number") return true;
-
-  // fallback (some networks)
-  if (tx.successful === true) return true;
-
-  return false;
-}
-
-/* =========================================================
-   EXPORT ALIAS (BACKWARD COMPAT)
-========================================================= */
-
-export { rpcGetTransaction as getRpcTransaction };
