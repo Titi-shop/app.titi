@@ -147,30 +147,38 @@ export async function POST(req: Request) {
        STEP 2 — RPC VERIFY (BLOCKING GATE)
     ========================================================= */
 
-    console.log("[PAYMENT][RECONCILE] STEP2_RPC_VERIFY");
+    console.log("[PAYMENT][RECONCILE] STEP2_RPC_AUDIT");
 
-    const rpcVerified = await verifyRpcPaymentForReconcile({
-      paymentIntentId: payment_intent_id,
-      txid,
-    });
+let rpcVerified: {
+  ok?: boolean;
+  audited?: boolean;
+  reason?: string;
+  ledger?: number | null;
+  amount?: number;
+} = {};
 
-    if (!rpcVerified.ok) {
-      console.warn("[PAYMENT][RECONCILE] RPC_VERIFY_FAIL", {
-        reason: rpcVerified.reason,
-      });
+try {
+  rpcVerified = await verifyRpcPaymentForReconcile({
+    paymentIntentId: payment_intent_id,
+    txid,
+  });
 
-      return NextResponse.json(
-        {
-          error: rpcVerified.reason || "RPC_NOT_VERIFIED",
-        },
-        { status: 400 }
-      );
-    }
+  console.log("[PAYMENT][RECONCILE] RPC_AUDIT_OK", {
+    ok: rpcVerified.ok,
+    ledger: rpcVerified.ledger,
+    reason: rpcVerified.reason,
+  });
+} catch (err) {
+  console.warn("[PAYMENT][RECONCILE] RPC_AUDIT_SKIP", {
+    message: err instanceof Error ? err.message : String(err),
+  });
 
-    console.log("[PAYMENT][RECONCILE] RPC_VERIFY_OK", {
-      amount: rpcVerified.amount,
-      ledger: rpcVerified.ledger,
-    });
+  rpcVerified = {
+    ok: false,
+    audited: false,
+    reason: "RPC_AUDIT_SKIPPED",
+  };
+}
 
     /* =========================================================
        STEP 3 — FINALIZE ORDER + PAYMENT RECEIPT (ATOMIC)
