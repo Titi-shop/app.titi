@@ -1,10 +1,9 @@
 /* =========================================================
-   PAYMENT TYPES
-   Unified contract for all payment routes/services/jobs
+   PAYMENT TYPES MASTER CONTRACT
 ========================================================= */
 
 /* =========================================================
-   COMMON JSON TYPE
+   JSON SAFE TYPES
 ========================================================= */
 
 export type JsonPrimitive =
@@ -28,6 +27,7 @@ export type JsonObject = {
 
 export type PaymentSettlementSource =
   | "client_submit"
+  | "reconcile-api"
   | "pi_webhook"
   | "reconcile_job"
   | "manual_retry";
@@ -83,11 +83,13 @@ export type RpcAuditResult = {
   receiver: string | null;
 
   ledger: number | null;
+  confirmed: boolean;
   txStatus: string | null;
   chainReference: string | null;
 
   payload: JsonValue;
   reason: string | null;
+  stage: string;
 };
 
 /* =========================================================
@@ -114,8 +116,6 @@ export type FinalizePaidOrderParams = {
 
   piPayload: JsonValue;
   rpcPayload: RpcAuditResult;
-
-  userId: string | null;
 };
 
 /* =========================================================
@@ -133,13 +133,12 @@ export type FinalizePaidOrderResult = {
 ========================================================= */
 
 export type PaymentJobStatus =
-  | "queued"
+  | "pending"
   | "processing"
   | "done"
   | "failed";
 
-export type PaymentJobType =
-  | "reconcile";
+export type PaymentJobType = "reconcile";
 
 export type EnqueueReconcileJobInput = {
   paymentIntentId: string;
@@ -164,6 +163,7 @@ export type GuardPaymentResult =
       amount: number;
       piPaymentId: string | null;
       txid: string | null;
+      orderId: string | null;
     }
   | {
       ok: false;
@@ -173,6 +173,8 @@ export type GuardPaymentResult =
         | "PAYMENT_CANCELLED"
         | "PAYMENT_FAILED"
         | "PAYMENT_ALREADY_PAID";
+      amount?: number;
+      orderId?: string | null;
     };
 
 /* =========================================================
@@ -184,7 +186,7 @@ export type PaymentLockResult =
   | { ok: false; code: "LOCK_DENIED" };
 
 /* =========================================================
-   WEBHOOK BODY TYPES
+   WEBHOOK BODY
 ========================================================= */
 
 export type PiWebhookPayload = {
@@ -194,7 +196,7 @@ export type PiWebhookPayload = {
 };
 
 /* =========================================================
-   ROUTE BODY TYPES
+   ROUTE BODY
 ========================================================= */
 
 export type SubmitPaymentBody = {
@@ -210,7 +212,7 @@ export type ReconcilePaymentBody = {
 };
 
 /* =========================================================
-   PAYMENT AUDIT LEVELS
+   AUDIT TYPES
 ========================================================= */
 
 export type AuditSeverity =
@@ -232,7 +234,7 @@ export type AuditStage =
   | "MANUAL";
 
 /* =========================================================
-   ESCROW LEDGER TYPES
+   ESCROW TYPES
 ========================================================= */
 
 export type EscrowStatus =
