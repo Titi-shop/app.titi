@@ -1,3 +1,4 @@
+
 import { query } from "@/lib/db";
 import { getRpcTransaction } from "@/lib/rpc/client";
 
@@ -14,16 +15,12 @@ type RpcVerifyResult = {
   ok: boolean;
   audited: boolean;
   verified: boolean;
-
   amount: number | null;
   sender: string | null;
   receiver: string | null;
-
   ledger: number | null;
   confirmed: boolean;
-  txStatus: string | null;
   chainReference: string | null;
-
   payload: unknown;
   reason: string | null;
   stage: string;
@@ -40,15 +37,15 @@ type PaymentIntentRow = {
 ========================================================= */
 
 function log(tag: string, data?: unknown) {
-  console.log(`[RPC V6][${tag}]`, data ?? "");
+  console.log(`[RPC V5][${tag}]`, data ?? "");
 }
 
 function warn(tag: string, data?: unknown) {
-  console.warn(`[RPC V6][${tag}]`, data ?? "");
+  console.warn(`[RPC V5][${tag}]`, data ?? "");
 }
 
 function fail(tag: string, data?: unknown) {
-  console.error(`[RPC V6][${tag}]`, data ?? "");
+  console.error(`[RPC V5][${tag}]`, data ?? "");
 }
 
 /* =========================================================
@@ -99,7 +96,7 @@ async function getPaymentIntent(
 }
 
 /* =========================================================
-   DB INSERT RPC LOG
+   DB INSERT LOG
 ========================================================= */
 
 async function insertRpcLog(input: {
@@ -174,7 +171,7 @@ async function insertRpcLog(input: {
 }
 
 /* =========================================================
-   MAIN RPC VERIFY V6
+   MAIN
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
@@ -220,16 +217,13 @@ export async function verifyRpcPaymentForReconcile({
   log("RPC_TRACE", {
     rpcReachable: rpcTx.rpcReachable,
     confirmed: rpcTx.confirmed,
-    amountFound: rpcTx.debug.amountFound,
-    senderFound: rpcTx.debug.senderFound,
-    receiverFound: rpcTx.debug.receiverFound,
-    parseLayer: rpcTx.debug.parseLayer,
-    hasMeta: rpcTx.debug.hasMeta,
-    hasEvents: rpcTx.debug.hasEvents,
+    amountFound: rpcTx.amount !== null,
+    senderFound: !!rpcTx.sender,
+    receiverFound: !!rpcTx.receiver,
   });
 
   /* =====================================================
-     VALIDATION PIPELINE
+     SOFT AUDIT PIPELINE
   ===================================================== */
 
   let verified = true;
@@ -254,9 +248,7 @@ export async function verifyRpcPaymentForReconcile({
     verified = false;
     stage = "RPC_AMOUNT_UNREADABLE";
     reason = "AMOUNT_NOT_READABLE";
-    warn(stage, {
-      parseLayer: rpcTx.debug.parseLayer,
-    });
+    warn(stage, reason);
   }
 
   else if (!sameAmount(rpcTx.amount, expectedAmount)) {
@@ -273,9 +265,7 @@ export async function verifyRpcPaymentForReconcile({
     verified = false;
     stage = "RPC_RECEIVER_UNREADABLE";
     reason = "RECEIVER_NOT_READABLE";
-    warn(stage, {
-      parseLayer: rpcTx.debug.parseLayer,
-    });
+    warn(stage, reason);
   }
 
   else if (normalizeWallet(rpcTx.receiver) !== expectedReceiver) {
@@ -294,10 +284,7 @@ export async function verifyRpcPaymentForReconcile({
     reason,
     amount: rpcTx.amount,
     ledger: rpcTx.ledger,
-    parseLayer: rpcTx.debug.parseLayer,
   });
-
-  const txStatus = rpcTx.confirmed ? "confirmed" : "unconfirmed";
 
   await insertRpcLog({
     paymentIntentId,
@@ -309,7 +296,7 @@ export async function verifyRpcPaymentForReconcile({
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
     ledger: rpcTx.ledger,
-    txStatus,
+    txStatus: rpcTx.confirmed ? "confirmed" : "unconfirmed",
     chainReference: rpcTx.hash,
     payload: rpcTx.raw,
   });
@@ -318,16 +305,12 @@ export async function verifyRpcPaymentForReconcile({
     ok: verified,
     audited: true,
     verified,
-
     amount: rpcTx.amount,
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
-
     ledger: rpcTx.ledger,
     confirmed: rpcTx.confirmed,
-    txStatus,
     chainReference: rpcTx.hash,
-
     payload: rpcTx.raw,
     reason,
     stage,
