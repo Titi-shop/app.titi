@@ -16,6 +16,11 @@ type RpcEnvelope = {
   };
 };
 
+type RpcEventsContainer = {
+  transactionEventsXdr?: unknown[];
+  contractEventsXdr?: unknown[];
+};
+
 export type ParsedRpcTransaction = {
   hash: string | null;
   ledger: number | null;
@@ -43,11 +48,11 @@ export type ParsedRpcTransaction = {
 ========================================================= */
 
 function log(tag: string, data?: unknown) {
-  console.log(`[RPC CLIENT V3] ${tag}`, data ?? "");
+  console.log(`[RPC CLIENT V4] ${tag}`, data ?? "");
 }
 
-function err(tag: string, data?: unknown) {
-  console.error(`[RPC CLIENT V3] ${tag}`, data ?? "");
+function error(tag: string, data?: unknown) {
+  console.error(`[RPC CLIENT V4] ${tag}`, data ?? "");
 }
 
 /* =========================================================
@@ -60,12 +65,14 @@ async function rpcCall(
 ): Promise<Record<string, unknown>> {
   log("RPC_CALL_START", { method, params });
 
-  let res: Response;
+  let response: Response;
 
   try {
-    res = await fetch(PI_RPC_URL, {
+    response = await fetch(PI_RPC_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       cache: "no-store",
       body: JSON.stringify({
         jsonrpc: "2.0",
@@ -75,33 +82,33 @@ async function rpcCall(
       }),
     });
   } catch (e) {
-    err("RPC_NETWORK_FAIL", e);
+    error("RPC_NETWORK_FAIL", e);
     throw new Error("RPC_UNREACHABLE");
   }
 
-  const rawText = await res.text();
+  const text = await response.text();
 
   let json: RpcEnvelope;
 
   try {
-    json = JSON.parse(rawText);
+    json = JSON.parse(text) as RpcEnvelope;
   } catch {
-    err("RPC_INVALID_JSON", rawText);
+    error("RPC_INVALID_JSON", text);
     throw new Error("RPC_INVALID_JSON");
   }
 
-  if (!res.ok) {
-    err("RPC_HTTP_ERROR", { status: res.status });
-    throw new Error(`RPC_HTTP_${res.status}`);
+  if (!response.ok) {
+    error("RPC_HTTP_ERROR", { status: response.status });
+    throw new Error(`RPC_HTTP_${response.status}`);
   }
 
   if (json.error) {
-    err("RPC_ERROR", json.error);
+    error("RPC_ERROR", json.error);
     throw new Error("RPC_ERROR");
   }
 
   if (!json.result) {
-    err("RPC_EMPTY_RESULT");
+    error("RPC_EMPTY_RESULT");
     throw new Error("RPC_EMPTY_RESULT");
   }
 
@@ -111,57 +118,108 @@ async function rpcCall(
 }
 
 /* =========================================================
-   SAFE HELPERS
+   SAFE CAST
 ========================================================= */
 
-function asObj(v: unknown): Record<string, unknown> {
-  return typeof v === "object" && v !== null
-    ? (v as Record<string, unknown>)
+function asObj(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
     : {};
 }
 
-function num(v: unknown): number | null {
-  const n = Number(v);
+function str(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function num(value: unknown): number | null {
+  const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-function str(v: unknown): string | null {
-  return typeof v === "string" ? v.trim() : null;
+/* =========================================================
+   PI AMOUNT NORMALIZER
+   Pi RPC often returns atomic integer like 11000000 => 1.1 PI
+========================================================= */
+
+function normalizePiAmount(value: unknown): number | null {
+  const raw = num(value);
+
+  if (raw === null) {
+    return null;
+  }
+
+  if (raw <= 0) {
+    return null;
+  }
+
+  if (raw >= 10000000) {
+    return raw / 10000000;
+  }
+
+  return raw;
 }
 
 /* =========================================================
-   EXTRACT LOGIC (PI RPC SAFE MODE)
+   EXTRACTOR
 ========================================================= */
 
-function extractTx(tx: Record<string, unknown>) {
-  const meta = tx.resultMetaXdr;
-  const events = (tx as { events?: { transactionEventsXdr?: unknown[] } }).events
-    ?.transactionEventsXdr;
+function extractTxFields(
+  tx: Record<string, unknown>
+): {
+  amount: number | null;
+  sender: string | null;
+  receiver: string | null;
+  hasMeta: boolean;
+  hasEvents: boolean;
+} {
+  const events = asObj(tx.events) as RpcEventsContainer;
 
-  const amountRaw =
-    tx.amount ??
-    tx.value ??
-    (tx as { payment?: { amount?: unknown } }).payment?.amount ??
-    null;
+  const hasMeta = typeof tx.resultMetaXdr === "string";
+  const hasEvents =
+    (Array.isArray(events.transactionEventsXdr) &&
+      events.transactionEventsXdr.length > 0) ||
+    (Array.isArray(events.contractEventsXdr) &&
+      events.contractEventsXdr.length > 0);
+
+  /* =====================================================
+     AMOUNT PARSE
+     priority: amount -> value -> payment.amount
+  ===================================================== */
+
+  const amount =
+    normalizePiAmount(tx.amount) ??
+    normalizePiAmount(tx.value) ??
+    normalizePiAmount(asObj(tx.payment).amount);
+
+  /* =====================================================
+     SENDER PARSE
+  ===================================================== */
 
   const sender =
     str(tx.from_address) ||
     str(tx.source_account) ||
     str(tx.source) ||
-    null;
+    str(tx.account);
+
+  /* =====================================================
+     RECEIVER PARSE
+     Pi RPC often does not expose this directly
+     so null is honest, not fake parse
+  ===================================================== */
 
   const receiver =
     str(tx.to_address) ||
     str(tx.destination) ||
-    (tx as { payment?: { destination?: string } }).payment?.destination ||
-    null;
+    str(asObj(tx.payment).destination);
 
   return {
-    amount: num(amountRaw),
-    sender,
-    receiver,
-    hasMeta: !!meta,
-    hasEvents: Array.isArray(events) && events.length > 0,
+    amount,
+    sender: sender ?? null,
+    receiver: receiver ?? null,
+    hasMeta,
+    hasEvents,
   };
 }
 
@@ -172,39 +230,39 @@ function extractTx(tx: Record<string, unknown>) {
 export async function getRpcTransaction(
   txid: string
 ): Promise<ParsedRpcTransaction> {
-  const clean = txid.trim();
+  const cleanTxid = txid.trim();
 
-  log("GET_TX_START", { txid: clean });
+  log("GET_TX_START", { txid: cleanTxid });
 
-  if (!clean) {
+  if (!cleanTxid) {
     throw new Error("RPC_TXID_REQUIRED");
   }
 
   try {
     const result = await rpcCall("getTransaction", {
-      hash: clean,
+      hash: cleanTxid,
     });
 
     const tx = asObj(result.transaction ?? result);
 
-    const parsed = extractTx(tx);
+    const extracted = extractTxFields(tx);
 
     const ledger = num(tx.ledger);
 
     const confirmed =
       tx.status === "SUCCESS" ||
-      (tx.successful === true) ||
+      tx.successful === true ||
       ledger !== null;
 
-    const amountFound = parsed.amount !== null;
-    const senderFound = parsed.sender !== null;
-    const receiverFound = parsed.receiver !== null;
+    const amountFound = extracted.amount !== null;
+    const senderFound = extracted.sender !== null;
+    const receiverFound = extracted.receiver !== null;
 
     log("PARSE_RESULT", {
-      txid: clean,
-      amount: parsed.amount,
-      sender: parsed.sender,
-      receiver: parsed.receiver,
+      txid: cleanTxid,
+      amount: extracted.amount,
+      sender: extracted.sender,
+      receiver: extracted.receiver,
       ledger,
       confirmed,
     });
@@ -213,16 +271,16 @@ export async function getRpcTransaction(
       amountFound,
       senderFound,
       receiverFound,
-      hasMeta: parsed.hasMeta,
-      hasEvents: parsed.hasEvents,
+      hasMeta: extracted.hasMeta,
+      hasEvents: extracted.hasEvents,
     });
 
     return {
-      hash: str(tx.hash) || clean,
+      hash: str(tx.hash) || cleanTxid,
       ledger,
-      amount: parsed.amount,
-      sender: parsed.sender,
-      receiver: parsed.receiver,
+      amount: extracted.amount,
+      sender: extracted.sender,
+      receiver: extracted.receiver,
       confirmed,
       rpcReachable: true,
       raw: result,
@@ -230,15 +288,15 @@ export async function getRpcTransaction(
         amountFound,
         senderFound,
         receiverFound,
-        hasMeta: parsed.hasMeta,
-        hasEvents: parsed.hasEvents,
+        hasMeta: extracted.hasMeta,
+        hasEvents: extracted.hasEvents,
       },
     };
   } catch (e) {
-    err("GET_TX_FAIL", e);
+    error("GET_TX_FAIL", e);
 
     return {
-      hash: clean,
+      hash: cleanTxid,
       ledger: null,
       amount: null,
       sender: null,
