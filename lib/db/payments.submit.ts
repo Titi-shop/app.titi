@@ -4,6 +4,7 @@ type MarkPaymentVerifyingInput = {
   paymentIntentId: string;
   userId: string;
   piPaymentId: string;
+  txid: string;
 };
 
 type PaymentIntentRow = {
@@ -12,11 +13,19 @@ type PaymentIntentRow = {
   status: string;
 };
 
+type MarkPaymentVerifyingResult = {
+  ok: boolean;
+  already: boolean;
+  status: string;
+  paymentIntentId: string;
+};
+
 export async function markPaymentVerifying({
   paymentIntentId,
   userId,
   piPaymentId,
-}: MarkPaymentVerifyingInput) {
+  txid,
+}: MarkPaymentVerifyingInput): Promise<MarkPaymentVerifyingResult> {
   return await withTransaction(async (client) => {
     const found = await client.query<PaymentIntentRow>(
       `
@@ -38,9 +47,9 @@ export async function markPaymentVerifying({
       throw new Error("FORBIDDEN");
     }
 
-    /* =========================
-       IDEMPOTENT
-    ========================= */
+    /* =====================================================
+       IDEMPOTENT CASE
+    ===================================================== */
 
     if (intent.status === "paid") {
       return {
@@ -60,9 +69,9 @@ export async function markPaymentVerifying({
       };
     }
 
-    /* =========================
+    /* =====================================================
        STATUS GUARD
-    ========================= */
+    ===================================================== */
 
     if (
       intent.status !== "created" &&
@@ -71,9 +80,9 @@ export async function markPaymentVerifying({
       throw new Error("INVALID_STATUS");
     }
 
-    /* =========================
-       UPDATE LOCK STATE
-    ========================= */
+    /* =====================================================
+       UPDATE VERIFYING LOCK
+    ===================================================== */
 
     await client.query(
       `
@@ -81,14 +90,16 @@ export async function markPaymentVerifying({
       SET
         status = 'verifying',
         pi_payment_id = $2,
+        txid = $3,
         updated_at = now()
       WHERE id = $1
       `,
-      [paymentIntentId, piPaymentId]
+      [paymentIntentId, piPaymentId, txid]
     );
 
     return {
       ok: true,
+      already: false,
       status: "verifying",
       paymentIntentId,
     };
