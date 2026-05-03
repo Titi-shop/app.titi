@@ -102,7 +102,23 @@ export async function markPaymentVerifying({
        IDEMPOTENT CASE
     ===================================================== */
 
-    bfnf
+    if (intent.status === "verifying") {
+  if (intent.txid !== txid || intent.pi_payment_id !== piPaymentId) {
+    await insertSubmitAudit(client, {
+      paymentIntentId,
+      userId,
+      piPaymentId,
+      txid,
+    });
+  }
+
+  return {
+    ok: true,
+    already: true,
+    status: "verifying",
+    paymentIntentId,
+  };
+}
 
     /* =====================================================
        STATUS GUARD
@@ -131,7 +147,12 @@ export async function markPaymentVerifying({
       `,
       [paymentIntentId, piPaymentId, txid]
     );
-
+await insertSubmitAudit(client, {
+  paymentIntentId,
+  userId,
+  piPaymentId,
+  txid,
+});
     return {
       ok: true,
       already: false,
