@@ -32,34 +32,36 @@ type PaymentIntentRow = {
 };
 
 /* =========================================================
-   LOG HELPER (UNIFIED)
+   LOGGER
 ========================================================= */
 
 function log(tag: string, data?: unknown) {
-  console.log(`[RPC V4][${tag}]`, data ?? "");
+  console.log(`[RPC V5][${tag}]`, data ?? "");
 }
 
 function warn(tag: string, data?: unknown) {
-  console.warn(`[RPC V4][${tag}]`, data ?? "");
+  console.warn(`[RPC V5][${tag}]`, data ?? "");
 }
 
-function err(tag: string, data?: unknown) {
-  console.error(`[RPC V4][${tag}]`, data ?? "");
+function fail(tag: string, data?: unknown) {
+  console.error(`[RPC V5][${tag}]`, data ?? "");
 }
 
 /* =========================================================
-   UTILS
+   SAFE HELPERS
 ========================================================= */
 
-function isUUID(v: unknown): v is string {
+function isUUID(value: unknown): value is string {
   return (
-    typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    )
   );
 }
 
-function normalizeWallet(v: string | null): string {
-  return (v ?? "").trim().toLowerCase();
+function normalizeWallet(value: string | null): string {
+  return (value ?? "").trim().toLowerCase();
 }
 
 function sameAmount(a: number, b: number): boolean {
@@ -67,11 +69,13 @@ function sameAmount(a: number, b: number): boolean {
 }
 
 /* =========================================================
-   DB
+   DB FETCH INTENT
 ========================================================= */
 
-async function getPaymentIntent(id: string): Promise<PaymentIntentRow | null> {
-  log("DB_FETCH_INTENT_START", { id });
+async function getPaymentIntent(
+  paymentIntentId: string
+): Promise<PaymentIntentRow | null> {
+  log("DB_FETCH_INTENT_START", { paymentIntentId });
 
   const rs = await query<PaymentIntentRow>(
     `
@@ -80,10 +84,10 @@ async function getPaymentIntent(id: string): Promise<PaymentIntentRow | null> {
     WHERE id = $1
     LIMIT 1
     `,
-    [id]
+    [paymentIntentId]
   );
 
-  const row = rs.rows[0] || null;
+  const row = rs.rows[0] ?? null;
 
   log("DB_FETCH_INTENT_RESULT", row);
 
@@ -91,7 +95,7 @@ async function getPaymentIntent(id: string): Promise<PaymentIntentRow | null> {
 }
 
 /* =========================================================
-   LOG INSERT
+   DB INSERT LOG
 ========================================================= */
 
 async function insertRpcLog(input: {
@@ -110,8 +114,8 @@ async function insertRpcLog(input: {
 }) {
   log("DB_LOG_INSERT", {
     txid: input.txid,
-    stage: input.stage,
     verified: input.verified,
+    stage: input.stage,
     reason: input.reason,
   });
 
@@ -166,7 +170,7 @@ async function insertRpcLog(input: {
 }
 
 /* =========================================================
-   MAIN RPC V4
+   MAIN
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
@@ -175,19 +179,15 @@ export async function verifyRpcPaymentForReconcile({
 }: VerifyRpcParams): Promise<RpcVerifyResult> {
   log("START", { paymentIntentId, txid });
 
-  if (!isUUID(paymentIntentId) || !txid?.trim()) {
-    err("INVALID_INPUT", { paymentIntentId, txid });
+  if (!isUUID(paymentIntentId) || !txid.trim()) {
+    fail("INVALID_INPUT", { paymentIntentId, txid });
     throw new Error("INVALID_RPC_VERIFY_INPUT");
   }
-
-  /* =====================================================
-     LOAD INTENT
-  ===================================================== */
 
   const intent = await getPaymentIntent(paymentIntentId);
 
   if (!intent) {
-    err("INTENT_NOT_FOUND", { paymentIntentId });
+    fail("INTENT_NOT_FOUND", { paymentIntentId });
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
 
@@ -203,8 +203,6 @@ export async function verifyRpcPaymentForReconcile({
      RPC FETCH
   ===================================================== */
 
-  log("RPC_FETCH_START", { txid });
-
   const rpcTx = await getRpcTransaction(txid);
 
   log("RPC_RAW_RESULT", {
@@ -213,23 +211,18 @@ export async function verifyRpcPaymentForReconcile({
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
     ledger: rpcTx.ledger,
-    raw: rpcTx.raw,
   });
-
-  /* =====================================================
-     TRACE DEBUG (IMPORTANT FIX)
-  ===================================================== */
 
   log("RPC_TRACE", {
     rpcReachable: rpcTx.rpcReachable,
     confirmed: rpcTx.confirmed,
     amountFound: rpcTx.amount !== null,
-    receiverFound: !!rpcTx.receiver,
     senderFound: !!rpcTx.sender,
+    receiverFound: !!rpcTx.receiver,
   });
 
   /* =====================================================
-     VALIDATION PIPELINE
+     SOFT AUDIT PIPELINE
   ===================================================== */
 
   let verified = true;
@@ -243,55 +236,46 @@ export async function verifyRpcPaymentForReconcile({
     warn(stage, reason);
   }
 
-  if (verified && !rpcTx.confirmed) {
+  else if (!rpcTx.confirmed) {
     verified = false;
-    stage = "RPC_FAIL";
+    stage = "RPC_NOT_CONFIRMED";
     reason = "TX_NOT_CONFIRMED";
     warn(stage, reason);
   }
 
-  if (verified && rpcTx.amount === null) {
+  else if (rpcTx.amount === null) {
     verified = false;
-    stage = "RPC_PARSE_FAIL";
-    reason = "AMOUNT_NOT_FOUND";
-    warn(stage, { reason, raw: rpcTx.raw });
-  }
-
-  if (
-    verified &&
-    rpcTx.amount !== null &&
-    !sameAmount(rpcTx.amount, expectedAmount)
-  ) {
-    verified = false;
-    stage = "RPC_VALIDATION_FAIL";
-    reason = "AMOUNT_MISMATCH";
-    warn(stage, { rpc: rpcTx.amount, expected: expectedAmount });
-  }
-
-  if (verified && !rpcTx.receiver) {
-    verified = false;
-    stage = "RPC_PARSE_FAIL";
-    reason = "RECEIVER_NOT_FOUND";
+    stage = "RPC_AMOUNT_UNREADABLE";
+    reason = "AMOUNT_NOT_READABLE";
     warn(stage, reason);
   }
 
-  if (
-    verified &&
-    rpcTx.receiver &&
-    normalizeWallet(rpcTx.receiver) !== expectedReceiver
-  ) {
+  else if (!sameAmount(rpcTx.amount, expectedAmount)) {
     verified = false;
-    stage = "RPC_VALIDATION_FAIL";
+    stage = "RPC_AMOUNT_MISMATCH";
+    reason = "AMOUNT_MISMATCH";
+    warn(stage, {
+      rpc: rpcTx.amount,
+      expected: expectedAmount,
+    });
+  }
+
+  else if (!rpcTx.receiver) {
+    verified = false;
+    stage = "RPC_RECEIVER_UNREADABLE";
+    reason = "RECEIVER_NOT_READABLE";
+    warn(stage, reason);
+  }
+
+  else if (normalizeWallet(rpcTx.receiver) !== expectedReceiver) {
+    verified = false;
+    stage = "RPC_RECEIVER_MISMATCH";
     reason = "RECEIVER_MISMATCH";
     warn(stage, {
       rpc: rpcTx.receiver,
       expected: expectedReceiver,
     });
   }
-
-  /* =====================================================
-     FINAL LOG
-  ===================================================== */
 
   log("FINAL_RESULT", {
     verified,
