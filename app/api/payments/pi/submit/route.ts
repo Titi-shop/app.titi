@@ -1,36 +1,34 @@
 
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
-import { enqueueReconcileJob } from "@/lib/db/payment.jobs";
 
-import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
-
-import type {
-  SubmitPaymentBody,
-} from "@/lib/payments/payment.types";
+import type { SubmitPaymentBody } from "@/lib/payments/payment.types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   HELPERS
+   SAFE HELPERS
 ========================================================= */
 
-function isUUID(v: unknown): v is string {
+function isUUID(value: unknown): value is string {
   return (
-    typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    )
   );
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function parseBody(raw: unknown): SubmitPaymentBody | null {
-  if (!isRecord(raw)) return null;
+  if (!isRecord(raw)) {
+    return null;
+  }
 
   const paymentIntentId =
     typeof raw.payment_intent_id === "string"
@@ -47,7 +45,7 @@ function parseBody(raw: unknown): SubmitPaymentBody | null {
       ? raw.txid.trim()
       : "";
 
-  if (!isUUID(paymentIntentId) || !piPaymentId || !txid) {
+  if (!isUUID(paymentIntentId) || piPaymentId.length === 0 || txid.length === 0) {
     return null;
   }
 
@@ -75,8 +73,14 @@ export async function POST(req: Request) {
     const auth = await getUserFromBearer();
 
     if (!auth) {
+      console.warn("[PAYMENT][SUBMIT] UNAUTHORIZED", { requestId });
+
       return NextResponse.json(
-        { error: "UNAUTHORIZED" },
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+          requestId,
+        },
         { status: 401 }
       );
     }
@@ -87,12 +91,20 @@ export async function POST(req: Request) {
        BODY
     ===================================================== */
 
-    const raw = await req.json().catch(() => null);
+    const raw: unknown = await req.json().catch(() => null);
     const body = parseBody(raw);
 
     if (!body) {
+      console.warn("[PAYMENT][SUBMIT] INVALID_BODY", {
+        requestId,
+      });
+
       return NextResponse.json(
-        { error: "INVALID_BODY" },
+        {
+          success: false,
+          error: "INVALID_BODY",
+          requestId,
+        },
         { status: 400 }
       );
     }
@@ -111,65 +123,46 @@ export async function POST(req: Request) {
     });
 
     /* =====================================================
-       STEP 1 — LOCK PAYMENT INTO VERIFYING
+       ONLY LOCK VERIFYING STATE
+       NO ORCHESTRATOR
+       NO PAYMENT JOB QUEUE
     ===================================================== */
 
-    await markPaymentVerifying({
+    const verifying = await markPaymentVerifying({
       paymentIntentId: payment_intent_id,
       userId,
       piPaymentId: pi_payment_id,
       txid,
     });
 
-    console.log("[PAYMENT][SUBMIT] VERIFYING_LOCKED");
-
-    /* =====================================================
-       STEP 2 — ENQUEUE BACKGROUND JOB
-    ===================================================== */
-
-    const job = await enqueueReconcileJob({
-      paymentIntentId: payment_intent_id,
-      piPaymentId: pi_payment_id,
-      txid,
-      userId,
-    });
-
-    console.log("[PAYMENT][SUBMIT] JOB_ENQUEUED", {
-      jobId: job.id,
+    console.log("[PAYMENT][SUBMIT] VERIFYING_LOCKED", {
+      requestId,
+      verifying,
     });
 
     /* =====================================================
-       STEP 3 — FIRE AND FORGET ORCHESTRATOR
-       do not await
-    ===================================================== */
-
-    void runPaymentSettlement({
-      paymentIntentId: payment_intent_id,
-      piPaymentId: pi_payment_id,
-      txid,
-      source: "client_submit",
-      userId,
-    }).catch((err: unknown) => {
-      console.error("[PAYMENT][SUBMIT] ASYNC_SETTLEMENT_FAIL", err);
-    });
-
-    console.log("[PAYMENT][SUBMIT] ENGINE_TRIGGERED");
-
-    /* =====================================================
-       FAST RESPONSE TO CLIENT
+       FAST RETURN
+       CLIENT WILL CALL /reconcile AFTER THIS
     ===================================================== */
 
     return NextResponse.json({
       success: true,
-      status: "processing",
       requestId,
-      jobId: job.id,
+      status: "processing",
+      payment_intent_id,
     });
-  } catch (err: unknown) {
-    console.error("[PAYMENT][SUBMIT] FAIL", err);
+  } catch (error: unknown) {
+    console.error("[PAYMENT][SUBMIT] FAIL", {
+      requestId,
+      error,
+    });
 
     return NextResponse.json(
-      { error: "SUBMIT_FAILED" },
+      {
+        success: false,
+        error: "SUBMIT_FAILED",
+        requestId,
+      },
       { status: 500 }
     );
   }
