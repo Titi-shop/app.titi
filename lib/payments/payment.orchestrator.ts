@@ -225,7 +225,7 @@ export async function runPaymentSettlement({
     rpcVerified = emptyRpc();
   }
 
-  if (!rpcVerified.ok) {
+  if (!rpcVerified.ok && rpcVerified.amount > 0) {
     await auditRpcFailed(paymentIntentId, {
       source,
       reason: rpcVerified.reason ?? "RPC_INVALID",
