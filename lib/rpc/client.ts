@@ -16,10 +16,7 @@ type RpcEnvelope = {
   };
 };
 
-type RpcEventsContainer = {
-  transactionEventsXdr?: unknown[];
-  contractEventsXdr?: unknown[];
-};
+type JsonObj = Record<string, unknown>;
 
 export type ParsedRpcTransaction = {
   hash: string | null;
@@ -38,21 +35,89 @@ export type ParsedRpcTransaction = {
     amountFound: boolean;
     senderFound: boolean;
     receiverFound: boolean;
+    parseLayer: string;
     hasMeta: boolean;
     hasEvents: boolean;
   };
 };
 
 /* =========================================================
-   LOGGER
+   LOG
 ========================================================= */
 
 function log(tag: string, data?: unknown) {
-  console.log(`[RPC CLIENT V4] ${tag}`, data ?? "");
+  console.log(`[RPC CLIENT V6] ${tag}`, data ?? "");
 }
 
-function error(tag: string, data?: unknown) {
-  console.error(`[RPC CLIENT V4] ${tag}`, data ?? "");
+function err(tag: string, data?: unknown) {
+  console.error(`[RPC CLIENT V6] ${tag}`, data ?? "");
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function asObj(v: unknown): JsonObj {
+  return typeof v === "object" && v !== null
+    ? (v as JsonObj)
+    : {};
+}
+
+function asArr(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+
+function str(v: unknown): string | null {
+  return typeof v === "string" ? v.trim() : null;
+}
+
+function num(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function deepFindString(
+  node: unknown,
+  keys: string[]
+): string | null {
+  if (!node || typeof node !== "object") return null;
+
+  const obj = node as JsonObj;
+
+  for (const k of keys) {
+    if (typeof obj[k] === "string") {
+      const val = String(obj[k]).trim();
+      if (val) return val;
+    }
+  }
+
+  for (const v of Object.values(obj)) {
+    const found = deepFindString(v, keys);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function deepFindNumber(
+  node: unknown,
+  keys: string[]
+): number | null {
+  if (!node || typeof node !== "object") return null;
+
+  const obj = node as JsonObj;
+
+  for (const k of keys) {
+    const n = num(obj[k]);
+    if (n !== null) return n;
+  }
+
+  for (const v of Object.values(obj)) {
+    const found = deepFindNumber(v, keys);
+    if (found !== null) return found;
+  }
+
+  return null;
 }
 
 /* =========================================================
@@ -62,13 +127,13 @@ function error(tag: string, data?: unknown) {
 async function rpcCall(
   method: string,
   params: Record<string, unknown>
-): Promise<Record<string, unknown>> {
+): Promise<JsonObj> {
   log("RPC_CALL_START", { method, params });
 
-  let response: Response;
+  let res: Response;
 
   try {
-    response = await fetch(PI_RPC_URL, {
+    res = await fetch(PI_RPC_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,33 +147,33 @@ async function rpcCall(
       }),
     });
   } catch (e) {
-    error("RPC_NETWORK_FAIL", e);
+    err("RPC_NETWORK_FAIL", e);
     throw new Error("RPC_UNREACHABLE");
   }
 
-  const text = await response.text();
+  const rawText = await res.text();
 
   let json: RpcEnvelope;
 
   try {
-    json = JSON.parse(text) as RpcEnvelope;
+    json = JSON.parse(rawText);
   } catch {
-    error("RPC_INVALID_JSON", text);
+    err("RPC_INVALID_JSON", rawText);
     throw new Error("RPC_INVALID_JSON");
   }
 
-  if (!response.ok) {
-    error("RPC_HTTP_ERROR", { status: response.status });
-    throw new Error(`RPC_HTTP_${response.status}`);
+  if (!res.ok) {
+    err("RPC_HTTP_FAIL", { status: res.status });
+    throw new Error(`RPC_HTTP_${res.status}`);
   }
 
   if (json.error) {
-    error("RPC_ERROR", json.error);
+    err("RPC_METHOD_FAIL", json.error);
     throw new Error("RPC_ERROR");
   }
 
   if (!json.result) {
-    error("RPC_EMPTY_RESULT");
+    err("RPC_EMPTY_RESULT");
     throw new Error("RPC_EMPTY_RESULT");
   }
 
@@ -118,109 +183,68 @@ async function rpcCall(
 }
 
 /* =========================================================
-   SAFE CAST
+   LAYER A — PARSE JSON UNPACKED ENVELOPE
 ========================================================= */
 
-function asObj(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function str(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
-}
-
-function num(value: unknown): number | null {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-/* =========================================================
-   PI AMOUNT NORMALIZER
-   Pi RPC often returns atomic integer like 11000000 => 1.1 PI
-========================================================= */
-
-function normalizePiAmount(value: unknown): number | null {
-  const raw = num(value);
-
-  if (raw === null) {
-    return null;
-  }
-
-  if (raw <= 0) {
-    return null;
-  }
-
-  if (raw >= 10000000) {
-    return raw / 10000000;
-  }
-
-  return raw;
-}
-
-/* =========================================================
-   EXTRACTOR
-========================================================= */
-
-function extractTxFields(
-  tx: Record<string, unknown>
-): {
-  amount: number | null;
-  sender: string | null;
-  receiver: string | null;
-  hasMeta: boolean;
-  hasEvents: boolean;
-} {
-  const events = asObj(tx.events) as RpcEventsContainer;
-
-  const hasMeta = typeof tx.resultMetaXdr === "string";
-  const hasEvents =
-    (Array.isArray(events.transactionEventsXdr) &&
-      events.transactionEventsXdr.length > 0) ||
-    (Array.isArray(events.contractEventsXdr) &&
-      events.contractEventsXdr.length > 0);
-
-  /* =====================================================
-     AMOUNT PARSE
-     priority: amount -> value -> payment.amount
-  ===================================================== */
-
-  const amount =
-    normalizePiAmount(tx.amount) ??
-    normalizePiAmount(tx.value) ??
-    normalizePiAmount(asObj(tx.payment).amount);
-
-  /* =====================================================
-     SENDER PARSE
-  ===================================================== */
+function parseFromEnvelopeJson(result: JsonObj) {
+  const tx = asObj(result);
 
   const sender =
-    str(tx.from_address) ||
-    str(tx.source_account) ||
-    str(tx.source) ||
-    str(tx.account);
-
-  /* =====================================================
-     RECEIVER PARSE
-     Pi RPC often does not expose this directly
-     so null is honest, not fake parse
-  ===================================================== */
+    deepFindString(tx, [
+      "sourceAccount",
+      "source_account",
+      "from",
+      "from_address",
+    ]) || null;
 
   const receiver =
-    str(tx.to_address) ||
-    str(tx.destination) ||
-    str(asObj(tx.payment).destination);
+    deepFindString(tx, [
+      "destination",
+      "to",
+      "to_address",
+      "toAccount",
+    ]) || null;
 
-  return {
-    amount,
-    sender: sender ?? null,
-    receiver: receiver ?? null,
-    hasMeta,
-    hasEvents,
-  };
+  let amount =
+    deepFindNumber(tx, [
+      "amount",
+      "sendAmount",
+      "value",
+    ]);
+
+  if (amount !== null && amount > 10000000) {
+    amount = amount / 10000000;
+  }
+
+  return { amount, sender, receiver };
+}
+
+/* =========================================================
+   LAYER B — PARSE EVENTS
+========================================================= */
+
+function parseFromEvents(result: JsonObj) {
+  const events = asObj(result.events);
+  const txEvents = asArr(events.transactionEventsXdr);
+  const contractEvents = asArr(events.contractEventsXdr);
+
+  const sender =
+    deepFindString(txEvents, ["from", "source"]) ||
+    deepFindString(contractEvents, ["from", "source"]);
+
+  const receiver =
+    deepFindString(txEvents, ["to", "destination"]) ||
+    deepFindString(contractEvents, ["to", "destination"]);
+
+  let amount =
+    deepFindNumber(txEvents, ["amount", "value"]) ??
+    deepFindNumber(contractEvents, ["amount", "value"]);
+
+  if (amount !== null && amount > 10000000) {
+    amount = amount / 10000000;
+  }
+
+  return { amount, sender, receiver };
 }
 
 /* =========================================================
@@ -230,73 +254,90 @@ function extractTxFields(
 export async function getRpcTransaction(
   txid: string
 ): Promise<ParsedRpcTransaction> {
-  const cleanTxid = txid.trim();
+  const clean = txid.trim();
 
-  log("GET_TX_START", { txid: cleanTxid });
+  log("GET_TX_START", { txid: clean });
 
-  if (!cleanTxid) {
+  if (!clean) {
     throw new Error("RPC_TXID_REQUIRED");
   }
 
   try {
     const result = await rpcCall("getTransaction", {
-      hash: cleanTxid,
+      hash: clean,
+      xdrFormat: "json",
     });
 
-    const tx = asObj(result.transaction ?? result);
-
-    const extracted = extractTxFields(tx);
-
-    const ledger = num(tx.ledger);
+    const ledger = num(result.ledger);
+    const status = str(result.status);
 
     const confirmed =
-      tx.status === "SUCCESS" ||
-      tx.successful === true ||
+      status === "SUCCESS" ||
+      status === "FAILED" ||
       ledger !== null;
 
-    const amountFound = extracted.amount !== null;
-    const senderFound = extracted.sender !== null;
-    const receiverFound = extracted.receiver !== null;
+    let amount: number | null = null;
+    let sender: string | null = null;
+    let receiver: string | null = null;
+    let parseLayer = "NONE";
+
+    /* ===== layer A ===== */
+
+    const a = parseFromEnvelopeJson(result);
+
+    if (a.amount !== null || a.sender || a.receiver) {
+      amount = a.amount;
+      sender = a.sender;
+      receiver = a.receiver;
+      parseLayer = "ENVELOPE_JSON";
+    }
+
+    /* ===== layer B fallback ===== */
+
+    if (amount === null && !sender && !receiver) {
+      const b = parseFromEvents(result);
+
+      if (b.amount !== null || b.sender || b.receiver) {
+        amount = b.amount;
+        sender = b.sender;
+        receiver = b.receiver;
+        parseLayer = "EVENTS";
+      }
+    }
 
     log("PARSE_RESULT", {
-      txid: cleanTxid,
-      amount: extracted.amount,
-      sender: extracted.sender,
-      receiver: extracted.receiver,
+      txid: clean,
+      amount,
+      sender,
+      receiver,
       ledger,
       confirmed,
-    });
-
-    log("DEBUG", {
-      amountFound,
-      senderFound,
-      receiverFound,
-      hasMeta: extracted.hasMeta,
-      hasEvents: extracted.hasEvents,
+      parseLayer,
     });
 
     return {
-      hash: str(tx.hash) || cleanTxid,
+      hash: str(result.txHash) || clean,
       ledger,
-      amount: extracted.amount,
-      sender: extracted.sender,
-      receiver: extracted.receiver,
+      amount,
+      sender,
+      receiver,
       confirmed,
       rpcReachable: true,
       raw: result,
       debug: {
-        amountFound,
-        senderFound,
-        receiverFound,
-        hasMeta: extracted.hasMeta,
-        hasEvents: extracted.hasEvents,
+        amountFound: amount !== null,
+        senderFound: !!sender,
+        receiverFound: !!receiver,
+        parseLayer,
+        hasMeta: !!result.resultMetaXdr,
+        hasEvents: !!result.events,
       },
     };
   } catch (e) {
-    error("GET_TX_FAIL", e);
+    err("GET_TX_FAIL", e);
 
     return {
-      hash: cleanTxid,
+      hash: clean,
       ledger: null,
       amount: null,
       sender: null,
@@ -308,6 +349,7 @@ export async function getRpcTransaction(
         amountFound: false,
         senderFound: false,
         receiverFound: false,
+        parseLayer: "FAIL",
         hasMeta: false,
         hasEvents: false,
       },
