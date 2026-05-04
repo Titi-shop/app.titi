@@ -277,7 +277,7 @@ export async function createPiPaymentIntent(
         merchant_wallet,
 
         status,
-        settlement_status,
+        settlement_state,
         reconcile_attempts,
 
         expires_at,
