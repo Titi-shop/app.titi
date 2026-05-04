@@ -1,82 +1,178 @@
 /* =========================================================
-   PAYMENT TYPES MASTER CONTRACT
+   🔐 MONEY MODEL (NO FLOAT EVER)
 ========================================================= */
 
-/* =========================================================
-   JSON SAFE TYPES
-========================================================= */
+export type Currency = "PI";
 
-export type JsonPrimitive =
-  | string
-  | number
-  | boolean
-  | null;
-
-export type JsonValue =
-  | JsonPrimitive
-  | JsonObject
-  | JsonValue[];
-
-export type JsonObject = {
-  [key: string]: JsonValue;
+export type Money = {
+  amount: string; // decimal-safe: "12.00000000"
+  currency: Currency;
 };
 
-/* =========================================================
-   PAYMENT FLOW SOURCE
-========================================================= */
-
-export type PaymentSettlementSource =
-  | "client_submit"
-  | "reconcile-api"
-  | "pi_webhook"
-  | "reconcile_job"
-  | "manual_retry";
+export type MoneyInput = string | number | bigint;
 
 /* =========================================================
-   ORCHESTRATOR INPUT
+   🔁 PAYMENT RUN SOURCE
 ========================================================= */
 
-export type RunPaymentSettlementInput = {
+export type PaymentRunSource =
+  | "CLIENT_SUBMIT"
+  | "WEBHOOK"
+  | "CRON_RETRY"
+  | "MANUAL_ADMIN"
+  | "RECONCILE_ENGINE";
+
+/* =========================================================
+   🧠 STRICT PAYMENT STATE MACHINE
+   (NO INVALID JUMPS)
+========================================================= */
+
+export type PaymentIntentStatus =
+  | "pending"
+  | "created"
+  | "wallet_opened"
+  | "authorized"
+  | "submitted"
+  | "verifying"
+  | "paid"
+  | "failed"
+  | "cancelled";
+
+/**
+ * HARD STATE TRANSITION RULES
+ */
+export type PaymentStateTransition =
+  | { from: "pending"; to: "created" }
+  | { from: "created"; to: "wallet_opened" }
+  | { from: "wallet_opened"; to: "submitted" }
+  | { from: "submitted"; to: "verifying" }
+  | { from: "verifying"; to: "paid" }
+  | { from: "verifying"; to: "failed" }
+  | { from: "created"; to: "cancelled" }
+  | { from: "submitted"; to: "cancelled" };
+
+/* =========================================================
+   🧾 SETTLEMENT STATE MACHINE (LEDGER LIFECYCLE)
+========================================================= */
+
+export type SettlementState =
+  | "INIT"
+  | "LOCKED"
+  | "PI_VERIFIED"
+  | "RPC_VERIFIED"
+  | "ORDER_CREATED"
+  | "ESCROW_CREATED"
+  | "SELLER_CREDITED"
+  | "RELEASED"
+  | "SETTLED"
+  | "REVERSED"
+  | "MANUAL_REVIEW";
+
+/* =========================================================
+   ⚠️ RISK ENGINE
+========================================================= */
+
+export type PaymentRiskLevel =
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "BLOCKED";
+
+/* =========================================================
+   🧾 IDENTITY LAYER (TRACEABILITY)
+========================================================= */
+
+export type PaymentIdentity = {
   paymentIntentId: string;
   piPaymentId: string;
   txid: string;
-  source: PaymentSettlementSource;
-  userId: string | null;
+  userId?: string | null;
 };
 
 /* =========================================================
-   ORCHESTRATOR RESULT
+   🔐 GUARD SYSTEM
 ========================================================= */
 
-export type PaymentSettlementResult = {
-  ok: boolean;
-  orderId: string | null;
-  amount: number;
-  piCompleted: boolean;
-  rpcAudited: boolean;
-  source: PaymentSettlementSource;
-};
+export type GuardPaymentFailCode =
+  | "PAYMENT_NOT_FOUND"
+  | "PAYMENT_FORBIDDEN"
+  | "PAYMENT_CANCELLED"
+  | "PAYMENT_FAILED"
+  | "PAYMENT_ALREADY_PAID";
+
+export type GuardPaymentResult =
+  | {
+      ok: true;
+      status: PaymentIntentStatus;
+      amount: number;
+      piPaymentId: string | null;
+      txid: string | null;
+    }
+  | {
+      ok: false;
+      code: GuardPaymentFailCode;
+      orderId?: string | null;
+      amount?: number;
+    };
+
+export type PaymentLockResult =
+  | { ok: true; lockId?: string }
+  | { ok: false; code: "LOCK_DENIED" };
 
 /* =========================================================
-   PI VERIFY RESULT
+   🧾 PI VERIFY (SOURCE OF TRUTH = PI CHAIN)
 ========================================================= */
 
-export type PiVerifyResult = {
-  ok: boolean;
-  verifiedAmount: number;
-  receiverWallet: string;
-  piPayload: JsonValue;
-  reason: string | null;
-};
+export type PiVerifyErrorCode =
+  | "PAYMENT_INTENT_NOT_FOUND"
+  | "FORBIDDEN"
+  | "PI_PAYMENT_ID_MISMATCH"
+  | "INVALID_PAYMENT_STATE"
+  | "PI_PAYMENT_CANCELLED"
+  | "PI_NOT_APPROVED"
+  | "PI_AMOUNT_MISMATCH"
+  | "PI_RECEIVER_MISMATCH"
+  | "PI_TXID_MISMATCH"
+  | "PI_PAYMENT_FETCH_FAILED";
+
+export type PiVerifyResult =
+  | {
+      ok: true;
+      verifiedAmount: number;
+      receiverWallet: string;
+      piUid: string | null;
+      piPayload: unknown;
+    }
+  | {
+      ok: false;
+      code: PiVerifyErrorCode;
+    };
 
 /* =========================================================
-   RPC VERIFY RESULT
+   🔗 RPC VERIFICATION (SECONDARY LEDGER SOURCE)
 ========================================================= */
+
+export type RpcAuditStage =
+  | "UNSET"
+  | "FETCH_TX"
+  | "VERIFY_LEDGER"
+  | "VERIFY_AMOUNT"
+  | "VERIFY_RECEIVER"
+  | "FINALIZED";
+
+export type RpcAuditReason =
+  | "OK"
+  | "NOT_EXECUTED"
+  | "TX_NOT_FOUND"
+  | "LEDGER_UNCONFIRMED"
+  | "AMOUNT_MISMATCH"
+  | "RECEIVER_MISMATCH"
+  | "RPC_TIMEOUT"
+  | "RPC_CRASH";
 
 export type RpcAuditResult = {
   ok: boolean;
   audited: boolean;
-  verified: boolean;
 
   amount: number | null;
   sender: string | null;
@@ -84,135 +180,73 @@ export type RpcAuditResult = {
 
   ledger: number | null;
   confirmed: boolean;
-  txStatus: string | null;
+
   chainReference: string | null;
 
-  payload: JsonValue;
-  reason: string | null;
-  stage: string;
+  confirmations?: number;
+  blockHeight?: number;
+
+  stage: RpcAuditStage;
+  reason: RpcAuditReason;
+
+  payload: unknown;
 };
 
 /* =========================================================
-   PI COMPLETE RESULT
+   🧾 FINALIZATION RESULT
 ========================================================= */
 
-export type PiCompleteResult = {
-  ok: boolean;
-  completed: boolean;
-  reason: string | null;
-};
-
-/* =========================================================
-   FINALIZE ORDER PARAMS
-========================================================= */
-
-export type FinalizePaidOrderParams = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-
-  verifiedAmount: number;
-  receiverWallet: string;
-
-  piPayload: JsonValue;
-  rpcPayload: RpcAuditResult;
-};
-
-/* =========================================================
-   FINALIZE ORDER RESULT
-========================================================= */
-
-export type FinalizePaidOrderResult = {
-  ok: boolean;
-  already: boolean;
-  orderId: string | null;
-};
-
-/* =========================================================
-   PAYMENT JOB TYPES
-========================================================= */
-
-export type PaymentJobStatus =
-  | "pending"
-  | "processing"
-  | "done"
-  | "failed";
-
-export type PaymentJobType = "reconcile";
-
-export type EnqueueReconcileJobInput = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-  userId: string | null;
-};
-
-export type EnqueueReconcileJobResult = {
-  id: string;
-  status: PaymentJobStatus;
-};
-
-/* =========================================================
-   PAYMENT GUARD RESULT
-========================================================= */
-
-export type GuardPaymentResult =
+export type FinalizeOrderResult =
   | {
       ok: true;
-      status: string;
-      amount: number;
-      piPaymentId: string | null;
-      txid: string | null;
-      orderId: string | null;
+      already?: false;
+      orderId: string;
+      escrowId: string;
+      buyerId: string;
+      sellerId: string;
     }
   | {
-      ok: false;
-      code:
-        | "PAYMENT_NOT_FOUND"
-        | "PAYMENT_FORBIDDEN"
-        | "PAYMENT_CANCELLED"
-        | "PAYMENT_FAILED"
-        | "PAYMENT_ALREADY_PAID";
-      amount?: number;
-      orderId?: string | null;
+      ok: true;
+      already: true;
+      orderId: string | null;
+      escrowId?: string | null;
+      buyerId: string;
+      sellerId: string;
     };
 
 /* =========================================================
-   PAYMENT LOCK RESULT
+   🧠 ORCHESTRATOR INPUT / OUTPUT
 ========================================================= */
 
-export type PaymentLockResult =
-  | { ok: true }
-  | { ok: false; code: "LOCK_DENIED" };
-
-/* =========================================================
-   WEBHOOK BODY
-========================================================= */
-
-export type PiWebhookPayload = {
-  paymentId?: string;
-  payment_id?: string;
-  pi_payment_id?: string;
-};
-
-/* =========================================================
-   ROUTE BODY
-========================================================= */
-
-export type SubmitPaymentBody = {
-  payment_intent_id: string;
-  pi_payment_id: string;
+export type RunPaymentSettlementInput = {
+  paymentIntentId: string;
+  piPaymentId: string;
   txid: string;
+  userId?: string | null;
+  source: PaymentRunSource;
 };
 
-export type ReconcilePaymentBody = {
-  payment_intent_id: string;
-  pi_payment_id: string;
-  txid: string;
+export type PaymentSettlementResult = {
+  ok: boolean;
+  orderId: string | null;
+  amount: number;
+  piCompleted: boolean;
+  rpcAudited: boolean;
+  source: PaymentRunSource;
 };
 
 /* =========================================================
-   AUDIT TYPES
+   🧾 LEDGER IDENTITY GRAPH
+========================================================= */
+
+export type LedgerIdentity = {
+  escrowId: string;
+  ledgerId?: string;
+  chainTxid?: string;
+};
+
+/* =========================================================
+   🧠 AUDIT CONTEXT
 ========================================================= */
 
 export type AuditSeverity =
@@ -221,34 +255,43 @@ export type AuditSeverity =
   | "error"
   | "critical";
 
-export type AuditStage =
-  | "INTENT"
-  | "AUTHORIZE"
-  | "SUBMIT"
-  | "PI_VERIFY"
-  | "RPC_VERIFY"
-  | "PI_COMPLETE"
-  | "FINALIZE"
-  | "ESCROW"
-  | "WEBHOOK"
-  | "MANUAL";
+export type PaymentAuditContext = {
+  source: PaymentRunSource;
+  severity?: AuditSeverity;
+  note?: string;
+  traceId?: string;
+};
 
 /* =========================================================
-   ESCROW TYPES
+   🔐 IDENTITY BINDING
 ========================================================= */
 
-export type EscrowStatus =
-  | "PENDING"
-  | "PAID"
-  | "FAILED"
-  | "REVERSED"
-  | "SETTLED";
+export type VerifiedMoneyContext = {
+  verifiedAmount: number;
+  receiverWallet: string;
+  piUid: string | null;
+};
 
-export type SettlementEventType =
-  | "ESCROW_CREATED"
-  | "PI_VERIFIED"
-  | "RPC_VERIFIED"
-  | "ORDER_LINKED"
-  | "ESCROW_RELEASED"
-  | "SELLER_CREDITED"
-  | "MANUAL_REVIEW_REQUIRED";
+/* =========================================================
+   🧾 COMPLETE PAYMENT TRACE (FULL PIPELINE)
+========================================================= */
+
+export type PaymentTrace = {
+  identity: PaymentIdentity;
+
+  pi: {
+    verified: boolean;
+    payload?: unknown;
+  };
+
+  rpc: {
+    verified: boolean;
+    payload?: RpcAuditResult;
+  };
+
+  settlement: {
+    state: SettlementState;
+    escrowId?: string;
+    orderId?: string;
+  };
+};
