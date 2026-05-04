@@ -1,5 +1,6 @@
 
 import { withTransaction } from "@/lib/db";
+import { randomBytes, randomUUID } from "crypto";
 
 /* =========================================================
    TYPES
@@ -30,6 +31,7 @@ type CreateIntentResult = {
   amount: number;
   memo: string;
   nonce: string;
+  verifyToken: string;
   merchantWallet: string;
   currency: "PI";
 };
@@ -41,9 +43,7 @@ type CreateIntentResult = {
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      v
-    )
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
 
@@ -66,11 +66,11 @@ function getMerchantWallet(): string {
 }
 
 function generateNonce(): string {
-  return crypto.randomUUID().replace(/-/g, "");
+  return randomBytes(16).toString("hex");
 }
 
 /* =========================================================
-   MAIN FUNCTION
+   MAIN FUNCTION V3
 ========================================================= */
 
 export async function createPiPaymentIntent(
@@ -84,10 +84,6 @@ export async function createPiPaymentIntent(
     country: params.country,
     zone: params.zone,
   });
-
-  /* =========================
-     VALIDATION LAYER
-  ========================= */
 
   if (!isUUID(params.userId)) {
     throw new Error("INVALID_USER_ID");
@@ -104,11 +100,10 @@ export async function createPiPaymentIntent(
 
   const quantity = safeQty(params.quantity);
   const merchantWallet = getMerchantWallet();
-  const nonce = generateNonce();
 
-  /* =========================
-     TRANSACTION (ATOMIC)
-  ========================= */
+  const nonce = generateNonce();
+  const idempotencyKey = randomUUID();
+  const verifyToken = randomBytes(24).toString("hex");
 
   return withTransaction(async (client) => {
     console.log("🟡 [CREATE_INTENT] DB_TX_START");
@@ -146,11 +141,11 @@ export async function createPiPaymentIntent(
       stock: product.stock,
     });
 
-    /* =====================================================
-       STEP 2: PRICE RESOLUTION
-    ===================================================== */
-
     let unitPrice = safeMoney(product.sale_price || product.price);
+
+    /* =====================================================
+       STEP 2: VARIANT
+    ===================================================== */
 
     if (variantId) {
       const vr = await client.query<{
@@ -192,7 +187,7 @@ export async function createPiPaymentIntent(
     }
 
     /* =====================================================
-       STEP 3: SHIPPING FEE
+       STEP 3: SHIPPING
     ===================================================== */
 
     const ship = await client.query<{ price: string }>(
@@ -219,7 +214,7 @@ export async function createPiPaymentIntent(
     });
 
     /* =====================================================
-       STEP 4: PRICE CALCULATION
+       STEP 4: TOTAL
     ===================================================== */
 
     const subtotal = safeMoney(unitPrice * quantity);
@@ -252,12 +247,16 @@ export async function createPiPaymentIntent(
     };
 
     /* =====================================================
-       STEP 6: INSERT PAYMENT INTENT
+       STEP 6: INSERT PAYMENT INTENT V3
     ===================================================== */
 
     const insert = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
+        nonce,
+        idempotency_key,
+        verify_token,
+
         buyer_id,
         seller_id,
         product_id,
@@ -276,19 +275,36 @@ export async function createPiPaymentIntent(
         zone,
 
         merchant_wallet,
-        nonce,
-        status
+
+        status,
+        settlement_status,
+        reconcile_attempts,
+
+        expires_at,
+        created_at,
+        updated_at
       )
       VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,$9,$10,
+        $1,$2,$3,
+        $4,$5,$6,$7,$8,
+        $9,$10,$11,$12,$13,
         'PI',
-        $11,$12,$13,
-        $14,$15,'created'
+        $14,$15,$16,
+        $17,
+        'created',
+        'UNSETTLED',
+        0,
+        now() + interval '30 minutes',
+        now(),
+        now()
       )
       RETURNING id
       `,
       [
+        nonce,
+        idempotencyKey,
+        verifyToken,
+
         params.userId,
         product.seller_id,
         params.productId,
@@ -306,7 +322,6 @@ export async function createPiPaymentIntent(
         params.zone,
 
         merchantWallet,
-        nonce,
       ]
     );
 
@@ -318,21 +333,14 @@ export async function createPiPaymentIntent(
       nonce,
     });
 
-    /* =====================================================
-       RETURN
-    ===================================================== */
-
-    const result: CreateIntentResult = {
+    return {
       paymentIntentId,
       amount: total,
       memo: `ORDER-${paymentIntentId.slice(0, 8)}`,
       nonce,
+      verifyToken,
       merchantWallet,
       currency: "PI",
     };
-
-    console.log("🟢 [CREATE_INTENT] SUCCESS", result);
-
-    return result;
   });
 }
