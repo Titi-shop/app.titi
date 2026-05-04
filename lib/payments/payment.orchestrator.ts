@@ -90,15 +90,15 @@ function emptyRpc(): RpcAuditResult {
 ========================================================= */
 
 export async function runPaymentSettlement({
-  paymentIntentId,
-  piPaymentId,
+  payment_intent_id,
+  pi_payment_id,
   txid,
   userId,
   source,
 }: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
   console.log("[ORCHESTRATOR V5 START]", {
-    paymentIntentId,
-    piPaymentId,
+    payment_intent_id,
+    pi_payment_id,
     txid,
     source,
   });
@@ -108,7 +108,7 @@ export async function runPaymentSettlement({
   ===================================================== */
 
   const guard = await guardPaymentForReconcile({
-    paymentIntentId,
+    payment_intent_id,
     userId: userId ?? "",
   });
 
@@ -168,8 +168,8 @@ export async function runPaymentSettlement({
   ===================================================== */
 
   const piVerified = await verifyPiPaymentForReconcile({
-    paymentIntentId,
-    piPaymentId,
+    payment_intent_id,
+    pi_payment_id,
     userId: userId ?? "",
     txid,
   });
@@ -198,7 +198,7 @@ export async function runPaymentSettlement({
 
   try {
     rpcVerified = await verifyRpcPaymentForReconcile({
-      paymentIntentId,
+      payment_intent_id,
       txid,
     });
   } catch (e) {
@@ -241,8 +241,8 @@ export async function runPaymentSettlement({
   ===================================================== */
 
   const paid = await finalizePaidOrderFromIntent({
-    paymentIntentId,
-    piPaymentId,
+    payment_intent_id,
+    pi_payment_id,
     txid,
     verifiedAmount: piVerified.verifiedAmount,
     receiverWallet: piVerified.receiverWallet,
