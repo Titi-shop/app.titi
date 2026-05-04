@@ -1,4 +1,4 @@
-
+import crypto from "crypto";
 
 import { withTransaction, query } from "@/lib/db";
 
@@ -256,8 +256,8 @@ export async function bindPiPaymentToIntent({
     crypto.randomUUID(), // nonce
     crypto.randomUUID(), // verify_token
 
-    intent.merchant_wallet, // ✅ lấy từ DB payment_intents
-    expectedAmount,         // ✅ từ intent.total_amount
+    intent.merchant_wallet, 
+    expectedAmount,         
     verifiedAmount,
     "PI",
     "RECEIVED",
