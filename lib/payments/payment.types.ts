@@ -83,8 +83,8 @@ export type PaymentRiskLevel =
 ========================================================= */
 
 export type PaymentIdentity = {
-  paymentIntentId: string;
-  piPaymentId: string;
+  payment_intent_id: string;
+  pi_payment_id: string;
   txid: string;
   userId?: string | null;
 };
@@ -105,7 +105,7 @@ export type GuardPaymentResult =
       ok: true;
       status: PaymentIntentStatus;
       amount: number;
-      piPaymentId: string | null;
+      pi_payment_id: string | null;
       txid: string | null;
     }
   | {
@@ -219,8 +219,8 @@ export type FinalizeOrderResult =
 ========================================================= */
 
 export type RunPaymentSettlementInput = {
-  paymentIntentId: string;
-  piPaymentId: string;
+  payment_intent_id: string;
+  pi_payment_id: string;
   txid: string;
   userId?: string | null;
   source: PaymentRunSource;
