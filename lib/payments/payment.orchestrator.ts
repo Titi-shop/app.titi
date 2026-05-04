@@ -354,3 +354,4 @@ return {
   rpcAudited: rpcVerified.audited,
   source,
 };
+}
