@@ -40,8 +40,11 @@ export async function POST(req: Request) {
     const userId = auth.userId;
     const body = await req.json();
 
-    const paymentIntentId = body.payment_intent_id;
-    const piPaymentId = body.pi_payment_id;
+    const paymentIntentId =
+    body.payment_intent_id ?? body.paymentIntentId;
+
+  const piPaymentId =
+  body.pi_payment_id ?? body.piPaymentId;
 
     if (!isUUID(paymentIntentId) || !piPaymentId) {
       return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
