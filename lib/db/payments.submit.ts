@@ -1,5 +1,6 @@
 
 import { withTransaction } from "@/lib/db";
+import { createHash, randomUUID } from "crypto";
 
 type MarkPaymentVerifyingInput = {
   paymentIntentId: string;
@@ -12,6 +13,12 @@ type PaymentIntentRow = {
   id: string;
   buyer_id: string;
   status: string;
+
+  nonce: string;
+  verify_token: string;
+  merchant_wallet: string;
+  total_amount: string;
+  currency: string;
 };
 
 type MarkPaymentVerifyingResult = {
@@ -21,6 +28,12 @@ type MarkPaymentVerifyingResult = {
   paymentIntentId: string;
 };
 
+function makeHash(payload: unknown): string {
+  return createHash("sha256")
+    .update(JSON.stringify(payload))
+    .digest("hex");
+}
+
 export async function markPaymentVerifying({
   paymentIntentId,
   userId,
@@ -28,9 +41,21 @@ export async function markPaymentVerifying({
   txid,
 }: MarkPaymentVerifyingInput): Promise<MarkPaymentVerifyingResult> {
   return await withTransaction(async (client) => {
+    /* =====================================================
+       1. LOCK PAYMENT INTENT
+    ===================================================== */
+
     const found = await client.query<PaymentIntentRow>(
       `
-      SELECT id, buyer_id, status
+      SELECT
+        id,
+        buyer_id,
+        status,
+        nonce,
+        verify_token,
+        merchant_wallet,
+        total_amount,
+        currency
       FROM payment_intents
       WHERE id = $1
       FOR UPDATE
@@ -49,7 +74,7 @@ export async function markPaymentVerifying({
     }
 
     /* =====================================================
-       IDEMPOTENT CASE
+       2. IDEMPOTENT FAST RETURN
     ===================================================== */
 
     if (intent.status === "paid") {
@@ -71,7 +96,7 @@ export async function markPaymentVerifying({
     }
 
     /* =====================================================
-       STATUS GUARD
+       3. STATUS GUARD
     ===================================================== */
 
     if (
@@ -82,7 +107,131 @@ export async function markPaymentVerifying({
     }
 
     /* =====================================================
-       UPDATE VERIFYING LOCK
+       4. GLOBAL REPLAY CHECK pi_payment_id
+    ===================================================== */
+
+    const dupPi = await client.query<{ id: string }>(
+      `
+      SELECT id
+      FROM payment_intents
+      WHERE pi_payment_id = $1
+        AND id <> $2
+      LIMIT 1
+      `,
+      [piPaymentId, paymentIntentId]
+    );
+
+    if (dupPi.rows.length) {
+      throw new Error("PI_PAYMENT_REPLAY_BLOCKED");
+    }
+
+    /* =====================================================
+       5. GLOBAL REPLAY CHECK txid
+    ===================================================== */
+
+    const dupTx = await client.query<{ id: string }>(
+      `
+      SELECT id
+      FROM payment_intents
+      WHERE txid = $1
+        AND id <> $2
+      LIMIT 1
+      `,
+      [txid, paymentIntentId]
+    );
+
+    if (dupTx.rows.length) {
+      throw new Error("TXID_REPLAY_BLOCKED");
+    }
+
+    /* =====================================================
+       6. PREVIOUS AUTHORIZE HASH
+    ===================================================== */
+
+    const prevHashRes = await client.query<{ event_hash: string }>(
+      `
+      SELECT event_hash
+      FROM payment_authorize_logs
+      WHERE payment_intent_id = $1
+      ORDER BY auth_index DESC
+      LIMIT 1
+      `,
+      [paymentIntentId]
+    );
+
+    const prevHash = prevHashRes.rows[0]?.event_hash ?? null;
+
+    const authPayload = {
+      paymentIntentId,
+      userId,
+      piPaymentId,
+      txid,
+      nonce: intent.nonce,
+      verifyToken: intent.verify_token,
+      merchantWallet: intent.merchant_wallet,
+      amount: Number(intent.total_amount),
+      prevHash,
+      salt: randomUUID(),
+    };
+
+    const eventHash = makeHash(authPayload);
+
+    /* =====================================================
+       7. INSERT IMMUTABLE AUTHORIZE EVIDENCE
+    ===================================================== */
+
+    await client.query(
+      `
+      INSERT INTO payment_authorize_logs (
+        payment_intent_id,
+        pi_payment_id,
+        pi_uid,
+        nonce,
+        verify_token,
+        merchant_wallet,
+        expected_amount,
+        verified_amount,
+        currency,
+        authorize_status,
+        idempotency_fingerprint,
+        source,
+        payload,
+        prev_hash,
+        event_hash
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,
+        $7,$8,$9,
+        'VERIFIED',
+        $10,
+        'client_submit',
+        $11,
+        $12,
+        $13
+      )
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        userId,
+        intent.nonce,
+        intent.verify_token,
+        intent.merchant_wallet,
+        intent.total_amount,
+        intent.total_amount,
+        intent.currency,
+        `${piPaymentId}:${txid}:${paymentIntentId}`,
+        JSON.stringify({
+          txid,
+          status_before: intent.status,
+        }),
+        prevHash,
+        eventHash,
+      ]
+    );
+
+    /* =====================================================
+       8. UPDATE PAYMENT INTENT TO VERIFYING
     ===================================================== */
 
     await client.query(
@@ -90,8 +239,18 @@ export async function markPaymentVerifying({
       UPDATE payment_intents
       SET
         status = 'verifying',
+        settlement_state = 'UNSETTLED',
+
         pi_payment_id = $2,
         txid = $3,
+
+        reconcile_attempts = reconcile_attempts + 1,
+        last_reconcile_at = now(),
+
+        settlement_lock_id = gen_random_uuid(),
+        settlement_locked_at = now(),
+        settlement_lock_source = 'client_submit',
+
         updated_at = now()
       WHERE id = $1
       `,
