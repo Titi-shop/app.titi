@@ -1,208 +1,158 @@
-/**
- * settlement.ledger.ts
- * Core escrow ledger system
- * - tạo escrow entry
- * - ghi seller credit
- * - ghi settlement events (audit trail)
- *
- * Mục tiêu:
- * - không bao giờ mất dấu tiền
- * - idempotent mọi thao tác
- * - trace được full lifecycle payment → payout
- */
-
+import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
 
-/* =========================
+/* =========================================================
    TYPES
-========================= */
+========================================================= */
 
-export type PaymentStatus =
-  | "PENDING"
-  | "PAID"
-  | "FAILED"
-  | "REVERSED"
-  | "SETTLED";
-
-export type SettlementEventType =
-  | "ESCROW_CREATED"
-  | "PAYMENT_CONFIRMED"
-  | "PI_VERIFIED"
-  | "RPC_VERIFIED"
-  | "ORDER_LINKED"
-  | "ESCROW_RELEASED"
-  | "SELLER_CREDITED"
-  | "MANUAL_REVIEW_REQUIRED";
-
-export type CreateEscrowInput = {
+type CreateEscrowInput = {
   paymentIntentId: string;
   orderId: string;
   buyerId: string;
   sellerId: string;
   amount: number;
-  currency?: string;
+  txid: string;
+  piPaymentId: string;
 };
 
-/* =========================
-   MOCK DB INTERFACE
-   (replace with Prisma/SQL)
-========================= */
+/* =========================================================
+   LEDGER V2 CORE
+========================================================= */
 
-const db = {
-  escrow_entries: {
-    create: async (data: any) => data,
-    findUnique: async (_: any) => null,
-    update: async (args: any) => args.data,
-  },
-
-  seller_credits: {
-    create: async (data: any) => data,
-  },
-
-  settlement_events: {
-    create: async (data: any) => data,
-  },
-};
-
-/* =========================
-   CORE LEDGER SERVICE
-========================= */
-
-export class SettlementLedger {
-  /**
-   * Create escrow entry when payment intent is created/confirmed
-   */
+export class SettlementLedgerV2 {
   static async createEscrow(input: CreateEscrowInput) {
     const escrowId = randomUUID();
 
-    const escrow = await db.escrow_entries.create({
-      id: escrowId,
-      paymentIntentId: input.paymentIntentId,
-      orderId: input.orderId,
-      buyerId: input.buyerId,
-      sellerId: input.sellerId,
-      amount: input.amount,
-      currency: input.currency ?? "PI",
-      status: "PENDING",
-      createdAt: new Date(),
-    });
+    await query(
+      `
+      insert into escrow_entries (
+        id,
+        payment_intent_id,
+        order_id,
+        buyer_id,
+        seller_id,
+        amount,
+        status,
+        txid,
+        pi_payment_id
+      )
+      values ($1,$2,$3,$4,$5,$6,'PAID',$7,$8)
+      on conflict (payment_intent_id)
+      do nothing
+      `,
+      [
+        escrowId,
+        input.paymentIntentId,
+        input.orderId,
+        input.buyerId,
+        input.sellerId,
+        input.amount,
+        input.txid,
+        input.piPaymentId,
+      ]
+    );
 
-    await this.logEvent({
+    await this.event({
       escrowId,
       type: "ESCROW_CREATED",
       metadata: input,
     });
 
-    return escrow;
+    return escrowId;
   }
 
-  /**
-   * Mark payment confirmed (after Pi / RPC verification)
-   */
-  static async markPaymentConfirmed(params: {
-    escrowId: string;
-    txid?: string;
-    source: "PI" | "RPC";
-  }) {
-    await this.logEvent({
-      escrowId: params.escrowId,
-      type:
-        params.source === "PI"
-          ? "PI_VERIFIED"
-          : "RPC_VERIFIED",
-      metadata: {
-        txid: params.txid,
-      },
+  static async markPiVerified(escrowId: string) {
+    await this.event({
+      escrowId,
+      type: "PI_VERIFIED",
     });
   }
 
-  /**
-   * Link order after payment confirmed
-   */
-  static async linkOrder(params: {
-    escrowId: string;
-    orderId: string;
-  }) {
-    await this.logEvent({
-      escrowId: params.escrowId,
+  static async markRpcVerified(escrowId: string) {
+    await this.event({
+      escrowId,
+      type: "RPC_VERIFIED",
+    });
+  }
+
+  static async linkOrder(escrowId: string, orderId: string) {
+    await this.event({
+      escrowId,
       type: "ORDER_LINKED",
-      metadata: params,
+      metadata: { orderId },
     });
   }
 
-  /**
-   * Release escrow → seller credit
-   */
-  static async releaseToSeller(params: {
+  static async creditSeller(params: {
     escrowId: string;
     sellerId: string;
     amount: number;
   }) {
-    // 1. create seller credit
-    await db.seller_credits.create({
-      id: randomUUID(),
-      sellerId: params.sellerId,
-      escrowId: params.escrowId,
-      amount: params.amount,
-      status: "AVAILABLE",
-      createdAt: new Date(),
-    });
+    await query(
+      `
+      insert into seller_credits (
+        id,
+        seller_id,
+        escrow_id,
+        amount,
+        status
+      )
+      values ($1,$2,$3,$4,'AVAILABLE')
+      on conflict (escrow_id) do nothing
+      `,
+      [
+        randomUUID(),
+        params.sellerId,
+        params.escrowId,
+        params.amount,
+      ]
+    );
 
-    // 2. log event
-    await this.logEvent({
+    await this.event({
       escrowId: params.escrowId,
       type: "SELLER_CREDITED",
       metadata: params,
     });
+  }
 
-    // 3. mark escrow released
-    await db.escrow_entries.update({
-      where: { id: params.escrowId },
-      data: { status: "SETTLED" },
-    });
+  static async releaseEscrow(escrowId: string) {
+    await query(
+      `
+      update escrow_entries
+      set status = 'SETTLED', updated_at = now()
+      where id = $1
+      `,
+      [escrowId]
+    );
 
-    await this.logEvent({
-      escrowId: params.escrowId,
+    await this.event({
+      escrowId,
       type: "ESCROW_RELEASED",
-      metadata: params,
     });
   }
 
-  /**
-   * Flag for manual review
-   */
-  static async markManualReview(params: {
+  static async event(params: {
     escrowId: string;
-    reason: string;
-  }) {
-    await this.logEvent({
-      escrowId: params.escrowId,
-      type: "MANUAL_REVIEW_REQUIRED",
-      metadata: params,
-    });
-
-    await db.escrow_entries.update({
-      where: { id: params.escrowId },
-      data: { status: "FAILED" },
-    });
-  }
-
-  /**
-   * =========================
-   * INTERNAL: EVENT LOGGER
-   * =========================
-   */
-  private static async logEvent(params: {
-    escrowId: string;
-    type: SettlementEventType;
+    type: string;
     metadata?: any;
   }) {
-    return db.settlement_events.create({
-      id: randomUUID(),
-      escrowId: params.escrowId,
-      type: params.type,
-      metadata: params.metadata ?? {},
-      createdAt: new Date(),
-    });
+    await query(
+      `
+      insert into settlement_events (
+        id,
+        escrow_id,
+        event_type,
+        metadata,
+        created_at
+      )
+      values ($1,$2,$3,$4,now())
+      `,
+      [
+        randomUUID(),
+        params.escrowId,
+        params.type,
+        params.metadata ?? {},
+      ]
+    );
   }
 }
