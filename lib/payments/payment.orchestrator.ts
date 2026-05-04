@@ -307,8 +307,8 @@ try {
     const escrowId = await SettlementLedger.createEscrow({
       paymentIntentId,
       orderId: paid.orderId,
-      buyerId: userId ?? "SYSTEM",
-      sellerId: paid.sellerId ?? "SYSTEM",
+      buyerId: paid.buyerId,
+      sellerId: paid.sellerId,
       amount: piVerified.verifiedAmount,
       txid,
       piPaymentId,
