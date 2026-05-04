@@ -12,48 +12,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   STRICT VALIDATION
+   SAFE UUID
 ========================================================= */
 
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      v
-    )
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
-}
-
-function assertString(v: unknown, name: string): string {
-  if (typeof v !== "string" || !v.trim()) {
-    throw new Error(`INVALID_${name}`);
-  }
-  return v;
 }
 
 /* =========================================================
-   PI APPROVE
+   SAFE JSON PARSE GUARD
 ========================================================= */
 
-async function callPiApprove(piPaymentId: string) {
-  const res = await fetch(
-    `${process.env.PI_API_URL}/payments/${piPaymentId}/approve`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`,
-      },
-      cache: "no-store",
-    }
-  );
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok && data?.error !== "already_approved") {
-    throw new Error("PI_APPROVE_FAILED");
+async function safeJson(req: Request) {
+  try {
+    return await req.json();
+  } catch (e) {
+    return null;
   }
-
-  return true;
 }
 
 /* =========================================================
@@ -62,68 +40,51 @@ async function callPiApprove(piPaymentId: string) {
 
 export async function POST(req: Request) {
   try {
-    /* =====================================================
-       1. AUTH
-    ===================================================== */
+    console.log("🟡 [AUTHORIZE V3] START");
+
+    /* ================= AUTH ================= */
 
     const auth = await getUserFromBearer();
     if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      console.log("❌ NO AUTH");
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = auth.userId;
 
-    /* =====================================================
-       2. SAFE BODY PARSE
-    ===================================================== */
+    /* ================= BODY ================= */
 
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
+    const body = await safeJson(req);
+
+    console.log("🟡 [AUTHORIZE V3] BODY", body);
+
+    const paymentIntentId = body?.payment_intent_id;
+    const piPaymentId = body?.pi_payment_id;
+
+    if (!isUUID(paymentIntentId) || typeof piPaymentId !== "string") {
+      console.log("❌ INVALID INPUT", {
+        paymentIntentId,
+        piPaymentId,
+      });
+
       return NextResponse.json(
-        { error: "INVALID_JSON" },
+        {
+          error: "INVALID_INPUT",
+          debug: { paymentIntentId, piPaymentId },
+        },
         { status: 400 }
       );
     }
 
-    const paymentIntentId = assertString(
-      body.payment_intent_id,
-      "PAYMENT_INTENT_ID"
-    );
-
-    const piPaymentId = assertString(
-      body.pi_payment_id,
-      "PI_PAYMENT_ID"
-    );
-
-    if (!isUUID(paymentIntentId)) {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_INTENT_ID" },
-        { status: 400 }
-      );
-    }
-
-    /* =====================================================
-       3. VERIFY PI USER
-    ===================================================== */
+    /* ================= PI VERIFY ================= */
 
     const piUid = await verifyPiUser(
       req.headers.get("authorization") || ""
     );
 
-    /* =====================================================
-       4. FETCH PI PAYMENT
-    ===================================================== */
-
     const payment = await fetchPiPayment(piPaymentId);
 
-    if (!payment?.identifier) {
-      throw new Error("PI_PAYMENT_NOT_FOUND");
-    }
+    console.log("🟡 [AUTHORIZE V3] PI PAYMENT", payment);
 
     if (payment.user_uid !== piUid) {
       return NextResponse.json(
@@ -132,16 +93,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!payment.status?.developer_approved) {
-      return NextResponse.json(
-        { error: "PI_NOT_APPROVED_YET" },
-        { status: 400 }
-      );
-    }
-
-    /* =====================================================
-       5. BIND IN TRANSACTION (HARDENED)
-    ===================================================== */
+    /* ================= DB BIND ================= */
 
     await withTransaction(async (client) => {
       await bindPiPaymentToIntent(client, {
@@ -154,34 +106,15 @@ export async function POST(req: Request) {
       });
     });
 
-    /* =====================================================
-       6. APPROVE (SAFE IDEMPOTENT)
-    ===================================================== */
+    console.log("🟢 [AUTHORIZE V3] SUCCESS");
 
-    try {
-      await callPiApprove(piPaymentId);
-    } catch (e) {
-      console.warn("[PI_APPROVE_WARN]", e);
-    }
-
-    /* =====================================================
-       7. SUCCESS
-    ===================================================== */
-
-    return NextResponse.json({
-      success: true,
-      paymentIntentId,
-      piPaymentId,
-    });
+    return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("[PI AUTHORIZE FAIL]", e);
+    console.error("🔥 [AUTHORIZE V3 ERROR]", e);
 
     return NextResponse.json(
       {
-        error:
-          e instanceof Error
-            ? e.message
-            : "AUTHORIZE_FAILED",
+        error: e instanceof Error ? e.message : "AUTHORIZE_FAILED",
       },
       { status: 400 }
     );
