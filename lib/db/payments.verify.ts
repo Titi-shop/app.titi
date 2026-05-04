@@ -235,23 +235,34 @@ export async function bindPiPaymentToIntent({
     payment_intent_id,
     pi_payment_id,
     pi_uid,
-    verified_amount,
-    payload,
     nonce,
     verify_token,
+    merchant_wallet,
+    expected_amount,
+    verified_amount,
+    currency,
+    authorize_status,
+    payload,
+    event_hash,
     created_at
   )
-  VALUES ($1,$2,$3,$4,$5,$6,$7,now())
-  ON CONFLICT DO NOTHING
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now())
   `,
   [
     paymentIntentId,
     piPaymentId,
     piUid,
+
+    crypto.randomUUID(), // nonce
+    crypto.randomUUID(), // verify_token
+
+    intent.merchant_wallet, // ✅ lấy từ DB payment_intents
+    expectedAmount,         // ✅ từ intent.total_amount
     verifiedAmount,
+    "PI",
+    "RECEIVED",
     JSON.stringify(piPayload ?? {}),
-    crypto.randomUUID(), 
-    crypto.randomUUID(), 
+    eventHash,
   ]
 );
 
