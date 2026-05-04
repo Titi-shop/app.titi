@@ -238,9 +238,10 @@ export async function bindPiPaymentToIntent({
     verified_amount,
     payload,
     nonce,
+    verify_token,
     created_at
   )
-  VALUES ($1,$2,$3,$4,$5,$6,now())
+  VALUES ($1,$2,$3,$4,$5,$6,$7,now())
   ON CONFLICT DO NOTHING
   `,
   [
@@ -249,7 +250,8 @@ export async function bindPiPaymentToIntent({
     piUid,
     verifiedAmount,
     JSON.stringify(piPayload ?? {}),
-    crypto.randomUUID(), // ✅ FIX QUAN TRỌNG
+    crypto.randomUUID(), 
+    crypto.randomUUID(), 
   ]
 );
 
