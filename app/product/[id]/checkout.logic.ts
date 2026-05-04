@@ -397,7 +397,7 @@ item,
        paymentIntentId,
       piPaymentId: paymentId,
        txid,
-      });
+      }),
       });
 
       const data = await res.json().catch(() => null);
@@ -431,7 +431,7 @@ item,
   paymentIntentId,
   piPaymentId: paymentId,
   txid,
-     });
+     }),
       });
 
       const reconcileData = await reconcileRes.json().catch(() => null);
