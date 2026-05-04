@@ -230,26 +230,28 @@ export async function bindPiPaymentToIntent({
     );
 
     await client.query(
-      `
-      INSERT INTO payment_authorize_logs (
-        payment_intent_id,
-        pi_payment_id,
-        pi_uid,
-        verified_amount,
-        payload,
-        created_at
-      )
-      VALUES ($1,$2,$3,$4,$5,now())
-      ON CONFLICT DO NOTHING
-      `,
-      [
-        paymentIntentId,
-        piPaymentId,
-        piUid,
-        verifiedAmount,
-        JSON.stringify(piPayload ?? {}),
-      ]
-    );
+  `
+  INSERT INTO payment_authorize_logs (
+    payment_intent_id,
+    pi_payment_id,
+    pi_uid,
+    verified_amount,
+    payload,
+    nonce,
+    created_at
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,now())
+  ON CONFLICT DO NOTHING
+  `,
+  [
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    verifiedAmount,
+    JSON.stringify(piPayload ?? {}),
+    crypto.randomUUID(), // ✅ FIX QUAN TRỌNG
+  ]
+);
 
     console.log("🟢 [PI VERIFY V2] BIND_INTENT_OK");
   });
