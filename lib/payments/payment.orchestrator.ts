@@ -16,7 +16,7 @@ import {
 import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
-import { SettlementLedgerV2 as SettlementLedger } from "@/lib/db/settlement.ledger";
+import { SettlementLedgerV3 as SettlementLedger } from "@/lib/db/settlement.ledger";
 
 import type {
   RunPaymentSettlementInput,
