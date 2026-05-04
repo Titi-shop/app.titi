@@ -132,10 +132,12 @@ export async function finalizePaidOrderFromIntent({
       console.log("🟢 [DB FINALIZE] ALREADY_PAID");
 
       return {
-        ok: true,
-        already: true,
-        orderId: existingOrder.rows[0]?.id ?? null,
-      };
+      ok: true,
+      already: true,
+      orderId: existingOrder.rows[0]?.id ?? null,
+      buyerId: intent.buyer_id,
+      sellerId: intent.seller_id,
+    };
     }
 
     if (
@@ -195,10 +197,12 @@ export async function finalizePaidOrderFromIntent({
       );
 
       return {
-        ok: true,
-        already: true,
-        orderId: dupOrder.rows[0].id,
-      };
+  ok: true,
+  already: true,
+  orderId: dupOrder.rows[0].id,
+  buyerId: intent.buyer_id,
+  sellerId: intent.seller_id,
+   };
     }
 
     /* =====================================================
@@ -619,8 +623,10 @@ export async function finalizePaidOrderFromIntent({
     console.log("🟢 [DB FINALIZE] PI_PAYMENT_LOGGED");
 
     return {
-      ok: true,
-      orderId,
-    };
+    ok: true,
+  orderId,
+  buyerId: intent.buyer_id,
+  sellerId: intent.seller_id,
+   };
   });
 }
