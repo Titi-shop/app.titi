@@ -26,19 +26,20 @@ export class SettlementLedgerV2 {
     await query(
       `
       insert into escrow_entries (
-        id,
-        payment_intent_id,
-        order_id,
-        buyer_id,
-        seller_id,
-        amount,
-        status,
-        txid,
-        pi_payment_id
-      )
-      values ($1,$2,$3,$4,$5,$6,'PAID',$7,$8)
-      on conflict (payment_intent_id)
-      do nothing
+  id,
+  payment_intent_id,
+  order_id,
+  buyer_id,
+  seller_id,
+  amount,
+  status,
+  txid,
+  pi_payment_id
+)
+values ($1,$2,$3,$4,$5,$6,'PAID',$7,$8)
+on conflict (payment_intent_id)
+do update set updated_at = now()
+returning id
       `,
       [
         escrowId,
