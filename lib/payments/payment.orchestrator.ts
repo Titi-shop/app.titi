@@ -324,7 +324,7 @@ try {
 
     await SettlementLedger.creditSeller({
       escrowId,
-      sellerId: paid.sellerId ?? "SYSTEM",
+      sellerId: paid.sellerId,
       amount: piVerified.verifiedAmount,
     });
 
