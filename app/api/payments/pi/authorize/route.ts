@@ -1,5 +1,3 @@
-
-
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { withTransaction } from "@/lib/db";
@@ -42,8 +40,8 @@ export async function POST(req: Request) {
     const userId = auth.userId;
     const body = await req.json();
 
-    const paymentIntentId = body.paymentIntentId;
-const piPaymentId = body.piPaymentId;
+    const paymentIntentId = body.payment_intent_id;
+    const piPaymentId = body.pi_payment_id;
 
     if (!isUUID(paymentIntentId) || !piPaymentId) {
       return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
@@ -57,14 +55,14 @@ const piPaymentId = body.piPaymentId;
     }
 
     await withTransaction(async (client) => {
-      await bindPiPaymentToIntent({
-  userId,
-  paymentIntentId,
-  piPaymentId,
-  piUid,
-  verifiedAmount: Number(payment.amount),
-  piPayload: payment,
-});
+      await bindPiPaymentToIntent(client, {
+        userId,
+        paymentIntentId,
+        piPaymentId,
+        piUid,
+        verifiedAmount: Number(payment.amount),
+        piPayload: payment,
+      });
     });
 
     if (!payment.status?.developer_approved) {
