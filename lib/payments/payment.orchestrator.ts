@@ -303,49 +303,54 @@ export async function runPaymentSettlement({
   ===================================================== */
 
   try {
-    if (paid.orderId) {
-      const escrow = await SettlementLedger.createEscrow({
-        paymentIntentId,
-        orderId: paid.orderId,
-        buyerId: userId ?? "SYSTEM",
-        sellerId: "SYSTEM",
-        amount: piVerified.verifiedAmount,
-        currency: "PI",
-      });
+  if (paid.orderId) {
+    const escrow = await SettlementLedger.createEscrow({
+      paymentIntentId,
+      orderId: paid.orderId,
+      buyerId: userId ?? "SYSTEM",
+      sellerId: paid.sellerId ?? "SYSTEM",
+      amount: piVerified.verifiedAmount,
+      currency: "PI",
+    });
 
+    await SettlementLedger.markPaymentConfirmed({
+      escrowId: escrow.id,
+      txid,
+      source: "PI",
+    });
+
+    if (rpcVerified.ok) {
       await SettlementLedger.markPaymentConfirmed({
         escrowId: escrow.id,
         txid,
-        source: "PI",
-      });
-
-      if (rpcVerified.ok) {
-        await SettlementLedger.markPaymentConfirmed({
-          escrowId: escrow.id,
-          txid,
-          source: "RPC",
-        });
-      }
-
-      await SettlementLedger.linkOrder({
-        escrowId: escrow.id,
-        orderId: paid.orderId,
+        source: "RPC",
       });
     }
-  } catch (e) {
-    console.error("[LEDGER FAIL]", e);
+
+    await SettlementLedger.linkOrder({
+      escrowId: escrow.id,
+      orderId: paid.orderId,
+    });
+
+    await SettlementLedger.releaseToSeller({
+      escrowId: escrow.id,
+      sellerId: paid.sellerId ?? "SYSTEM",
+      amount: piVerified.verifiedAmount,
+    });
   }
-
-  console.log("[ORCHESTRATOR SUCCESS]", {
-    orderId: paid.orderId,
-  });
-
-  return {
-    ok: true,
-    orderId: paid.orderId,
-    amount: piVerified.verifiedAmount,
-    piCompleted: true,
-    rpcAudited: rpcVerified.audited,
-    source,
-  };
+} catch (e) {
+  console.error("[LEDGER FAIL]", e);
 }
+
+console.log("[ORCHESTRATOR SUCCESS]", {
+  orderId: paid.orderId,
+});
+
+return {
+  ok: true,
+  orderId: paid.orderId,
+  amount: piVerified.verifiedAmount,
+  piCompleted: true,
+  rpcAudited: rpcVerified.audited,
+  source,
+};
