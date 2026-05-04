@@ -1,4 +1,15 @@
 import { withTransaction } from "@/lib/db";
+import crypto from "crypto";
+
+import { SettlementLedgerV3 } from "@/lib/db/settlement.ledger";
+
+import {
+  auditPiVerified,
+  auditRpcVerified,
+  auditFinalizeDone,
+  auditPiCompleted,
+  auditManualReview,
+} from "@/lib/db/payments.audit";
 
 /* =========================================================
    TYPES
@@ -10,9 +21,9 @@ type FinalizePaidOrderParams = {
   txid: string;
   verifiedAmount: number;
   receiverWallet: string;
+  piUid?: string | null;
   piPayload: unknown;
   rpcPayload: unknown;
-  userId?: string;
 };
 
 type PaymentIntentRow = {
@@ -46,17 +57,15 @@ type PaymentIntentRow = {
   merchant_wallet: string;
 
   status: string;
+  settlement_state: string;
+
   pi_payment_id: string | null;
   txid: string | null;
 };
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
 function safeNumber(v: unknown): number {
   const n = Number(v);
-  if (Number.isNaN(n)) throw new Error("INVALID_NUMBER");
+  if (!Number.isFinite(n)) throw new Error("INVALID_NUMBER");
   return n;
 }
 
@@ -65,7 +74,7 @@ function sameAmount(a: number, b: number): boolean {
 }
 
 /* =========================================================
-   FINALIZE ORDER FROM VERIFIED PAYMENT
+   FINALIZE
 ========================================================= */
 
 export async function finalizePaidOrderFromIntent({
@@ -74,10 +83,11 @@ export async function finalizePaidOrderFromIntent({
   txid,
   verifiedAmount,
   receiverWallet,
+  piUid,
   piPayload,
   rpcPayload,
 }: FinalizePaidOrderParams) {
-  console.log("🟡 [DB FINALIZE] START", {
+  console.log("🟡 [FINAL V4] START", {
     paymentIntentId,
     piPaymentId,
     txid,
@@ -105,39 +115,62 @@ export async function finalizePaidOrderFromIntent({
 
     const intent = intentRes.rows[0];
 
-    console.log("🟡 [DB FINALIZE] INTENT_LOCKED", {
+    console.log("🟡 [FINAL V4] INTENT_LOCKED", {
       id: intent.id,
       status: intent.status,
-      total: intent.total_amount,
-      product: intent.product_id,
-      variant: intent.variant_id,
-      qty: intent.quantity,
+      settlement: intent.settlement_state,
     });
 
     /* =====================================================
-       2. IDEMPOTENT RETURN
+       2. SELF PAYMENT GUARD
+    ===================================================== */
+
+    if (intent.buyer_id === intent.seller_id) {
+      await auditManualReview(paymentIntentId, "SELF_PAYMENT_FORBIDDEN", {
+        buyerId: intent.buyer_id,
+        sellerId: intent.seller_id,
+      });
+
+      throw new Error("SELF_PAYMENT_FORBIDDEN");
+    }
+
+    /* =====================================================
+       3. HARD IDEMPOTENT RETURN
     ===================================================== */
 
     if (intent.status === "paid") {
       const existingOrder = await client.query<{ id: string }>(
-        `
-        SELECT id
-        FROM orders
-        WHERE pi_payment_id = $1
-        LIMIT 1
-        `,
+        `SELECT id FROM orders WHERE pi_payment_id = $1 LIMIT 1`,
         [piPaymentId]
       );
 
-      console.log("🟢 [DB FINALIZE] ALREADY_PAID");
+      return {
+        ok: true,
+        already: true,
+        orderId: existingOrder.rows[0]?.id ?? null,
+        buyerId: intent.buyer_id,
+        sellerId: intent.seller_id,
+      };
+    }
+
+    const dupReceipt = await client.query<{ id: string }>(
+      `SELECT id FROM payment_receipts WHERE pi_payment_id = $1 LIMIT 1`,
+      [piPaymentId]
+    );
+
+    if (dupReceipt.rows.length) {
+      const existingOrder = await client.query<{ id: string }>(
+        `SELECT id FROM orders WHERE pi_payment_id = $1 LIMIT 1`,
+        [piPaymentId]
+      );
 
       return {
-      ok: true,
-      already: true,
-      orderId: existingOrder.rows[0]?.id ?? null,
-      buyerId: intent.buyer_id,
-      sellerId: intent.seller_id,
-    };
+        ok: true,
+        already: true,
+        orderId: existingOrder.rows[0]?.id ?? null,
+        buyerId: intent.buyer_id,
+        sellerId: intent.seller_id,
+      };
     }
 
     if (
@@ -148,65 +181,84 @@ export async function finalizePaidOrderFromIntent({
     }
 
     /* =====================================================
-       3. VERIFY MONEY AGAIN
+       4. SETTLEMENT LOCK
+    ===================================================== */
+
+    const settlementLockId = crypto.randomUUID();
+
+    await client.query(
+      `
+      UPDATE payment_intents
+      SET
+        settlement_lock_id = $2,
+        settlement_locked_at = now(),
+        settlement_lock_source = 'FINALIZE_V4',
+        settlement_state = 'RPC_AUDITED',
+        updated_at = now()
+      WHERE id = $1
+      `,
+      [paymentIntentId, settlementLockId]
+    );
+
+    /* =====================================================
+       5. VERIFY MONEY
     ===================================================== */
 
     const expectedAmount = safeNumber(intent.total_amount);
 
     if (!sameAmount(expectedAmount, verifiedAmount)) {
+      await auditManualReview(paymentIntentId, "AMOUNT_MISMATCH", {
+        expectedAmount,
+        verifiedAmount,
+      });
       throw new Error("AMOUNT_MISMATCH");
     }
 
-    if (
-  (intent.merchant_wallet || "").trim() !==
-  (receiverWallet || "").trim()
-) {
-  throw new Error("RECEIVER_MISMATCH");
-}
-
-    console.log("🟢 [DB FINALIZE] MONEY_VERIFIED");
-
-    /* =====================================================
-       4. DUPLICATE ORDER CHECK
-    ===================================================== */
-
-    const dupOrder = await client.query<{ id: string }>(
-      `
-      SELECT id
-      FROM orders
-      WHERE pi_payment_id = $1
-      LIMIT 1
-      `,
-      [piPaymentId]
-    );
-
-    if (dupOrder.rows.length) {
-      console.log("🟢 [DB FINALIZE] DUPLICATE_ORDER_RETURN");
-
-      await client.query(
-        `
-        UPDATE payment_intents
-        SET
-          status = 'paid',
-          paid_at = now(),
-          txid = $2,
-          updated_at = now()
-        WHERE id = $1
-        `,
-        [paymentIntentId, txid]
-      );
-
-      return {
-  ok: true,
-  already: true,
-  orderId: dupOrder.rows[0].id,
-  buyerId: intent.buyer_id,
-  sellerId: intent.seller_id,
-   };
+    if ((intent.merchant_wallet || "").trim() !== (receiverWallet || "").trim()) {
+      await auditManualReview(paymentIntentId, "RECEIVER_MISMATCH", {
+        expected: intent.merchant_wallet,
+        got: receiverWallet,
+      });
+      throw new Error("RECEIVER_MISMATCH");
     }
 
+    await auditPiVerified(paymentIntentId, {
+      piPaymentId,
+      verifiedAmount,
+      piUid: piUid ?? null,
+    });
+
+    await auditRpcVerified(paymentIntentId, {
+      txid,
+      receiverWallet,
+    });
+
     /* =====================================================
-       5. LOCK PRODUCT / VARIANT STOCK
+       6. AUTHORIZE IMMUTABLE LOG
+    ===================================================== */
+
+    await client.query(
+      `
+      INSERT INTO payment_authorize_logs (
+        payment_intent_id,
+        pi_payment_id,
+        pi_uid,
+        verified_amount,
+        payload
+      )
+      VALUES ($1,$2,$3,$4,$5)
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        piUid ?? "unknown",
+        verifiedAmount,
+        JSON.stringify(piPayload),
+      ]
+    );
+
+    /* =====================================================
+       7. LOCK STOCK
     ===================================================== */
 
     let productName = "";
@@ -218,34 +270,11 @@ export async function finalizePaidOrderFromIntent({
     let isDigital = false;
 
     if (intent.variant_id) {
-      const variantRes = await client.query<{
-        stock: number;
-        is_unlimited: boolean;
-        sold: number;
-
-        name: string;
-        option_1: string | null;
-        option_2: string | null;
-        option_3: string | null;
-        image: string;
-
-        product_name: string;
-        product_slug: string;
-        product_thumbnail: string;
-        product_images: string[];
-        is_digital: boolean;
-      }>(
+      const vr = await client.query<any>(
         `
         SELECT
-          pv.stock,
-          pv.is_unlimited,
-          pv.sold,
-          pv.name,
-          pv.option_1,
-          pv.option_2,
-          pv.option_3,
-          pv.image,
-
+          pv.stock,pv.is_unlimited,pv.sold,
+          pv.name,pv.option_1,pv.option_2,pv.option_3,pv.image,
           p.name as product_name,
           p.slug as product_slug,
           p.thumbnail as product_thumbnail,
@@ -259,11 +288,9 @@ export async function finalizePaidOrderFromIntent({
         [intent.variant_id]
       );
 
-      if (!variantRes.rows.length) {
-        throw new Error("VARIANT_NOT_FOUND");
-      }
+      if (!vr.rows.length) throw new Error("VARIANT_NOT_FOUND");
 
-      const variant = variantRes.rows[0];
+      const variant = vr.rows[0];
 
       if (!variant.is_unlimited && variant.stock < intent.quantity) {
         throw new Error("OUT_OF_STOCK");
@@ -273,10 +300,9 @@ export async function finalizePaidOrderFromIntent({
         await client.query(
           `
           UPDATE product_variants
-          SET
-            stock = stock - $2,
-            sold = sold + $2,
-            updated_at = now()
+          SET stock = stock - $2,
+              sold = sold + $2,
+              updated_at = now()
           WHERE id = $1
           `,
           [intent.variant_id, intent.quantity]
@@ -286,9 +312,8 @@ export async function finalizePaidOrderFromIntent({
       await client.query(
         `
         UPDATE products
-        SET
-          sold = sold + $2,
-          updated_at = now()
+        SET sold = sold + $2,
+            updated_at = now()
         WHERE id = $1
         `,
         [intent.product_id, intent.quantity]
@@ -299,39 +324,19 @@ export async function finalizePaidOrderFromIntent({
       productThumb = variant.product_thumbnail;
       productImages = variant.product_images || [];
       variantName = variant.name || "";
-      variantValue = [
-        variant.option_1,
-        variant.option_2,
-        variant.option_3,
-      ]
+      variantValue = [variant.option_1, variant.option_2, variant.option_3]
         .filter(Boolean)
         .join(" / ");
       isDigital = variant.is_digital;
     } else {
-      const productRes = await client.query<{
-        stock: number;
-        is_unlimited: boolean;
-        sold: number;
-        name: string;
-        slug: string;
-        thumbnail: string;
-        images: string[];
-        is_digital: boolean;
-      }>(
-        `
-        SELECT *
-        FROM products
-        WHERE id = $1
-        FOR UPDATE
-        `,
+      const pr = await client.query<any>(
+        `SELECT * FROM products WHERE id = $1 FOR UPDATE`,
         [intent.product_id]
       );
 
-      if (!productRes.rows.length) {
-        throw new Error("PRODUCT_NOT_FOUND");
-      }
+      if (!pr.rows.length) throw new Error("PRODUCT_NOT_FOUND");
 
-      const product = productRes.rows[0];
+      const product = pr.rows[0];
 
       if (!product.is_unlimited && product.stock < intent.quantity) {
         throw new Error("OUT_OF_STOCK");
@@ -341,10 +346,9 @@ export async function finalizePaidOrderFromIntent({
         await client.query(
           `
           UPDATE products
-          SET
-            stock = stock - $2,
-            sold = sold + $2,
-            updated_at = now()
+          SET stock = stock - $2,
+              sold = sold + $2,
+              updated_at = now()
           WHERE id = $1
           `,
           [intent.product_id, intent.quantity]
@@ -358,52 +362,27 @@ export async function finalizePaidOrderFromIntent({
       isDigital = product.is_digital;
     }
 
-    console.log("🟢 [DB FINALIZE] STOCK_OK");
-
     /* =====================================================
-       6. CREATE ORDER
+       8. CREATE ORDER
     ===================================================== */
 
     const orderInsert = await client.query<{ id: string }>(
       `
       INSERT INTO orders (
-        buyer_id,
-        seller_id,
-
-        pi_payment_id,
-        pi_txid,
-        idempotency_key,
-
-        payment_status,
-        paid_at,
-
-        items_total,
-        subtotal,
-        discount,
-        shipping_fee,
-        tax,
-        total,
-        currency,
-
+        buyer_id,seller_id,
+        pi_payment_id,pi_txid,idempotency_key,
+        payment_status,paid_at,
+        items_total,subtotal,discount,shipping_fee,tax,total,currency,
         status,
-
-        shipping_name,
-        shipping_phone,
-        shipping_address_line,
-        shipping_ward,
-        shipping_district,
-        shipping_region,
-        shipping_country,
-        shipping_postal_code,
-        shipping_zone,
-
-        total_items,
-        total_quantity
+        shipping_name,shipping_phone,shipping_address_line,
+        shipping_ward,shipping_district,shipping_region,
+        shipping_country,shipping_postal_code,shipping_zone,
+        total_items,total_quantity
       )
       VALUES (
         $1,$2,
         $3,$4,$5,
-        'paid', now(),
+        'paid',now(),
         $6,$7,$8,$9,0,$10,$11,
         'pending',
         $12,$13,$14,$15,$16,$17,$18,$19,$20,
@@ -414,18 +393,15 @@ export async function finalizePaidOrderFromIntent({
       [
         intent.buyer_id,
         intent.seller_id,
-
         piPaymentId,
         txid,
         piPaymentId,
-
         intent.subtotal,
         intent.subtotal,
         intent.discount,
         intent.shipping_fee,
         intent.total_amount,
         intent.currency,
-
         intent.shipping_snapshot?.name ?? "",
         intent.shipping_snapshot?.phone ?? "",
         intent.shipping_snapshot?.address_line ?? "",
@@ -435,52 +411,31 @@ export async function finalizePaidOrderFromIntent({
         intent.country,
         intent.shipping_snapshot?.postal_code ?? null,
         intent.zone,
-
         intent.quantity,
       ]
     );
 
     const orderId = orderInsert.rows[0].id;
 
-    console.log("🟢 [DB FINALIZE] ORDER_CREATED", orderId);
-
     /* =====================================================
-       7. CREATE ORDER ITEM
+       9. CREATE ORDER ITEM
     ===================================================== */
 
     await client.query(
       `
       INSERT INTO order_items (
-        order_id,
-        seller_id,
-        product_id,
-        variant_id,
-
-        product_name,
-        product_slug,
-        thumbnail,
-        images,
-
-        variant_name,
-        variant_value,
-        is_digital,
-
-        unit_price,
-        quantity,
-        total_price,
-        currency,
-
-        status,
-
-        snapshot
+        order_id,seller_id,product_id,variant_id,
+        product_name,product_slug,thumbnail,images,
+        variant_name,variant_value,is_digital,
+        unit_price,quantity,total_price,currency,
+        status,snapshot
       )
       VALUES (
         $1,$2,$3,$4,
         $5,$6,$7,$8,
         $9,$10,$11,
         $12,$13,$14,$15,
-        'pending',
-        $16
+        'pending',$16
       )
       `,
       [
@@ -488,21 +443,17 @@ export async function finalizePaidOrderFromIntent({
         intent.seller_id,
         intent.product_id,
         intent.variant_id,
-
         productName,
         productSlug,
         productThumb,
         productImages,
-
         variantName,
         variantValue,
         isDigital,
-
         intent.unit_price,
         intent.quantity,
         safeNumber(intent.unit_price) * intent.quantity,
         intent.currency,
-
         JSON.stringify({
           payment_intent_id: paymentIntentId,
           pi_payment_id: piPaymentId,
@@ -511,10 +462,8 @@ export async function finalizePaidOrderFromIntent({
       ]
     );
 
-    console.log("🟢 [DB FINALIZE] ORDER_ITEM_CREATED");
-
     /* =====================================================
-       8. PAYMENT RECEIPT
+       10. PAYMENT RECEIPT
     ===================================================== */
 
     await client.query(
@@ -529,9 +478,7 @@ export async function finalizePaidOrderFromIntent({
         pi_payload,
         rpc_payload
       )
-      VALUES (
-        $1,$2,$3,$4,$5,'verified',$6,$7
-      )
+      VALUES ($1,$2,$3,$4,$5,'verified',$6,$7)
       `,
       [
         paymentIntentId,
@@ -544,56 +491,24 @@ export async function finalizePaidOrderFromIntent({
       ]
     );
 
-    console.log("🟢 [DB FINALIZE] RECEIPT_CREATED");
-
     /* =====================================================
-       9. UPDATE PAYMENT INTENT
-    ===================================================== */
-
-    await client.query(
-      `
-      UPDATE payment_intents
-      SET
-        status = 'paid',
-        txid = $2,
-        paid_at = now(),
-        updated_at = now()
-      WHERE id = $1
-      `,
-      [paymentIntentId, txid]
-    );
-
-    /* =====================================================
-       10. UPSERT PI PAYMENTS (compat/debug)
+       11. PI PAYMENTS UPSERT
     ===================================================== */
 
     await client.query(
       `
       INSERT INTO pi_payments (
-        user_id,
-        pi_payment_id,
-        txid,
-        amount,
-        status,
-        expected_amount,
-        verified_amount,
-        idempotency_key,
-        country,
-        zone,
-        order_id,
-        raw,
-        completed_at,
-        updated_at
+        user_id,pi_payment_id,txid,amount,currency,status,
+        expected_amount,verified_amount,idempotency_key,
+        country,zone,order_id,raw,completed_at,updated_at
       )
       VALUES (
-        $1,$2,$3,$4,
-        'completed',
-        $5,$6,$7,$8,$9,$10,$11,
-        now(),
-        now()
+        $1,$2,$3,$4,'PI','completed',
+        $5,$6,$7,
+        $8,$9,$10,$11,now(),now()
       )
-     ON CONFLICT (pi_payment_id)
-        DO UPDATE SET
+      ON CONFLICT (pi_payment_id)
+      DO UPDATE SET
         txid = EXCLUDED.txid,
         status = 'completed',
         verified_amount = EXCLUDED.verified_amount,
@@ -613,20 +528,82 @@ export async function finalizePaidOrderFromIntent({
         intent.country,
         intent.zone,
         orderId,
+        JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
+      ]
+    );
+
+    /* =====================================================
+       12. SETTLEMENT LEDGER
+    ===================================================== */
+
+    const escrowId = await SettlementLedgerV3.createEscrow({
+      paymentIntentId,
+      orderId,
+      buyerId: intent.buyer_id,
+      sellerId: intent.seller_id,
+      amount: verifiedAmount,
+      txid,
+      piPaymentId,
+    });
+
+    await SettlementLedgerV3.markPiVerified(escrowId);
+    await SettlementLedgerV3.markRpcVerified(escrowId);
+    await SettlementLedgerV3.linkOrder(escrowId, orderId);
+    await SettlementLedgerV3.creditSeller({
+      escrowId,
+      sellerId: intent.seller_id,
+      amount: verifiedAmount,
+      piPaymentId,
+    });
+    await SettlementLedgerV3.releaseEscrow(escrowId);
+
+    /* =====================================================
+       13. UPDATE PAYMENT INTENT FINAL
+    ===================================================== */
+
+    await client.query(
+      `
+      UPDATE payment_intents
+      SET
+        status = 'paid',
+        settlement_state = 'SETTLED',
+        pi_payment_id = $2,
+        pi_verified_amount = $3,
+        pi_payment_payload = $4,
+        txid = $5,
+        paid_at = now(),
+        settled_at = now(),
+        last_reconcile_at = now(),
+        updated_at = now()
+      WHERE id = $1
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        verifiedAmount,
         JSON.stringify({
           pi: piPayload,
           rpc: rpcPayload,
         }),
+        txid,
       ]
     );
 
-    console.log("🟢 [DB FINALIZE] PI_PAYMENT_LOGGED");
+    /* =====================================================
+       14. AUDIT FINAL
+    ===================================================== */
+
+    await auditFinalizeDone(paymentIntentId, { orderId });
+    await auditPiCompleted(paymentIntentId, { piPaymentId, txid });
+
+    console.log("🟢 [FINAL V4] SUCCESS", { orderId, escrowId });
 
     return {
-    ok: true,
-  orderId,
-  buyerId: intent.buyer_id,
-  sellerId: intent.seller_id,
-   };
+      ok: true,
+      orderId,
+      escrowId,
+      buyerId: intent.buyer_id,
+      sellerId: intent.seller_id,
+    };
   });
 }
