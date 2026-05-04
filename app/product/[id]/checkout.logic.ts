@@ -312,7 +312,7 @@ item,
           amount: lockedAmount,
           memo: lockedMemo,
           metadata: {
-            payment_intent_id: paymentIntentId,
+            paymentIntentId: paymentIntentId,
           },
         },
         {
@@ -333,9 +333,9 @@ item,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  payment_intent_id: paymentIntentId,
-                  pi_payment_id: paymentId,
-                }),
+                paymentIntentId: paymentIntentId,   
+                piPaymentId: paymentId,             
+             }),
               });
 
               const data = await res.json().catch(() => null);
@@ -394,10 +394,10 @@ item,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          payment_intent_id: paymentIntentId,
-          pi_payment_id: paymentId,
-          txid,
-        }),
+       paymentIntentId,
+      piPaymentId: paymentId,
+       txid,
+      });
       });
 
       const data = await res.json().catch(() => null);
@@ -428,10 +428,10 @@ item,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          payment_intent_id: paymentIntentId,
-          pi_payment_id: paymentId,
-          txid,
-        }),
+  paymentIntentId,
+  piPaymentId: paymentId,
+  txid,
+     });
       });
 
       const reconcileData = await reconcileRes.json().catch(() => null);
