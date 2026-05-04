@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback } from "react";
@@ -312,7 +313,7 @@ item,
           amount: lockedAmount,
           memo: lockedMemo,
           metadata: {
-            paymentIntentId: paymentIntentId,
+            payment_intent_id: paymentIntentId,
           },
         },
         {
@@ -333,9 +334,9 @@ item,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                paymentIntentId: paymentIntentId,   
-                piPaymentId: paymentId,             
-             }),
+                  payment_intent_id: paymentIntentId,
+                  pi_payment_id: paymentId,
+                }),
               });
 
               const data = await res.json().catch(() => null);
@@ -394,10 +395,10 @@ item,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-       paymentIntentId,
-      piPaymentId: paymentId,
-       txid,
-      }),
+          payment_intent_id: paymentIntentId,
+          pi_payment_id: paymentId,
+          txid,
+        }),
       });
 
       const data = await res.json().catch(() => null);
@@ -428,10 +429,10 @@ item,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-  paymentIntentId,
-  piPaymentId: paymentId,
-  txid,
-     }),
+          payment_intent_id: paymentIntentId,
+          pi_payment_id: paymentId,
+          txid,
+        }),
       });
 
       const reconcileData = await reconcileRes.json().catch(() => null);
