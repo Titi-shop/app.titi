@@ -1,13 +1,5 @@
-import { withTransaction } from "@/lib/db";
 
-type DbClient = {
-  query: <T = unknown>(
-    text: string,
-    params?: readonly unknown[]
-  ) => Promise<{
-    rows: T[];
-  }>;
-};
+import { withTransaction } from "@/lib/db";
 
 type MarkPaymentVerifyingInput = {
   paymentIntentId: string;
@@ -20,8 +12,6 @@ type PaymentIntentRow = {
   id: string;
   buyer_id: string;
   status: string;
-  txid: string | null;
-  pi_payment_id: string | null;
 };
 
 type MarkPaymentVerifyingResult = {
@@ -31,46 +21,6 @@ type MarkPaymentVerifyingResult = {
   paymentIntentId: string;
 };
 
-async function insertSubmitAudit(
-  client: DbClient,
-  input: {
-    paymentIntentId: string;
-    userId: string;
-    piPaymentId: string;
-    txid: string;
-  }
-): Promise<void> {
-  await client.query(
-    `
-    INSERT INTO payment_audit_logs (
-      payment_intent_id,
-      stage,
-      severity,
-      source,
-      reason,
-      payload,
-      created_at
-    )
-    VALUES (
-      $1,
-      'SUBMIT',
-      'info',
-      'client_submit',
-      'TX_SUBMITTED',
-      $2::jsonb,
-      now()
-    )
-    `,
-    [
-      input.paymentIntentId,
-      JSON.stringify({
-        userId: input.userId,
-        piPaymentId: input.piPaymentId,
-        txid: input.txid,
-      }),
-    ]
-  );
-}
 export async function markPaymentVerifying({
   paymentIntentId,
   userId,
@@ -80,10 +30,10 @@ export async function markPaymentVerifying({
   return await withTransaction(async (client) => {
     const found = await client.query<PaymentIntentRow>(
       `
-      SELECT id, buyer_id, status, txid, pi_payment_id
-    FROM payment_intents
-    WHERE id = $1
-    FOR UPDATE
+      SELECT id, buyer_id, status
+      FROM payment_intents
+      WHERE id = $1
+      FOR UPDATE
       `,
       [paymentIntentId]
     );
@@ -102,23 +52,23 @@ export async function markPaymentVerifying({
        IDEMPOTENT CASE
     ===================================================== */
 
-    if (intent.status === "verifying") {
-  if (intent.txid !== txid || intent.pi_payment_id !== piPaymentId) {
-    await insertSubmitAudit(client, {
-      paymentIntentId,
-      userId,
-      piPaymentId,
-      txid,
-    });
-  }
+    if (intent.status === "paid") {
+      return {
+        ok: true,
+        already: true,
+        status: "paid",
+        paymentIntentId,
+      };
+    }
 
-  return {
-    ok: true,
-    already: true,
-    status: "verifying",
-    paymentIntentId,
-  };
-}
+    if (intent.status === "verifying") {
+      return {
+        ok: true,
+        already: true,
+        status: "verifying",
+        paymentIntentId,
+      };
+    }
 
     /* =====================================================
        STATUS GUARD
@@ -147,12 +97,7 @@ export async function markPaymentVerifying({
       `,
       [paymentIntentId, piPaymentId, txid]
     );
-await insertSubmitAudit(client, {
-  paymentIntentId,
-  userId,
-  piPaymentId,
-  txid,
-});
+
     return {
       ok: true,
       already: false,
