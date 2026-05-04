@@ -298,45 +298,37 @@ export async function runPaymentSettlement({
     orderId: paid.orderId,
   });
 
-  /* =====================================================
-     STEP 7 — INTERNAL LEDGER (NON BLOCKING)
-  ===================================================== */
+ /* =====================================================
+   STEP 7 — INTERNAL LEDGER (NON BLOCKING)
+===================================================== */
 
-  try {
+try {
   if (paid.orderId) {
-    const escrow = await SettlementLedger.createEscrow({
+    const escrowId = await SettlementLedger.createEscrow({
       paymentIntentId,
       orderId: paid.orderId,
       buyerId: userId ?? "SYSTEM",
       sellerId: paid.sellerId ?? "SYSTEM",
       amount: piVerified.verifiedAmount,
-      currency: "PI",
+      txid,
+      piPaymentId,
     });
 
-    await SettlementLedger.markPaymentConfirmed({
-      escrowId: escrow.id,
-      txid,
-      source: "PI",
-    });
+    await SettlementLedger.markPiVerified(escrowId);
 
     if (rpcVerified.ok) {
-      await SettlementLedger.markPaymentConfirmed({
-        escrowId: escrow.id,
-        txid,
-        source: "RPC",
-      });
+      await SettlementLedger.markRpcVerified(escrowId);
     }
 
-    await SettlementLedger.linkOrder({
-      escrowId: escrow.id,
-      orderId: paid.orderId,
-    });
+    await SettlementLedger.linkOrder(escrowId, paid.orderId);
 
-    await SettlementLedger.releaseToSeller({
-      escrowId: escrow.id,
+    await SettlementLedger.creditSeller({
+      escrowId,
       sellerId: paid.sellerId ?? "SYSTEM",
       amount: piVerified.verifiedAmount,
     });
+
+    await SettlementLedger.releaseEscrow(escrowId);
   }
 } catch (e) {
   console.error("[LEDGER FAIL]", e);
