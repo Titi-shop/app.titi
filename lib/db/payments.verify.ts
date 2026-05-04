@@ -229,7 +229,9 @@ export async function bindPiPaymentToIntent({
       ]
     );
 
-    await client.query(
+    const eventHash = crypto.randomUUID();
+
+await client.query(
   `
   INSERT INTO payment_authorize_logs (
     payment_intent_id,
@@ -253,15 +255,18 @@ export async function bindPiPaymentToIntent({
     piPaymentId,
     piUid,
 
-    crypto.randomUUID(), // nonce
-    crypto.randomUUID(), // verify_token
+    crypto.randomUUID(),
+    crypto.randomUUID(),
 
-    intent.merchant_wallet, 
-    expectedAmount,         
+    intent.merchant_wallet ?? "",   // 👈 FIX an toàn
+    expectedAmount,
     verifiedAmount,
+
     "PI",
     "RECEIVED",
+
     JSON.stringify(piPayload ?? {}),
+
     eventHash,
   ]
 );
