@@ -104,41 +104,40 @@ export class SettlementLedgerV2 {
   }
 
   static async creditSeller(params: {
-    escrowId: string;
-    sellerId: string;
-    amount: number;
-  }) {
-    await query(
-      `
-      insert into seller_credits (
-        id,
-        seller_id,
-        escrow_id,
-        amount,
-        currency,
-        status,
-        released,
-        created_at
-      )
-      values ($1,$2,$3,$4,'PI','AVAILABLE',false,now())
-      on conflict (escrow_id) do nothing
-      `,
-      [
-        randomUUID(),
-        params.sellerId,
-        params.escrowId,
-        params.amount,
-      ]
-    );
+  escrowId: string;
+  sellerId: string;
+  amount: number;
+}) {
+  await query(
+    `
+    insert into seller_credits (
+      id,
+      seller_id,
+      escrow_id,
+      amount,
+      currency,
+      status,
+      created_at
+    )
+    values ($1,$2,$3,$4,'PI','AVAILABLE',now())
+    on conflict (escrow_id) do nothing
+    `,
+    [
+      randomUUID(),
+      params.sellerId,
+      params.escrowId,
+      params.amount,
+    ]
+  );
 
-    await this.event({
-      escrowId: params.escrowId,
-      type: "SELLER_CREDITED",
-      source: "ledger",
-      reason: "SELLER_BALANCE_GRANTED",
-      metadata: params,
-    });
-  }
+  await this.event({
+    escrowId: params.escrowId,
+    type: "SELLER_CREDITED",
+    source: "ledger",
+    reason: "SELLER_BALANCE_GRANTED",
+    metadata: params,
+  });
+}
 
   static async releaseEscrow(escrowId: string) {
     await query(
