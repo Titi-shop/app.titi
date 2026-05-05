@@ -10,7 +10,6 @@ import {
   auditManualReview,
   auditPiCompleted,
   auditPiVerified,
-  auditRpcFailed,
   auditRpcVerified,
 } from "@/lib/db/payments.audit";
 
@@ -18,6 +17,7 @@ import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
 import { SettlementLedgerV3 as SettlementLedger } from "@/lib/db/settlement.ledger";
+import { piCompletePayment } from "@/lib/pi/client";
 
 import type {
   RunPaymentSettlementInput,
@@ -25,54 +25,8 @@ import type {
   RpcAuditResult,
 } from "@/lib/payments/payment.types";
 
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
-
 /* =========================================================
-   PI COMPLETE SAFE IDEMPOTENT
-========================================================= */
-
-async function callPiComplete(
-  piPaymentId: string,
-  txid: string
-): Promise<boolean> {
-  try {
-    const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${PI_KEY}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-      body: JSON.stringify({ txid }),
-    });
-
-    const text = await res.text();
-
-    if (!res.ok) {
-      if (text.includes("already_completed")) {
-        console.log("[PI COMPLETE] already_completed");
-        return true;
-      }
-
-      console.warn("[PI COMPLETE FAIL]", {
-        status: res.status,
-        body: text,
-      });
-
-      return false;
-    }
-
-    console.log("[PI COMPLETE OK]");
-    return true;
-  } catch (e) {
-    console.error("[PI COMPLETE CRASH]", e);
-    return false;
-  }
-}
-
-/* =========================================================
-   EMPTY RPC RESULT
+   EMPTY RPC FALLBACK
 ========================================================= */
 
 function emptyRpc(): RpcAuditResult {
@@ -92,7 +46,7 @@ function emptyRpc(): RpcAuditResult {
 }
 
 /* =========================================================
-   MAIN ORCHESTRATOR FINAL
+   MAIN PAYMENT SETTLEMENT ORCHESTRATOR
 ========================================================= */
 
 export async function runPaymentSettlement({
@@ -102,7 +56,7 @@ export async function runPaymentSettlement({
   userId,
   source,
 }: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
-  console.log("[ORCHESTRATOR START]", {
+  console.log("[PAYMENT][SETTLEMENT_START]", {
     paymentIntentId,
     piPaymentId,
     txid,
@@ -110,7 +64,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 1 — GUARD (MUST FIRST)
+     STEP 1 — PRE GUARD
   ===================================================== */
 
   const guard = await guardPaymentForReconcile({
@@ -137,8 +91,6 @@ export async function runPaymentSettlement({
 
     await auditManualReview(paymentIntentId, guard.code, { source });
 
-    console.warn("[ORCHESTRATOR EXIT] GUARD_FAIL", guard.code);
-
     return {
       ok: false,
       orderId: null,
@@ -150,7 +102,7 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP 2 — PI VERIFY (SOURCE OF TRUTH)
+     STEP 2 — PI VERIFY (PRIMARY SOURCE OF TRUTH)
   ===================================================== */
 
   const piVerified = await verifyPiPaymentForReconcile({
@@ -184,7 +136,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 3 — ACQUIRE LOCK (AFTER VERIFY ONLY)
+     STEP 3 — DISTRIBUTED LOCK
   ===================================================== */
 
   const lock = await acquirePaymentSettlementLock(paymentIntentId);
@@ -194,8 +146,6 @@ export async function runPaymentSettlement({
       source,
       reason: "LOCK_DENIED",
     });
-
-    console.warn("[ORCHESTRATOR EXIT] LOCK_DENIED");
 
     return {
       ok: false,
@@ -208,7 +158,7 @@ export async function runPaymentSettlement({
   }
 
   /* =====================================================
-     STEP 4 — RPC AUDIT (NON BLOCKING)
+     STEP 4 — RPC VERIFY (NON BLOCKING)
   ===================================================== */
 
   let rpcVerified: RpcAuditResult = emptyRpc();
@@ -218,17 +168,25 @@ export async function runPaymentSettlement({
       paymentIntentId,
       txid,
     });
+
+    if (rpcVerified.ok) {
+      await auditRpcVerified(paymentIntentId, {
+        source,
+        txid,
+        amount: rpcVerified.amount,
+      });
+    }
   } catch (e) {
-    console.warn("[RPC VERIFY CRASH]", e);
+    console.warn("[PAYMENT][RPC_VERIFY_FAIL]", e);
   }
 
   /* =====================================================
-     STEP 5 — PI COMPLETE (CRITICAL STEP)
+     STEP 5 — PI COMPLETE (IDEMPOTENT VENDOR SIDE EFFECT)
   ===================================================== */
 
-  const piCompleted = await callPiComplete(piPaymentId, txid);
-
-  if (!piCompleted) {
+  try {
+    await piCompletePayment(piPaymentId, txid);
+  } catch {
     await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
       source,
       txid,
@@ -251,7 +209,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 6 — FINALIZE ORDER
+     STEP 6 — FINALIZE ORDER + STOCK + PAYMENT WRITE
   ===================================================== */
 
   const paid = await finalizePaidOrderFromIntent({
@@ -270,7 +228,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 7 — LEDGER (SAFE NON BLOCKING)
+     STEP 7 — SETTLEMENT LEDGER (NON BLOCKING)
   ===================================================== */
 
   try {
@@ -302,11 +260,12 @@ export async function runPaymentSettlement({
       await SettlementLedger.releaseEscrow(escrowId);
     }
   } catch (e) {
-    console.error("[LEDGER FAIL]", e);
+    console.error("[PAYMENT][LEDGER_FAIL]", e);
   }
 
-  console.log("[ORCHESTRATOR SUCCESS]", {
+  console.log("[PAYMENT][SETTLEMENT_SUCCESS]", {
     orderId: paid.orderId,
+    amount: piVerified.verifiedAmount,
   });
 
   return {
