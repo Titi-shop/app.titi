@@ -282,20 +282,31 @@ item,
         throw new Error(intentData?.error || "PAYMENT_INTENT_FAILED");
       }
 
-      const paymentIntentId = intentData.paymentIntentId;
+      const paymentIntentId =
+  intentData.payment_intent_id || intentData.paymentIntentId;
 
-      const lockedAmount = Number(Number(intentData.amount || 0).toFixed(7));
+if (!paymentIntentId) {
+  showMessage("payment_intent_id_missing");
+  throw new Error("PAYMENT_INTENT_ID_MISSING");
+}
 
-      const lockedMemo =
-        typeof intentData.memo === "string" && intentData.memo.trim()
-          ? intentData.memo.trim().slice(0, 120)
-          : (t.payment_memo_order ?? "Order payment");
+const lockedAmount = Number(Number(intentData.amount || 0).toFixed(7));
 
-      console.log("🟢 [CHECKOUT] INTENT_OK", {
-        paymentIntentId,
-        lockedAmount,
-        lockedMemo,
-      });
+const lockedMemo =
+  typeof intentData.memo === "string" && intentData.memo.trim()
+    ? intentData.memo.trim().slice(0, 120)
+    : (t.payment_memo_order ?? "Order payment");
+
+const paymentMetadata = {
+  payment_intent_id: String(paymentIntentId),
+};
+
+console.log("🟢 [CHECKOUT] INTENT_OK", {
+  paymentIntentId,
+  lockedAmount,
+  lockedMemo,
+  paymentMetadata,
+});
 
       if (!window.Pi || typeof window.Pi.createPayment !== "function") {
         processingRef.current = false;
