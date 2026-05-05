@@ -138,12 +138,12 @@ export async function guardPaymentForReconcile({
   ========================================= */
 
   if (
-    row.status === "verifying" &&
-    row.settlement_lock_id &&
-    !lockExpired(row.settlement_locked_at)
-  ) {
-    return { ok: false, code: "PAYMENT_LOCKED" };
-  }
+  row.status === "verifying" &&
+  row.settlement_lock_id &&
+  row.settlement_state === "LOCKED"
+) {
+  return { ok: false, code: "PAYMENT_LOCKED" };
+}
 
   return {
     ok: true,
