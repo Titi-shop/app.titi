@@ -6,7 +6,9 @@ import {
   getZoneByCountry,
 } from "@/lib/db/shipping";
 
-/* ================= TYPES ================= */
+/* =========================================================
+   TYPES
+========================================================= */
 
 type PreviewItemInput = {
   product_id: string;
@@ -18,7 +20,7 @@ type PreviewOrderInput = {
   userId: string;
   items: PreviewItemInput[];
   country: string;
-  zone: string;
+  zone?: string; // ignored from client in V7
 };
 
 type PreviewOrderResult = {
@@ -32,45 +34,120 @@ type PreviewOrderResult = {
   subtotal: number;
   shipping_fee: number;
   total: number;
+  buyer_zone: string;
 };
 
-/* ================= HELPERS ================= */
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function log(tag: string, data?: unknown) {
+  console.log(`[ORDER PREVIEW V7][${tag}]`, data ?? "");
+}
 
 function isUUID(v: unknown): v is string {
-  return typeof v === "string" &&
-    /^[0-9a-f-]{36}$/i.test(v);
+  return (
+    typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+  );
 }
 
 function safeQty(q: unknown): number {
   const n = Number(q);
   if (!Number.isInteger(n) || n <= 0) return 1;
-  if (n > 100) return 100;
-  return n;
+  return Math.min(n, 100);
 }
 
-/* ================= MAIN ================= */
+function chooseShippingPrice(params: {
+  rates: Awaited<ReturnType<typeof getShippingRatesByProduct>>;
+  buyerCountry: string;
+  buyerZone: string | null;
+}): number {
+  const { rates, buyerCountry, buyerZone } = params;
+
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      (r.domesticCountryCode || "").toUpperCase() === buyerCountry
+  );
+
+  if (domestic) {
+    return Number(domestic.price);
+  }
+
+  if (buyerZone) {
+    const regional = rates.find((r) => r.zone === buyerZone);
+    if (regional) {
+      return Number(regional.price);
+    }
+  }
+
+  const global = rates.find((r) => r.zone === "rest_of_world");
+  if (global) {
+    return Number(global.price);
+  }
+
+  throw new Error("SHIPPING_NOT_AVAILABLE");
+}
+
+function resolveProductSalePrice(p: {
+  price: number;
+  sale_price: number | null;
+  sale_start: string | null;
+  sale_end: string | null;
+}): number {
+  const now = Date.now();
+
+  const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+  const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
+
+  const active =
+    start !== null &&
+    end !== null &&
+    now >= start &&
+    now <= end;
+
+  if (active && p.sale_price && Number(p.sale_price) > 0) {
+    return Number(p.sale_price);
+  }
+
+  return Number(p.price);
+}
+
+function resolveVariantSalePrice(
+  baseSaleActive: boolean,
+  v: {
+    price: number;
+    sale_price: number | null;
+  }
+): number {
+  if (baseSaleActive && v.sale_price && Number(v.sale_price) > 0) {
+    return Number(v.sale_price);
+  }
+
+  return Number(v.price);
+}
+
+/* =========================================================
+   MAIN
+========================================================= */
 
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
+  log("START", input);
 
-  console.log("🟡 [ORDER][PREVIEW] START", input);
-
-  const { userId, items, country, zone } = input;
-
-  /* ================= VALIDATE ================= */
+  const { userId, items, country } = input;
 
   if (!userId) throw new Error("INVALID_USER");
-
-  if (!country) throw new Error("MISSING_COUNTRY");
-
-  if (!zone) throw new Error("MISSING_REGION");
-
+  if (!country) throw new Error("INVALID_COUNTRY");
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("INVALID_ITEMS");
   }
 
-  /* ================= CLEAN ITEMS ================= */
+  /* =====================================================
+     CLEAN ITEMS
+  ===================================================== */
 
   const cleanItems = items.map((i) => {
     if (!isUUID(i.product_id)) {
@@ -88,55 +165,21 @@ export async function previewOrder(
     };
   });
 
-  console.log("🧾 [ORDER][PREVIEW] CLEAN ITEMS:", cleanItems);
+  log("CLEAN_ITEMS", cleanItems);
+
+  const buyerCountry = country.trim().toUpperCase();
+  const buyerZone = await getZoneByCountry(buyerCountry);
+
+  log("BUYER_GEO", {
+    buyerCountry,
+    buyerZone,
+  });
 
   const productIds = cleanItems.map((i) => i.product_id);
 
-/* ================= RESOLVE BUYER REAL ZONE ================= */
-
-const buyerCountry = country.toUpperCase();
-const buyerZone = await getZoneByCountry(buyerCountry);
-
-if (!buyerZone && zone !== "domestic") {
-  throw new Error("INVALID_COUNTRY");
-}
-
-/* ---------- DOMESTIC VERIFY ---------- */
-if (zone === "domestic") {
-  for (const item of cleanItems) {
-    const rates = await getShippingRatesByProduct(item.product_id);
-
-    const domestic = rates.find(
-      (r) =>
-        r.zone === "domestic" &&
-        r.domesticCountryCode?.toUpperCase() === buyerCountry
-    );
-
-    if (!domestic) {
-      console.error("❌ [PREVIEW] DOMESTIC NOT AVAILABLE", item.product_id);
-      throw new Error("DOMESTIC_NOT_AVAILABLE");
-    }
-  }
-
-  console.log("🏠 [ORDER][PREVIEW] DOMESTIC VERIFIED");
-}
-
-/* ---------- NON DOMESTIC VERIFY ---------- */
-else {
-  if (zone !== buyerZone && zone !== "rest_of_world") {
-    console.error("❌ [PREVIEW] INVALID BUYER REGION", {
-      buyerCountry,
-      buyerZone,
-      clientZone: zone,
-    });
-
-    throw new Error("INVALID_REGION");
-  }
-
-  console.log("🌍 [ORDER][PREVIEW] BUYER REGION VERIFIED:", buyerZone);
-}
-
-  /* ================= LOAD PRODUCTS ================= */
+  /* =====================================================
+     LOAD PRODUCTS
+  ===================================================== */
 
   const { rows: products } = await query<{
     id: string;
@@ -156,7 +199,9 @@ else {
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  /* ================= LOAD VARIANTS ================= */
+  /* =====================================================
+     LOAD VARIANTS
+  ===================================================== */
 
   const variantIds = cleanItems
     .map((i) => i.variant_id)
@@ -181,70 +226,39 @@ else {
 
   const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-  console.log("🧩 [ORDER][PREVIEW] VARIANTS:", variants);
-
-  /* ================= CALCULATE ================= */
-
-  const now = Date.now();
+  /* =====================================================
+     CALCULATE ITEM MONEY
+  ===================================================== */
 
   let subtotal = 0;
 
   const previewItems = cleanItems.map((item) => {
     const p = productMap.get(item.product_id);
 
-    if (!p) throw new Error("INVALID_PRODUCT");
+    if (!p) {
+      throw new Error("INVALID_PRODUCT");
+    }
 
-    let price = Number(p.price);
+    const now = Date.now();
+    const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+    const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-    /* ================= VARIANT ================= */
-    const start = p.sale_start
-  ? new Date(p.sale_start).getTime()
-  : null;
+    const saleActive =
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-const end = p.sale_end
-  ? new Date(p.sale_end).getTime()
-  : null;
+    let price = resolveProductSalePrice(p);
 
-const isSaleTime =
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
+    if (item.variant_id) {
+      const v = variantMap.get(item.variant_id);
+      if (!v) throw new Error("INVALID_VARIANT");
 
-/* ================= VARIANT ================= */
-if (item.variant_id) {
-  const v = variantMap.get(item.variant_id);
-
-  if (!v) throw new Error("INVALID_VARIANT");
-
-  const isSale =
-    isSaleTime &&
-    v.sale_price &&
-    v.sale_price > 0;
-
-  price = isSale
-    ? Number(v.sale_price)
-    : Number(v.price);
-
-  console.log("🎯 [PREVIEW] VARIANT PRICE:", price);
-
-} else {
-  /* ================= PRODUCT ================= */
-
-  const isSale =
-    isSaleTime &&
-    p.sale_price &&
-    p.sale_price > 0;
-
-  price = isSale
-    ? Number(p.sale_price)
-    : Number(p.price);
-
-  console.log("💰 [PREVIEW] PRODUCT PRICE:", price);
-}
+      price = resolveVariantSalePrice(saleActive, v);
+    }
 
     const total = price * item.quantity;
-
     subtotal += total;
 
     return {
@@ -256,58 +270,35 @@ if (item.variant_id) {
     };
   });
 
-  console.log("🧾 [ORDER][PREVIEW] SUBTOTAL:", subtotal);
+  log("SUBTOTAL_OK", subtotal);
 
-  /* ================= SHIPPING ================= */
+  /* =====================================================
+     SHIPPING CALCULATE
+  ===================================================== */
 
-let shippingFee = 0;
+  let shippingFee = 0;
 
-for (const item of cleanItems) {
-  const rates = await getShippingRatesByProduct(item.product_id);
+  for (const item of cleanItems) {
+    const rates = await getShippingRatesByProduct(item.product_id);
 
-  let matchedPrice: number | null = null;
+    const matched = chooseShippingPrice({
+      rates,
+      buyerCountry,
+      buyerZone,
+    });
 
-  /* ===== DOMESTIC ===== */
-  const domestic = rates.find(
-    (r) =>
-      r.zone === "domestic" &&
-      r.domesticCountryCode?.toUpperCase() === buyerCountry
-  );
-
-  if (zone === "domestic" && domestic) {
-    matchedPrice = domestic.price;
+    shippingFee += matched;
   }
 
-  /* ===== BUYER REGION ===== */
-  if (matchedPrice === null && buyerZone) {
-    const regional = rates.find((r) => r.zone === buyerZone);
-    if (regional) matchedPrice = regional.price;
-  }
-
-  /* ===== GLOBAL FALLBACK ===== */
-  if (matchedPrice === null) {
-    const global = rates.find((r) => r.zone === "rest_of_world");
-    if (global) matchedPrice = global.price;
-  }
-
-  if (matchedPrice === null) {
-    console.error("❌ [PREVIEW] SHIPPING NOT AVAILABLE", item.product_id);
-    throw new Error("SHIPPING_NOT_AVAILABLE");
-  }
-
-  shippingFee += matchedPrice;
-}
-
-console.log("🚚 [ORDER][PREVIEW] SHIPPING:", shippingFee);
-
-  /* ================= RESULT ================= */
+  log("SHIPPING_OK", shippingFee);
 
   const total = subtotal + shippingFee;
 
-  console.log("🟢 [ORDER][PREVIEW] SUCCESS", {
+  log("SUCCESS", {
     subtotal,
     shippingFee,
     total,
+    buyerZone: buyerZone ?? "rest_of_world",
   });
 
   return {
@@ -315,5 +306,6 @@ console.log("🚚 [ORDER][PREVIEW] SHIPPING:", shippingFee);
     subtotal,
     shipping_fee: shippingFee,
     total,
+    buyer_zone: buyerZone ?? "rest_of_world",
   };
 }
