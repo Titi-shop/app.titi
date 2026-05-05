@@ -211,36 +211,36 @@ export async function markPaymentVerifying({
        (reuse same audit chain table intentionally)
     ===================================================== */
 
-    await client.query(
-      `
-      INSERT INTO payment_authorize_logs (
-        payment_intent_id,
-        pi_payment_id,
-        pi_uid,
-        nonce,
-        verify_token,
-        merchant_wallet,
-        expected_amount,
-        verified_amount,
-        currency,
-        authorize_status,
-        idempotency_fingerprint,
-        source,
-        payload,
-        prev_hash,
-        event_hash
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,
-        $7,$8,$9,
-        'SUBMIT_VERIFYING',
-        $10,
-        'client_submit',
-        $11,
-        $12,
-        $13
-      )
-      `,
+   await client.query(
+  `
+  INSERT INTO payment_authorize_logs (
+    payment_intent_id,
+    pi_payment_id,
+    pi_uid,
+    nonce,
+    verify_token,
+    merchant_wallet,
+    expected_amount,
+    verified_amount,
+    currency,
+    authorize_status,
+    idempotency_fingerprint,
+    source,
+    payload,
+    prev_hash,
+    event_hash
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,$6,
+    $7,$8,$9,
+    'VERIFIED',
+    $10,
+    'client_submit',
+    $11,
+    $12,
+    $13
+  )
+  `,
       [
         paymentIntentId,
         piPaymentId,
