@@ -191,21 +191,32 @@ export async function piCompletePayment(
     throw new Error("MISSING_TXID");
   }
 
-  await piRequest<unknown>(`/payments/${id}/complete`, {
+  const res = await fetch(`${PI_API}/payments/${id}/complete`, {
     method: "POST",
     headers: {
       Authorization: `Key ${PI_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      txid: tx,
-    }),
+    cache: "no-store",
+    body: JSON.stringify({ txid: tx }),
   });
 
-  console.log("🟢 [PI CLIENT] COMPLETE_OK", {
-    piPaymentId: id,
-    txid: tx,
-  });
+  const text = await res.text();
+
+  if (!res.ok) {
+    if (text.includes("already_completed")) {
+      console.log("[PI CLIENT] COMPLETE_ALREADY_DONE", id);
+      return { success: true };
+    }
+
+    console.error("[PI CLIENT] COMPLETE_FAIL", {
+      status: res.status,
+    });
+
+    throw new Error("PI_COMPLETE_FAILED");
+  }
+
+  console.log("[PI CLIENT] COMPLETE_OK", id);
 
   return { success: true };
 }
