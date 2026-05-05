@@ -137,12 +137,14 @@ export async function guardPaymentForReconcile({
      LOCK STALE CHECK
   ========================================= */
 
-  if (
-  row.status === "verifying" &&
-  row.settlement_lock_id &&
-  row.settlement_state === "LOCKED"
-) {
-  return { ok: false, code: "PAYMENT_LOCKED" };
+  if (row.status === "verifying") {
+  const currentRequestLockId = undefined; 
+  const isSameRequest =
+    row.settlement_lock_id === currentRequestLockId;
+
+  if (!isSameRequest) {
+    return { ok: false, code: "PAYMENT_LOCKED" };
+  }
 }
 
   return {
