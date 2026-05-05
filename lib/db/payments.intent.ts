@@ -1,7 +1,6 @@
 
 import { withTransaction } from "@/lib/db";
 import crypto from "crypto";
-
 import { getShippingRatesByProduct } from "@/lib/db/shipping";
 
 import type {
@@ -43,23 +42,19 @@ type CreatePiPaymentIntentInput = {
 type ProductRow = {
   id: string;
   seller_id: string;
-
   stock: number;
   sold: number;
   is_unlimited: boolean;
   is_digital: boolean;
-
   price: string;
 };
 
 type VariantRow = {
   id: string;
   product_id: string;
-
   stock: number;
   sold: number;
   is_unlimited: boolean;
-
   price: string;
 };
 
@@ -137,7 +132,7 @@ export async function createPiPaymentIntent({
   zone,
   shipping,
 }: CreatePiPaymentIntentInput): Promise<CreateIntentResult> {
-  console.log("🟡 [CREATE_INTENT V7C] START", {
+  console.log("🟡 [CREATE_INTENT MASTER] START", {
     userId,
     productId,
     variantId,
@@ -151,7 +146,7 @@ export async function createPiPaymentIntent({
   }
 
   return withTransaction(async (client) => {
-    console.log("🟡 [CREATE_INTENT V7C] DB_TX_START");
+    console.log("🟡 [CREATE_INTENT MASTER] DB_TX_START");
 
     /* =====================================================
        1. LOCK PRODUCT
@@ -159,7 +154,7 @@ export async function createPiPaymentIntent({
 
     const productRes = await client.query<ProductRow>(
       `
-      SELECT *
+      SELECT id, seller_id, stock, sold, is_unlimited, is_digital, price
       FROM products
       WHERE id = $1
       FOR UPDATE
@@ -173,14 +168,14 @@ export async function createPiPaymentIntent({
 
     const product = productRes.rows[0];
 
-    console.log("🟢 [CREATE_INTENT V7C] PRODUCT_LOCKED", {
+    console.log("🟢 [CREATE_INTENT MASTER] PRODUCT_LOCKED", {
       productId: product.id,
       sellerId: product.seller_id,
       stock: product.stock,
     });
 
     /* =====================================================
-       2. SELF BUY BLOCK
+       2. BLOCK SELF BUY
     ===================================================== */
 
     if (product.seller_id === userId) {
@@ -193,10 +188,12 @@ export async function createPiPaymentIntent({
 
     let unitPrice = toMoney(product.price);
 
+    let variantSnapshot: Record<string, unknown> | null = null;
+
     if (variantId) {
       const vr = await client.query<VariantRow>(
         `
-        SELECT *
+        SELECT id, product_id, stock, sold, is_unlimited, price
         FROM product_variants
         WHERE id = $1
         FOR UPDATE
@@ -210,13 +207,25 @@ export async function createPiPaymentIntent({
 
       const variant = vr.rows[0];
 
+      if (variant.product_id !== productId) {
+        throw new Error("VARIANT_PRODUCT_MISMATCH");
+      }
+
       if (!variant.is_unlimited && variant.stock < quantity) {
         throw new Error("OUT_OF_STOCK");
       }
 
       unitPrice = toMoney(variant.price);
 
-      console.log("🟢 [CREATE_INTENT V7C] VARIANT_LOCKED", {
+      variantSnapshot = {
+        variant_id: variant.id,
+        stock_snapshot: variant.stock,
+        sold_snapshot: variant.sold,
+        is_unlimited: variant.is_unlimited,
+        locked_price: unitPrice.amount,
+      };
+
+      console.log("🟢 [CREATE_INTENT MASTER] VARIANT_LOCKED", {
         variantId,
         stock: variant.stock,
         unitPrice: unitPrice.amount,
@@ -228,7 +237,7 @@ export async function createPiPaymentIntent({
     }
 
     /* =====================================================
-       4. SHIPPING CALCULATE (PRODUCT BASED)
+       4. SHIPPING CALCULATE
     ===================================================== */
 
     let shippingFee = toMoney(0);
@@ -265,7 +274,7 @@ export async function createPiPaymentIntent({
       shippingFee = toMoney(matchedPrice);
     }
 
-    console.log("🟢 [CREATE_INTENT V7C] SHIPPING_OK", {
+    console.log("🟢 [CREATE_INTENT MASTER] SHIPPING_OK", {
       shippingFee: shippingFee.amount,
       zone,
     });
@@ -276,18 +285,17 @@ export async function createPiPaymentIntent({
 
     const subtotal = moneyMul(unitPrice, quantity);
     const discount = toMoney(0);
-    const total = moneyAdd(moneyAdd(subtotal, shippingFee), discount);
+    const total = moneyAdd(subtotal, shippingFee);
 
-    console.log("🟢 [CREATE_INTENT V7C] PRICE_CALCULATED", {
+    console.log("🟢 [CREATE_INTENT MASTER] PRICE_OK", {
       unitPrice: unitPrice.amount,
-      quantity,
       subtotal: subtotal.amount,
       shippingFee: shippingFee.amount,
       total: total.amount,
     });
 
     /* =====================================================
-       6. IDENTITY
+       6. IMMUTABLE SNAPSHOT
     ===================================================== */
 
     const paymentIntentId = safeUUID();
@@ -296,6 +304,26 @@ export async function createPiPaymentIntent({
     const idempotencyKey = safeUUID();
 
     const memo = `ORDER-${paymentIntentId.slice(0, 8)}`;
+
+    const shippingSnapshot = {
+      buyer_shipping: shipping,
+      buyer_country: country,
+      buyer_zone: zone,
+      charged_shipping_fee: shippingFee.amount,
+
+      commercial_snapshot: {
+        quantity,
+        locked_unit_price: unitPrice.amount,
+        locked_subtotal: subtotal.amount,
+        locked_discount: discount.amount,
+        locked_total: total.amount,
+        product_is_digital: product.is_digital,
+        product_stock_snapshot: product.stock,
+        product_sold_snapshot: product.sold,
+      },
+
+      variant_snapshot: variantSnapshot,
+    };
 
     /* =====================================================
        7. INSERT PAYMENT INTENT
@@ -329,16 +357,7 @@ export async function createPiPaymentIntent({
         merchant_wallet,
 
         status,
-        settlement_state,
-
-        failed_reason,
-        manual_review_reason,
-
-        paid_at,
-        settled_at,
-
-        created_at,
-        updated_at
+        settlement_state
       )
       VALUES (
         $1,$2,$3,$4,
@@ -346,10 +365,7 @@ export async function createPiPaymentIntent({
         $10,$11,$12,$13,$14,'PI',
         $15,$16,$17,
         $18,
-        $19,$20,
-        null,null,
-        null,null,
-        now(),now()
+        $19,$20
       )
       `,
       [
@@ -370,7 +386,7 @@ export async function createPiPaymentIntent({
         shippingFee.amount,
         total.amount,
 
-        JSON.stringify(shipping),
+        JSON.stringify(shippingSnapshot),
         country,
         zone,
 
@@ -381,10 +397,9 @@ export async function createPiPaymentIntent({
       ]
     );
 
-    console.log("🟢 [CREATE_INTENT V7C] DB_INSERT_OK", {
+    console.log("🟢 [CREATE_INTENT MASTER] DB_INSERT_OK", {
       paymentIntentId,
-      total: total.amount,
-      nonce,
+      amount: total.amount,
       merchantWallet: APP_MERCHANT_WALLET,
     });
 
