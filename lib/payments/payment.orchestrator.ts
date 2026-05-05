@@ -314,3 +314,64 @@ export async function runPaymentSettlement({
     source
   );
 }
+type ReconcileRequestBody = {
+  payment_intent_id?: unknown;
+  pi_payment_id?: unknown;
+  txid?: unknown;
+};
+
+function parseReconcileRequestBody(raw: ReconcileRequestBody): {
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+} | null {
+  const paymentIntentId =
+    typeof raw.payment_intent_id === "string"
+      ? raw.payment_intent_id.trim()
+      : "";
+
+  const piPaymentId =
+    typeof raw.pi_payment_id === "string"
+      ? raw.pi_payment_id.trim()
+      : "";
+
+  const txid =
+    typeof raw.txid === "string"
+      ? raw.txid.trim()
+      : "";
+
+  if (!paymentIntentId || !piPaymentId || !txid) {
+    return null;
+  }
+
+  return {
+    paymentIntentId,
+    piPaymentId,
+    txid,
+  };
+}
+
+export async function runPaymentSettlementFromRequest(input: {
+  rawBody: unknown;
+  userId: string;
+}): Promise<PaymentSettlementResult | null> {
+  if (!input.rawBody || typeof input.rawBody !== "object") {
+    return null;
+  }
+
+  const parsed = parseReconcileRequestBody(
+    input.rawBody as ReconcileRequestBody
+  );
+
+  if (!parsed) {
+    return null;
+  }
+
+  return runPaymentSettlement({
+    paymentIntentId: parsed.paymentIntentId,
+    piPaymentId: parsed.piPaymentId,
+    txid: parsed.txid,
+    userId: input.userId,
+    source: "reconcile-api",
+  });
+}
