@@ -1,15 +1,20 @@
 
 import { withTransaction } from "@/lib/db";
 import crypto from "crypto";
-import {
-  getShippingRatesByProduct,
-  getZoneByCountry,
-} from "@/lib/db/shipping";
+
+import { getShippingRatesByProduct } from "@/lib/db/shipping";
 
 import type {
   PaymentIntentStatus,
+  SettlementState,
   Money,
 } from "@/lib/payments/payment.types";
+
+/* =========================================================
+   GLOBAL APP RECEIVER WALLET
+========================================================= */
+
+const APP_MERCHANT_WALLET = (process.env.PI_MERCHANT_WALLET || "").trim();
 
 /* =========================================================
    TYPES
@@ -38,17 +43,23 @@ type CreatePiPaymentIntentInput = {
 type ProductRow = {
   id: string;
   seller_id: string;
+
   stock: number;
+  sold: number;
   is_unlimited: boolean;
   is_digital: boolean;
+
   price: string;
-  merchant_wallet: string | null;
 };
 
 type VariantRow = {
   id: string;
+  product_id: string;
+
   stock: number;
+  sold: number;
   is_unlimited: boolean;
+
   price: string;
 };
 
@@ -65,12 +76,15 @@ type CreateIntentResult = {
 };
 
 /* =========================================================
-   HELPERS
+   MONEY HELPERS
 ========================================================= */
 
 function toMoney(n: unknown): Money {
   const v = Number(n);
-  if (!Number.isFinite(v)) throw new Error("INVALID_MONEY");
+
+  if (!Number.isFinite(v)) {
+    throw new Error("INVALID_MONEY");
+  }
 
   return {
     amount: v.toFixed(7),
@@ -82,54 +96,36 @@ function moneyAdd(a: Money, b: Money): Money {
   return toMoney(Number(a.amount) + Number(b.amount));
 }
 
-function safeUUID() {
+function moneyMul(a: Money, qty: number): Money {
+  return toMoney(Number(a.amount) * qty);
+}
+
+/* =========================================================
+   ID HELPERS
+========================================================= */
+
+function safeUUID(): string {
   return crypto.randomUUID();
 }
 
-function makeNonce() {
+function makeNonce(): string {
   return crypto.randomBytes(16).toString("hex");
 }
 
-function makeVerifyToken() {
+function makeVerifyToken(): string {
   return crypto.randomBytes(20).toString("hex");
-}
-
-function makeIdempotencyKey() {
-  return crypto.randomBytes(24).toString("hex");
 }
 
 function makeInitialStatus(): PaymentIntentStatus {
   return "created";
 }
 
-function chooseShippingPrice(params: {
-  rates: Awaited<ReturnType<typeof getShippingRatesByProduct>>;
-  buyerCountry: string;
-  buyerZone: string | null;
-}): number {
-  const { rates, buyerCountry, buyerZone } = params;
-
-  const domestic = rates.find(
-    (r) =>
-      r.zone === "domestic" &&
-      (r.domesticCountryCode || "").toUpperCase() === buyerCountry
-  );
-
-  if (domestic) return Number(domestic.price);
-
-  if (buyerZone) {
-    const regional = rates.find((r) => r.zone === buyerZone);
-    if (regional) return Number(regional.price);
-  }
-
-  const global = rates.find((r) => r.zone === "rest_of_world");
-  if (global) return Number(global.price);
-
-  throw new Error("SHIPPING_NOT_AVAILABLE");
+function makeInitialSettlement(): SettlementState {
+  return "UNSETTLED";
 }
 
 /* =========================================================
-   MAIN
+   MAIN CREATE INTENT
 ========================================================= */
 
 export async function createPiPaymentIntent({
@@ -141,7 +137,7 @@ export async function createPiPaymentIntent({
   zone,
   shipping,
 }: CreatePiPaymentIntentInput): Promise<CreateIntentResult> {
-  console.log("🟡 [CREATE_INTENT V7] START", {
+  console.log("🟡 [CREATE_INTENT V7C] START", {
     userId,
     productId,
     variantId,
@@ -150,45 +146,67 @@ export async function createPiPaymentIntent({
     zone,
   });
 
+  if (!APP_MERCHANT_WALLET) {
+    throw new Error("APP_MERCHANT_WALLET_MISSING");
+  }
+
   return withTransaction(async (client) => {
-    console.log("🟡 [CREATE_INTENT V7] DB_TX_START");
+    console.log("🟡 [CREATE_INTENT V7C] DB_TX_START");
 
     /* =====================================================
-       PRODUCT LOCK
+       1. LOCK PRODUCT
     ===================================================== */
 
     const productRes = await client.query<ProductRow>(
-      `SELECT * FROM products WHERE id = $1 FOR UPDATE`,
+      `
+      SELECT *
+      FROM products
+      WHERE id = $1
+      FOR UPDATE
+      `,
       [productId]
     );
 
-    if (!productRes.rows.length) throw new Error("PRODUCT_NOT_FOUND");
+    if (!productRes.rows.length) {
+      throw new Error("PRODUCT_NOT_FOUND");
+    }
 
     const product = productRes.rows[0];
 
-    console.log("🟢 [CREATE_INTENT V7] PRODUCT_LOCKED", {
+    console.log("🟢 [CREATE_INTENT V7C] PRODUCT_LOCKED", {
       productId: product.id,
       sellerId: product.seller_id,
       stock: product.stock,
     });
+
+    /* =====================================================
+       2. SELF BUY BLOCK
+    ===================================================== */
 
     if (product.seller_id === userId) {
       throw new Error("SELF_PAYMENT_FORBIDDEN");
     }
 
     /* =====================================================
-       VARIANT LOCK
+       3. LOCK VARIANT / PRICE
     ===================================================== */
 
     let unitPrice = toMoney(product.price);
 
     if (variantId) {
       const vr = await client.query<VariantRow>(
-        `SELECT * FROM product_variants WHERE id = $1 FOR UPDATE`,
+        `
+        SELECT *
+        FROM product_variants
+        WHERE id = $1
+        FOR UPDATE
+        `,
         [variantId]
       );
 
-      if (!vr.rows.length) throw new Error("VARIANT_NOT_FOUND");
+      if (!vr.rows.length) {
+        throw new Error("VARIANT_NOT_FOUND");
+      }
 
       const variant = vr.rows[0];
 
@@ -198,7 +216,7 @@ export async function createPiPaymentIntent({
 
       unitPrice = toMoney(variant.price);
 
-      console.log("🟢 [CREATE_INTENT V7] VARIANT_LOCKED", {
+      console.log("🟢 [CREATE_INTENT V7C] VARIANT_LOCKED", {
         variantId,
         stock: variant.stock,
         unitPrice: unitPrice.amount,
@@ -210,50 +228,77 @@ export async function createPiPaymentIntent({
     }
 
     /* =====================================================
-       SHIPPING RESOLVE (SYNC WITH PREVIEW)
+       4. SHIPPING CALCULATE (PRODUCT BASED)
     ===================================================== */
 
     let shippingFee = toMoney(0);
 
     if (!product.is_digital) {
-      const buyerCountry = country.trim().toUpperCase();
-      const buyerZone = await getZoneByCountry(buyerCountry);
       const rates = await getShippingRatesByProduct(productId);
 
-      shippingFee = toMoney(
-        chooseShippingPrice({
-          rates,
-          buyerCountry,
-          buyerZone,
-        })
+      let matchedPrice: number | null = null;
+
+      const domestic = rates.find(
+        (r) =>
+          r.zone === "domestic" &&
+          r.domesticCountryCode?.toUpperCase() === country.toUpperCase()
       );
+
+      if (zone === "domestic" && domestic) {
+        matchedPrice = domestic.price;
+      }
+
+      if (matchedPrice === null) {
+        const regional = rates.find((r) => r.zone === zone);
+        if (regional) matchedPrice = regional.price;
+      }
+
+      if (matchedPrice === null) {
+        const global = rates.find((r) => r.zone === "rest_of_world");
+        if (global) matchedPrice = global.price;
+      }
+
+      if (matchedPrice === null) {
+        throw new Error("SHIPPING_NOT_AVAILABLE");
+      }
+
+      shippingFee = toMoney(matchedPrice);
     }
 
-    console.log("🟢 [CREATE_INTENT V7] SHIPPING_OK", {
+    console.log("🟢 [CREATE_INTENT V7C] SHIPPING_OK", {
       shippingFee: shippingFee.amount,
+      zone,
     });
 
     /* =====================================================
-       MONEY
+       5. MONEY CALCULATE
     ===================================================== */
 
-    const subtotal = toMoney(Number(unitPrice.amount) * quantity);
+    const subtotal = moneyMul(unitPrice, quantity);
     const discount = toMoney(0);
     const total = moneyAdd(moneyAdd(subtotal, shippingFee), discount);
 
+    console.log("🟢 [CREATE_INTENT V7C] PRICE_CALCULATED", {
+      unitPrice: unitPrice.amount,
+      quantity,
+      subtotal: subtotal.amount,
+      shippingFee: shippingFee.amount,
+      total: total.amount,
+    });
+
     /* =====================================================
-       IDENTITY
+       6. IDENTITY
     ===================================================== */
 
     const paymentIntentId = safeUUID();
     const nonce = makeNonce();
     const verifyToken = makeVerifyToken();
-    const idempotencyKey = makeIdempotencyKey();
+    const idempotencyKey = safeUUID();
 
     const memo = `ORDER-${paymentIntentId.slice(0, 8)}`;
 
     /* =====================================================
-       INSERT
+       7. INSERT PAYMENT INTENT
     ===================================================== */
 
     await client.query(
@@ -301,7 +346,7 @@ export async function createPiPaymentIntent({
         $10,$11,$12,$13,$14,'PI',
         $15,$16,$17,
         $18,
-        'created','UNSETTLED',
+        $19,$20,
         null,null,
         null,null,
         now(),now()
@@ -329,13 +374,18 @@ export async function createPiPaymentIntent({
         country,
         zone,
 
-        product.merchant_wallet,
+        APP_MERCHANT_WALLET,
+
+        makeInitialStatus(),
+        makeInitialSettlement(),
       ]
     );
 
-    console.log("🟢 [CREATE_INTENT V7] DB_INSERT_OK", {
+    console.log("🟢 [CREATE_INTENT V7C] DB_INSERT_OK", {
       paymentIntentId,
       total: total.amount,
+      nonce,
+      merchantWallet: APP_MERCHANT_WALLET,
     });
 
     return {
@@ -343,7 +393,7 @@ export async function createPiPaymentIntent({
       payment_intent_id: paymentIntentId,
       amount: Number(total.amount),
       currency: "PI",
-      merchant_wallet: product.merchant_wallet || "",
+      merchant_wallet: APP_MERCHANT_WALLET,
       memo,
       metadata: {
         payment_intent_id: paymentIntentId,
