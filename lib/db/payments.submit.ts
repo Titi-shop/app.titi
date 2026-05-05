@@ -13,6 +13,7 @@ type PaymentIntentRow = {
   id: string;
   buyer_id: string;
   status: string;
+  pi_uid: string | null;
   nonce: string;
   verify_token: string;
   merchant_wallet: string;
@@ -47,17 +48,18 @@ export async function markPaymentVerifying({
     const found = await client.query<PaymentIntentRow>(
       `
       SELECT
-        id,
-        buyer_id,
-        status,
-        nonce,
-        verify_token,
-        merchant_wallet,
-        total_amount,
-        currency
-      FROM payment_intents
-      WHERE id = $1
-      FOR UPDATE
+  id,
+  buyer_id,
+  status,
+  pi_uid,
+  nonce,
+  verify_token,
+  merchant_wallet,
+  total_amount,
+  currency
+FROM payment_intents
+WHERE id = $1
+FOR UPDATE
       `,
       [paymentIntentId]
     );
@@ -164,6 +166,7 @@ export async function markPaymentVerifying({
       [
         paymentIntentId,
         piPaymentId,
+        intent.pi_uid,
         intent.nonce,
         intent.verify_token,
         intent.merchant_wallet,
