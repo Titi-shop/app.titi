@@ -110,31 +110,7 @@ export async function runPaymentSettlement({
   });
 
   /* =====================================================
-     STEP 1 — GUARD PAYMENT STATE
-  ===================================================== */
-const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
-  if (!lock.ok) {
-    await auditDuplicateSubmit(paymentIntentId, {
-      source,
-      reason: "LOCK_DENIED",
-    });
-
-    console.warn("[ORCHESTRATOR EXIT] LOCK_DENIED");
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: 0,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
-  
-
-  /* =====================================================
-     STEP 2 — ACQUIRE SINGLE EXECUTION LOCK
+     STEP 1 — GUARD (MUST FIRST)
   ===================================================== */
 
   const guard = await guardPaymentForReconcile({
@@ -148,8 +124,6 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
         source,
         reason: "PAYMENT_ALREADY_PAID",
       });
-
-      console.log("[ORCHESTRATOR EXIT] ALREADY_PAID");
 
       return {
         ok: true,
@@ -176,7 +150,7 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
   }
 
   /* =====================================================
-     STEP 3 — PI VERIFY (PRIMARY MONEY SOURCE)
+     STEP 2 — PI VERIFY (SOURCE OF TRUTH)
   ===================================================== */
 
   const piVerified = await verifyPiPaymentForReconcile({
@@ -191,8 +165,6 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
       source,
       txid,
     });
-
-    console.warn("[ORCHESTRATOR EXIT] PI_VERIFY_FAIL");
 
     return {
       ok: false,
@@ -212,46 +184,46 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
   });
 
   /* =====================================================
-     STEP 4 — RPC AUDIT (SECONDARY / NON BLOCKING)
+     STEP 3 — ACQUIRE LOCK (AFTER VERIFY ONLY)
+  ===================================================== */
+
+  const lock = await acquirePaymentSettlementLock(paymentIntentId);
+
+  if (!lock.ok) {
+    await auditDuplicateSubmit(paymentIntentId, {
+      source,
+      reason: "LOCK_DENIED",
+    });
+
+    console.warn("[ORCHESTRATOR EXIT] LOCK_DENIED");
+
+    return {
+      ok: false,
+      orderId: null,
+      amount: piVerified.verifiedAmount,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
+    };
+  }
+
+  /* =====================================================
+     STEP 4 — RPC AUDIT (NON BLOCKING)
   ===================================================== */
 
   let rpcVerified: RpcAuditResult = emptyRpc();
 
   try {
-    const rpc = await verifyRpcPaymentForReconcile({
+    rpcVerified = await verifyRpcPaymentForReconcile({
       paymentIntentId,
       txid,
     });
-
-    rpcVerified = rpc;
   } catch (e) {
     console.warn("[RPC VERIFY CRASH]", e);
-    rpcVerified = emptyRpc();
-  }
-
-  if (!rpcVerified.ok) {
-    await auditRpcFailed(paymentIntentId, {
-      source,
-      reason: rpcVerified.reason ?? "RPC_AUDIT_FAIL",
-    });
-
-    console.warn("[RPC AUDIT FAIL BUT CONTINUE]", {
-      stage: rpcVerified.stage,
-      reason: rpcVerified.reason,
-    });
-  } else {
-    await auditRpcVerified(paymentIntentId, {
-      source,
-      txid,
-      amount: rpcVerified.amount,
-      sender: rpcVerified.sender,
-      receiver: rpcVerified.receiver,
-      ledger: rpcVerified.ledger,
-    });
   }
 
   /* =====================================================
-     STEP 5 — PI COMPLETE (HARD GATE)
+     STEP 5 — PI COMPLETE (CRITICAL STEP)
   ===================================================== */
 
   const piCompleted = await callPiComplete(piPaymentId, txid);
@@ -262,14 +234,12 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
       txid,
     });
 
-    console.warn("[ORCHESTRATOR EXIT] PI_COMPLETE_FAILED");
-
     return {
       ok: false,
       orderId: null,
       amount: piVerified.verifiedAmount,
       piCompleted: false,
-      rpcAudited: rpcVerified.audited,
+      rpcAudited: rpcVerified.ok,
       source,
     };
   }
@@ -281,7 +251,7 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
   });
 
   /* =====================================================
-     STEP 6 — FINALIZE DB ORDER (IDEMPOTENT)
+     STEP 6 — FINALIZE ORDER
   ===================================================== */
 
   const paid = await finalizePaidOrderFromIntent({
@@ -299,52 +269,52 @@ const lock = await acquirePaymentSettlementLock(paymentIntentId);
     orderId: paid.orderId,
   });
 
- /* =====================================================
-   STEP 7 — INTERNAL LEDGER (NON BLOCKING)
-===================================================== */
+  /* =====================================================
+     STEP 7 — LEDGER (SAFE NON BLOCKING)
+  ===================================================== */
 
-try {
-  if (paid.orderId) {
-    const escrowId = await SettlementLedger.createEscrow({
-      paymentIntentId,
-      orderId: paid.orderId,
-      buyerId: paid.buyerId,
-      sellerId: paid.sellerId,
-      amount: piVerified.verifiedAmount,
-      txid,
-      piPaymentId,
-    });
+  try {
+    if (paid.orderId) {
+      const escrowId = await SettlementLedger.createEscrow({
+        paymentIntentId,
+        orderId: paid.orderId,
+        buyerId: paid.buyerId,
+        sellerId: paid.sellerId,
+        amount: piVerified.verifiedAmount,
+        txid,
+        piPaymentId,
+      });
 
-    await SettlementLedger.markPiVerified(escrowId);
+      await SettlementLedger.markPiVerified(escrowId);
 
-    if (rpcVerified.ok) {
-      await SettlementLedger.markRpcVerified(escrowId);
+      if (rpcVerified.ok) {
+        await SettlementLedger.markRpcVerified(escrowId);
+      }
+
+      await SettlementLedger.linkOrder(escrowId, paid.orderId);
+
+      await SettlementLedger.creditSeller({
+        escrowId,
+        sellerId: paid.sellerId,
+        amount: piVerified.verifiedAmount,
+      });
+
+      await SettlementLedger.releaseEscrow(escrowId);
     }
-
-    await SettlementLedger.linkOrder(escrowId, paid.orderId);
-
-    await SettlementLedger.creditSeller({
-      escrowId,
-      sellerId: paid.sellerId,
-      amount: piVerified.verifiedAmount,
-    });
-
-    await SettlementLedger.releaseEscrow(escrowId);
+  } catch (e) {
+    console.error("[LEDGER FAIL]", e);
   }
-} catch (e) {
-  console.error("[LEDGER FAIL]", e);
-}
 
-console.log("[ORCHESTRATOR SUCCESS]", {
-  orderId: paid.orderId,
-});
+  console.log("[ORCHESTRATOR SUCCESS]", {
+    orderId: paid.orderId,
+  });
 
-return {
-  ok: true,
-  orderId: paid.orderId,
-  amount: piVerified.verifiedAmount,
-  piCompleted: true,
-  rpcAudited: rpcVerified.audited,
-  source,
-};
+  return {
+    ok: true,
+    orderId: paid.orderId,
+    amount: piVerified.verifiedAmount,
+    piCompleted: true,
+    rpcAudited: rpcVerified.ok,
+    source,
+  };
 }
