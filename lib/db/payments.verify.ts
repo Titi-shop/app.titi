@@ -1,13 +1,6 @@
 import crypto from "crypto";
-
-import { withTransaction, query } from "@/lib/db";
-
-/* =========================================================
-   ENV
-========================================================= */
-
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
+import { withTransaction } from "@/lib/db";
+import { piGetPayment } from "@/lib/pi/client";
 
 /* =========================================================
    TYPES
@@ -74,68 +67,7 @@ function sameAmount(a: number, b: number): boolean {
 }
 
 /* =========================================================
-   VERIFY PI USER FROM TOKEN
-========================================================= */
-
-export async function verifyPiUser(authHeader: string): Promise<string> {
-  console.log("🟡 [PI VERIFY V2] VERIFY_PI_USER");
-
-  const bearer = authHeader.replace("Bearer ", "").trim();
-
-  if (!bearer) {
-    throw new Error("MISSING_PI_BEARER");
-  }
-
-  const res = await fetch(`${PI_API}/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${bearer}`,
-    },
-    cache: "no-store",
-  });
-
-  const data = await res.json().catch(() => null);
-
-  console.log("🟡 [PI VERIFY V2] /me RESPONSE", data);
-
-  if (!res.ok || !data?.uid) {
-    throw new Error("INVALID_PI_USER");
-  }
-
-  return String(data.uid);
-}
-
-/* =========================================================
-   FETCH PI PAYMENT FROM PI SERVER
-========================================================= */
-
-export async function fetchPiPayment(
-  piPaymentId: string
-): Promise<PiPaymentResponse> {
-  console.log("🟡 [PI VERIFY V2] FETCH_PI_PAYMENT", piPaymentId);
-
-  const res = await fetch(`${PI_API}/payments/${piPaymentId}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Key ${PI_KEY}`,
-    },
-    cache: "no-store",
-  });
-
-  const data = await res.json().catch(() => null);
-
-  console.log("🟡 [PI VERIFY V2] PAYMENT_RESPONSE", data);
-
-  if (!res.ok || !data?.identifier) {
-    throw new Error("PI_PAYMENT_FETCH_FAILED");
-  }
-
-  return data as PiPaymentResponse;
-}
-
-/* =========================================================
-   BIND PI PAYMENT TO PAYMENT INTENT
-   STATUS: created/verifying/submitted -> wallet_opened
+   BIND PI PAYMENT TO INTENT
 ========================================================= */
 
 export async function bindPiPaymentToIntent({
@@ -146,18 +78,16 @@ export async function bindPiPaymentToIntent({
   verifiedAmount,
   piPayload,
 }: BindParams): Promise<void> {
-  await withTransaction(async (client) => {
-    console.log("🟡 [PI VERIFY V2] BIND_INTENT_START", {
-      paymentIntentId,
-      piPaymentId,
-    });
-
+  return withTransaction(async (client) => {
     const lock = await client.query<{
       id: string;
       buyer_id: string;
       total_amount: string;
       status: string;
       pi_payment_id: string | null;
+      merchant_wallet: string;
+      nonce: string;
+      verify_token: string;
     }>(
       `
       SELECT
@@ -165,7 +95,10 @@ export async function bindPiPaymentToIntent({
         buyer_id,
         total_amount,
         status,
-        pi_payment_id
+        pi_payment_id,
+        merchant_wallet,
+        nonce,
+        verify_token
       FROM payment_intents
       WHERE id = $1
       FOR UPDATE
@@ -189,9 +122,9 @@ export async function bindPiPaymentToIntent({
 
     const allowedStates = [
       "created",
-      "verifying",
-      "submitted",
       "wallet_opened",
+      "submitted",
+      "verifying",
     ];
 
     if (!allowedStates.includes(intent.status)) {
@@ -229,55 +162,44 @@ export async function bindPiPaymentToIntent({
       ]
     );
 
-    const eventHash = crypto.randomUUID();
-
-await client.query(
-  `
-  INSERT INTO payment_authorize_logs (
-    payment_intent_id,
-    pi_payment_id,
-    pi_uid,
-    nonce,
-    verify_token,
-    merchant_wallet,
-    expected_amount,
-    verified_amount,
-    currency,
-    authorize_status,
-    payload,
-    event_hash,
-    created_at
-  )
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now())
-  `,
-  [
-    paymentIntentId,
-    piPaymentId,
-    piUid,
-
-    crypto.randomUUID(),
-    crypto.randomUUID(),
-
-    intent.merchant_wallet ?? "",   // 👈 FIX an toàn
-    expectedAmount,
-    verifiedAmount,
-
-    "PI",
-    "RECEIVED",
-
-    JSON.stringify(piPayload ?? {}),
-
-    eventHash,
-  ]
-);
-
-    console.log("🟢 [PI VERIFY V2] BIND_INTENT_OK");
+    await client.query(
+      `
+      INSERT INTO payment_authorize_logs (
+        payment_intent_id,
+        pi_payment_id,
+        pi_uid,
+        nonce,
+        verify_token,
+        merchant_wallet,
+        expected_amount,
+        verified_amount,
+        currency,
+        authorize_status,
+        payload,
+        event_hash,
+        created_at
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PI',$9,$10,$11,now())
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        piUid,
+        intent.nonce,
+        intent.verify_token,
+        intent.merchant_wallet,
+        expectedAmount,
+        verifiedAmount,
+        "RECEIVED",
+        JSON.stringify(piPayload ?? {}),
+        crypto.randomUUID(),
+      ]
+    );
   });
 }
 
 /* =========================================================
-   RECONCILE VERIFY PI PAYMENT
-   HARD VERIFIED + FORENSIC RECEIPT PERSIST
+   RECON VERIFY
 ========================================================= */
 
 export async function verifyPiPaymentForReconcile({
@@ -286,12 +208,6 @@ export async function verifyPiPaymentForReconcile({
   userId,
   txid,
 }: VerifyReconcileParams): Promise<VerifyReconcileResult> {
-  console.log("🟡 [PI RECON VERIFY V2] START", {
-    paymentIntentId,
-    piPaymentId,
-    txid,
-  });
-
   return withTransaction(async (client) => {
     const db = await client.query<{
       buyer_id: string;
@@ -342,19 +258,7 @@ export async function verifyPiPaymentForReconcile({
       };
     }
 
-    const allowedStates = [
-      "pending",
-      "created",
-      "verifying",
-      "submitted",
-      "wallet_opened",
-    ];
-
-    if (!allowedStates.includes(intent.status)) {
-      throw new Error("INVALID_PAYMENT_STATE");
-    }
-
-    const pi = await fetchPiPayment(piPaymentId);
+    const pi = await piGetPayment(piPaymentId);
 
     if (pi.status?.cancelled || pi.status?.user_cancelled) {
       throw new Error("PI_PAYMENT_CANCELLED");
@@ -371,20 +275,13 @@ export async function verifyPiPaymentForReconcile({
       throw new Error("PI_AMOUNT_MISMATCH");
     }
 
-    const receiver = String(pi.to_address || "").trim();
-    const expectedReceiver = String(intent.merchant_wallet || "").trim();
-
-    if (!receiver || receiver !== expectedReceiver) {
+    if (String(pi.to_address).trim() !== String(intent.merchant_wallet).trim()) {
       throw new Error("PI_RECEIVER_MISMATCH");
     }
 
     if (pi.transaction?.txid && pi.transaction.txid !== txid) {
       throw new Error("PI_TXID_MISMATCH");
     }
-
-    /* =====================================================
-       FORENSIC PI VERIFIED RECEIPT
-    ===================================================== */
 
     await client.query(
       `
@@ -417,12 +314,8 @@ export async function verifyPiPaymentForReconcile({
       ON CONFLICT (pi_payment_id)
       DO UPDATE SET
         txid = EXCLUDED.txid,
-        expected_amount = EXCLUDED.expected_amount,
         verified_amount = EXCLUDED.verified_amount,
         receiver_wallet = EXCLUDED.receiver_wallet,
-        verification_status = 'pi_verified',
-        verify_source = 'PI_SERVER',
-        pi_uid = EXCLUDED.pi_uid,
         pi_payload = EXCLUDED.pi_payload,
         verified_at = now(),
         updated_at = now()
@@ -435,17 +328,15 @@ export async function verifyPiPaymentForReconcile({
         txid,
         expectedAmount,
         piAmount,
-        receiver,
+        pi.to_address,
         JSON.stringify(pi),
       ]
     );
 
-    console.log("🟢 [PI RECON VERIFY V2] SUCCESS");
-
     return {
       ok: true,
       verifiedAmount: piAmount,
-      receiverWallet: receiver,
+      receiverWallet: pi.to_address,
       piUid: pi.user_uid || null,
       piPayload: pi,
     };
