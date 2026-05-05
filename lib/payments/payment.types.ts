@@ -1,46 +1,47 @@
 /* =========================================================
-   🔐 MONEY MODEL (NO FLOAT EVER)
+   PAYMENT ENGINE V7 MASTER TYPES
+   SINGLE SOURCE OF TRUTH
+========================================================= */
+
+/* =========================================================
+   MONEY MODEL
 ========================================================= */
 
 export type Currency = "PI";
 
 export type Money = {
-  amount: string; // decimal-safe: "12.00000000"
+  amount: string;
   currency: Currency;
 };
 
 export type MoneyInput = string | number | bigint;
 
 /* =========================================================
-   🔁 PAYMENT RUN SOURCE
+   PAYMENT RUN SOURCE
 ========================================================= */
 
 export type PaymentRunSource =
   | "CLIENT_SUBMIT"
+  | "RECONCILE_API"
   | "WEBHOOK"
   | "CRON_RETRY"
-  | "MANUAL_ADMIN"
-  | "RECONCILE_ENGINE";
+  | "MANUAL_ADMIN";
 
 /* =========================================================
-   🧠 STRICT PAYMENT STATE MACHINE
-   (NO INVALID JUMPS)
+   PAYMENT INTENT STATUS MACHINE
 ========================================================= */
 
 export type PaymentIntentStatus =
   | "pending"
   | "created"
   | "wallet_opened"
-  | "authorized"
   | "submitted"
   | "verifying"
   | "paid"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "manual_review";
 
-/**
- * HARD STATE TRANSITION RULES
- */
 export type PaymentStateTransition =
   | { from: "pending"; to: "created" }
   | { from: "created"; to: "wallet_opened" }
@@ -48,28 +49,29 @@ export type PaymentStateTransition =
   | { from: "submitted"; to: "verifying" }
   | { from: "verifying"; to: "paid" }
   | { from: "verifying"; to: "failed" }
+  | { from: "verifying"; to: "manual_review" }
   | { from: "created"; to: "cancelled" }
   | { from: "submitted"; to: "cancelled" };
 
 /* =========================================================
-   🧾 SETTLEMENT STATE MACHINE (LEDGER LIFECYCLE)
+   SETTLEMENT STATE MACHINE
 ========================================================= */
 
 export type SettlementState =
   | "INIT"
-  | "LOCKED"
+  | "UNSETTLED"
   | "PI_VERIFIED"
-  | "RPC_VERIFIED"
+  | "RPC_AUDITED"
   | "ORDER_CREATED"
   | "ESCROW_CREATED"
   | "SELLER_CREDITED"
   | "RELEASED"
   | "SETTLED"
-  | "REVERSED"
+  | "FAILED"
   | "MANUAL_REVIEW";
 
 /* =========================================================
-   ⚠️ RISK ENGINE
+   RISK ENGINE
 ========================================================= */
 
 export type PaymentRiskLevel =
@@ -79,7 +81,7 @@ export type PaymentRiskLevel =
   | "BLOCKED";
 
 /* =========================================================
-   🧾 IDENTITY LAYER (TRACEABILITY)
+   COMMON IDENTITY GRAPH
 ========================================================= */
 
 export type PaymentIdentity = {
@@ -90,7 +92,64 @@ export type PaymentIdentity = {
 };
 
 /* =========================================================
-   🔐 GUARD SYSTEM
+   CREATE INTENT
+========================================================= */
+
+export type ShippingInput = {
+  name: string;
+  phone: string;
+  address_line: string;
+  ward?: string | null;
+  district?: string | null;
+  region?: string | null;
+  postal_code?: string | null;
+};
+
+export type CreateIntentNormalizedInput = {
+  userId: string;
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+  country: string;
+  zone: string;
+  shipping: ShippingInput;
+};
+
+export type CreateIntentServiceResult = {
+  payment_intent_id: string;
+  pi_payment_id: string;
+  amount: number;
+  memo: string;
+  metadata: Record<string, unknown>;
+  to_address: string;
+};
+
+/* =========================================================
+   SUBMIT VERIFYING
+========================================================= */
+
+export type SubmitPaymentBody = {
+  payment_intent_id: string;
+  pi_payment_id: string;
+  txid: string;
+};
+
+export type SubmitPaymentNormalizedInput = {
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+  userId: string;
+};
+
+export type SubmitVerifyResult = {
+  ok: boolean;
+  already: boolean;
+  status: PaymentIntentStatus;
+  paymentIntentId: string;
+};
+
+/* =========================================================
+   GUARD SYSTEM
 ========================================================= */
 
 export type GuardPaymentFailCode =
@@ -120,7 +179,7 @@ export type PaymentLockResult =
   | { ok: false; code: "LOCK_DENIED" };
 
 /* =========================================================
-   🧾 PI VERIFY (SOURCE OF TRUTH = PI CHAIN)
+   PI VERIFY
 ========================================================= */
 
 export type PiVerifyErrorCode =
@@ -149,30 +208,45 @@ export type PiVerifyResult =
     };
 
 /* =========================================================
-   🔗 RPC VERIFICATION (SECONDARY LEDGER SOURCE)
+   RPC VERIFICATION
+   MUST SYNC rpc_verification_logs.verify_stage
 ========================================================= */
 
-export type RpcAuditStage =
-  | "UNSET"
-  | "FETCH_TX"
-  | "VERIFY_LEDGER"
-  | "VERIFY_AMOUNT"
-  | "VERIFY_RECEIVER"
-  | "FINALIZED";
+export type RpcVerifyStage =
+  | "RPC_FETCH"
+  | "RPC_PARSE"
+  | "AMOUNT_CHECK"
+  | "RECEIVER_CHECK"
+  | "SENDER_CHECK"
+  | "CHAIN_CONFIRM"
+  | "FINAL_MATCH"
+  | "FAILED"
+  | "MANUAL_REVIEW";
 
-export type RpcAuditReason =
+export type RpcVerifyReason =
   | "OK"
-  | "NOT_EXECUTED"
-  | "TX_NOT_FOUND"
-  | "LEDGER_UNCONFIRMED"
+  | "RPC_UNREACHABLE"
+  | "TX_NOT_CONFIRMED"
+  | "AMOUNT_NOT_READABLE"
   | "AMOUNT_MISMATCH"
+  | "RECEIVER_NOT_READABLE"
   | "RECEIVER_MISMATCH"
-  | "RPC_TIMEOUT"
-  | "RPC_CRASH";
+  | "SENDER_NOT_READABLE"
+  | "SENDER_MISMATCH"
+  | "CHAIN_LOOKUP_FAILED"
+  | "UNKNOWN_RPC_ERROR";
+
+export type RpcVerifyStatus =
+  | "success"
+  | "mismatch"
+  | "duplicate"
+  | "chain_failed"
+  | "manual_review";
 
 export type RpcAuditResult = {
   ok: boolean;
   audited: boolean;
+  verified: boolean;
 
   amount: number | null;
   sender: string | null;
@@ -180,21 +254,40 @@ export type RpcAuditResult = {
 
   ledger: number | null;
   confirmed: boolean;
-
+  txStatus: string | null;
   chainReference: string | null;
 
-  confirmations?: number;
-  blockHeight?: number;
-
-  stage: RpcAuditStage;
-  reason: RpcAuditReason;
+  stage: RpcVerifyStage;
+  reason: RpcVerifyReason;
+  verifyStatus: RpcVerifyStatus;
 
   payload: unknown;
 };
 
 /* =========================================================
-   🧾 FINALIZATION RESULT
+   VERIFIED MONEY CONTEXT
 ========================================================= */
+
+export type VerifiedMoneyContext = {
+  verifiedAmount: number;
+  receiverWallet: string;
+  piUid: string | null;
+};
+
+/* =========================================================
+   FINALIZE ORDER
+========================================================= */
+
+export type FinalizePaidOrderParams = {
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+  verifiedAmount: number;
+  receiverWallet: string;
+  piUid?: string | null;
+  piPayload: unknown;
+  rpcPayload: unknown;
+};
 
 export type FinalizeOrderResult =
   | {
@@ -215,7 +308,7 @@ export type FinalizeOrderResult =
     };
 
 /* =========================================================
-   🧠 ORCHESTRATOR INPUT / OUTPUT
+   ORCHESTRATOR
 ========================================================= */
 
 export type RunPaymentSettlementInput = {
@@ -236,17 +329,7 @@ export type PaymentSettlementResult = {
 };
 
 /* =========================================================
-   🧾 LEDGER IDENTITY GRAPH
-========================================================= */
-
-export type LedgerIdentity = {
-  escrowId: string;
-  ledgerId?: string;
-  chainTxid?: string;
-};
-
-/* =========================================================
-   🧠 AUDIT CONTEXT
+   AUDIT
 ========================================================= */
 
 export type AuditSeverity =
@@ -263,17 +346,17 @@ export type PaymentAuditContext = {
 };
 
 /* =========================================================
-   🔐 IDENTITY BINDING
+   LEDGER GRAPH
 ========================================================= */
 
-export type VerifiedMoneyContext = {
-  verifiedAmount: number;
-  receiverWallet: string;
-  piUid: string | null;
+export type LedgerIdentity = {
+  escrowId: string;
+  ledgerId?: string;
+  chainTxid?: string;
 };
 
 /* =========================================================
-   🧾 COMPLETE PAYMENT TRACE (FULL PIPELINE)
+   FULL TRACE OBJECT
 ========================================================= */
 
 export type PaymentTrace = {
