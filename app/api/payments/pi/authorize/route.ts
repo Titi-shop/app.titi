@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { piAuthorizePayment } from "@/lib/payments/pi/authorize";
+import { piAuthorizePayment } from "@/lib/payments/payment.authorize.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
