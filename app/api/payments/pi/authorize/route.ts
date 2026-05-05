@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { piAuthorizePayment } from "@/lib/pi/client";
+import { withTransaction } from "@/lib/db";
+import {
+  verifyPiUser,
+  fetchPiPayment,
+  bindPiPaymentToIntent,
+} from "@/lib/db/payments.verify";
+import { piApprovePayment } from "@/lib/pi/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,51 +18,100 @@ type Body = {
   pi_payment_id?: string;
 };
 
+function isUUID(v: string) {
+  return /^[0-9a-f-]{36}$/i.test(v);
+}
+
 export async function POST(req: Request) {
-  const auth = await getUserFromBearer();
-
-  if (!auth) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
-  }
-
-  let body: Body = {};
-
   try {
-    body = await req.json();
-  } catch {}
+    /* =========================
+       AUTH (NETWORK-FIRST)
+    ========================= */
+    const auth = await getUserFromBearer();
 
-  const paymentIntentId =
-    body.paymentIntentId ?? body.payment_intent_id;
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-  const piPaymentId =
-    body.piPaymentId ?? body.pi_payment_id;
+    const userId = auth.userId;
 
-  if (!paymentIntentId || !piPaymentId) {
-    return NextResponse.json(
-      { error: "INVALID_INPUT" },
-      { status: 400 }
+    /* =========================
+       PARSE BODY
+    ========================= */
+    const body: Body = await req.json().catch(() => ({}));
+
+    const paymentIntentId =
+      body.paymentIntentId ?? body.payment_intent_id;
+
+    const piPaymentId =
+      body.piPaymentId ?? body.pi_payment_id;
+
+    if (!paymentIntentId || !piPaymentId) {
+      return NextResponse.json(
+        { error: "INVALID_INPUT" },
+        { status: 400 }
+      );
+    }
+
+    if (!isUUID(paymentIntentId)) {
+      return NextResponse.json(
+        { error: "INVALID_PAYMENT_INTENT_ID" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       PI VERIFY (AUTH LAYER ONLY)
+    ========================= */
+    const piUid = await verifyPiUser(
+      req.headers.get("authorization") || ""
     );
-  }
 
-  try {
-    const result = await piAuthorizePayment({
-      userId: auth.userId,
-      paymentIntentId,
-      piPaymentId,
-      authorizationHeader:
-        req.headers.get("authorization") || "",
+    const payment = await fetchPiPayment(piPaymentId);
+
+    if (payment.user_uid !== piUid) {
+      return NextResponse.json(
+        { error: "PI_USER_MISMATCH" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       DB TRANSACTION (CORE SYSTEM)
+    ========================= */
+    await withTransaction(async () => {
+      await bindPiPaymentToIntent({
+        userId,
+        paymentIntentId,
+        piPaymentId,
+        piUid,
+        verifiedAmount: Number(payment.amount),
+        piPayload: payment,
+      });
     });
 
-    return NextResponse.json(result);
-  } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "AUTHORIZE_FAILED";
+    /* =========================
+       PI APPROVE (EXTERNAL SIDE EFFECT)
+    ========================= */
+    if (!payment.status?.developer_approved) {
+      await piApprovePayment(piPaymentId);
+    }
 
+    /* =========================
+       RESPONSE
+    ========================= */
+    return NextResponse.json({ success: true });
+  } catch (e) {
     return NextResponse.json(
-      { error: message },
+      {
+        error:
+          e instanceof Error
+            ? e.message
+            : "AUTHORIZE_FAILED",
+      },
       { status: 400 }
     );
   }
