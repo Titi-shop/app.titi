@@ -1,278 +1,211 @@
-import {
-  guardPaymentForReconcile,
-  acquirePaymentSettlementLock,
-} from "@/lib/db/payments.guard";
-
-import {
-  auditDuplicateSubmit,
-  auditFinalizeDone,
-  auditManualReview,
-  auditPiCompleted,
-  auditPiVerified,
-  auditRpcVerified,
-} from "@/lib/db/payments.audit";
-
-import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
-import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
-import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
-import { SettlementLedgerV3 as SettlementLedger } from "@/lib/db/settlement.ledger";
-import { piCompletePayment } from "@/lib/pi/client";
-
-import type {
-  RunPaymentSettlementInput,
-  PaymentSettlementResult,
-  RpcAuditResult,
-} from "@/lib/payments/payment.types";
 
 /* =========================================================
-   EMPTY RPC FALLBACK
+   PI PLATFORM CLIENT
+   Single source of truth for all Pi API communication
 ========================================================= */
 
-function emptyRpc(): RpcAuditResult {
-  return {
-    ok: false,
-    audited: false,
-    amount: null,
-    sender: null,
-    receiver: null,
-    ledger: null,
-    confirmed: false,
-    chainReference: null,
-    stage: "UNSET",
-    reason: "NOT_EXECUTED",
-    payload: {},
-  };
+const PI_API = process.env.PI_API_URL;
+const PI_KEY = process.env.PI_API_KEY;
+
+if (!PI_API) {
+  throw new Error("MISSING_PI_API_URL");
+}
+
+if (!PI_KEY) {
+  throw new Error("MISSING_PI_API_KEY");
 }
 
 /* =========================================================
-   MAIN PAYMENT SETTLEMENT ORCHESTRATOR
+   TYPES
 ========================================================= */
 
-export async function runPaymentSettlement({
-  paymentIntentId,
-  piPaymentId,
-  txid,
-  userId,
-  source,
-}: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
-  console.log("[PAYMENT][SETTLEMENT_START]", {
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    source,
+export type PiUserMe = {
+  uid: string;
+  username?: string;
+};
+
+export type PiPaymentStatus = {
+  developer_approved?: boolean;
+  transaction_verified?: boolean;
+  developer_completed?: boolean;
+  cancelled?: boolean;
+  user_cancelled?: boolean;
+};
+
+export type PiPaymentTransaction = {
+  txid?: string;
+  verified?: boolean;
+  _link?: string;
+};
+
+export type PiPaymentData = {
+  identifier: string;
+  user_uid: string;
+  amount: number;
+  memo: string;
+  from_address: string;
+  to_address: string;
+  status?: PiPaymentStatus;
+  metadata?: Record<string, unknown>;
+  transaction?: PiPaymentTransaction;
+};
+
+/* =========================================================
+   INTERNAL REQUEST
+========================================================= */
+
+async function piRequest<T>(
+  path: string,
+  init: RequestInit
+): Promise<T> {
+  const res = await fetch(`${PI_API}${path}`, {
+    ...init,
+    cache: "no-store",
   });
 
-  /* =====================================================
-     STEP 1 — PRE GUARD
-  ===================================================== */
+  const text = await res.text();
 
-  const guard = await guardPaymentForReconcile({
-    paymentIntentId,
-    userId: userId ?? "",
-  });
-
-  if (!guard.ok) {
-    if (guard.code === "PAYMENT_ALREADY_PAID") {
-      await auditDuplicateSubmit(paymentIntentId, {
-        source,
-        reason: "PAYMENT_ALREADY_PAID",
-      });
-
-      return {
-        ok: true,
-        orderId: guard.orderId ?? null,
-        amount: guard.amount ?? 0,
-        piCompleted: true,
-        rpcAudited: true,
-        source,
-      };
-    }
-
-    await auditManualReview(paymentIntentId, guard.code, { source });
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: 0,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
-
-  /* =====================================================
-     STEP 2 — PI VERIFY (PRIMARY SOURCE OF TRUTH)
-  ===================================================== */
-
-  const piVerified = await verifyPiPaymentForReconcile({
-    paymentIntentId,
-    piPaymentId,
-    userId: userId ?? "",
-    txid,
-  });
-
-  if (!piVerified.ok) {
-    await auditManualReview(paymentIntentId, "PI_VERIFY_FAIL", {
-      source,
-      txid,
-    });
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: 0,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
-
-  await auditPiVerified(paymentIntentId, {
-    source,
-    txid,
-    amount: piVerified.verifiedAmount,
-    receiverWallet: piVerified.receiverWallet,
-  });
-
-  /* =====================================================
-     STEP 3 — DISTRIBUTED LOCK
-  ===================================================== */
-
-  const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
-  if (!lock.ok) {
-    await auditDuplicateSubmit(paymentIntentId, {
-      source,
-      reason: "LOCK_DENIED",
-    });
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: piVerified.verifiedAmount,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
-
-  /* =====================================================
-     STEP 4 — RPC VERIFY (NON BLOCKING)
-  ===================================================== */
-
-  let rpcVerified: RpcAuditResult = emptyRpc();
+  let json: unknown = null;
 
   try {
-    rpcVerified = await verifyRpcPaymentForReconcile({
-      paymentIntentId,
-      txid,
-    });
-
-    if (rpcVerified.ok) {
-      await auditRpcVerified(paymentIntentId, {
-        source,
-        txid,
-        amount: rpcVerified.amount,
-      });
-    }
-  } catch (e) {
-    console.warn("[PAYMENT][RPC_VERIFY_FAIL]", e);
-  }
-
-  /* =====================================================
-     STEP 5 — PI COMPLETE (IDEMPOTENT VENDOR SIDE EFFECT)
-  ===================================================== */
-
-  try {
-    await piCompletePayment(piPaymentId, txid);
+    json = text ? JSON.parse(text) : null;
   } catch {
-    await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
-      source,
-      txid,
+    throw new Error("PI_INVALID_JSON");
+  }
+
+  if (!res.ok) {
+    console.error("🔥 [PI CLIENT] HTTP_FAIL", {
+      path,
+      status: res.status,
+      body: json,
     });
 
-    return {
-      ok: false,
-      orderId: null,
-      amount: piVerified.verifiedAmount,
-      piCompleted: false,
-      rpcAudited: rpcVerified.ok,
-      source,
-    };
+    throw new Error(`PI_HTTP_${res.status}`);
   }
 
-  await auditPiCompleted(paymentIntentId, {
-    source,
-    piPaymentId,
-    txid,
-  });
+  return json as T;
+}
 
-  /* =====================================================
-     STEP 6 — FINALIZE ORDER + STOCK + PAYMENT WRITE
-  ===================================================== */
+/* =========================================================
+   VERIFY PI USER TOKEN
+========================================================= */
 
-  const paid = await finalizePaidOrderFromIntent({
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    verifiedAmount: piVerified.verifiedAmount,
-    receiverWallet: piVerified.receiverWallet,
-    piPayload: piVerified.piPayload,
-    rpcPayload: rpcVerified,
-  });
+export async function piGetMe(bearerToken: string): Promise<PiUserMe> {
+  const token = bearerToken.replace("Bearer ", "").trim();
 
-  await auditFinalizeDone(paymentIntentId, {
-    source,
-    orderId: paid.orderId,
-  });
-
-  /* =====================================================
-     STEP 7 — SETTLEMENT LEDGER (NON BLOCKING)
-  ===================================================== */
-
-  try {
-    if (paid.orderId) {
-      const escrowId = await SettlementLedger.createEscrow({
-        paymentIntentId,
-        orderId: paid.orderId,
-        buyerId: paid.buyerId,
-        sellerId: paid.sellerId,
-        amount: piVerified.verifiedAmount,
-        txid,
-        piPaymentId,
-      });
-
-      await SettlementLedger.markPiVerified(escrowId);
-
-      if (rpcVerified.ok) {
-        await SettlementLedger.markRpcVerified(escrowId);
-      }
-
-      await SettlementLedger.linkOrder(escrowId, paid.orderId);
-
-      await SettlementLedger.creditSeller({
-        escrowId,
-        sellerId: paid.sellerId,
-        amount: piVerified.verifiedAmount,
-      });
-
-      await SettlementLedger.releaseEscrow(escrowId);
-    }
-  } catch (e) {
-    console.error("[PAYMENT][LEDGER_FAIL]", e);
+  if (!token) {
+    throw new Error("MISSING_PI_BEARER");
   }
 
-  console.log("[PAYMENT][SETTLEMENT_SUCCESS]", {
-    orderId: paid.orderId,
-    amount: piVerified.verifiedAmount,
+  const data = await piRequest<PiUserMe>("/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 
-  return {
-    ok: true,
-    orderId: paid.orderId,
-    amount: piVerified.verifiedAmount,
-    piCompleted: true,
-    rpcAudited: rpcVerified.ok,
-    source,
-  };
+  if (!data?.uid) {
+    throw new Error("INVALID_PI_USER");
+  }
+
+  console.log("🟢 [PI CLIENT] ME_OK", data.uid);
+
+  return data;
+}
+
+/* =========================================================
+   FETCH PAYMENT
+========================================================= */
+
+export async function piGetPayment(
+  piPaymentId: string
+): Promise<PiPaymentData> {
+  const id = String(piPaymentId || "").trim();
+
+  if (!id) {
+    throw new Error("MISSING_PI_PAYMENT_ID");
+  }
+
+  const data = await piRequest<PiPaymentData>(`/payments/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+    },
+  });
+
+  if (!data?.identifier) {
+    throw new Error("PI_PAYMENT_FETCH_FAILED");
+  }
+
+  console.log("🟢 [PI CLIENT] PAYMENT_OK", {
+    paymentId: data.identifier,
+    amount: data.amount,
+  });
+
+  return data;
+}
+
+/* =========================================================
+   APPROVE PAYMENT
+========================================================= */
+
+export async function piApprovePayment(
+  piPaymentId: string
+): Promise<{ success: true }> {
+  const id = String(piPaymentId || "").trim();
+
+  if (!id) {
+    throw new Error("MISSING_PI_PAYMENT_ID");
+  }
+
+  await piRequest<unknown>(`/payments/${id}/approve`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  console.log("🟢 [PI CLIENT] APPROVE_OK", id);
+
+  return { success: true };
+}
+
+/* =========================================================
+   COMPLETE PAYMENT
+========================================================= */
+
+export async function piCompletePayment(
+  piPaymentId: string,
+  txid: string
+): Promise<{ success: true }> {
+  const id = String(piPaymentId || "").trim();
+  const tx = String(txid || "").trim();
+
+  if (!id) {
+    throw new Error("MISSING_PI_PAYMENT_ID");
+  }
+
+  if (!tx) {
+    throw new Error("MISSING_TXID");
+  }
+
+  await piRequest<unknown>(`/payments/${id}/complete`, {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${PI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      txid: tx,
+    }),
+  });
+
+  console.log("🟢 [PI CLIENT] COMPLETE_OK", {
+    piPaymentId: id,
+    txid: tx,
+  });
+
+  return { success: true };
 }
