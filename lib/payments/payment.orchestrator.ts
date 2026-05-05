@@ -112,6 +112,30 @@ export async function runPaymentSettlement({
   /* =====================================================
      STEP 1 — GUARD PAYMENT STATE
   ===================================================== */
+const lock = await acquirePaymentSettlementLock(paymentIntentId);
+
+  if (!lock.ok) {
+    await auditDuplicateSubmit(paymentIntentId, {
+      source,
+      reason: "LOCK_DENIED",
+    });
+
+    console.warn("[ORCHESTRATOR EXIT] LOCK_DENIED");
+
+    return {
+      ok: false,
+      orderId: null,
+      amount: 0,
+      piCompleted: false,
+      rpcAudited: false,
+      source,
+    };
+  }
+  
+
+  /* =====================================================
+     STEP 2 — ACQUIRE SINGLE EXECUTION LOCK
+  ===================================================== */
 
   const guard = await guardPaymentForReconcile({
     paymentIntentId,
@@ -140,30 +164,6 @@ export async function runPaymentSettlement({
     await auditManualReview(paymentIntentId, guard.code, { source });
 
     console.warn("[ORCHESTRATOR EXIT] GUARD_FAIL", guard.code);
-
-    return {
-      ok: false,
-      orderId: null,
-      amount: 0,
-      piCompleted: false,
-      rpcAudited: false,
-      source,
-    };
-  }
-
-  /* =====================================================
-     STEP 2 — ACQUIRE SINGLE EXECUTION LOCK
-  ===================================================== */
-
-  const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
-  if (!lock.ok) {
-    await auditDuplicateSubmit(paymentIntentId, {
-      source,
-      reason: "LOCK_DENIED",
-    });
-
-    console.warn("[ORCHESTRATOR EXIT] LOCK_DENIED");
 
     return {
       ok: false,
