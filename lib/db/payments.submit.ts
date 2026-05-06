@@ -109,7 +109,12 @@ export async function markPaymentVerifying({
        - allow authorized INCLUDED
 ===================================================== */
 
-    const allowedStatus = ["created", "wallet_opened", "authorized"];
+    const allowedStatus = [
+  "created",
+  "wallet_opened",
+  "authorized",
+  "submitted" 
+];
 
     if (!allowedStatus.includes(intent.status)) {
       throw new Error("INVALID_STATUS");
