@@ -30,7 +30,7 @@ function num(v: unknown): number {
   return n;
 }
 
-function same(a: number, b: number) {
+function eq(a: number, b: number) {
   return Math.abs(a - b) < 0.00001;
 }
 
@@ -44,14 +44,11 @@ export async function verifyPiPaymentForReconcile({
   userId,
   txid,
 }: VerifyReconcileParams): Promise<VerifyReconcileResult> {
-  console.log("[RECON][START]", { paymentIntentId, piPaymentId });
-
-  /* =====================================================
-     1. FETCH INTENT (NO LOCK)
-  ===================================================== */
-
-  return withTransaction(async (client) => {
-    const rs = await client.query<{
+  /**
+   * PHASE 1: FAST LOCK ONLY (NO EXTERNAL CALL)
+   */
+  const intent = await withTransaction(async (client) => {
+    const res = await client.query<{
       buyer_id: string;
       total_amount: string;
       merchant_wallet: string;
@@ -59,70 +56,59 @@ export async function verifyPiPaymentForReconcile({
       pi_user_uid: string | null;
     }>(
       `
-      SELECT
-        buyer_id,
-        total_amount,
-        merchant_wallet,
-        pi_payment_id,
-        pi_user_uid
+      SELECT buyer_id, total_amount, merchant_wallet, pi_payment_id, pi_user_uid
       FROM payment_intents
       WHERE id = $1
+      FOR UPDATE SKIP LOCKED
       `,
       [paymentIntentId]
     );
 
-    if (!rs.rows.length) throw new Error("INTENT_NOT_FOUND");
+    if (!res.rows.length) throw new Error("PAYMENT_INTENT_NOT_FOUND");
 
-    const intent = rs.rows[0];
+    const row = res.rows[0];
 
-    if (intent.buyer_id !== userId) {
-      throw new Error("FORBIDDEN");
-    }
+    if (row.buyer_id !== userId) throw new Error("FORBIDDEN");
 
-    if (
-      intent.pi_payment_id &&
-      intent.pi_payment_id !== piPaymentId
-    ) {
+    if (row.pi_payment_id && row.pi_payment_id !== piPaymentId) {
       throw new Error("PI_PAYMENT_ID_MISMATCH");
     }
 
-    const expected = num(intent.total_amount);
+    return row;
+  });
 
-    /* =====================================================
-       2. CALL PI OUTSIDE DB LOCK
-    ===================================================== */
+  /**
+   * PHASE 2: CALL PI OUTSIDE TRANSACTION (IMPORTANT FIX)
+   */
+  const pi = await piGetPayment(piPaymentId);
 
-    const pi = await piGetPayment(piPaymentId);
+  if (pi.status?.cancelled || pi.status?.user_cancelled) {
+    throw new Error("PI_PAYMENT_CANCELLED");
+  }
 
-    if (pi.status?.cancelled || pi.status?.user_cancelled) {
-      throw new Error("PI_CANCELLED");
-    }
+  if (!pi.status?.developer_approved) {
+    throw new Error("PI_NOT_APPROVED");
+  }
 
-    if (!pi.status?.developer_approved) {
-      throw new Error("PI_NOT_APPROVED");
-    }
+  const expected = num(intent.total_amount);
+  const actual = num(pi.amount);
 
-    const amount = num(pi.amount);
+  if (!eq(expected, actual)) {
+    throw new Error("PI_AMOUNT_MISMATCH");
+  }
 
-    if (!same(expected, amount)) {
-      throw new Error("AMOUNT_MISMATCH");
-    }
+  if (String(pi.to_address).trim() !== String(intent.merchant_wallet).trim()) {
+    throw new Error("PI_RECEIVER_MISMATCH");
+  }
 
-    if (
-      String(pi.to_address).trim() !==
-      String(intent.merchant_wallet).trim()
-    ) {
-      throw new Error("RECEIVER_MISMATCH");
-    }
+  if (pi.transaction?.txid && pi.transaction.txid !== txid) {
+    throw new Error("PI_TXID_MISMATCH");
+  }
 
-    if (pi.transaction?.txid && pi.transaction.txid !== txid) {
-      throw new Error("TXID_MISMATCH");
-    }
-
-    /* =====================================================
-       3. UPSERT RECEIPT (IDEMPOTENT SAFE)
-    ===================================================== */
-
+  /**
+   * PHASE 3: UPSERT (NO LOCK CONFLICT EVER)
+   */
+  await withTransaction(async (client) => {
     await client.query(
       `
       INSERT INTO payment_receipts (
@@ -137,7 +123,6 @@ export async function verifyPiPaymentForReconcile({
         verification_status,
         verify_source,
         pi_payload,
-        verified_at,
         created_at,
         updated_at
       )
@@ -148,38 +133,33 @@ export async function verifyPiPaymentForReconcile({
         'PI_SERVER',
         $9,
         now(),
-        now(),
         now()
       )
       ON CONFLICT (pi_payment_id)
       DO UPDATE SET
         txid = EXCLUDED.txid,
         verified_amount = EXCLUDED.verified_amount,
-        receiver_wallet = EXCLUDED.receiver_wallet,
-        pi_payload = EXCLUDED.pi_payload,
         updated_at = now()
       `,
       [
         paymentIntentId,
         userId,
         piPaymentId,
-        pi.user_uid ?? null,
+        pi.user_uid || null,
         txid,
         expected,
-        amount,
+        actual,
         pi.to_address,
         JSON.stringify(pi),
       ]
     );
-
-    console.log("[RECON][OK]", paymentIntentId);
-
-    return {
-      ok: true,
-      verifiedAmount: amount,
-      receiverWallet: pi.to_address,
-      piUid: pi.user_uid ?? null,
-      piPayload: pi,
-    };
   });
+
+  return {
+    ok: true,
+    verifiedAmount: actual,
+    receiverWallet: pi.to_address,
+    piUid: pi.user_uid || null,
+    piPayload: pi,
+  };
 }
