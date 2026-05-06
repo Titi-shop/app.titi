@@ -295,59 +295,72 @@ export async function verifyPiPaymentForReconcile({
       throw new Error("PI_TXID_MISMATCH");
     }
 
+     const existing = await client.query(
+  `
+  SELECT id, verified_amount, receiver_wallet, pi_uid, pi_payload
+  FROM payment_receipts
+  WHERE pi_payment_id = $1
+  `,
+  [piPaymentId]
+);
+
+if (existing.rows.length) {
+  const r = existing.rows[0];
+
+  return {
+    ok: true,
+    verifiedAmount: Number(r.verified_amount),
+    receiverWallet: r.receiver_wallet,
+    piUid: r.pi_uid,
+    piPayload: r.pi_payload,
+  };
+}
     /* =====================================================
        FIX: SAFE INSERT + UPSERT
     ===================================================== */
-
-    await client.query(
-      `
-      INSERT INTO payment_receipts (
-        payment_intent_id,
-        user_id,
-        pi_payment_id,
-        pi_uid,
-        txid,
-        expected_amount,
-        verified_amount,
-        receiver_wallet,
-        verification_status,
-        verify_source,
-        pi_payload,
-        verified_at,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,
-        'pi_verified',
-        'PI_SERVER',
-        $9,
-        now(),
-        now(),
-        now()
-      )
-      ON CONFLICT (pi_payment_id)
-      DO UPDATE SET
-        txid = EXCLUDED.txid,
-        verified_amount = EXCLUDED.verified_amount,
-        receiver_wallet = EXCLUDED.receiver_wallet,
-        pi_payload = EXCLUDED.pi_payload,
-        verified_at = now(),
-        updated_at = now()
-      `,
-      [
-        paymentIntentId,
-        userId,
-        piPaymentId,
-        pi.user_uid || null,
-        txid,
-        expectedAmount,
-        piAmount,
-        pi.to_address,
-        JSON.stringify(pi),
-      ]
-    );
+await client.query(
+  `
+  INSERT INTO payment_receipts (
+    payment_intent_id,
+    user_id,
+    pi_payment_id,
+    pi_uid,
+    txid,
+    expected_amount,
+    verified_amount,
+    receiver_wallet,
+    verification_status,
+    verify_source,
+    pi_payload,
+    verified_at,
+    created_at,
+    updated_at
+  )
+  SELECT
+    $1,$2,$3,$4,$5,
+    $6,$7,$8,
+    'pi_verified',
+    'PI_SERVER',
+    $9,
+    now(),
+    now(),
+    now()
+  WHERE NOT EXISTS (
+    SELECT 1 FROM payment_receipts WHERE pi_payment_id = $3
+  )
+  `,
+  [
+    paymentIntentId,
+    userId,
+    piPaymentId,
+    pi.user_uid || null,
+    txid,
+    expectedAmount,
+    piAmount,
+    pi.to_address,
+    JSON.stringify(pi),
+  ]
+);
 
     console.log("[V6][RECON] SUCCESS");
 
