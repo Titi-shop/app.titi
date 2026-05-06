@@ -240,9 +240,9 @@ export async function verifyPiPaymentForReconcile({
 
     if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
 
-    if (intent.pi_payment_id !== piPaymentId) {
-      throw new Error("PI_PAYMENT_ID_MISMATCH");
-    }
+    if (intent.pi_payment_id && intent.pi_payment_id !== piPaymentId) {
+  throw new Error("PI_PAYMENT_ID_MISMATCH");
+}
 
     /* =====================================================
        FIX: IDEMPOTENT - chống duplicate insert
@@ -295,26 +295,6 @@ export async function verifyPiPaymentForReconcile({
       throw new Error("PI_TXID_MISMATCH");
     }
 
-     const existing = await client.query(
-  `
-  SELECT id, verified_amount, receiver_wallet, pi_uid, pi_payload
-  FROM payment_receipts
-  WHERE pi_payment_id = $1
-  `,
-  [piPaymentId]
-);
-
-if (existing.rows.length) {
-  const r = existing.rows[0];
-
-  return {
-    ok: true,
-    verifiedAmount: Number(r.verified_amount),
-    receiverWallet: r.receiver_wallet,
-    piUid: r.pi_uid,
-    piPayload: r.pi_payload,
-  };
-}
     /* =====================================================
        FIX: SAFE INSERT + UPSERT
     ===================================================== */
