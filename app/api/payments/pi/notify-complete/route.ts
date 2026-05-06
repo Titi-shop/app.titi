@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
+import { waitUntil } from "@vercel/functions";
 
 /* =========================================================
    TYPES
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     });
 
     /* =====================================================
-       1. FAST MARK VERIFYING
+       1. FAST MARK VERIFYING (SYNC)
     ===================================================== */
 
     const marked = await markPaymentVerifying({
@@ -84,26 +85,27 @@ export async function POST(req: NextRequest) {
     console.log("[PAYMENT][NOTIFY_COMPLETE_MARKED]", marked);
 
     /* =====================================================
-       2. FIRE BACKGROUND SERVER SETTLEMENT
-       DO NOT AWAIT
+       2. SAFE BACKGROUND SETTLEMENT (Vercel WAITUNTIL)
     ===================================================== */
 
-    void runPaymentSettlement({
-      paymentIntentId,
-      piPaymentId,
-      txid,
-      userId: user.id,
-      source: "notify-complete",
-    })
-      .then((result) => {
-        console.log("[PAYMENT][NOTIFY_COMPLETE_BG_DONE]", result);
+    waitUntil(
+      runPaymentSettlement({
+        paymentIntentId,
+        piPaymentId,
+        txid,
+        userId: user.id,
+        source: "notify-complete",
       })
-      .catch((err) => {
-        console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", err);
-      });
+        .then((res) => {
+          console.log("[PAYMENT][NOTIFY_COMPLETE_BG_DONE]", res);
+        })
+        .catch((err) => {
+          console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", err);
+        })
+    );
 
     /* =====================================================
-       3. RETURN IMMEDIATELY TO CLIENT
+       3. RETURN IMMEDIATELY
     ===================================================== */
 
     return NextResponse.json({
