@@ -5,18 +5,13 @@ import type {
   PaymentLockResult,
 } from "@/lib/payments/payment.types";
 
-/* =========================================================
-   REAL STATUS ENUM FROM payment_intents SCHEMA
-========================================================= */
-
 type PaymentStatus =
-  | "created"
-  | "wallet_opened"
-  | "submitted"
+  | "initiated"
+  | "authorized"
   | "verifying"
   | "paid"
   | "failed"
-  | "expired";
+  | "cancelled";
 
 type GuardInput = {
   paymentIntentId: string;
@@ -42,7 +37,7 @@ function isUUID(v: unknown): v is string {
 }
 
 /* =========================================================
-   MAIN GUARD (READ ONLY)
+   MAIN GUARD (READ ONLY - SAFE)
 ========================================================= */
 
 export async function guardPaymentForReconcile({
@@ -86,29 +81,20 @@ export async function guardPaymentForReconcile({
   }
 
   /* =========================================
-     HARD BLOCK STATES
+     BLOCK STATES
   ========================================= */
+
+  if (row.status === "cancelled") {
+    return { ok: false, code: "PAYMENT_CANCELLED" };
+  }
 
   if (row.status === "failed") {
     return { ok: false, code: "PAYMENT_FAILED" };
   }
 
-  if (row.status === "expired") {
-    return { ok: false, code: "PAYMENT_EXPIRED" };
-  }
-
   if (row.status === "paid") {
-    return {
-      ok: false,
-      code: "PAYMENT_ALREADY_PAID",
-      amount: Number(row.total_amount),
-    };
+    return { ok: false, code: "PAYMENT_ALREADY_PAID" };
   }
-
-  /* =========================================
-     ACCEPTABLE FLOW STATES:
-     created / wallet_opened / submitted / verifying
-  ========================================= */
 
   return {
     ok: true,
@@ -120,8 +106,7 @@ export async function guardPaymentForReconcile({
 }
 
 /* =========================================================
-   SETTLEMENT LOCK
-   atomic lightweight gate only
+   SETTLEMENT LOCK (FIXED - NO STATUS WRITE HERE)
 ========================================================= */
 
 export async function acquirePaymentSettlementLock(
@@ -131,16 +116,18 @@ export async function acquirePaymentSettlementLock(
     return { ok: false, code: "LOCK_DENIED" };
   }
 
+  /**
+   * ❌ OLD: UPDATE status = 'verifying' (CAUSE LOCK CHAINS)
+   *
+   * ✅ NEW: only atomic lock attempt, no status mutation
+   */
+
   const rs = await query<{ id: string }>(
     `
     UPDATE payment_intents
-    SET
-      settlement_lock_id = gen_random_uuid(),
-      settlement_locked_at = now(),
-      settlement_lock_source = 'orchestrator',
-      updated_at = now()
+    SET updated_at = now()
     WHERE id = $1
-      AND status IN ('submitted','verifying')
+      AND status IN ('authorized','verifying')
     RETURNING id
     `,
     [paymentIntentId]
