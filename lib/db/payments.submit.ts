@@ -1,5 +1,4 @@
 import { withTransaction } from "@/lib/db";
-import { randomUUID } from "crypto";
 
 /* =========================================================
    TYPES
@@ -18,9 +17,7 @@ type PaymentIntentRow = {
   status: string;
   pi_user_uid: string | null;
   pi_payment_id: string | null;
-  merchant_wallet: string;
-  total_amount: string;
-  currency: string;
+  txid: string | null;
 };
 
 /* =========================================================
@@ -43,6 +40,7 @@ export async function markPaymentVerifying({
       paymentIntentId,
       userId,
       piPaymentId,
+      txid,
     });
 
     /* =====================================================
@@ -57,9 +55,7 @@ export async function markPaymentVerifying({
         status,
         pi_user_uid,
         pi_payment_id,
-        merchant_wallet,
-        total_amount,
-        currency
+        txid
       FROM payment_intents
       WHERE id = $1
       FOR UPDATE
@@ -79,10 +75,12 @@ export async function markPaymentVerifying({
 
     console.log("[PAYMENT][SUBMIT] INTENT_OK", {
       status: intent.status,
+      existingPiPaymentId: intent.pi_payment_id,
+      existingTxid: intent.txid,
     });
 
     /* =====================================================
-       2. IDEMPOTENT RETURN
+       2. TERMINAL STATES
     ===================================================== */
 
     if (intent.status === "paid") {
@@ -94,44 +92,58 @@ export async function markPaymentVerifying({
       };
     }
 
-    if (intent.status === "verifying") {
-      return {
-        ok: true,
-        already: true,
-        status: "verifying",
-        paymentIntentId,
-      };
+    if (intent.status === "failed" || intent.status === "expired") {
+      throw new Error("INVALID_STATUS");
     }
 
     /* =====================================================
-       3. STATUS CHECK (FIXED)
-       - allow authorized INCLUDED
-===================================================== */
+       3. VERIFYING IDEMPOTENT / REPLAY SAFE
+    ===================================================== */
+
+    if (intent.status === "verifying") {
+      const samePi =
+        (intent.pi_payment_id || "").trim() === piPaymentId.trim();
+
+      const sameTx =
+        (intent.txid || "").trim() === txid.trim();
+
+      if (samePi && sameTx) {
+        return {
+          ok: true,
+          already: true,
+          status: "verifying",
+          paymentIntentId,
+        };
+      }
+
+      throw new Error("REPLAY_DETECTED");
+    }
+
+    /* =====================================================
+       4. ALLOWED ENTRY STATES
+    ===================================================== */
 
     const allowedStatus = [
-  "created",
-  "wallet_opened",
-  "authorized",
-  "submitted" 
-];
+      "created",
+      "wallet_opened",
+      "submitted",
+    ];
 
     if (!allowedStatus.includes(intent.status)) {
       throw new Error("INVALID_STATUS");
     }
 
     /* =====================================================
-       4. PI UID (FIX CRITICAL BUG)
-===================================================== */
+       5. PI UID REQUIRED
+    ===================================================== */
 
-    const piUid = intent.pi_user_uid;
-
-    if (!piUid || typeof piUid !== "string") {
+    if (!intent.pi_user_uid || typeof intent.pi_user_uid !== "string") {
       throw new Error("PI_UID_NOT_BOUND");
     }
 
     /* =====================================================
-       5. REPLAY PROTECTION
-===================================================== */
+       6. GLOBAL REPLAY PROTECTION
+    ===================================================== */
 
     const dup = await client.query(
       `
@@ -149,14 +161,11 @@ export async function markPaymentVerifying({
     }
 
     /* =====================================================
-       6. GENERATE SAFE EVENT HASH
-===================================================== */
-
-    const eventHash = randomUUID();
-
-    /* =====================================================
-       7. UPDATE STATE → VERIFYING
-===================================================== */
+       7. UPDATE ONLY SUBMIT SNAPSHOT
+       NOTE:
+       submit layer MUST NOT create settlement execution lock.
+       orchestrator reconcile owns settlement locking.
+    ===================================================== */
 
     await client.query(
       `
@@ -168,16 +177,17 @@ export async function markPaymentVerifying({
         txid = $3,
         reconcile_attempts = reconcile_attempts + 1,
         last_reconcile_at = now(),
-        settlement_lock_id = gen_random_uuid(),
-        settlement_locked_at = now(),
-        settlement_lock_source = 'submit_service',
         updated_at = now()
       WHERE id = $1
       `,
       [paymentIntentId, piPaymentId, txid]
     );
 
-    console.log("[PAYMENT][SUBMIT] VERIFIED");
+    console.log("[PAYMENT][SUBMIT] VERIFYING_SET", {
+      paymentIntentId,
+      piPaymentId,
+      txid,
+    });
 
     return {
       ok: true,
