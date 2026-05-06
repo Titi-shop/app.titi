@@ -247,33 +247,34 @@ export async function finalizePaidOrderFromIntent({
     ===================================================== */
 
     await client.query(
-      `
-      INSERT INTO payment_receipts (
-        payment_intent_id,
-        pi_payment_id,
-        txid,
-        verified_amount,
-        expected_amount,
-        receiver_wallet,
-        verification_status,
-        pi_payload,
-        rpc_payload,
-        order_id
-      )
-      VALUES ($1,$2,$3,$4,$5,'verified',$6,$7,$8,$9)
-      `,
-      [
-        paymentIntentId,
-        piPaymentId,
-        txid,
-        verifiedAmount,
-        expectedAmount,
-        receiverWallet,
-        JSON.stringify(piPayload),
-        JSON.stringify(rpcPayload),
-        orderId,
-      ]
-    );
+  `
+  INSERT INTO payment_receipts (
+    payment_intent_id,
+    pi_payment_id,
+    txid,
+    verified_amount,
+    expected_amount,
+    receiver_wallet,
+    verification_status,
+    verify_source,
+    pi_payload,
+    rpc_payload,
+    order_id
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,'pi_verified','PI_SERVER',$7,$8,$9)
+  `,
+  [
+    paymentIntentId,
+    piPaymentId,
+    txid,
+    verifiedAmount,
+    expectedAmount,
+    receiverWallet,
+    JSON.stringify(piPayload),
+    JSON.stringify(rpcPayload),
+    orderId,
+  ]
+);
 
     /* =====================================================
        8. PI PAYMENT UPSERT
