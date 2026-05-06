@@ -1,6 +1,11 @@
 
 import { withTransaction } from "@/lib/db";
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
+
+/* =========================================================
+   TYPES
+========================================================= */
+
 type MarkPaymentVerifyingInput = {
   paymentIntentId: string;
   userId: string;
@@ -12,54 +17,47 @@ type PaymentIntentRow = {
   id: string;
   buyer_id: string;
   status: string;
-
-  nonce: string;
-  verify_token: string;
+  pi_user_uid: string | null;
+  pi_payment_id: string | null;
   merchant_wallet: string;
   total_amount: string;
   currency: string;
 };
 
-type PiUidLogRow = {
-  pi_uid: string;
-};
-
-type PrevHashRow = {
-  event_hash: string;
-};
-
-type MarkPaymentVerifyingResult = {
-  ok: boolean;
-  already: boolean;
-  status: string;
-  paymentIntentId: string;
-};
-
-function makeHash(payload: unknown): string {
-  return createHash("sha256")
-    .update(JSON.stringify(payload))
-    .digest("hex");
-}
+/* =========================================================
+   MAIN
+========================================================= */
 
 export async function markPaymentVerifying({
   paymentIntentId,
   userId,
   piPaymentId,
   txid,
-}: MarkPaymentVerifyingInput): Promise<MarkPaymentVerifyingResult> {
+}: MarkPaymentVerifyingInput): Promise<{
+  ok: true;
+  already: boolean;
+  status: string;
+  paymentIntentId: string;
+}> {
   return withTransaction(async (client) => {
+    console.log("[PAYMENT][SUBMIT] START", {
+      paymentIntentId,
+      userId,
+      piPaymentId,
+    });
+
     /* =====================================================
-       1. LOCK PAYMENT INTENT
+       1. LOCK INTENT
     ===================================================== */
 
-    const found = await client.query<PaymentIntentRow>(
+    const rs = await client.query<PaymentIntentRow>(
       `
       SELECT
         id,
         buyer_id,
         status,
-        nonce,
-        verify_token,
+        pi_user_uid,
+        pi_payment_id,
         merchant_wallet,
         total_amount,
         currency
@@ -70,18 +68,22 @@ export async function markPaymentVerifying({
       [paymentIntentId]
     );
 
-    if (!found.rows.length) {
+    if (!rs.rows.length) {
       throw new Error("INTENT_NOT_FOUND");
     }
 
-    const intent = found.rows[0];
+    const intent = rs.rows[0];
 
     if (intent.buyer_id !== userId) {
       throw new Error("FORBIDDEN");
     }
 
+    console.log("[PAYMENT][SUBMIT] INTENT_OK", {
+      status: intent.status,
+    });
+
     /* =====================================================
-       2. FAST IDEMPOTENT RETURN
+       2. IDEMPOTENT RETURN
     ===================================================== */
 
     if (intent.status === "paid") {
@@ -103,168 +105,54 @@ export async function markPaymentVerifying({
     }
 
     /* =====================================================
-       3. STATUS ALLOWLIST
-    ===================================================== */
+       3. STATUS CHECK (FIXED)
+       - allow authorized INCLUDED
+===================================================== */
 
-    if (
-      intent.status !== "created" &&
-      intent.status !== "wallet_opened"
-    ) {
+    const allowedStatus = ["created", "wallet_opened", "authorized"];
+
+    if (!allowedStatus.includes(intent.status)) {
       throw new Error("INVALID_STATUS");
     }
 
     /* =====================================================
-       4. GLOBAL REPLAY CHECK PI PAYMENT ID
-    ===================================================== */
+       4. PI UID (FIX CRITICAL BUG)
+===================================================== */
 
-    const dupPi = await client.query<{ id: string }>(
-      `
-      SELECT id
-      FROM payment_intents
-      WHERE pi_payment_id = $1
-        AND id <> $2
-      LIMIT 1
-      `,
-      [piPaymentId, paymentIntentId]
-    );
+    const piUid = intent.pi_user_uid;
 
-    if (dupPi.rows.length) {
-      throw new Error("PI_PAYMENT_REPLAY_BLOCKED");
-    }
-
-    /* =====================================================
-       5. GLOBAL REPLAY CHECK TXID
-    ===================================================== */
-
-    const dupTx = await client.query<{ id: string }>(
-      `
-      SELECT id
-      FROM payment_intents
-      WHERE txid = $1
-        AND id <> $2
-      LIMIT 1
-      `,
-      [txid, paymentIntentId]
-    );
-
-    if (dupTx.rows.length) {
-      throw new Error("TXID_REPLAY_BLOCKED");
-    }
-
-    /* =====================================================
-       6. LOAD PI UID FROM AUTHORIZE EVIDENCE
-    ===================================================== */
-
-    const piUidRes = await client.query<PiUidLogRow>(
-      `
-      SELECT pi_uid
-      FROM payment_authorize_logs
-      WHERE payment_intent_id = $1
-      ORDER BY auth_index DESC
-      LIMIT 1
-      `,
-      [paymentIntentId]
-    );
-
-    const piUid = piUidRes.rows[0]?.pi_uid ?? null;
-
-    if (!piUid) {
+    if (!piUid || typeof piUid !== "string") {
       throw new Error("PI_UID_NOT_BOUND");
     }
 
     /* =====================================================
-       7. PREVIOUS HASH CHAIN
-    ===================================================== */
+       5. REPLAY PROTECTION
+===================================================== */
 
-    const prevHashRes = await client.query<PrevHashRow>(
+    const dup = await client.query(
       `
-      SELECT event_hash
-      FROM payment_authorize_logs
-      WHERE payment_intent_id = $1
-      ORDER BY auth_index DESC
+      SELECT id
+      FROM payment_intents
+      WHERE (pi_payment_id = $1 OR txid = $2)
+        AND id <> $3
       LIMIT 1
       `,
-      [paymentIntentId]
+      [piPaymentId, txid, paymentIntentId]
     );
 
-    const prevHash = prevHashRes.rows[0]?.event_hash ?? null;
-
-    const submitPayload = {
-      paymentIntentId,
-      userId,
-      piUid,
-      piPaymentId,
-      txid,
-      nonce: intent.nonce,
-      verifyToken: intent.verify_token,
-      merchantWallet: intent.merchant_wallet,
-      amount: Number(intent.total_amount),
-      prevHash,
-      salt: randomUUID(),
-      stage: "client_submit_verifying",
-    };
-
-    const eventHash = makeHash(submitPayload);
+    if (dup.rows.length) {
+      throw new Error("REPLAY_DETECTED");
+    }
 
     /* =====================================================
-       8. IMMUTABLE SUBMIT EVIDENCE APPEND
-       (reuse same audit chain table intentionally)
-    ===================================================== */
+       6. GENERATE SAFE EVENT HASH
+===================================================== */
 
-   await client.query(
-  `
-  INSERT INTO payment_authorize_logs (
-    payment_intent_id,
-    pi_payment_id,
-    pi_uid,
-    nonce,
-    verify_token,
-    merchant_wallet,
-    expected_amount,
-    verified_amount,
-    currency,
-    authorize_status,
-    idempotency_fingerprint,
-    source,
-    payload,
-    prev_hash,
-    event_hash
-  )
-  VALUES (
-    $1,$2,$3,$4,$5,$6,
-    $7,$8,$9,
-    'VERIFIED',
-    $10,
-    'client_submit',
-    $11,
-    $12,
-    $13
-  )
-  `,
-      [
-        paymentIntentId,
-        piPaymentId,
-        piUid,
-        intent.nonce,
-        intent.verify_token,
-        intent.merchant_wallet,
-        intent.total_amount,
-        intent.total_amount,
-        intent.currency,
-        `${piPaymentId}:${txid}:${paymentIntentId}`,
-        JSON.stringify({
-          txid,
-          status_before: intent.status,
-          stage: "submit",
-        }),
-        prevHash,
-        eventHash,
-      ]
-    );
+    const eventHash = randomUUID();
 
     /* =====================================================
-       9. MOVE INTENT -> VERIFYING
-    ===================================================== */
+       7. UPDATE STATE → VERIFYING
+===================================================== */
 
     await client.query(
       `
@@ -272,22 +160,20 @@ export async function markPaymentVerifying({
       SET
         status = 'verifying',
         settlement_state = 'UNSETTLED',
-
         pi_payment_id = $2,
         txid = $3,
-
         reconcile_attempts = reconcile_attempts + 1,
         last_reconcile_at = now(),
-
         settlement_lock_id = gen_random_uuid(),
         settlement_locked_at = now(),
-        settlement_lock_source = 'client_submit',
-
+        settlement_lock_source = 'submit_service',
         updated_at = now()
       WHERE id = $1
       `,
       [paymentIntentId, piPaymentId, txid]
     );
+
+    console.log("[PAYMENT][SUBMIT] VERIFIED");
 
     return {
       ok: true,
