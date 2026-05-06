@@ -1,4 +1,4 @@
-import { bindPiPaymentToIntent } from "@/lib/db/payments.verify";
+import { bindPiPaymentToIntent } from "@/lib/db/payments.bind";
 import {
   piGetMe,
   piGetPayment,
