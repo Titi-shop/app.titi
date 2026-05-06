@@ -6,6 +6,37 @@ import { piGetPayment } from "@/lib/pi/client";
    TYPES
 ========================================================= */
 
+export type PiPaymentResponse = {
+  identifier: string;
+  user_uid: string;
+  amount: number;
+  memo: string;
+  from_address: string;
+  to_address: string;
+  status?: {
+    developer_approved?: boolean;
+    transaction_verified?: boolean;
+    developer_completed?: boolean;
+    cancelled?: boolean;
+    user_cancelled?: boolean;
+  };
+  metadata?: Record<string, unknown>;
+  transaction?: {
+    txid?: string;
+    verified?: boolean;
+    _link?: string;
+  };
+};
+
+type BindParams = {
+  userId: string;
+  paymentIntentId: string;
+  piPaymentId: string;
+  piUid: string;
+  verifiedAmount: number;
+  piPayload: unknown;
+};
+
 type VerifyReconcileParams = {
   paymentIntentId: string;
   piPaymentId: string;
@@ -36,7 +67,133 @@ function sameAmount(a: number, b: number): boolean {
 }
 
 /* =========================================================
-   MAIN VERIFY (V6 FIXED)
+   BIND PI PAYMENT TO INTENT
+========================================================= */
+
+export async function bindPiPaymentToIntent({
+  userId,
+  paymentIntentId,
+  piPaymentId,
+  piUid,
+  verifiedAmount,
+  piPayload,
+}: BindParams): Promise<void> {
+  return withTransaction(async (client) => {
+    const lock = await client.query<{
+      id: string;
+      buyer_id: string;
+      total_amount: string;
+      status: string;
+      pi_payment_id: string | null;
+      merchant_wallet: string;
+      nonce: string;
+      verify_token: string;
+    }>(
+      `
+      SELECT
+        id,
+        buyer_id,
+        total_amount,
+        status,
+        pi_payment_id,
+        merchant_wallet,
+        nonce,
+        verify_token
+      FROM payment_intents
+      WHERE id = $1
+      FOR UPDATE
+      `,
+      [paymentIntentId]
+    );
+
+    if (!lock.rows.length) throw new Error("PAYMENT_INTENT_NOT_FOUND");
+
+    const intent = lock.rows[0];
+
+    if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
+
+    if (intent.status === "paid") return;
+
+    const allowedStates = [
+      "created",
+      "wallet_opened",
+      "submitted",
+      "verifying",
+    ];
+
+    if (!allowedStates.includes(intent.status)) {
+      throw new Error("INVALID_PAYMENT_STATE");
+    }
+
+    if (intent.pi_payment_id && intent.pi_payment_id !== piPaymentId) {
+      throw new Error("PI_PAYMENT_ALREADY_BOUND");
+    }
+
+    const expectedAmount = safeNumber(intent.total_amount);
+
+    if (!sameAmount(expectedAmount, verifiedAmount)) {
+      throw new Error("PI_AMOUNT_MISMATCH");
+    }
+
+    await client.query(
+      `
+      UPDATE payment_intents
+      SET
+        pi_payment_id = $2,
+        pi_user_uid = $3,
+        pi_verified_amount = $4,
+        pi_payment_payload = $5,
+        status = 'wallet_opened',
+        updated_at = now()
+      WHERE id = $1
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        piUid,
+        verifiedAmount,
+        JSON.stringify(piPayload ?? {}),
+      ]
+    );
+
+    await client.query(
+      `
+      INSERT INTO payment_authorize_logs (
+        payment_intent_id,
+        pi_payment_id,
+        pi_uid,
+        nonce,
+        verify_token,
+        merchant_wallet,
+        expected_amount,
+        verified_amount,
+        currency,
+        authorize_status,
+        payload,
+        event_hash,
+        created_at
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PI',$9,$10,$11,now())
+      `,
+      [
+        paymentIntentId,
+        piPaymentId,
+        piUid,
+        intent.nonce,
+        intent.verify_token,
+        intent.merchant_wallet,
+        expectedAmount,
+        verifiedAmount,
+        "RECEIVED",
+        JSON.stringify(piPayload ?? {}),
+        crypto.randomUUID(),
+      ]
+    );
+  });
+}
+
+/* =========================================================
+   RECON VERIFY (V6 FIXED)
 ========================================================= */
 
 export async function verifyPiPaymentForReconcile({
@@ -51,10 +208,6 @@ export async function verifyPiPaymentForReconcile({
       piPaymentId,
       txid,
     });
-
-    /* =====================================================
-       1. LOCK INTENT
-    ===================================================== */
 
     const db = await client.query<{
       buyer_id: string;
@@ -85,16 +238,14 @@ export async function verifyPiPaymentForReconcile({
 
     const intent = db.rows[0];
 
-    console.log("[V6][INTENT]", intent);
-
     if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
 
-    if (intent.pi_payment_id && intent.pi_payment_id !== piPaymentId) {
+    if (intent.pi_payment_id !== piPaymentId) {
       throw new Error("PI_PAYMENT_ID_MISMATCH");
     }
 
     /* =====================================================
-       2. IDEMPOTENT CHECK (FIX DUPLICATE CRASH)
+       FIX: IDEMPOTENT - chống duplicate insert
     ===================================================== */
 
     const existing = await client.query(
@@ -107,8 +258,6 @@ export async function verifyPiPaymentForReconcile({
     );
 
     if (existing.rows.length > 0) {
-      console.log("[V6][RECON] DUPLICATE SAFE SKIP");
-
       return {
         ok: true,
         verifiedAmount: safeNumber(intent.pi_verified_amount ?? intent.total_amount),
@@ -117,10 +266,6 @@ export async function verifyPiPaymentForReconcile({
         piPayload: null,
       };
     }
-
-    /* =====================================================
-       3. FETCH PI PAYMENT
-    ===================================================== */
 
     const pi = await piGetPayment(piPaymentId);
 
@@ -139,7 +284,10 @@ export async function verifyPiPaymentForReconcile({
       throw new Error("PI_AMOUNT_MISMATCH");
     }
 
-    if (String(pi.to_address).trim() !== String(intent.merchant_wallet).trim()) {
+    if (
+      String(pi.to_address).trim() !==
+      String(intent.merchant_wallet).trim()
+    ) {
       throw new Error("PI_RECEIVER_MISMATCH");
     }
 
@@ -148,7 +296,7 @@ export async function verifyPiPaymentForReconcile({
     }
 
     /* =====================================================
-       4. INSERT RECEIPT (FIXED UPSERT)
+       FIX: SAFE INSERT + UPSERT
     ===================================================== */
 
     await client.query(
