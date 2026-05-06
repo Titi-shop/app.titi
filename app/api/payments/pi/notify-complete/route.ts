@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, waitUntil } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
-import { waitUntil } from "@vercel/functions";
+
 
 /* =========================================================
    TYPES
