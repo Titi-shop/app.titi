@@ -260,7 +260,7 @@ export async function finalizePaidOrderFromIntent({
         rpc_payload,
         order_id
       )
-      VALUES ($1,$2,$3,$4,$5,'verified',$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,'verified',$6,$7,$8,$9)
       `,
       [
         paymentIntentId,
