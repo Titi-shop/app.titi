@@ -24,15 +24,7 @@ type Input = {
 };
 
 /* =========================================================
-   HELPERS
-========================================================= */
-
-function sameAmount(a: number, b: number): boolean {
-  return Math.abs(a - b) < 0.00001;
-}
-
-/* =========================================================
-   MAIN SERVICE (CLEAN ARCHITECTURE)
+   AUTHORIZE SERVICE (NO DIRECT DB QUERY)
 ========================================================= */
 
 export async function piAuthorizePayment({
@@ -40,7 +32,10 @@ export async function piAuthorizePayment({
   authorizationHeader,
   body,
 }: Input): Promise<{ success: true }> {
-  console.log("[PAYMENT][AUTHORIZE] START", { userId });
+  console.log("[PAYMENT][AUTHORIZE] START", {
+    userId,
+    body,
+  });
 
   const paymentIntentId =
     body.paymentIntentId ?? body.payment_intent_id;
@@ -53,37 +48,37 @@ export async function piAuthorizePayment({
     throw new Error("INVALID_INPUT");
   }
 
-  /* =========================================================
-     1. VERIFY PI USER (OUTSIDE DB)
-  ========================================================= */
+  /* =====================================================
+     1. PI VERIFY USER
+  ===================================================== */
 
   console.log("[PAYMENT][AUTHORIZE] PI_VERIFY_START");
 
   const me = await piGetMe(authorizationHeader);
-  const payment = await piGetPayment(piPaymentId);
 
   console.log("[PAYMENT][AUTHORIZE] PI_OK", {
     uid: me.uid,
   });
 
+  /* =====================================================
+     2. FETCH PI PAYMENT
+  ===================================================== */
+
+  const payment = await piGetPayment(piPaymentId);
+
+  console.log("[PAYMENT][AUTHORIZE] PI_PAYMENT_OK", {
+    id: piPaymentId,
+    amount: payment.amount,
+    user_uid: payment.user_uid,
+  });
+
   if (payment.user_uid !== me.uid) {
-    console.error("[PAYMENT][AUTHORIZE] PI_USER_MISMATCH");
     throw new Error("PI_USER_MISMATCH");
   }
 
-  /* =========================================================
-     2. BASIC VALIDATION (NO DB LOCK HERE)
-  ========================================================= */
-
-  if (!payment.amount) {
-    console.error("[PAYMENT][AUTHORIZE] INVALID_AMOUNT");
-    throw new Error("INVALID_AMOUNT");
-  }
-
-  /* =========================================================
-     3. BIND TO INTENT (DB LAYER ONLY)
-     👉 toàn bộ transaction nằm trong lib/db/payments.bind
-  ========================================================= */
+  /* =====================================================
+     3. BIND TO DB (ONLY PLACE TOUCH DB)
+  ===================================================== */
 
   console.log("[PAYMENT][AUTHORIZE] BIND_START");
 
@@ -98,9 +93,9 @@ export async function piAuthorizePayment({
 
   console.log("[PAYMENT][AUTHORIZE] BIND_DONE");
 
-  /* =========================================================
-     4. MARK PI PAYMENT APPROVED (NO DB)
-  ========================================================= */
+  /* =====================================================
+     4. PI APPROVE (AFTER BIND ONLY)
+  ===================================================== */
 
   if (!payment.status?.developer_approved) {
     console.log("[PAYMENT][AUTHORIZE] PI_APPROVE_START");
@@ -110,9 +105,9 @@ export async function piAuthorizePayment({
     console.log("[PAYMENT][AUTHORIZE] PI_APPROVE_DONE");
   }
 
-  /* =========================================================
-     5. FINAL SUCCESS
-  ========================================================= */
+  /* =====================================================
+     5. FINAL
+  ===================================================== */
 
   console.log("[PAYMENT][AUTHORIZE] SUCCESS", {
     paymentIntentId,
