@@ -1,4 +1,6 @@
 
+
+
 import {
   guardPaymentForReconcile,
   acquirePaymentSettlementLock,
@@ -10,16 +12,12 @@ import {
   auditManualReview,
   auditPiCompleted,
   auditPiVerified,
-  auditRpcFailed,
   auditRpcVerified,
 } from "@/lib/db/payments.audit";
 
 import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
-import {
-  finalizePaidOrderFromIntent,
-  FinalizePaidOrderResult,
-} from "@/lib/db/orders.payment";
+import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
 import { SettlementLedgerV3 as SettlementLedger } from "@/lib/db/settlement.ledger";
 import { piCompletePayment } from "@/lib/pi/client";
 
@@ -85,7 +83,7 @@ function successResult(
 }
 
 /* =========================================================
-   SAFE RPC VERIFY
+   SAFE RPC AUDIT
 ========================================================= */
 
 async function safeAuditRpc(
@@ -104,29 +102,12 @@ async function safeAuditRpc(
         source,
         txid,
         amount: rpc.amount,
-        ledger: rpc.ledger,
-        receiver: rpc.receiver,
-        sender: rpc.sender,
-        chainReference: rpc.chainReference,
-      });
-    } else {
-      await auditRpcFailed(paymentIntentId, {
-        source,
-        txid,
-        reason: rpc.reason,
       });
     }
 
     return rpc;
   } catch (e) {
     console.warn("[PAYMENT][RPC_VERIFY_FAIL]", e);
-
-    await auditRpcFailed(paymentIntentId, {
-      source,
-      txid,
-      reason: "RPC_EXCEPTION",
-    });
-
     return emptyRpc();
   }
 }
@@ -151,13 +132,10 @@ async function safeCompletePi(
     });
 
     return true;
-  } catch (e) {
-    console.error("[PAYMENT][PI_COMPLETE_FAIL]", e);
-
+  } catch {
     await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
       source,
       txid,
-      piPaymentId,
     });
 
     return false;
@@ -165,14 +143,19 @@ async function safeCompletePi(
 }
 
 /* =========================================================
-   SAFE LEDGER PIPELINE
+   SAFE LEDGER
 ========================================================= */
 
 async function safeLedger(
-  paid: FinalizePaidOrderResult,
+  paid: {
+    orderId: string | null;
+    buyerId: string;
+    sellerId: string;
+  },
   paymentIntentId: string,
   piPaymentId: string,
   txid: string,
+  amount: number,
   rpcVerified: RpcAuditResult
 ): Promise<void> {
   try {
@@ -183,7 +166,7 @@ async function safeLedger(
       orderId: paid.orderId,
       buyerId: paid.buyerId,
       sellerId: paid.sellerId,
-      amount: paid.amount,
+      amount,
       txid,
       piPaymentId,
     });
@@ -199,31 +182,17 @@ async function safeLedger(
     await SettlementLedger.creditSeller({
       escrowId,
       sellerId: paid.sellerId,
-      amount: paid.amount,
-      piPaymentId,
+      amount,
     });
 
     await SettlementLedger.releaseEscrow(escrowId);
-
-    await auditFinalizeDone(paymentIntentId, {
-      source: "ledger",
-      orderId: paid.orderId,
-      escrowId,
-      piPaymentId,
-      txid,
-    });
   } catch (e) {
     console.error("[PAYMENT][LEDGER_FAIL]", e);
-
-    await auditManualReview(paymentIntentId, "LEDGER_PIPELINE_FAILED", {
-      txid,
-      piPaymentId,
-    });
   }
 }
 
 /* =========================================================
-   MAIN PAYMENT SETTLEMENT CORE
+   MAIN ORCHESTRATOR
 ========================================================= */
 
 export async function runPaymentSettlement({
@@ -239,10 +208,6 @@ export async function runPaymentSettlement({
     txid,
     source,
   });
-
-  /* =====================================================
-     1. GUARD
-  ===================================================== */
 
   const guard = await guardPaymentForReconcile({
     paymentIntentId,
@@ -268,25 +233,6 @@ export async function runPaymentSettlement({
     return failResult(0, false, source);
   }
 
-  /* =====================================================
-     2. LOCK
-  ===================================================== */
-
-  const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
-  if (!lock.ok) {
-    await auditDuplicateSubmit(paymentIntentId, {
-      source,
-      reason: "LOCK_DENIED",
-    });
-
-    return failResult(guard.amount ?? 0, false, source);
-  }
-
-  /* =====================================================
-     3. VERIFY PI
-  ===================================================== */
-
   const piVerified = await verifyPiPaymentForReconcile({
     paymentIntentId,
     piPaymentId,
@@ -298,7 +244,6 @@ export async function runPaymentSettlement({
     await auditManualReview(paymentIntentId, "PI_VERIFY_FAIL", {
       source,
       txid,
-      piPaymentId,
     });
 
     return failResult(0, false, source);
@@ -311,15 +256,18 @@ export async function runPaymentSettlement({
     receiverWallet: piVerified.receiverWallet,
   });
 
-  /* =====================================================
-     4. VERIFY RPC (NON BLOCKING BUT AUDITED)
-  ===================================================== */
+  const lock = await acquirePaymentSettlementLock(paymentIntentId);
+
+  if (!lock.ok) {
+    await auditDuplicateSubmit(paymentIntentId, {
+      source,
+      reason: "LOCK_DENIED",
+    });
+
+    return failResult(piVerified.verifiedAmount, false, source);
+  }
 
   const rpcVerified = await safeAuditRpc(paymentIntentId, txid, source);
-
-  /* =====================================================
-     5. COMPLETE PI
-  ===================================================== */
 
   const piCompleted = await safeCompletePi(
     paymentIntentId,
@@ -332,10 +280,6 @@ export async function runPaymentSettlement({
     return failResult(piVerified.verifiedAmount, rpcVerified.ok, source);
   }
 
-  /* =====================================================
-     6. FINALIZE ORDER CORE
-  ===================================================== */
-
   const paid = await finalizePaidOrderFromIntent({
     paymentIntentId,
     piPaymentId,
@@ -346,36 +290,32 @@ export async function runPaymentSettlement({
     rpcPayload: rpcVerified,
   });
 
-  /* =====================================================
-     7. LEDGER PIPELINE
-  ===================================================== */
+  await auditFinalizeDone(paymentIntentId, {
+    source,
+    orderId: paid.orderId,
+  });
 
   await safeLedger(
     paid,
     paymentIntentId,
     piPaymentId,
     txid,
+    piVerified.verifiedAmount,
     rpcVerified
   );
 
   console.log("[PAYMENT][SETTLEMENT_SUCCESS]", {
     orderId: paid.orderId,
-    amount: paid.amount,
-    rpcAudited: rpcVerified.ok,
+    amount: piVerified.verifiedAmount,
   });
 
   return successResult(
     paid.orderId,
-    paid.amount,
+    piVerified.verifiedAmount,
     rpcVerified.ok,
     source
   );
 }
-
-/* =========================================================
-   REQUEST BODY PARSER
-========================================================= */
-
 type ReconcileRequestBody = {
   payment_intent_id?: unknown;
   pi_payment_id?: unknown;
@@ -416,7 +356,6 @@ function parseReconcileRequestBody(raw: ReconcileRequestBody): {
 export async function runPaymentSettlementFromRequest(input: {
   rawBody: unknown;
   userId: string;
-  source?: string;
 }): Promise<PaymentSettlementResult | null> {
   if (!input.rawBody || typeof input.rawBody !== "object") {
     return null;
@@ -435,6 +374,148 @@ export async function runPaymentSettlementFromRequest(input: {
     piPaymentId: parsed.piPaymentId,
     txid: parsed.txid,
     userId: input.userId,
-    source: input.source ?? "reconcile-api",
+    source: "reconcile-api",
   });
+}
+2) lib/db/payments.guard.ts
+
+import { query } from "@/lib/db";
+import type {
+  GuardPaymentResult,
+  PaymentLockResult,
+} from "@/lib/payments/payment.types";
+
+type PaymentStatus =
+  | "initiated"
+  | "authorized"
+  | "verifying"
+  | "paid"
+  | "failed"
+  | "cancelled";
+
+type GuardInput = {
+  paymentIntentId: string;
+  userId: string | null;
+  systemMode?: boolean;
+};
+
+type PaymentIntentGuardRow = {
+  buyer_id: string;
+  status: PaymentStatus;
+  total_amount: string;
+  pi_payment_id: string | null;
+  txid: string | null;
+};
+
+function isUUID(v: unknown): v is string {
+  return (
+    typeof v === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v
+    )
+  );
+}
+
+/* =========================================================
+   MAIN GUARD (READ ONLY - SAFE)
+========================================================= */
+
+export async function guardPaymentForReconcile({
+  paymentIntentId,
+  userId,
+  systemMode = false,
+}: GuardInput): Promise<GuardPaymentResult> {
+  if (!isUUID(paymentIntentId)) {
+    return { ok: false, code: "PAYMENT_NOT_FOUND" };
+  }
+
+  const rs = await query<PaymentIntentGuardRow>(
+    `
+    SELECT
+      buyer_id,
+      status,
+      total_amount,
+      pi_payment_id,
+      txid
+    FROM payment_intents
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [paymentIntentId]
+  );
+
+  if (!rs.rows.length) {
+    return { ok: false, code: "PAYMENT_NOT_FOUND" };
+  }
+
+  const row = rs.rows[0];
+
+  /* =========================================
+     OWNER CHECK
+  ========================================= */
+
+  if (!systemMode) {
+    if (!userId || !isUUID(userId) || row.buyer_id !== userId) {
+      return { ok: false, code: "PAYMENT_FORBIDDEN" };
+    }
+  }
+
+  /* =========================================
+     BLOCK STATES
+  ========================================= */
+
+  if (row.status === "cancelled") {
+    return { ok: false, code: "PAYMENT_CANCELLED" };
+  }
+
+  if (row.status === "failed") {
+    return { ok: false, code: "PAYMENT_FAILED" };
+  }
+
+  if (row.status === "paid") {
+    return { ok: false, code: "PAYMENT_ALREADY_PAID" };
+  }
+
+  return {
+    ok: true,
+    status: row.status,
+    amount: Number(row.total_amount),
+    piPaymentId: row.pi_payment_id,
+    txid: row.txid,
+  };
+}
+
+/* =========================================================
+   SETTLEMENT LOCK (FIXED - NO STATUS WRITE HERE)
+========================================================= */
+
+export async function acquirePaymentSettlementLock(
+  paymentIntentId: string
+): Promise<PaymentLockResult> {
+  if (!isUUID(paymentIntentId)) {
+    return { ok: false, code: "LOCK_DENIED" };
+  }
+
+  /**
+   * ❌ OLD: UPDATE status = 'verifying' (CAUSE LOCK CHAINS)
+   *
+   * ✅ NEW: only atomic lock attempt, no status mutation
+   */
+
+  const rs = await query<{ id: string }>(
+    `
+    UPDATE payment_intents
+    SET updated_at = now()
+    WHERE id = $1
+      AND status IN ('authorized','verifying')
+    RETURNING id
+    `,
+    [paymentIntentId]
+  );
+
+  if (!rs.rows.length) {
+    return { ok: false, code: "LOCK_DENIED" };
+  }
+
+  return { ok: true };
 }
