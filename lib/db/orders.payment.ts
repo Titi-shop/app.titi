@@ -149,7 +149,7 @@ export async function finalizePaidOrderFromIntent({
     await client.query(
       `
       UPDATE payment_intents
-      SET settlement_state = 'PROCESSING',
+      SET settlement_state = 'RPC_AUDITED',
           updated_at = now()
       WHERE id = $1
       `,
