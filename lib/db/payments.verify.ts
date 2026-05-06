@@ -297,7 +297,7 @@ export async function verifyPiPaymentForReconcile({
     verification_status,
     verify_source,
     pi_payload,
-    rpc_payload,
+    verified_at,
     created_at,
     updated_at
   )
@@ -305,9 +305,20 @@ export async function verifyPiPaymentForReconcile({
     $1,$2,$3,$4,$5,
     $6,$7,$8,
     $9,$10,
-    $11,$12,
-    now(),now()
+    $11,
+    now(),now(),now()
   )
+  ON CONFLICT (pi_payment_id)
+  DO UPDATE SET
+    txid = EXCLUDED.txid,
+    verified_amount = EXCLUDED.verified_amount,
+    receiver_wallet = EXCLUDED.receiver_wallet,
+    pi_payload = EXCLUDED.pi_payload,
+    verification_status = EXCLUDED.verification_status,
+    verified_at = now(),
+    updated_at = now()
+  `
+)
   `,
   [
     paymentIntentId,
