@@ -406,7 +406,7 @@ export function useCheckoutPay({
                 console.log("🟢 [CHECKOUT] NOTIFY_COMPLETE_OK");
 
                 onClose();
-                router.replace("/customer/orders?tab=pending");
+                router.replace("/customer/orders?tab=processing");
                 showMessage(
                   t.payment_processing ?? "Payment received. Verifying blockchain...",
                   "success"
