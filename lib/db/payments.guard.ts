@@ -30,12 +30,14 @@ type PaymentIntentGuardRow = {
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v
+    )
   );
 }
 
 /* =========================================================
-   MAIN GUARD
+   MAIN GUARD (READ ONLY - SAFE)
 ========================================================= */
 
 export async function guardPaymentForReconcile({
@@ -69,7 +71,7 @@ export async function guardPaymentForReconcile({
   const row = rs.rows[0];
 
   /* =========================================
-     CLIENT OWNERSHIP CHECK ONLY WHEN NEEDED
+     OWNER CHECK
   ========================================= */
 
   if (!systemMode) {
@@ -79,7 +81,7 @@ export async function guardPaymentForReconcile({
   }
 
   /* =========================================
-     STATUS BLOCKERS
+     BLOCK STATES
   ========================================= */
 
   if (row.status === "cancelled") {
@@ -104,8 +106,7 @@ export async function guardPaymentForReconcile({
 }
 
 /* =========================================================
-   SETTLEMENT LOCK
-   one process only
+   SETTLEMENT LOCK (FIXED - NO STATUS WRITE HERE)
 ========================================================= */
 
 export async function acquirePaymentSettlementLock(
@@ -115,12 +116,16 @@ export async function acquirePaymentSettlementLock(
     return { ok: false, code: "LOCK_DENIED" };
   }
 
+  /**
+   * ❌ OLD: UPDATE status = 'verifying' (CAUSE LOCK CHAINS)
+   *
+   * ✅ NEW: only atomic lock attempt, no status mutation
+   */
+
   const rs = await query<{ id: string }>(
     `
     UPDATE payment_intents
-    SET
-      status = 'verifying',
-      updated_at = now()
+    SET updated_at = now()
     WHERE id = $1
       AND status IN ('authorized','verifying')
     RETURNING id
