@@ -79,27 +79,34 @@ export async function bindPiPaymentToIntent(params: {
     ===================================================== */
 
     await client.query(
-      `
-      UPDATE payment_intents
-      SET
-        pi_payment_id = COALESCE(pi_payment_id, $2),
-        pi_user_uid = $3,
-        pi_verified_amount = $4,
-        pi_payment_payload = $5,
-        status = CASE
-          WHEN status = 'paid' THEN status
-          ELSE 'authorized'
-        END,
-        updated_at = now()
-      WHERE id = $1
-      `,
-      [
-        paymentIntentId,
-        piPaymentId,
-        piUid,
-        verifiedAmount,
-        JSON.stringify(piPayload ?? {}),
-      ]
-    );
+  `
+  UPDATE payment_intents
+  SET
+    pi_payment_id = COALESCE(pi_payment_id, $2),
+    pi_user_uid = $3,
+    pi_verified_amount = $4,
+    pi_payment_payload = $5,
+
+    status = CASE
+      WHEN status IN ('paid','verifying','submitted') THEN status
+      ELSE 'wallet_opened'
+    END,
+
+    settlement_state = CASE
+      WHEN settlement_state = 'SETTLED' THEN settlement_state
+      ELSE 'PI_VERIFIED'
+    END,
+
+    updated_at = now()
+  WHERE id = $1
+  `,
+  [
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    verifiedAmount,
+    JSON.stringify(piPayload ?? {}),
+  ]
+);
   });
 }
