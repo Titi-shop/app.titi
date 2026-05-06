@@ -284,54 +284,49 @@ export async function verifyPiPaymentForReconcile({
     }
 
     await client.query(
-      `
-      INSERT INTO payment_receipts (
-        payment_intent_id,
-        user_id,
-        pi_payment_id,
-        pi_uid,
-        txid,
-        expected_amount,
-        verified_amount,
-        receiver_wallet,
-        verification_status,
-        verify_source,
-        pi_payload,
-        verified_at,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,
-        'pi_verified',
-        'PI_SERVER',
-        $9,
-        now(),
-        now(),
-        now()
-      )
-      ON CONFLICT (pi_payment_id)
-      DO UPDATE SET
-        txid = EXCLUDED.txid,
-        verified_amount = EXCLUDED.verified_amount,
-        receiver_wallet = EXCLUDED.receiver_wallet,
-        pi_payload = EXCLUDED.pi_payload,
-        verified_at = now(),
-        updated_at = now()
-      `,
-      [
-        paymentIntentId,
-        userId,
-        piPaymentId,
-        pi.user_uid || null,
-        txid,
-        expectedAmount,
-        piAmount,
-        pi.to_address,
-        JSON.stringify(pi),
-      ]
-    );
+  `
+  INSERT INTO payment_receipts (
+    payment_intent_id,
+    user_id,
+    pi_payment_id,
+    pi_uid,
+    txid,
+    expected_amount,
+    verified_amount,
+    receiver_wallet,
+    verification_status,
+    verify_source,
+    pi_payload,
+    rpc_payload,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,
+    $6,$7,$8,
+    $9,$10,
+    $11,$12,
+    now(),now()
+  )
+  `,
+  [
+    paymentIntentId,
+    userId,
+    piPaymentId,
+    pi.user_uid || null,
+    txid,
+
+    expectedAmount,
+    piAmount,
+    pi.to_address,
+
+    'pi_verified',
+    'PI_SERVER',
+
+    JSON.stringify(pi),
+    null
+  ]
+);
 
     return {
       ok: true,
