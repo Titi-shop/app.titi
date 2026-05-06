@@ -10,12 +10,16 @@ import {
   auditManualReview,
   auditPiCompleted,
   auditPiVerified,
+  auditRpcFailed,
   auditRpcVerified,
 } from "@/lib/db/payments.audit";
 
 import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
-import { finalizePaidOrderFromIntent } from "@/lib/db/orders.payment";
+import {
+  finalizePaidOrderFromIntent,
+  FinalizePaidOrderResult,
+} from "@/lib/db/orders.payment";
 import { SettlementLedgerV3 as SettlementLedger } from "@/lib/db/settlement.ledger";
 import { piCompletePayment } from "@/lib/pi/client";
 
@@ -81,7 +85,7 @@ function successResult(
 }
 
 /* =========================================================
-   SAFE RPC AUDIT
+   SAFE RPC VERIFY
 ========================================================= */
 
 async function safeAuditRpc(
@@ -100,12 +104,29 @@ async function safeAuditRpc(
         source,
         txid,
         amount: rpc.amount,
+        ledger: rpc.ledger,
+        receiver: rpc.receiver,
+        sender: rpc.sender,
+        chainReference: rpc.chainReference,
+      });
+    } else {
+      await auditRpcFailed(paymentIntentId, {
+        source,
+        txid,
+        reason: rpc.reason,
       });
     }
 
     return rpc;
   } catch (e) {
     console.warn("[PAYMENT][RPC_VERIFY_FAIL]", e);
+
+    await auditRpcFailed(paymentIntentId, {
+      source,
+      txid,
+      reason: "RPC_EXCEPTION",
+    });
+
     return emptyRpc();
   }
 }
@@ -130,10 +151,13 @@ async function safeCompletePi(
     });
 
     return true;
-  } catch {
+  } catch (e) {
+    console.error("[PAYMENT][PI_COMPLETE_FAIL]", e);
+
     await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
       source,
       txid,
+      piPaymentId,
     });
 
     return false;
@@ -141,19 +165,14 @@ async function safeCompletePi(
 }
 
 /* =========================================================
-   SAFE LEDGER
+   SAFE LEDGER PIPELINE
 ========================================================= */
 
 async function safeLedger(
-  paid: {
-    orderId: string | null;
-    buyerId: string;
-    sellerId: string;
-  },
+  paid: FinalizePaidOrderResult,
   paymentIntentId: string,
   piPaymentId: string,
   txid: string,
-  amount: number,
   rpcVerified: RpcAuditResult
 ): Promise<void> {
   try {
@@ -164,7 +183,7 @@ async function safeLedger(
       orderId: paid.orderId,
       buyerId: paid.buyerId,
       sellerId: paid.sellerId,
-      amount,
+      amount: paid.amount,
       txid,
       piPaymentId,
     });
@@ -180,17 +199,31 @@ async function safeLedger(
     await SettlementLedger.creditSeller({
       escrowId,
       sellerId: paid.sellerId,
-      amount,
+      amount: paid.amount,
+      piPaymentId,
     });
 
     await SettlementLedger.releaseEscrow(escrowId);
+
+    await auditFinalizeDone(paymentIntentId, {
+      source: "ledger",
+      orderId: paid.orderId,
+      escrowId,
+      piPaymentId,
+      txid,
+    });
   } catch (e) {
     console.error("[PAYMENT][LEDGER_FAIL]", e);
+
+    await auditManualReview(paymentIntentId, "LEDGER_PIPELINE_FAILED", {
+      txid,
+      piPaymentId,
+    });
   }
 }
 
 /* =========================================================
-   MAIN ORCHESTRATOR
+   MAIN PAYMENT SETTLEMENT CORE
 ========================================================= */
 
 export async function runPaymentSettlement({
@@ -206,6 +239,10 @@ export async function runPaymentSettlement({
     txid,
     source,
   });
+
+  /* =====================================================
+     1. GUARD
+  ===================================================== */
 
   const guard = await guardPaymentForReconcile({
     paymentIntentId,
@@ -231,6 +268,25 @@ export async function runPaymentSettlement({
     return failResult(0, false, source);
   }
 
+  /* =====================================================
+     2. LOCK
+  ===================================================== */
+
+  const lock = await acquirePaymentSettlementLock(paymentIntentId);
+
+  if (!lock.ok) {
+    await auditDuplicateSubmit(paymentIntentId, {
+      source,
+      reason: "LOCK_DENIED",
+    });
+
+    return failResult(guard.amount ?? 0, false, source);
+  }
+
+  /* =====================================================
+     3. VERIFY PI
+  ===================================================== */
+
   const piVerified = await verifyPiPaymentForReconcile({
     paymentIntentId,
     piPaymentId,
@@ -242,6 +298,7 @@ export async function runPaymentSettlement({
     await auditManualReview(paymentIntentId, "PI_VERIFY_FAIL", {
       source,
       txid,
+      piPaymentId,
     });
 
     return failResult(0, false, source);
@@ -254,18 +311,15 @@ export async function runPaymentSettlement({
     receiverWallet: piVerified.receiverWallet,
   });
 
-  const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
-  if (!lock.ok) {
-    await auditDuplicateSubmit(paymentIntentId, {
-      source,
-      reason: "LOCK_DENIED",
-    });
-
-    return failResult(piVerified.verifiedAmount, false, source);
-  }
+  /* =====================================================
+     4. VERIFY RPC (NON BLOCKING BUT AUDITED)
+  ===================================================== */
 
   const rpcVerified = await safeAuditRpc(paymentIntentId, txid, source);
+
+  /* =====================================================
+     5. COMPLETE PI
+  ===================================================== */
 
   const piCompleted = await safeCompletePi(
     paymentIntentId,
@@ -278,6 +332,10 @@ export async function runPaymentSettlement({
     return failResult(piVerified.verifiedAmount, rpcVerified.ok, source);
   }
 
+  /* =====================================================
+     6. FINALIZE ORDER CORE
+  ===================================================== */
+
   const paid = await finalizePaidOrderFromIntent({
     paymentIntentId,
     piPaymentId,
@@ -288,32 +346,36 @@ export async function runPaymentSettlement({
     rpcPayload: rpcVerified,
   });
 
-  await auditFinalizeDone(paymentIntentId, {
-    source,
-    orderId: paid.orderId,
-  });
+  /* =====================================================
+     7. LEDGER PIPELINE
+  ===================================================== */
 
   await safeLedger(
     paid,
     paymentIntentId,
     piPaymentId,
     txid,
-    piVerified.verifiedAmount,
     rpcVerified
   );
 
   console.log("[PAYMENT][SETTLEMENT_SUCCESS]", {
     orderId: paid.orderId,
-    amount: piVerified.verifiedAmount,
+    amount: paid.amount,
+    rpcAudited: rpcVerified.ok,
   });
 
   return successResult(
     paid.orderId,
-    piVerified.verifiedAmount,
+    paid.amount,
     rpcVerified.ok,
     source
   );
 }
+
+/* =========================================================
+   REQUEST BODY PARSER
+========================================================= */
+
 type ReconcileRequestBody = {
   payment_intent_id?: unknown;
   pi_payment_id?: unknown;
@@ -354,6 +416,7 @@ function parseReconcileRequestBody(raw: ReconcileRequestBody): {
 export async function runPaymentSettlementFromRequest(input: {
   rawBody: unknown;
   userId: string;
+  source?: string;
 }): Promise<PaymentSettlementResult | null> {
   if (!input.rawBody || typeof input.rawBody !== "object") {
     return null;
@@ -372,6 +435,6 @@ export async function runPaymentSettlementFromRequest(input: {
     piPaymentId: parsed.piPaymentId,
     txid: parsed.txid,
     userId: input.userId,
-    source: "reconcile-api",
+    source: input.source ?? "reconcile-api",
   });
 }
