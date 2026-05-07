@@ -1,3 +1,7 @@
+File này có cần gọi không .
+
+app/api/payments/pi/notify-complete/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
@@ -143,18 +147,18 @@ export async function POST(req: NextRequest) {
        (NO WAITUNTIL NEEDED)
     ===================================================== */
 
-    const result = await runPaymentSettlement({
-  paymentIntentId,
-  piPaymentId,
-  txid,
-  userId: auth.userId,
-  source: "notify-complete",
-});
-
-console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
-  requestId,
-  result,
-});
+    void runPaymentSettlement({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      userId: auth.userId,
+      source: "notify-complete",
+    })
+      .then((result) => {
+        console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
+          requestId,
+          result,
+        });
       })
       .catch((err) => {
         console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", {
@@ -168,13 +172,12 @@ console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
     ===================================================== */
 
     return NextResponse.json({
-  ok: result.ok,
-  paid: result.ok,
-  order_id: result.orderId ?? null,
-  requestId,
-  payment_intent_id: paymentIntentId,
-  status: result.ok ? "paid" : "failed",
-});
+      ok: true,
+      processing: true,
+      requestId,
+      payment_intent_id: paymentIntentId,
+      status: "verifying",
+    });
   } catch (err) {
     console.error("[PAYMENT][NOTIFY_COMPLETE_FATAL]", {
       requestId,
