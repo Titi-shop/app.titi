@@ -1,72 +1,30 @@
-// app/api/payments/pi/notify-complete/route.ts
-
-import { NextRequest, NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
+import {
+  NextRequest,
+  NextResponse,
+  waitUntil,
+} from "next/server";
 
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
-import { getPaymentIntentById } from "@/lib/db/payment_intents";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
 
-/* =========================================================
-   CONFIG
-========================================================= */
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* =========================================================
-   TYPES
-========================================================= */
-
-type NotifyCompleteBody = {
-  payment_intent_id?: unknown;
-  pi_payment_id?: unknown;
-  txid?: unknown;
-};
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function asText(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
-
-function safeJsonParse(text: string): NotifyCompleteBody | null {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function isUUID(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
-}
-
-/* =========================================================
-   ROUTE
-========================================================= */
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
 
   console.log("[PAYMENT][NOTIFY_COMPLETE_INCOMING]", {
     requestId,
-    method: req.method,
-    url: req.url,
   });
 
   try {
-    /* =====================================================
-       1. AUTH
-    ===================================================== */
-
     const auth = await getUserFromBearer();
 
     if (!auth?.userId) {
@@ -84,37 +42,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* =====================================================
-       2. RAW BODY
-    ===================================================== */
+    const raw = await req.json().catch(() => null);
 
-    const rawText = await req.text();
-
-    console.log("[PAYMENT][NOTIFY_COMPLETE_RAW_BODY]", {
+    console.log("[PAYMENT][NOTIFY_COMPLETE_RAW]", {
       requestId,
-      rawText,
+      raw,
     });
 
-    const raw = safeJsonParse(rawText);
-
-    if (!raw) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_INVALID_JSON]", {
-        requestId,
-      });
-
+    if (!raw || typeof raw !== "object") {
       return NextResponse.json(
         {
           ok: false,
-          error: "INVALID_JSON",
+          error: "INVALID_BODY",
           requestId,
         },
         { status: 400 }
       );
     }
-
-    /* =====================================================
-       3. NORMALIZE
-    ===================================================== */
 
     const paymentIntentId = asText(raw.payment_intent_id);
 
@@ -122,25 +66,7 @@ export async function POST(req: NextRequest) {
 
     const txid = asText(raw.txid);
 
-    console.log("[PAYMENT][NOTIFY_COMPLETE_PARSED]", {
-      requestId,
-      paymentIntentId,
-      piPaymentId,
-      txid,
-    });
-
-    /* =====================================================
-       4. VALIDATION
-    ===================================================== */
-
     if (!paymentIntentId || !piPaymentId || !txid) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_MISSING_FIELDS]", {
-        requestId,
-        paymentIntentId,
-        piPaymentId,
-        txid,
-      });
-
       return NextResponse.json(
         {
           ok: false,
@@ -151,102 +77,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isUUID(paymentIntentId)) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_INVALID_INTENT]", {
-        requestId,
-        paymentIntentId,
-      });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "INVALID_PAYMENT_INTENT_ID",
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
-
-    if (txid.length < 10) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_INVALID_TXID]", {
-        requestId,
-        txid,
-      });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "INVALID_TXID",
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
-
-    /* =====================================================
-       5. PAYMENT INTENT CHECK
-    ===================================================== */
-
-    const intent = await getPaymentIntentById(paymentIntentId);
-
-    if (!intent) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_INTENT_NOT_FOUND]", {
-        requestId,
-        paymentIntentId,
-      });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "PAYMENT_INTENT_NOT_FOUND",
-          requestId,
-        },
-        { status: 404 }
-      );
-    }
-
-    if (intent.user_id !== auth.userId) {
-      console.error("[PAYMENT][NOTIFY_COMPLETE_OWNER_MISMATCH]", {
-        requestId,
-        paymentIntentId,
-        authUserId: auth.userId,
-        intentUserId: intent.user_id,
-      });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "FORBIDDEN",
-          requestId,
-        },
-        { status: 403 }
-      );
-    }
-
-    /* =====================================================
-       6. MARK VERIFYING
-    ===================================================== */
-
-    console.log("[PAYMENT][NOTIFY_COMPLETE_MARK_VERIFYING_START]", {
+    console.log("[PAYMENT][NOTIFY_COMPLETE_START]", {
       requestId,
+      userId: auth.userId,
       paymentIntentId,
+      piPaymentId,
+      txid,
     });
 
-    const marked = await markPaymentVerifying({
+    await markPaymentVerifying({
       paymentIntentId,
       userId: auth.userId,
       piPaymentId,
       txid,
     });
 
-    console.log("[PAYMENT][NOTIFY_COMPLETE_MARK_VERIFYING_OK]", {
+    console.log("[PAYMENT][NOTIFY_COMPLETE_MARKED]", {
       requestId,
-      marked,
     });
-
-    /* =====================================================
-       7. BACKGROUND SETTLEMENT
-    ===================================================== */
 
     waitUntil(
       runPaymentSettlement({
@@ -256,35 +104,30 @@ export async function POST(req: NextRequest) {
         userId: auth.userId,
         source: "notify-complete",
       })
-        .then((result) => {
-          console.log("[PAYMENT][NOTIFY_COMPLETE_SETTLEMENT_OK]", {
+        .then((res) => {
+          console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
             requestId,
-            result,
+            res,
           });
         })
-        .catch((error) => {
-          console.error("[PAYMENT][NOTIFY_COMPLETE_SETTLEMENT_FAIL]", {
+        .catch((err) => {
+          console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", {
             requestId,
-            error,
+            err,
           });
         })
     );
 
-    /* =====================================================
-       8. RESPONSE
-    ===================================================== */
-
     return NextResponse.json({
       ok: true,
-      requestId,
       processing: true,
-      status: "verifying",
+      requestId,
       payment_intent_id: paymentIntentId,
     });
-  } catch (error) {
+  } catch (err) {
     console.error("[PAYMENT][NOTIFY_COMPLETE_FATAL]", {
       requestId,
-      error,
+      err,
     });
 
     return NextResponse.json(
