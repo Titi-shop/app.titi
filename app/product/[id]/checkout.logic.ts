@@ -315,7 +315,7 @@ export function useCheckoutPay({
           },
         },
         {
-          onReadyForServerApproval: async (paymentId, callback) => {
+          onReadyForServerCompletion: async (paymentId, txid, callback) => {
             try {
               console.log("🟡 [CHECKOUT] APPROVAL_STAGE", { paymentId });
 
