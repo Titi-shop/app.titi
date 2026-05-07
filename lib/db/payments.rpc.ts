@@ -105,13 +105,24 @@ async function getPaymentIntent(
 
 async function insertRpcLog(input: {
   paymentIntentId: string;
+  piPaymentId: string | null;
   txid: string;
   verified: boolean;
   stage: string;
   reason: string | null;
   amount: number | null;
+  expectedAmount: number | null;
   sender: string | null;
   receiver: string | null;
+  expectedReceiver: string | null;
+
+  amountMatch: boolean;
+  receiverMatch: boolean;
+  senderMatch: boolean;
+
+  mismatchReason: string | null;
+  fraudReason: string | null;
+  verificationHash: string | null;
   ledger: number | null;
   txStatus: string | null;
   chainReference: string | null;
@@ -127,20 +138,31 @@ async function insertRpcLog(input: {
   await query(
     `
     INSERT INTO rpc_verification_logs (
-      payment_intent_id,
-      txid,
-      verified,
-      stage,
-      reason,
-      amount,
-      sender,
-      receiver,
-      ledger,
-      tx_status,
-      chain_reference,
-      verify_mode,
-      payload
-    )
+  payment_intent_id,
+  pi_payment_id,
+  txid,
+  verified,
+  stage,
+  reason,
+  amount,
+  expected_amount,
+  sender,
+  receiver,
+  expected_receiver,
+  amount_match,
+  receiver_match,
+  sender_match,
+
+  mismatch_reason,
+  fraud_reason,
+  verification_hash,
+  ledger,
+  tx_status,
+  chain_reference,
+
+  verify_mode,
+  payload
+)
     VALUES (
       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw_tx',$12::jsonb
     )
@@ -203,7 +225,16 @@ export async function verifyRpcPaymentForReconcile({
     expectedAmount,
     expectedReceiver,
   });
+const amountMatch =
+  rpcTx.amount !== null &&
+  sameAmount(rpcTx.amount, expectedAmount);
 
+const receiverMatch =
+  !!rpcTx.receiver &&
+  normalizeWallet(rpcTx.receiver) === expectedReceiver;
+
+const senderMatch =
+  !!rpcTx.sender;
   /* =====================================================
      RPC FETCH
   ===================================================== */
@@ -301,19 +332,33 @@ export async function verifyRpcPaymentForReconcile({
   const txStatus = rpcTx.confirmed ? "confirmed" : "unconfirmed";
 
   await insertRpcLog({
-    paymentIntentId,
-    txid,
-    verified,
-    stage,
-    reason,
-    amount: rpcTx.amount,
-    sender: rpcTx.sender,
-    receiver: rpcTx.receiver,
-    ledger: rpcTx.ledger,
-    txStatus,
-    chainReference: rpcTx.hash,
-    payload: rpcTx.raw,
-  });
+  paymentIntentId,
+  piPaymentId: null,
+  txid,
+
+  verified,
+  stage,
+  reason,
+  amount: rpcTx.amount,
+  expectedAmount,
+
+  sender: rpcTx.sender,
+  receiver: rpcTx.receiver,
+  expectedReceiver,
+
+  amountMatch,
+  receiverMatch,
+  senderMatch,
+  mismatchReason,
+  fraudReason,
+  verificationHash,
+  ledger: rpcTx.ledger,
+  txStatus,
+
+  chainReference: rpcTx.hash,
+
+  payload: rpcTx.raw,
+});
 
   return {
     ok: verified,
