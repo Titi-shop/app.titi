@@ -370,55 +370,26 @@ export function useCheckoutPay({
             }
 
             setTimeout(async () => {
-              try {
-                const token = await getPiAccessToken();
+  try {
+    const res = await fetch("/api/payments/pi/notify-complete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        payment_intent_id: paymentIntentId,
+        pi_payment_id: paymentId,
+        txid,
+      }),
+    });
 
-                console.log("🟡 [CHECKOUT] NOTIFY_COMPLETE_STAGE");
-
-                const res = await fetch("/api/payments/pi/notify-complete", {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    payment_intent_id: paymentIntentId,
-                    pi_payment_id: paymentId,
-                    txid,
-                  }),
-                });
-
-                const data = await res.json().catch(() => null);
-
-                console.log("🟡 [CHECKOUT] NOTIFY_COMPLETE_RESPONSE", {
-                  status: res.status,
-                  data,
-                });
-
-                if (!res.ok) {
-                  const key = getErrorKey(data?.error);
-                  showMessage(t[key] ?? data?.error ?? "payment_failed");
-                  processingRef.current = false;
-                  setProcessing(false);
-                  return;
-                }
-
-                console.log("🟢 [CHECKOUT] NOTIFY_COMPLETE_OK");
-
-                onClose();
-                router.replace("/customer/orders?tab=processing");
-                showMessage(
-                  t.payment_processing ?? "Payment received. Verifying blockchain...",
-                  "success"
-                );
-              } catch (err) {
-                console.error("🔥 [CHECKOUT] NOTIFY_COMPLETE_FAIL", err);
-                showMessage(t.transaction_failed ?? "transaction_failed");
-              } finally {
-                processingRef.current = false;
-                setProcessing(false);
-              }
-            }, 50);
+    if (res.ok) {
+      callback(); // chỉ confirm sau server OK
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}, 50);
           },
 
           onCancel: () => {
