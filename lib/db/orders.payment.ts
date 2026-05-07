@@ -5,30 +5,19 @@ import { auditManualReview } from "@/lib/db/payments.audit";
    TYPES
 ========================================================= */
 
-type RpcPayload = {
-  ok: boolean;
-  ledger?: number;
-  chainReference?: string;
-  confirmed?: boolean;
-  sender?: string;
-};
-
-type PiPayload = {
-  user_uid?: string;
-};
-
-interface FinalizeParams {
+type FinalizePaidOrderParams = {
   paymentIntentId: string;
   piPaymentId: string;
   txid: string;
   verifiedAmount: number;
   receiverWallet: string;
-  piPayload: PiPayload;
-  rpcPayload: RpcPayload;
-}
+  piPayload: unknown;
+  rpcPayload: unknown;
+};
 
-interface PaymentIntentRow {
+type PaymentIntentRow = {
   id: string;
+
   buyer_id: string;
   seller_id: string;
 
@@ -43,85 +32,85 @@ interface PaymentIntentRow {
   total_amount: string;
   currency: string;
 
-  shipping_snapshot: {
-    name?: string;
-    phone?: string;
-    address_line?: string;
-  } | null;
+  shipping_snapshot: any;
 
   country: string;
   zone: string;
 
   merchant_wallet: string;
-  status: string;
-}
 
-interface FinalizeResult {
-  ok: true;
-  orderId: string;
+  status: string;
+  settlement_state: string;
+};
+
+export type FinalizePaidOrderResult = {
+  ok: boolean;
   already: boolean;
+  orderId: string | null;
   buyerId: string;
   sellerId: string;
   amount: number;
-}
+};
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function toNumber(v: string): number {
+function toNumber(v: unknown): number {
   const n = Number(v);
-  if (!Number.isFinite(n)) throw new Error("INVALID_NUMBER");
+  if (!Number.isFinite(n)) {
+    throw new Error("INVALID_NUMBER");
+  }
   return n;
 }
 
-function isSame(a: number, b: number): boolean {
-  return Math.abs(a - b) < 0.00001;
+function isSameAmount(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.0000001;
 }
 
 /* =========================================================
-   FINALIZE (ONLY ONE SOURCE OF TRUTH)
+   FINALIZER
 ========================================================= */
 
-export async function finalizePaidOrderFromIntent(
-  params: FinalizeParams
-): Promise<FinalizeResult> {
-  const {
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    verifiedAmount,
-    receiverWallet,
-    piPayload,
-    rpcPayload,
-  } = params;
-
+export async function finalizePaidOrderFromIntent({
+  paymentIntentId,
+  piPaymentId,
+  txid,
+  verifiedAmount,
+  receiverWallet,
+  piPayload,
+  rpcPayload,
+}: FinalizePaidOrderParams): Promise<FinalizePaidOrderResult> {
   return withTransaction(async (client) => {
-    /* =========================
-       LOCK INTENT
-    ========================= */
+    /* =====================================================
+       1. LOCK PAYMENT INTENT
+    ===================================================== */
 
     const rs = await client.query<PaymentIntentRow>(
       `
-      SELECT * FROM payment_intents
+      SELECT *
+      FROM payment_intents
       WHERE id = $1
       FOR UPDATE
       `,
       [paymentIntentId]
     );
 
-    if (!rs.rows[0]) throw new Error("INTENT_NOT_FOUND");
+    if (!rs.rows.length) {
+      throw new Error("INTENT_NOT_FOUND");
+    }
 
     const intent = rs.rows[0];
 
-    /* =========================
-       IDEMPOTENCY
-    ========================= */
+    /* =====================================================
+       2. IDEMPOTENT IF ALREADY PAID
+    ===================================================== */
 
     if (intent.status === "paid") {
-      const existed = await client.query<{ id: string }>(
+      const existedOrder = await client.query<{ id: string }>(
         `
-        SELECT id FROM orders
+        SELECT id
+        FROM orders
         WHERE pi_payment_id = $1
         LIMIT 1
         `,
@@ -131,33 +120,38 @@ export async function finalizePaidOrderFromIntent(
       return {
         ok: true,
         already: true,
-        orderId: existed.rows[0]?.id ?? "",
+        orderId: existedOrder.rows[0]?.id ?? null,
         buyerId: intent.buyer_id,
         sellerId: intent.seller_id,
         amount: verifiedAmount,
       };
     }
 
-    /* =========================
-       VALIDATION
-    ========================= */
-
-    if (!["verifying", "submitted", "wallet_opened"].includes(intent.status)) {
-      throw new Error("INVALID_INTENT_STATUS");
+    if (
+      intent.status !== "verifying" &&
+      intent.status !== "submitted" &&
+      intent.status !== "wallet_opened"
+    ) {
+      throw new Error("INVALID_PAYMENT_STATUS");
     }
 
-    const expected = toNumber(intent.total_amount);
+    /* =====================================================
+       3. STRICT AMOUNT + RECEIVER VALIDATION
+    ===================================================== */
 
-    if (!isSame(expected, verifiedAmount)) {
+    const expectedAmount = toNumber(intent.total_amount);
+
+    if (!isSameAmount(expectedAmount, verifiedAmount)) {
       await auditManualReview(paymentIntentId, "AMOUNT_MISMATCH", {
-        expected,
+        expectedAmount,
         verifiedAmount,
       });
       throw new Error("AMOUNT_MISMATCH");
     }
 
     if (
-      intent.merchant_wallet.toLowerCase() !== receiverWallet.toLowerCase()
+      String(intent.merchant_wallet || "").trim().toLowerCase() !==
+      String(receiverWallet || "").trim().toLowerCase()
     ) {
       await auditManualReview(paymentIntentId, "RECEIVER_MISMATCH", {
         expected: intent.merchant_wallet,
@@ -166,19 +160,23 @@ export async function finalizePaidOrderFromIntent(
       throw new Error("RECEIVER_MISMATCH");
     }
 
-    /* =========================
-       CREATE ORDER
-    ========================= */
+    /* =====================================================
+       4. CREATE ORDER
+    ===================================================== */
 
-    const order = await client.query<{ id: string }>(
+    const orderRes = await client.query<{ id: string }>(
       `
       INSERT INTO orders (
         buyer_id,
         seller_id,
+
         pi_payment_id,
         pi_txid,
+        idempotency_key,
+
         payment_status,
         paid_at,
+
         items_total,
         subtotal,
         discount,
@@ -186,25 +184,29 @@ export async function finalizePaidOrderFromIntent(
         tax,
         total,
         currency,
+
         status,
+
         shipping_name,
         shipping_phone,
         shipping_address_line,
         shipping_country,
         shipping_zone,
+
         total_items,
         total_quantity,
+
         created_at,
         updated_at
       )
       VALUES (
         $1,$2,
-        $3,$4,
+        $3,$4,$5,
         'paid',now(),
-        $5,$6,$7,$8,0,$9,$10,
+        $6,$7,$8,$9,0,$10,$11,
         'pending',
-        $11,$12,$13,$14,$15,
-        1,$16,
+        $12,$13,$14,$15,$16,
+        1,$17,
         now(),now()
       )
       RETURNING id
@@ -215,6 +217,7 @@ export async function finalizePaidOrderFromIntent(
 
         piPaymentId,
         txid,
+        paymentIntentId,
 
         verifiedAmount,
         intent.subtotal,
@@ -233,11 +236,11 @@ export async function finalizePaidOrderFromIntent(
       ]
     );
 
-    const orderId = order.rows[0].id;
+    const orderId = orderRes.rows[0].id;
 
-    /* =========================
-       ORDER ITEM
-    ========================= */
+    /* =====================================================
+       5. CREATE ORDER ITEM
+    ===================================================== */
 
     await client.query(
       `
@@ -263,13 +266,18 @@ export async function finalizePaidOrderFromIntent(
         intent.unit_price,
         toNumber(intent.unit_price) * intent.quantity,
         intent.currency,
-        JSON.stringify({ paymentIntentId, piPaymentId, txid }),
+        JSON.stringify({
+          paymentIntentId,
+          piPaymentId,
+          txid,
+          source: "payment_reconcile",
+        }),
       ]
     );
 
-    /* =========================
-       RECEIPT (FULL FIELDS FIXED)
-    ========================= */
+    /* =====================================================
+       6. CREATE PAYMENT RECEIPT
+    ===================================================== */
 
     await client.query(
       `
@@ -277,6 +285,7 @@ export async function finalizePaidOrderFromIntent(
         payment_intent_id,
         user_id,
         order_id,
+
         pi_payment_id,
         txid,
 
@@ -285,21 +294,17 @@ export async function finalizePaidOrderFromIntent(
         currency,
 
         receiver_wallet,
-        sender_wallet,
-        pi_uid,
-
-        rpc_ledger,
-        chain_reference,
-        tx_status,
-
-        pi_payload,
-        rpc_payload,
-        merged_payload,
 
         verification_status,
         verify_source,
 
-        idempotency_key,
+        rpc_confirmed,
+        rpc_ledger,
+        chain_reference,
+
+        pi_payload,
+        rpc_payload,
+        merged_payload,
 
         verified_at,
         completed_at,
@@ -307,46 +312,126 @@ export async function finalizePaidOrderFromIntent(
         updated_at
       )
       VALUES (
-        $1,$2,$3,$4,$5,
+        $1,$2,$3,
+        $4,$5,
         $6,$7,'PI',
-        $8,$9,$10,
-        $11,$12,$13,
-        $14,$15,$16,
+        $8,
         'completed',
         'DUAL_AUDIT',
-        $17,
+        $9,$10,$11,
+        $12,$13,$14,
         now(),now(),now(),now()
       )
+      ON CONFLICT (pi_payment_id) DO NOTHING
       `,
       [
         paymentIntentId,
         intent.buyer_id,
         orderId,
+
         piPaymentId,
         txid,
 
-        expected,
+        expectedAmount,
         verifiedAmount,
 
         receiverWallet,
-        (rpcPayload as RpcPayload)?.sender ?? null,
-        (piPayload as PiPayload)?.user_uid ?? null,
 
-        (rpcPayload as RpcPayload)?.ledger ?? null,
-        (rpcPayload as RpcPayload)?.chainReference ?? null,
-        (rpcPayload as RpcPayload)?.confirmed ? "confirmed" : "pending",
+        (rpcPayload as any)?.ok === true,
+        (rpcPayload as any)?.ledger ?? null,
+        (rpcPayload as any)?.chainReference ?? null,
 
         JSON.stringify(piPayload),
         JSON.stringify(rpcPayload),
-        JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
-
-        paymentIntentId,
+        JSON.stringify({
+          pi: piPayload,
+          rpc: rpcPayload,
+        }),
       ]
     );
 
-    /* =========================
-       FINALIZE INTENT
-    ========================= */
+    /* =====================================================
+       7. UPSERT PI PAYMENTS (FULL SCHEMA FIX)
+    ===================================================== */
+
+    await client.query(
+      `
+      INSERT INTO pi_payments (
+        payment_intent_id,
+        order_id,
+        user_id,
+
+        pi_payment_id,
+        txid,
+        receiver_wallet,
+
+        amount,
+        expected_amount,
+        verified_amount,
+        currency,
+
+        status,
+
+        reconcile_attempts,
+        last_reconcile_at,
+
+        pi_raw_payload,
+        rpc_raw_payload,
+        complete_raw_payload,
+
+        completed_at,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,$2,$3,
+        $4,$5,$6,
+        $7,$8,$9,'PI',
+        'SETTLED',
+        1,now(),
+        $10,$11,$12,
+        now(),now(),now()
+      )
+      ON CONFLICT (pi_payment_id)
+      DO UPDATE SET
+        txid = EXCLUDED.txid,
+        order_id = EXCLUDED.order_id,
+        receiver_wallet = EXCLUDED.receiver_wallet,
+        verified_amount = EXCLUDED.verified_amount,
+        status = 'SETTLED',
+        pi_raw_payload = EXCLUDED.pi_raw_payload,
+        rpc_raw_payload = EXCLUDED.rpc_raw_payload,
+        complete_raw_payload = EXCLUDED.complete_raw_payload,
+        last_reconcile_at = now(),
+        completed_at = now(),
+        updated_at = now()
+      `,
+      [
+        paymentIntentId,
+        orderId,
+        intent.buyer_id,
+
+        piPaymentId,
+        txid,
+        receiverWallet,
+
+        verifiedAmount,
+        expectedAmount,
+        verifiedAmount,
+
+        JSON.stringify(piPayload),
+        JSON.stringify(rpcPayload),
+        JSON.stringify({
+          pi: piPayload,
+          rpc: rpcPayload,
+          finalized: true,
+        }),
+      ]
+    );
+
+    /* =====================================================
+       8. FINALIZE PAYMENT INTENT
+    ===================================================== */
 
     await client.query(
       `
@@ -362,6 +447,10 @@ export async function finalizePaidOrderFromIntent(
       `,
       [paymentIntentId, piPaymentId, txid]
     );
+
+    /* =====================================================
+       9. RETURN
+    ===================================================== */
 
     return {
       ok: true,
