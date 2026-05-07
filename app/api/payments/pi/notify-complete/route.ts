@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
        0. AUTH
     ===================================================== */
 
-    const user = await getUserFromBearer(req);
+    const user = await getUserFromBearer();
 
     if (!user?.id) {
       console.log("[PAYMENT][NOTIFY_COMPLETE_AUTH_FAIL]", { requestId });
