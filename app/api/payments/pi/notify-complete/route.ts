@@ -3,23 +3,20 @@ import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
 
-
 /* =========================================================
-   TYPES
+   SAFE HELPERS
 ========================================================= */
-
-type NotifyBody = {
-  payment_intent_id?: unknown;
-  pi_payment_id?: unknown;
-  txid?: unknown;
-};
 
 function asText(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function isValidTxid(v: string): boolean {
-  return /^[a-f0-9]{64}$/i.test(v);
+function safeJsonParse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /* =========================================================
@@ -27,44 +24,103 @@ function isValidTxid(v: string): boolean {
 ========================================================= */
 
 export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+
+  console.log("[PAYMENT][NOTIFY_COMPLETE_INCOMING]", {
+    requestId,
+    url: req.url,
+    method: req.method,
+  });
+
   try {
+    /* =====================================================
+       0. AUTH
+    ===================================================== */
+
     const user = await getUserFromBearer(req);
 
     if (!user?.id) {
+      console.log("[PAYMENT][NOTIFY_COMPLETE_AUTH_FAIL]", { requestId });
+
       return NextResponse.json(
         { ok: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const raw = (await req.json().catch(() => null)) as NotifyBody | null;
+    /* =====================================================
+       1. RAW BODY LOG (IMPORTANT DEBUG)
+    ===================================================== */
+
+    const rawText = await req.text();
+
+    console.log("[PAYMENT][NOTIFY_COMPLETE_RAW_BODY]", {
+      requestId,
+      rawText,
+    });
+
+    const raw = safeJsonParse(rawText);
 
     if (!raw) {
+      console.log("[PAYMENT][NOTIFY_COMPLETE_BAD_JSON]", {
+        requestId,
+      });
+
       return NextResponse.json(
-        { ok: false, error: "INVALID_BODY" },
+        { ok: false, error: "INVALID_JSON" },
         { status: 400 }
       );
     }
+
+    /* =====================================================
+       2. EXTRACT FIELDS
+    ===================================================== */
 
     const paymentIntentId = asText(raw.payment_intent_id);
     const piPaymentId = asText(raw.pi_payment_id);
     const txid = asText(raw.txid);
 
+    console.log("[PAYMENT][NOTIFY_COMPLETE_PARSED]", {
+      requestId,
+      paymentIntentId,
+      piPaymentId,
+      txid,
+    });
+
+    /* =====================================================
+       3. VALIDATION (SOFT - NO BLOCK DEBUG)
+    ===================================================== */
+
     if (!paymentIntentId || !piPaymentId || !txid) {
+      console.log("[PAYMENT][NOTIFY_COMPLETE_MISSING_FIELDS]", {
+        requestId,
+      });
+
       return NextResponse.json(
         { ok: false, error: "MISSING_FIELDS" },
         { status: 400 }
       );
     }
 
-    if (!isValidTxid(txid)) {
+    /* ⚠️ FIX: relax txid validation (Pi is inconsistent) */
+    if (txid.length < 10) {
+      console.log("[PAYMENT][NOTIFY_COMPLETE_INVALID_TXID]", {
+        requestId,
+        txid,
+      });
+
       return NextResponse.json(
         { ok: false, error: "INVALID_TXID" },
         { status: 400 }
       );
     }
 
+    /* =====================================================
+       4. MAIN FLOW LOG
+    ===================================================== */
+
     console.log("[PAYMENT][NOTIFY_COMPLETE_START]", {
+      requestId,
       userId: user.id,
       paymentIntentId,
       piPaymentId,
@@ -72,7 +128,7 @@ export async function POST(req: NextRequest) {
     });
 
     /* =====================================================
-       1. FAST MARK VERIFYING (SYNC)
+       5. MARK VERIFYING (SYNC)
     ===================================================== */
 
     const marked = await markPaymentVerifying({
@@ -82,10 +138,13 @@ export async function POST(req: NextRequest) {
       txid,
     });
 
-    console.log("[PAYMENT][NOTIFY_COMPLETE_MARKED]", marked);
+    console.log("[PAYMENT][NOTIFY_COMPLETE_MARKED]", {
+      requestId,
+      marked,
+    });
 
     /* =====================================================
-       2. SAFE BACKGROUND SETTLEMENT (Vercel WAITUNTIL)
+       6. BACKGROUND SETTLEMENT
     ===================================================== */
 
     waitUntil(
@@ -97,25 +156,31 @@ export async function POST(req: NextRequest) {
         source: "notify-complete",
       })
         .then((res) => {
-          console.log("[PAYMENT][NOTIFY_COMPLETE_BG_DONE]", res);
+          console.log("[PAYMENT][NOTIFY_COMPLETE_BG_DONE]", {
+            requestId,
+            res,
+          });
         })
         .catch((err) => {
-          console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", err);
+          console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", {
+            requestId,
+            err,
+          });
         })
     );
 
     /* =====================================================
-       3. RETURN IMMEDIATELY
+       7. RESPONSE
     ===================================================== */
 
     return NextResponse.json({
       ok: true,
+      requestId,
       processing: true,
-      payment_intent_id: paymentIntentId,
       status: "verifying",
     });
-  } catch (e) {
-    console.error("[PAYMENT][NOTIFY_COMPLETE_ROUTE_FAIL]", e);
+  } catch (err) {
+    console.error("[PAYMENT][NOTIFY_COMPLETE_FATAL]", err);
 
     return NextResponse.json(
       {
