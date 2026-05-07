@@ -346,92 +346,95 @@ export function useCheckoutPay({
             }
           },
 
-          onReadyForServerCompletion: async (
-  paymentId,
-  txid,
-  callback
-) => {
-  if (completionLocked) return;
-  completionLocked = true;
+          onReadyForServerCompletion: async (paymentId, txid, callback) => {
+            if (completionLocked) return;
+            completionLocked = true;
 
-  try {
-    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
-      paymentId,
-      txid,
-    });
+            try {
+              console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
+                paymentId,
+                txid,
+              });
 
-    const token = await getPiAccessToken();
+              const token = await getPiAccessToken();
 
-    console.log("🟡 [CHECKOUT] NOTIFY_COMPLETE_STAGE");
+              console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
 
-    const notifyRes = await fetch(
-      "/api/payments/pi/notify-complete",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          payment_intent_id: paymentIntentId,
-          pi_payment_id: paymentId,
-          txid,
-        }),
-      }
-    );
+              const submitRes = await fetch("/api/payments/pi/submit", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  payment_intent_id: paymentIntentId,
+                  pi_payment_id: paymentId,
+                  txid,
+                }),
+              });
 
-    const notifyData = await notifyRes
-      .json()
-      .catch(() => null);
+              const submitData = await submitRes.json().catch(() => null);
 
-    console.log("🟡 [CHECKOUT] NOTIFY_COMPLETE_RESPONSE", {
-      status: notifyRes.status,
-      data: notifyData,
-    });
+              console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+                status: submitRes.status,
+                data: submitData,
+              });
 
-    if (!notifyRes.ok) {
-      throw new Error(
-        notifyData?.error || "NOTIFY_COMPLETE_FAILED"
-      );
-    }
+              if (!submitRes.ok) {
+                throw new Error(submitData?.error || "SUBMIT_FAILED");
+              }
 
-    console.log("🟢 [CHECKOUT] PAYMENT_FINALIZED");
+              console.log("🟢 [CHECKOUT] SUBMIT_OK");
 
-    try {
-      callback();
+              try {
+                callback();
+                console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
+              } catch (sdkErr) {
+                console.warn("🟠 [CHECKOUT] PI_CALLBACK_WARN", sdkErr);
+              }
 
-      console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
-    } catch (sdkErr) {
-      console.warn(
-        "🟠 [CHECKOUT] PI_CALLBACK_WARN",
-        sdkErr
-      );
-    }
+              const token2 = await getPiAccessToken();
 
-    onClose();
+              console.log("🟡 [CHECKOUT] RECONCILE_STAGE");
 
-    router.replace("/customer/orders?tab=pending");
+              const reconcileRes = await fetch("/api/payments/pi/reconcile", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token2}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  payment_intent_id: paymentIntentId,
+                  pi_payment_id: paymentId,
+                  txid,
+                }),
+              });
 
-    showMessage(
-      t.payment_success ?? "success",
-      "success"
-    );
-  } catch (err) {
-    console.error(
-      "🔥 [CHECKOUT] COMPLETION_FAIL",
-      err
-    );
+              const reconcileData = await reconcileRes.json().catch(() => null);
 
-    const key = getErrorKey(
-      (err as Error).message
-    );
+              console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
+                status: reconcileRes.status,
+                data: reconcileData,
+              });
 
-    showMessage(t[key] ?? key);
-  } finally {
-    processingRef.current = false;
-    setProcessing(false);
-  }
-},
+              if (!reconcileRes.ok) {
+                throw new Error(reconcileData?.error || "RECONCILE_FAILED");
+              }
+
+              console.log("🟢 [CHECKOUT] RECONCILE_OK");
+
+              onClose();
+              router.replace("/customer/orders?tab=pending");
+              showMessage(t.payment_success ?? "success", "success");
+            } catch (err) {
+              console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
+              const key = getErrorKey((err as Error).message);
+              showMessage(t[key] ?? key);
+            } finally {
+              processingRef.current = false;
+              setProcessing(false);
+            }
+          },
 
           onCancel: () => {
             console.warn("🟡 [CHECKOUT] USER_CANCELLED");
