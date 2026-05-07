@@ -93,6 +93,7 @@ function successResult(
 
 async function safeAuditRpc(
   paymentIntentId: string,
+  piPaymentId: string,
   txid: string,
   source: string
 ): Promise<RpcAuditResult> {
@@ -469,10 +470,11 @@ export async function runPaymentSettlement({
   ===================================================== */
 
   const rpcVerified = await safeAuditRpc(
-    paymentIntentId,
-    txid,
-    source
-  );
+  paymentIntentId,
+  piPaymentId,
+  txid,
+  source
+);
 
   /* =====================================================
      5. COMPLETE PI
