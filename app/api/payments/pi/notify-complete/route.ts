@@ -1,30 +1,37 @@
-import {
-  NextRequest,
-  NextResponse,
-  waitUntil,
-} from "next/server";
-
+import { NextRequest, NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
-
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function asText(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
+
+/* =========================================================
+   ROUTE
+========================================================= */
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
 
   console.log("[PAYMENT][NOTIFY_COMPLETE_INCOMING]", {
     requestId,
+    url: req.url,
+    method: req.method,
   });
 
   try {
+    /* =====================================================
+       1. AUTH
+    ===================================================== */
+
     const auth = await getUserFromBearer();
 
     if (!auth?.userId) {
@@ -41,6 +48,10 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    /* =====================================================
+       2. BODY
+    ===================================================== */
 
     const raw = await req.json().catch(() => null);
 
@@ -66,11 +77,37 @@ export async function POST(req: NextRequest) {
 
     const txid = asText(raw.txid);
 
-    if (!paymentIntentId || !piPaymentId || !txid) {
+    /* =====================================================
+       3. VALIDATION
+    ===================================================== */
+
+    if (!paymentIntentId) {
       return NextResponse.json(
         {
           ok: false,
-          error: "MISSING_FIELDS",
+          error: "MISSING_PAYMENT_INTENT_ID",
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!piPaymentId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "MISSING_PI_PAYMENT_ID",
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!txid) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "MISSING_TXID",
           requestId,
         },
         { status: 400 }
@@ -85,6 +122,10 @@ export async function POST(req: NextRequest) {
       txid,
     });
 
+    /* =====================================================
+       4. FAST VERIFYING LOCK
+    ===================================================== */
+
     await markPaymentVerifying({
       paymentIntentId,
       userId: auth.userId,
@@ -94,35 +135,44 @@ export async function POST(req: NextRequest) {
 
     console.log("[PAYMENT][NOTIFY_COMPLETE_MARKED]", {
       requestId,
+      paymentIntentId,
     });
 
-    waitUntil(
-      runPaymentSettlement({
-        paymentIntentId,
-        piPaymentId,
-        txid,
-        userId: auth.userId,
-        source: "notify-complete",
+    /* =====================================================
+       5. BACKGROUND SETTLEMENT
+       (NO WAITUNTIL NEEDED)
+    ===================================================== */
+
+    void runPaymentSettlement({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      userId: auth.userId,
+      source: "notify-complete",
+    })
+      .then((result) => {
+        console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
+          requestId,
+          result,
+        });
       })
-        .then((res) => {
-          console.log("[PAYMENT][NOTIFY_COMPLETE_DONE]", {
-            requestId,
-            res,
-          });
-        })
-        .catch((err) => {
-          console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", {
-            requestId,
-            err,
-          });
-        })
-    );
+      .catch((err) => {
+        console.error("[PAYMENT][NOTIFY_COMPLETE_BG_FAIL]", {
+          requestId,
+          err,
+        });
+      });
+
+    /* =====================================================
+       6. RESPONSE FAST
+    ===================================================== */
 
     return NextResponse.json({
       ok: true,
       processing: true,
       requestId,
       payment_intent_id: paymentIntentId,
+      status: "verifying",
     });
   } catch (err) {
     console.error("[PAYMENT][NOTIFY_COMPLETE_FATAL]", {
