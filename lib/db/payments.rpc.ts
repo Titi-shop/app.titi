@@ -1,4 +1,6 @@
 
+import crypto from "crypto";
+
 import { query } from "@/lib/db";
 import { getRpcTransaction } from "@/lib/rpc/client";
 
@@ -22,10 +24,12 @@ type RpcVerifyResult = {
 
   ledger: number | null;
   confirmed: boolean;
+
   txStatus: string | null;
   chainReference: string | null;
 
   payload: unknown;
+
   reason: string | null;
   stage: string;
 };
@@ -34,6 +38,41 @@ type PaymentIntentRow = {
   id: string;
   total_amount: string;
   merchant_wallet: string | null;
+};
+
+type InsertRpcLogInput = {
+  paymentIntentId: string;
+  piPaymentId: string | null;
+
+  txid: string;
+
+  verified: boolean;
+
+  stage: string;
+  reason: string | null;
+
+  amount: number | null;
+  expectedAmount: number | null;
+
+  sender: string | null;
+  receiver: string | null;
+  expectedReceiver: string | null;
+
+  amountMatch: boolean;
+  receiverMatch: boolean;
+  senderMatch: boolean;
+
+  mismatchReason: string | null;
+  fraudReason: string | null;
+
+  verificationHash: string | null;
+
+  ledger: number | null;
+
+  txStatus: string | null;
+  chainReference: string | null;
+
+  payload: unknown;
 };
 
 /* =========================================================
@@ -53,7 +92,7 @@ function fail(tag: string, data?: unknown) {
 }
 
 /* =========================================================
-   SAFE HELPERS
+   HELPERS
 ========================================================= */
 
 function isUUID(value: unknown): value is string {
@@ -73,6 +112,29 @@ function sameAmount(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.0000001;
 }
 
+function buildVerificationHash(input: {
+  paymentIntentId: string;
+  txid: string;
+  amount: number | null;
+  sender: string | null;
+  receiver: string | null;
+  ledger: number | null;
+}): string {
+  return crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({
+        paymentIntentId: input.paymentIntentId,
+        txid: input.txid,
+        amount: input.amount,
+        sender: input.sender,
+        receiver: input.receiver,
+        ledger: input.ledger,
+      })
+    )
+    .digest("hex");
+}
+
 /* =========================================================
    DB FETCH INTENT
 ========================================================= */
@@ -80,11 +142,16 @@ function sameAmount(a: number, b: number): boolean {
 async function getPaymentIntent(
   paymentIntentId: string
 ): Promise<PaymentIntentRow | null> {
-  log("DB_FETCH_INTENT_START", { paymentIntentId });
+  log("DB_FETCH_INTENT_START", {
+    paymentIntentId,
+  });
 
   const rs = await query<PaymentIntentRow>(
     `
-    SELECT id, total_amount, merchant_wallet
+    SELECT
+      id,
+      total_amount,
+      merchant_wallet
     FROM payment_intents
     WHERE id = $1
     LIMIT 1
@@ -103,31 +170,9 @@ async function getPaymentIntent(
    DB INSERT RPC LOG
 ========================================================= */
 
-async function insertRpcLog(input: {
-  paymentIntentId: string;
-  piPaymentId: string | null;
-  txid: string;
-  verified: boolean;
-  stage: string;
-  reason: string | null;
-  amount: number | null;
-  expectedAmount: number | null;
-  sender: string | null;
-  receiver: string | null;
-  expectedReceiver: string | null;
-
-  amountMatch: boolean;
-  receiverMatch: boolean;
-  senderMatch: boolean;
-
-  mismatchReason: string | null;
-  fraudReason: string | null;
-  verificationHash: string | null;
-  ledger: number | null;
-  txStatus: string | null;
-  chainReference: string | null;
-  payload: unknown;
-}) {
+async function insertRpcLog(
+  input: InsertRpcLogInput
+): Promise<void> {
   log("DB_LOG_INSERT", {
     txid: input.txid,
     verified: input.verified,
@@ -138,105 +183,167 @@ async function insertRpcLog(input: {
   await query(
     `
     INSERT INTO rpc_verification_logs (
-  payment_intent_id,
-  pi_payment_id,
-  txid,
-  verified,
-  stage,
-  reason,
-  amount,
-  expected_amount,
-  sender,
-  receiver,
-  expected_receiver,
-  amount_match,
-  receiver_match,
-  sender_match,
+      payment_intent_id,
+      pi_payment_id,
 
-  mismatch_reason,
-  fraud_reason,
-  verification_hash,
-  ledger,
-  tx_status,
-  chain_reference,
+      txid,
 
-  verify_mode,
-  payload
-)
+      verified,
+
+      stage,
+      reason,
+
+      amount,
+      expected_amount,
+
+      sender,
+      receiver,
+      expected_receiver,
+
+      amount_match,
+      receiver_match,
+      sender_match,
+
+      mismatch_reason,
+      fraud_reason,
+
+      verification_hash,
+
+      ledger,
+
+      tx_status,
+      chain_reference,
+
+      verify_mode,
+      payload
+    )
     VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw_tx',$12::jsonb
+      $1,$2,$3,$4,$5,$6,
+      $7,$8,
+      $9,$10,$11,
+      $12,$13,$14,
+      $15,$16,
+      $17,
+      $18,
+      $19,$20,
+      'raw_tx',
+      $21::jsonb
     )
     ON CONFLICT (txid)
     DO UPDATE SET
       verified = EXCLUDED.verified,
       stage = EXCLUDED.stage,
       reason = EXCLUDED.reason,
+
       amount = EXCLUDED.amount,
+      expected_amount = EXCLUDED.expected_amount,
+
       sender = EXCLUDED.sender,
       receiver = EXCLUDED.receiver,
+      expected_receiver = EXCLUDED.expected_receiver,
+
+      amount_match = EXCLUDED.amount_match,
+      receiver_match = EXCLUDED.receiver_match,
+      sender_match = EXCLUDED.sender_match,
+
+      mismatch_reason = EXCLUDED.mismatch_reason,
+      fraud_reason = EXCLUDED.fraud_reason,
+
+      verification_hash = EXCLUDED.verification_hash,
+
       ledger = EXCLUDED.ledger,
+
       tx_status = EXCLUDED.tx_status,
       chain_reference = EXCLUDED.chain_reference,
+
       payload = EXCLUDED.payload
     `,
     [
       input.paymentIntentId,
+      input.piPaymentId,
+
       input.txid,
+
       input.verified,
+
       input.stage,
       input.reason,
+
       input.amount,
+      input.expectedAmount,
+
       input.sender,
       input.receiver,
+      input.expectedReceiver,
+
+      input.amountMatch,
+      input.receiverMatch,
+      input.senderMatch,
+
+      input.mismatchReason,
+      input.fraudReason,
+
+      input.verificationHash,
+
       input.ledger,
+
       input.txStatus,
       input.chainReference,
+
       JSON.stringify(input.payload ?? {}),
     ]
   );
 }
 
 /* =========================================================
-   MAIN RPC VERIFY V6
+   MAIN RPC VERIFY
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams): Promise<RpcVerifyResult> {
-  log("START", { paymentIntentId, txid });
+  log("START", {
+    paymentIntentId,
+    txid,
+  });
 
   if (!isUUID(paymentIntentId) || !txid.trim()) {
-    fail("INVALID_INPUT", { paymentIntentId, txid });
+    fail("INVALID_INPUT", {
+      paymentIntentId,
+      txid,
+    });
+
     throw new Error("INVALID_RPC_VERIFY_INPUT");
   }
+
+  /* =====================================================
+     FETCH INTENT
+  ===================================================== */
 
   const intent = await getPaymentIntent(paymentIntentId);
 
   if (!intent) {
-    fail("INTENT_NOT_FOUND", { paymentIntentId });
+    fail("INTENT_NOT_FOUND", {
+      paymentIntentId,
+    });
+
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
 
   const expectedAmount = Number(intent.total_amount);
-  const expectedReceiver = normalizeWallet(intent.merchant_wallet);
+
+  const expectedReceiver = normalizeWallet(
+    intent.merchant_wallet
+  );
 
   log("INTENT_EXPECTED", {
     expectedAmount,
     expectedReceiver,
   });
-const amountMatch =
-  rpcTx.amount !== null &&
-  sameAmount(rpcTx.amount, expectedAmount);
 
-const receiverMatch =
-  !!rpcTx.receiver &&
-  normalizeWallet(rpcTx.receiver) === expectedReceiver;
-
-const senderMatch =
-  !!rpcTx.sender;
   /* =====================================================
-     RPC FETCH
+     FETCH RPC TX
   ===================================================== */
 
   const rpcTx = await getRpcTransaction(txid);
@@ -252,73 +359,116 @@ const senderMatch =
   log("RPC_TRACE", {
     rpcReachable: rpcTx.rpcReachable,
     confirmed: rpcTx.confirmed,
+
     amountFound: rpcTx.debug.amountFound,
     senderFound: rpcTx.debug.senderFound,
     receiverFound: rpcTx.debug.receiverFound,
+
     parseLayer: rpcTx.debug.parseLayer,
+
     hasMeta: rpcTx.debug.hasMeta,
     hasEvents: rpcTx.debug.hasEvents,
   });
 
   /* =====================================================
-     VALIDATION PIPELINE
+     MATCH FLAGS
+  ===================================================== */
+
+  const amountMatch =
+    rpcTx.amount !== null &&
+    sameAmount(rpcTx.amount, expectedAmount);
+
+  const receiverMatch =
+    !!rpcTx.receiver &&
+    normalizeWallet(rpcTx.receiver) ===
+      expectedReceiver;
+
+  const senderMatch = !!rpcTx.sender;
+
+  /* =====================================================
+     VALIDATION
   ===================================================== */
 
   let verified = true;
+
   let stage = "RPC_OK";
+
   let reason: string | null = null;
 
   if (!rpcTx.rpcReachable) {
     verified = false;
     stage = "RPC_UNREACHABLE";
     reason = "RPC_UNREACHABLE";
-    warn(stage, reason);
-  }
 
-  else if (!rpcTx.confirmed) {
+    warn(stage, reason);
+  } else if (!rpcTx.confirmed) {
     verified = false;
     stage = "RPC_NOT_CONFIRMED";
     reason = "TX_NOT_CONFIRMED";
-    warn(stage, reason);
-  }
 
-  else if (rpcTx.amount === null) {
+    warn(stage, reason);
+  } else if (rpcTx.amount === null) {
     verified = false;
     stage = "RPC_AMOUNT_UNREADABLE";
     reason = "AMOUNT_NOT_READABLE";
+
     warn(stage, {
       parseLayer: rpcTx.debug.parseLayer,
     });
-  }
-
-  else if (!sameAmount(rpcTx.amount, expectedAmount)) {
+  } else if (!amountMatch) {
     verified = false;
     stage = "RPC_AMOUNT_MISMATCH";
     reason = "AMOUNT_MISMATCH";
+
     warn(stage, {
       rpc: rpcTx.amount,
       expected: expectedAmount,
     });
-  }
-
-  else if (!rpcTx.receiver) {
+  } else if (!rpcTx.receiver) {
     verified = false;
     stage = "RPC_RECEIVER_UNREADABLE";
     reason = "RECEIVER_NOT_READABLE";
+
     warn(stage, {
       parseLayer: rpcTx.debug.parseLayer,
     });
-  }
-
-  else if (normalizeWallet(rpcTx.receiver) !== expectedReceiver) {
+  } else if (!receiverMatch) {
     verified = false;
     stage = "RPC_RECEIVER_MISMATCH";
     reason = "RECEIVER_MISMATCH";
+
     warn(stage, {
       rpc: rpcTx.receiver,
       expected: expectedReceiver,
     });
   }
+
+  /* =====================================================
+     FORENSIC SNAPSHOT
+  ===================================================== */
+
+  let mismatchReason: string | null = null;
+
+  if (!amountMatch) {
+    mismatchReason = "AMOUNT_MISMATCH";
+  } else if (!receiverMatch) {
+    mismatchReason = "RECEIVER_MISMATCH";
+  }
+
+  let fraudReason: string | null = null;
+
+  if (!rpcTx.confirmed) {
+    fraudReason = "UNCONFIRMED_TX";
+  }
+
+  const verificationHash = buildVerificationHash({
+    paymentIntentId,
+    txid,
+    amount: rpcTx.amount,
+    sender: rpcTx.sender,
+    receiver: rpcTx.receiver,
+    ledger: rpcTx.ledger,
+  });
 
   log("FINAL_RESULT", {
     verified,
@@ -329,36 +479,54 @@ const senderMatch =
     parseLayer: rpcTx.debug.parseLayer,
   });
 
-  const txStatus = rpcTx.confirmed ? "confirmed" : "unconfirmed";
+  /* =====================================================
+     INSERT FORENSIC LOG
+  ===================================================== */
+
+  const txStatus = rpcTx.confirmed
+    ? "confirmed"
+    : "unconfirmed";
 
   await insertRpcLog({
-  paymentIntentId,
-  piPaymentId: null,
-  txid,
+    paymentIntentId,
 
-  verified,
-  stage,
-  reason,
-  amount: rpcTx.amount,
-  expectedAmount,
+    piPaymentId: null,
 
-  sender: rpcTx.sender,
-  receiver: rpcTx.receiver,
-  expectedReceiver,
+    txid,
 
-  amountMatch,
-  receiverMatch,
-  senderMatch,
-  mismatchReason,
-  fraudReason,
-  verificationHash,
-  ledger: rpcTx.ledger,
-  txStatus,
+    verified,
 
-  chainReference: rpcTx.hash,
+    stage,
+    reason,
 
-  payload: rpcTx.raw,
-});
+    amount: rpcTx.amount,
+    expectedAmount,
+
+    sender: rpcTx.sender,
+    receiver: rpcTx.receiver,
+    expectedReceiver,
+
+    amountMatch,
+    receiverMatch,
+    senderMatch,
+
+    mismatchReason,
+    fraudReason,
+
+    verificationHash,
+
+    ledger: rpcTx.ledger,
+
+    txStatus,
+
+    chainReference: rpcTx.hash,
+
+    payload: rpcTx.raw,
+  });
+
+  /* =====================================================
+     RESULT
+  ===================================================== */
 
   return {
     ok: verified,
@@ -366,16 +534,22 @@ const senderMatch =
     verified,
 
     amount: rpcTx.amount,
+
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
 
     ledger: rpcTx.ledger,
+
     confirmed: rpcTx.confirmed,
+
     txStatus,
+
     chainReference: rpcTx.hash,
 
     payload: rpcTx.raw,
+
     reason,
+
     stage,
   };
 }
