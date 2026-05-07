@@ -104,9 +104,10 @@ async function safeAuditRpc(
 
   try {
     const rpc = await verifyRpcPaymentForReconcile({
-      paymentIntentId,
-      txid,
-    });
+  paymentIntentId,
+  piPaymentId,
+  txid,
+});
 
     console.log("[PAYMENT][RPC_VERIFY] RESULT", {
       paymentIntentId,
