@@ -19,7 +19,20 @@ type VerifyReconcileResult = {
   piUid: string | null;
   piPayload: unknown;
 };
-
+type PiPayment = {
+  amount: number | string;
+  to_address: string;
+  from_address?: string;
+  user_uid?: string;
+  transaction?: {
+    txid?: string;
+  };
+  status?: {
+    cancelled?: boolean;
+    user_cancelled?: boolean;
+    developer_approved?: boolean;
+  };
+};
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -103,7 +116,7 @@ export async function verifyPiPaymentForReconcile({
      PHASE 2 — PI NETWORK VERIFY (OUTSIDE TX)
   ===================================================== */
 
-  const pi = await piGetPayment(piPaymentId);
+  const pi = (await piGetPayment(piPaymentId)) as PiPayment;
 
   if (pi.status?.cancelled || pi.status?.user_cancelled) {
     throw new Error("PI_PAYMENT_CANCELLED");
@@ -137,74 +150,95 @@ export async function verifyPiPaymentForReconcile({
 
   await withTransaction(async (client) => {
     await client.query(
-      `
-      INSERT INTO payment_receipts (
-        payment_intent_id,
-        user_id,
+  `
+  INSERT INTO payment_receipts (
+    payment_intent_id,
+    user_id,
 
-        pi_payment_id,
-        txid,
+    pi_payment_id,
+    pi_uid,
+    txid,
 
-        expected_amount,
-        verified_amount,
-        currency,
+    expected_amount,
+    verified_amount,
+    currency,
 
-        receiver_wallet,
+    sender_wallet,
+    receiver_wallet,
 
-        verification_status,
-        verify_source,
+    verification_status,
+    verify_source,
 
-        pi_payload,
+    rpc_confirmed,
+    rpc_ledger,
+    chain_reference,
+    tx_status,
 
-        verified_at,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,
-        $3,$4,
-        $5,$6,'PI',
-        $7,
-        'pi_verified',
-        'PI_SERVER',
-        $8,
-        now(),
-        now(),
-        now()
-      )
-      ON CONFLICT (pi_payment_id)
-      DO UPDATE SET
-        txid = EXCLUDED.txid,
-        verified_amount = EXCLUDED.verified_amount,
-        receiver_wallet = EXCLUDED.receiver_wallet,
-        pi_payload = EXCLUDED.pi_payload,
-        verification_status = 'pi_verified',
-        verify_source = 'PI_SERVER',
-        verified_at = now(),
-        updated_at = now()
-      `,
-      [
-        paymentIntentId,
-        userId,
+    pi_payload,
+    rpc_payload,
+    merged_payload,
 
-        piPaymentId,
-        txid,
+    forensic_hash,
+    idempotency_key,
 
-        expected,
-        actual,
+    verified_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,
+    $3,$4,$5,
+    $6,$7,'PI',
+    $8,$9,
+    'pi_verified',
+    'PI_SERVER',
+    false,NULL,NULL,NULL,
+    $10,NULL,
+    $11,
+    NULL,NULL,
+    now(),now(),now()
+  )
+  ON CONFLICT (pi_payment_id)
+  DO UPDATE SET
+    txid = EXCLUDED.txid,
+    pi_uid = EXCLUDED.pi_uid,
+    sender_wallet = EXCLUDED.sender_wallet,
+    receiver_wallet = EXCLUDED.receiver_wallet,
 
-        pi.to_address,
+    verified_amount = EXCLUDED.verified_amount,
 
-        JSON.stringify(pi),
-      ]
-    );
+    pi_payload = EXCLUDED.pi_payload,
+
+    verification_status = 'pi_verified',
+    verify_source = 'PI_SERVER',
+
+    verified_at = now(),
+    updated_at = now()
+  `,
+  [
+    paymentIntentId,
+    userId,
+
+    piPaymentId,
+    pi.user_uid ?? null,
+    txid,
+    expected,
+    actual,
+    pi.from_address ?? null,
+    pi.to_address,
+    JSON.stringify(pi),
+    JSON.stringify({ pi }),
+  ]
+);
   });
 
   return {
-    ok: true,
-    verifiedAmount: actual,
-    receiverWallet: pi.to_address,
-    piUid: pi.user_uid || null,
-    piPayload: pi,
-  };
+  ok: true,
+  verifiedAmount: actual,
+  receiverWallet: pi.to_address,
+  senderWallet: pi.from_address ?? null,
+  piUid: pi.user_uid ?? null,
+  txid: pi.transaction?.txid ?? txid,
+  piPayload: pi
+};
 }
