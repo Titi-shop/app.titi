@@ -1,133 +1,129 @@
 import { query, withTransaction } from "@/lib/db";
-import { syncOrderStatus } from "./orders";
+import { syncOrderStatus } from "@/lib/db/orders";
+
+/* =========================================================
+   TYPES
+========================================================= */
+
+export type OrderPaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded";
+
+export type OrderFulfillmentStatus =
+  | "pending"
+  | "pending_fulfillment"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+  | "refunded";
+
+export type BuyerOrderItemRow = {
+  id: string;
+
+  product_id: string;
+
+  product_name: string | null;
+  product_slug: string | null;
+
+  thumbnail: string | null;
+
+  images: unknown;
+
+  variant_name: string | null;
+  variant_value: string | null;
+
+  quantity: number;
+
+  unit_price: string;
+  total_price: string;
+
+  currency: string;
+
+  fulfillment_status: string;
+
+  seller_message: string | null;
+  seller_cancel_reason: string | null;
+
+  tracking_code: string | null;
+  shipping_provider: string | null;
+
+  shipped_at: string | null;
+  delivered_at: string | null;
+
+  snapshot: unknown;
+};
+
+export type BuyerOrderRow = {
+  id: string;
+  order_number: string;
+
+  payment_status: OrderPaymentStatus;
+  fulfillment_status: OrderFulfillmentStatus;
+
+  total: string;
+  currency: string;
+
+  items_total: string;
+  subtotal: string;
+  discount: string;
+  shipping_fee: string;
+  tax: string;
+
+  created_at: string;
+
+  paid_at: string | null;
+
+  fulfillment_started_at: string | null;
+  processing_at: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
+
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address_line: string;
+
+  shipping_ward: string | null;
+  shipping_district: string | null;
+  shipping_region: string | null;
+
+  shipping_country: string;
+  shipping_postal_code: string | null;
+
+  shipping_provider: string | null;
+  shipping_zone: string | null;
+
+  buyer_note: string;
+  admin_note: string;
+
+  total_items: number;
+  total_quantity: number;
+
+  order_items: BuyerOrderItemRow[];
+};
 
 /* =========================================================
    BUYER — ORDERS LIST
 ========================================================= */
-export async function getOrdersByBuyer(userId: string) {
-  const { rows } = await query(
-    `
-    SELECT
-      o.id,
-      o.order_number,
-      o.payment_status,
-      o.fulfillment_status,
-      o.payment_status,
-      o.total,
-      o.currency,
-      o.items_total,
-      o.shipping_fee,
 
-      o.created_at,
-
-      /* SHIPPING */
-      o.shipping_name,
-      o.shipping_phone,
-      o.shipping_address_line,
-      o.shipping_ward,
-      o.shipping_district,
-      o.shipping_region,
-      o.shipping_country,
-      o.shipping_postal_code,
-
-      /* TIMELINE */
-       o.paid_at,
-       o.shipped_at,
-       o.delivered_at,
-
-      COALESCE(
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'product_slug', oi.product_slug,
-            'thumbnail', oi.thumbnail,
-            'images', oi.images,
-            'variant_name', oi.variant_name,
-            'variant_value', oi.variant_value,
-            'quantity', oi.quantity,
-            'unit_price', oi.unit_price,
-            'total_price', oi.total_price,
-            'seller_message', oi.seller_message,
-            'seller_cancel_reason', oi.seller_cancel_reason,
-            'currency', oi.currency,
-            'status', oi.status
-          )
-        ) FILTER (WHERE oi.id IS NOT NULL),
-        '[]'
-      ) AS order_items
-    FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
-
-    WHERE o.buyer_id = $1
-    GROUP BY o.id
-    ORDER BY o.created_at DESC
-    `,
-    [userId]
-  );
-
-  return rows;
-}
-
-/* =========================================================
-   BUYER — COUNTS
-========================================================= */
-export async function getBuyerOrderCounts(userId: string) {
-  const { rows } = await query(
-    `
-    SELECT
-      COUNT(*) FILTER (
-        WHERE fulfillment_status = 'pending_fulfillment'
-      ) AS pending,
-
-      COUNT(*) FILTER (
-        WHERE fulfillment_status IN ('processing', 'shipped')
-      ) AS shipping,
-
-      COUNT(*) FILTER (
-        WHERE fulfillment_status = 'completed'
-      ) AS completed,
-
-      COUNT(*) FILTER (
-        WHERE fulfillment_status = 'cancelled'
-      ) AS cancelled,
-
-      COUNT(*) FILTER (
-        WHERE payment_status = 'paid'
-      ) AS confirmed
-
-    FROM orders
-    WHERE buyer_id = $1
-      AND deleted_at IS NULL
-    `,
-    [userId]
-  );
-
-  return rows[0] ?? {
-    pending: 0,
-    confirmed: 0,
-    shipping: 0,
-    completed: 0,
-    cancelled: 0,
-  };
-}
-
-/* =========================================================
-   BUYER — ORDER DETAIL
-========================================================= */
-export async function getOrderByBuyerId(
-  orderId: string,
+export async function getOrdersByBuyer(
   userId: string
-) {
-  const { rows } = await query(
+): Promise<BuyerOrderRow[]> {
+  const { rows } = await query<BuyerOrderRow>(
     `
     SELECT
       o.id,
       o.order_number,
+
       o.payment_status,
       o.fulfillment_status,
-      o.payment_status,
 
       o.total,
       o.currency,
@@ -139,33 +135,42 @@ export async function getOrderByBuyerId(
       o.tax,
 
       o.created_at,
+      o.paid_at,
 
-      /* SHIPPING */
+      o.fulfillment_started_at,
+      o.processing_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.completed_at,
+
+      o.cancelled_at,
+      o.cancel_reason,
+
       o.shipping_name,
       o.shipping_phone,
       o.shipping_address_line,
+
       o.shipping_ward,
       o.shipping_district,
       o.shipping_region,
+
       o.shipping_country,
       o.shipping_postal_code,
+
       o.shipping_provider,
       o.shipping_zone,
 
-      /* TIMELINE */
-      o.paid_at,
-      o.shipped_at,
-      o.delivered_at,
-      o.cancelled_at,
-
-      /* NOTE */
       o.buyer_note,
       o.admin_note,
+
+      o.total_items,
+      o.total_quantity,
 
       COALESCE(
         json_agg(
           json_build_object(
             'id', oi.id,
+
             'product_id', oi.product_id,
 
             'product_name', oi.product_name,
@@ -178,13 +183,17 @@ export async function getOrderByBuyerId(
             'variant_value', oi.variant_value,
 
             'quantity', oi.quantity,
+
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
 
             'currency', oi.currency,
-            'status', oi.status,
-           'seller_message', oi.seller_message,
-           'seller_cancel_reason', oi.seller_cancel_reason,
+
+            'fulfillment_status', oi.fulfillment_status,
+
+            'seller_message', oi.seller_message,
+            'seller_cancel_reason', oi.seller_cancel_reason,
+
             'tracking_code', oi.tracking_code,
             'shipping_provider', oi.shipping_provider,
 
@@ -198,9 +207,189 @@ export async function getOrderByBuyerId(
       ) AS order_items
 
     FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
+    LEFT JOIN order_items oi
+      ON oi.order_id = o.id
 
-    WHERE o.id=$1 AND o.buyer_id=$2
+    WHERE o.buyer_id = $1
+      AND o.deleted_at IS NULL
+
+    GROUP BY o.id
+
+    ORDER BY o.created_at DESC
+    `,
+    [userId]
+  );
+
+  return rows;
+}
+
+/* =========================================================
+   BUYER — COUNTS
+========================================================= */
+
+export type BuyerOrderCounts = {
+  pending: number;
+  confirmed: number;
+  shipping: number;
+  completed: number;
+  cancelled: number;
+};
+
+export async function getBuyerOrderCounts(
+  userId: string
+): Promise<BuyerOrderCounts> {
+  const { rows } = await query<BuyerOrderCounts>(
+    `
+    SELECT
+      COUNT(*) FILTER (
+        WHERE fulfillment_status = 'pending_fulfillment'
+      )::int AS pending,
+
+      COUNT(*) FILTER (
+        WHERE fulfillment_status IN (
+          'processing',
+          'shipped'
+        )
+      )::int AS shipping,
+
+      COUNT(*) FILTER (
+        WHERE fulfillment_status IN (
+          'delivered',
+          'completed'
+        )
+      )::int AS completed,
+
+      COUNT(*) FILTER (
+        WHERE fulfillment_status = 'cancelled'
+      )::int AS cancelled,
+
+      COUNT(*) FILTER (
+        WHERE payment_status = 'paid'
+      )::int AS confirmed
+
+    FROM orders
+    WHERE buyer_id = $1
+      AND deleted_at IS NULL
+    `,
+    [userId]
+  );
+
+  return (
+    rows[0] ?? {
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      cancelled: 0,
+    }
+  );
+}
+
+/* =========================================================
+   BUYER — ORDER DETAIL
+========================================================= */
+
+export async function getOrderByBuyerId(
+  orderId: string,
+  userId: string
+): Promise<BuyerOrderRow | null> {
+  const { rows } = await query<BuyerOrderRow>(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+
+      o.payment_status,
+      o.fulfillment_status,
+
+      o.total,
+      o.currency,
+
+      o.items_total,
+      o.subtotal,
+      o.discount,
+      o.shipping_fee,
+      o.tax,
+
+      o.created_at,
+      o.paid_at,
+
+      o.fulfillment_started_at,
+      o.processing_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.completed_at,
+
+      o.cancelled_at,
+      o.cancel_reason,
+
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+
+      o.shipping_country,
+      o.shipping_postal_code,
+
+      o.shipping_provider,
+      o.shipping_zone,
+
+      o.buyer_note,
+      o.admin_note,
+
+      o.total_items,
+      o.total_quantity,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+
+            'product_id', oi.product_id,
+
+            'product_name', oi.product_name,
+            'product_slug', oi.product_slug,
+
+            'thumbnail', oi.thumbnail,
+            'images', oi.images,
+
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
+
+            'quantity', oi.quantity,
+
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+
+            'currency', oi.currency,
+
+            'fulfillment_status', oi.fulfillment_status,
+
+            'seller_message', oi.seller_message,
+            'seller_cancel_reason', oi.seller_cancel_reason,
+
+            'tracking_code', oi.tracking_code,
+            'shipping_provider', oi.shipping_provider,
+
+            'shipped_at', oi.shipped_at,
+            'delivered_at', oi.delivered_at,
+
+            'snapshot', oi.snapshot
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS order_items
+
+    FROM orders o
+    LEFT JOIN order_items oi
+      ON oi.order_id = o.id
+
+    WHERE o.id = $1
+      AND o.buyer_id = $2
+      AND o.deleted_at IS NULL
 
     GROUP BY o.id
     `,
@@ -210,92 +399,74 @@ export async function getOrderByBuyerId(
   return rows[0] ?? null;
 }
 
-type CompleteResult =
+/* =========================================================
+   COMPLETE ORDER
+========================================================= */
+
+export type CompleteResult =
   | "SUCCESS"
   | "NOT_FOUND"
   | "FORBIDDEN"
   | "INVALID_STATUS";
+
 export async function completeOrderByBuyer(
   orderId: string,
   userId: string
 ): Promise<CompleteResult> {
-  if (!orderId || !userId) {
-    throw new Error("INVALID_INPUT");
-  }
-
-  try {
-    return await withTransaction(async (client) => {
-
-      /* ================= CHECK ORDER ================= */
-      const { rows } = await client.query<{
+  return withTransaction(async (client) => {
+    const { rows } = await client.query<{
       buyer_id: string;
-      fulfillment_status: string;
-      }>(
-        `
-        SELECT buyer_id, fulfillment_status
-        FROM orders
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [orderId]
-      );
+      fulfillment_status: OrderFulfillmentStatus;
+    }>(
+      `
+      SELECT
+        buyer_id,
+        fulfillment_status
+      FROM orders
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [orderId]
+    );
 
-      const order = rows[0];
+    const order = rows[0];
 
-      /* ================= NOT FOUND ================= */
-      if (!order) {
-        console.warn("[ORDER][COMPLETE][NOT_FOUND]", { orderId });
-        return "NOT_FOUND";
-      }
+    if (!order) {
+      return "NOT_FOUND";
+    }
 
-      /* ================= FORBIDDEN ================= */
-      if (order.buyer_id !== userId) {
-        console.warn("[ORDER][COMPLETE][FORBIDDEN]", {
-          orderId,
-          userId,
-        });
-        return "FORBIDDEN";
-      }
+    if (order.buyer_id !== userId) {
+      return "FORBIDDEN";
+    }
 
-      /* ================= INVALID STATUS ================= */
-      if (order.fulfillment_status !== "shipped") {
-        console.warn("[ORDER][COMPLETE][INVALID_STATUS]", {
-          orderId,
-          status: order.status,
-        });
-        return "INVALID_STATUS";
-      }
+    if (order.fulfillment_status !== "shipped") {
+      return "INVALID_STATUS";
+    }
 
-      /* ================= UPDATE ITEMS ================= */
-      await client.query(
-  `
-  UPDATE order_items
-  SET
-    status = 'completed',
-    delivered_at = NOW(),
-    updated_at = NOW()
-  WHERE order_id = $1
-    AND status = 'shipped'
-  `,
-  [orderId]
-);
+    await client.query(
+      `
+      UPDATE order_items
+      SET
+        fulfillment_status = 'completed',
+        delivered_at = NOW(),
+        updated_at = NOW()
+      WHERE order_id = $1
+        AND fulfillment_status = 'shipped'
+      `,
+      [orderId]
+    );
 
-await syncOrderStatus(client, orderId);
+    await syncOrderStatus(client, orderId);
 
-      console.log("[ORDER][COMPLETE][SUCCESS]", { orderId });
-
-      return "SUCCESS";
-    });
-
-  } catch (err) {
-    console.error("[ORDER][COMPLETE][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
-    });
-
-    throw new Error("DB_ERROR");
-  }
+    return "SUCCESS";
+  });
 }
-type CancelResult =
+
+/* =========================================================
+   CANCEL ORDER
+========================================================= */
+
+export type CancelResult =
   | "SUCCESS"
   | "NOT_FOUND"
   | "FORBIDDEN"
@@ -305,74 +476,59 @@ export async function cancelOrderByBuyer(
   orderId: string,
   userId: string,
   reason?: string | null
-   ): Promise<CancelResult> {
-  try {
-    return await withTransaction(async (client) => {
+): Promise<CancelResult> {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query<{
+      buyer_id: string;
+      payment_status: OrderPaymentStatus;
+    }>(
+      `
+      SELECT
+        buyer_id,
+        payment_status
+      FROM orders
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [orderId]
+    );
 
-      /* ================= CHECK ORDER ================= */
-      const { rows } = await client.query<{
-       buyer_id: string;
-      payment_status: string;
-      }>(
-        `
-        SELECT buyer_id, payment_status
-        FROM orders
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [orderId]
-      );
+    const order = rows[0];
 
-      const order = rows[0];
+    if (!order) {
+      return "NOT_FOUND";
+    }
 
-      /* ================= NOT FOUND ================= */
-      if (!order) {
-        console.warn("[ORDER][CANCEL][NOT_FOUND]", { orderId });
-        return "NOT_FOUND";
-      }
+    if (order.buyer_id !== userId) {
+      return "FORBIDDEN";
+    }
 
-      /* ================= FORBIDDEN ================= */
-      if (order.buyer_id !== userId) {
-        console.warn("[ORDER][CANCEL][FORBIDDEN]", {
-          orderId,
-          userId,
-        });
-        return "FORBIDDEN";
-      }
+    if (order.payment_status !== "pending") {
+      return "INVALID_STATUS";
+    }
 
-      /* ================= INVALID STATUS ================= */
-      if (order.payment_status !== "pending") {
-        console.warn("[ORDER][CANCEL][INVALID_STATUS]", {
-          orderId,
-          status: order.status,
-        });
-        return "INVALID_STATUS";
-      }
+    await client.query(
+      `
+      UPDATE order_items
+      SET
+        fulfillment_status = 'cancelled',
+        seller_cancel_reason = COALESCE(
+          $2,
+          seller_cancel_reason
+        ),
+        updated_at = NOW()
+      WHERE order_id = $1
+        AND fulfillment_status IN (
+          'pending',
+          'pending_fulfillment',
+          'processing'
+        )
+      `,
+      [orderId, reason ?? null]
+    );
 
-      await client.query(
-  `
-  UPDATE order_items
-  SET 
-    status = 'cancelled',
-    seller_cancel_reason = COALESCE($2, seller_cancel_reason),
-    updated_at = NOW()
-  WHERE order_id = $1
-    AND status IN ('pending','confirmed')
-  `,
-  [orderId, reason ?? null]
-);
-await syncOrderStatus(client, orderId);
+    await syncOrderStatus(client, orderId);
 
-      console.log("[ORDER][CANCEL][SUCCESS]", { orderId });
-
-      return "SUCCESS";
-    });
-
-  } catch (err) {
-    console.error("[ORDER][CANCEL][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
-    });
-
-    throw new Error("DB_ERROR");
-  }
+    return "SUCCESS";
+  });
 }
