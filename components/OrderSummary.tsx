@@ -16,7 +16,9 @@ import {
 
 import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { ORDER_STATUS } from "@/constants/order-status";
 
+go(ORDER_STATUS.PENDING_FULFILLMENT);
 /* =====================================================
    TYPES
 ===================================================== */
@@ -83,59 +85,59 @@ export default function OrderSummary() {
   ===================================================== */
 
   const counts = useMemo(
-    () => ({
-      pending_fulfillment: data?.pending_fulfillment ?? 0,
-      processing: data?.processing ?? 0,
-      shipped: data?.shipped ?? 0,
-      completed: data?.completed ?? 0,
-      cancelled: data?.cancelled ?? 0,
-      returns: data?.returns ?? 0,
-    }),
-    [data]
-  );
+  () => ({
+    [ORDER_STATUS.PENDING]: data?.pending_fulfillment ?? 0,
+    [ORDER_STATUS.PROCESSING]: data?.processing ?? 0,
+    [ORDER_STATUS.SHIPPED]: data?.shipped ?? 0,
+    [ORDER_STATUS.COMPLETED]: data?.completed ?? 0,
+    [ORDER_STATUS.CANCELLED]: data?.cancelled ?? 0,
+    [ORDER_STATUS.RETURNS]: data?.returns ?? 0,
+  }),
+  [data]
+);
 
   const items = useMemo(
   () => [
     {
-      key: "pending_fulfillment",
+      key: ORDER_STATUS.PENDING,
       icon: <Clock3 size={20} />,
       label: t.pending_orders ?? "Chờ xác nhận",
-      count: counts.pending_fulfillment,
-      onClick: () => go("pending_fulfillment"),
+      count: counts[ORDER_STATUS.PENDING],
+      onClick: () => go(ORDER_STATUS.PENDING),
     },
     {
-      key: "processing",
+      key: ORDER_STATUS.PROCESSING,
       icon: <PackageCheck size={20} />,
       label: t.processing_orders ?? "Processing",
-      count: counts.processing,
-      onClick: () => go("processing"),
+      count: counts[ORDER_STATUS.PROCESSING],
+      onClick: () => go(ORDER_STATUS.PROCESSING),
     },
     {
-      key: "shipped",
+      key: ORDER_STATUS.SHIPPED,
       icon: <Truck size={20} />,
       label: t.shipping_orders ?? "Shipping",
-      count: counts.shipped,
-      onClick: () => go("shipping"),
+      count: counts[ORDER_STATUS.SHIPPED],
+      onClick: () => go(ORDER_STATUS.SHIPPED),
     },
     {
-      key: "completed",
+      key: ORDER_STATUS.COMPLETED,
       icon: <CheckCircle2 size={20} />,
       label: t.completed_orders ?? "Completed",
-      count: counts.completed,
-      onClick: () => go("completed"),
+      count: counts[ORDER_STATUS.COMPLETED],
+      onClick: () => go(ORDER_STATUS.COMPLETED),
     },
     {
-      key: "cancelled",
+      key: ORDER_STATUS.CANCELLED,
       icon: <XCircle size={20} />,
       label: t.cancelled_orders ?? "Cancelled",
-      count: counts.cancelled,
-      onClick: () => go("cancelled"),
+      count: counts[ORDER_STATUS.CANCELLED],
+      onClick: () => go(ORDER_STATUS.CANCELLED),
     },
     {
-      key: "returns",
+      key: ORDER_STATUS.RETURNS,
       icon: <RotateCcw size={20} />,
       label: t.returns_orders ?? "Returns",
-      count: counts.returns,
+      count: counts[ORDER_STATUS.RETURNS],
       onClick: () => router.push("/customer/returns"),
     },
   ],
