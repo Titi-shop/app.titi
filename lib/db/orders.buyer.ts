@@ -76,18 +76,35 @@ export async function getOrdersByBuyer(userId: string) {
 export async function getBuyerOrderCounts(userId: string) {
   const { rows } = await query(
     `
-    SELECT
-      COUNT(*) FILTER (WHERE payment_status='pending') AS pending_payment,
-COUNT(*) FILTER (WHERE fulfillment_status='pending_fulfillment') AS pending_fulfillment,
-COUNT(*) FILTER (WHERE fulfillment_status='shipped') AS shipping,
-COUNT(*) FILTER (WHERE fulfillment_status='completed') AS completed,
-COUNT(*) FILTER (WHERE fulfillment_status='cancelled') AS cancelled
-    FROM orders
-    WHERE buyer_id = $1
-      AND deleted_at IS NULL
-    `,
-    [userId]
-  );
+    const rs = await query(
+  `
+  SELECT
+    COUNT(*) FILTER (
+      WHERE fulfillment_status = 'pending_fulfillment'
+    ) AS pending,
+
+    COUNT(*) FILTER (
+      WHERE fulfillment_status IN ('processing', 'shipped')
+    ) AS shipping,
+
+    COUNT(*) FILTER (
+      WHERE fulfillment_status = 'completed'
+    ) AS completed,
+
+    COUNT(*) FILTER (
+      WHERE fulfillment_status = 'cancelled'
+    ) AS cancelled,
+
+    COUNT(*) FILTER (
+      WHERE payment_status = 'paid'
+    ) AS confirmed
+
+  FROM orders
+  WHERE buyer_id = $1
+    AND deleted_at IS NULL
+  `,
+  [userId]
+);
 
   return rows[0] ?? {
     pending: 0,
