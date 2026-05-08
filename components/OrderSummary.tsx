@@ -17,8 +17,6 @@ import {
 import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { ORDER_STATUS } from "@/constants/order-status";
-
-go(ORDER_STATUS.PENDING_FULFILLMENT);
 /* =====================================================
    TYPES
 ===================================================== */
