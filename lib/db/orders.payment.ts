@@ -413,44 +413,49 @@ VALUES (
        7. UPSERT PI PAYMENTS (FULL SCHEMA FIX)
     ===================================================== */
 
-    await client.query(
-      `
-      INSERT INTO pi_payments (
-        payment_intent_id,
-        order_id,
-        user_id,
+    INSERT INTO orders (
+  buyer_id,
+  seller_id,
 
-        pi_payment_id,
-        txid,
-        receiver_wallet,
+  pi_payment_id,
+  pi_txid,
+  idempotency_key,
 
-        amount,
-        expected_amount,
-        verified_amount,
-        currency,
+  payment_status,
+  fulfillment_status,
+  paid_at,
 
-        status,
+  items_total,
+  subtotal,
+  discount,
+  shipping_fee,
+  tax,
+  total,
+  currency,
 
-        reconcile_attempts,
-        last_reconcile_at,
+  shipping_name,
+  shipping_phone,
+  shipping_address_line,
+  shipping_country,
+  shipping_zone,
 
-        pi_raw_payload,
-        rpc_raw_payload,
-        complete_raw_payload,
+  total_items,
+  total_quantity,
 
-        completed_at,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,
-        $4,$5,$6,
-        $7,$8,$9,'PI',
-        'SETTLED',
-        1,now(),
-        $10,$11,$12,
-        now(),now(),now()
-      )
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,$2,
+  $3,$4,$5,
+  'paid',
+  'pending_fulfillment',
+  now(),
+  $6,$7,$8,$9,0,$10,$11,
+  $12,$13,$14,$15,$16,
+  1,$17,
+  now(),now()
+)
       ON CONFLICT (pi_payment_id)
       DO UPDATE SET
         txid = EXCLUDED.txid,
