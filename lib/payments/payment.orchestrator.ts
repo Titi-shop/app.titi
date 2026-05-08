@@ -476,7 +476,25 @@ export async function runPaymentSettlement({
   source
 );
 
+if (!rpcVerified.ok) {
+  console.error("[PAYMENT][SETTLEMENT] RPC_VERIFY_FAILED", {
+    paymentIntentId,
+    reason: rpcVerified.reason,
+  });
 
+  await auditManualReview(paymentIntentId, "RPC_VERIFY_FAILED", {
+    source,
+    txid,
+    piPaymentId,
+    reason: rpcVerified.reason,
+  });
+
+  return failResult(
+    piVerified.verifiedAmount,
+    false,
+    source
+  );
+}
   /* =====================================================
      6. FINALIZE ORDER
   ===================================================== */
