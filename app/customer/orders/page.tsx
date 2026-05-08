@@ -29,17 +29,75 @@ type OrderItem = {
   thumbnail?: string | null;
 };
 
+type FulfillmentStatus =
+  | "pending"
+  | "pending_fulfillment"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+  | "refunded";
+
+type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded";
+
+type OrderItem = {
+  id?: string;
+  product_id: string;
+  product_name?: string | null;
+  product_slug?: string | null;
+  thumbnail?: string | null;
+  images?: string[] | null;
+  variant_name?: string | null;
+  variant_value?: string | null;
+  quantity?: number;
+  unit_price?: number | string;
+  total_price?: number | string;
+  currency?: string;
+  seller_message?: string | null;
+  seller_cancel_reason?: string | null;
+  tracking_code?: string | null;
+  shipping_provider?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  snapshot?: unknown;
+};
 type Order = {
   id: string;
   order_number: string;
+  payment_status: PaymentStatus;
+  fulfillment_status: FulfillmentStatus;
   total: number | string;
-  status:
-    | "pending"
-    | "confirmed"
-    | "shipping"
-    | "completed"
-    | "cancelled"
-    | string;
+  subtotal?: number | string;
+  shipping_fee?: number | string;
+  discount?: number | string;
+  tax?: number | string;
+  currency: string;
+  total_items?: number;
+  total_quantity?: number;
+  created_at: string;
+  paid_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address_line?: string;
+  shipping_ward?: string | null;
+  shipping_district?: string | null;
+  shipping_region?: string | null;
+  shipping_country?: string;
+  shipping_postal_code?: string | null;
+  shipping_provider?: string | null;
+  shipping_zone?: string | null;
+  buyer_note?: string;
+  admin_note?: string;
   order_items?: OrderItem[];
 };
 
@@ -187,10 +245,11 @@ useEffect(() => {
   const mergedOrders = useMemo(() => {
   if (!optimisticOrder) return orders;
 
-  // 🔥 check backend đã có đơn pending mới chưa
   const hasRealPending = orders.some(
-    (o) => o.status === "pending"
-  );
+  (o) =>
+    o.payment_status === "pending" ||
+    o.fulfillment_status === "pending_fulfillment"
+);
 
   // nếu backend đã có đơn → xóa fake
   if (hasRealPending) {
@@ -215,7 +274,6 @@ useEffect(() => {
     text: string
   ) {
     setToast(text);
-
     setTimeout(() => {
       setToast("");
     }, 2400);
@@ -256,7 +314,6 @@ useEffect(() => {
 
     try {
       setProcessingId(orderId);
-
       const token =
         await getPiAccessToken();
 
