@@ -528,24 +528,19 @@ export async function runPaymentSettlement({
     buyerId: paid.buyerId,
     sellerId: paid.sellerId,
   });
+  
   if (!paid?.orderId) {
-  console.error("[PAYMENT][SETTLEMENT] FINALIZE_ORDER_FAILED", {
-    paymentIntentId,
-    paid,
+  await auditManualReview(paymentIntentId, "FINALIZE_ORDER_FAILED", {
+    source,
+    piPaymentId,
+    txid,
+    amount: piVerified.verifiedAmount,
   });
 
   throw new Error("FINALIZE_ORDER_FAILED");
 }
-  await safeLedger(
-  paid,
-  paymentIntentId,
-  piPaymentId,
-  txid,
-  rpcVerified
-);
+  
 
-  
-  
 
   /* =====================================================
      7. LEDGER
