@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 /* ✅ IMPORT ĐÚNG */
-import { getOrdersByBuyer } from "@/lib/db/orders";
+import { getOrdersByBuyer } from "@/lib/db/orders.buyer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
