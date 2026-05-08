@@ -204,7 +204,7 @@ export async function finalizePaidOrderFromIntent({
   total,
   currency,
 
-  status,
+  fulfillment_status,
 
   shipping_name,
   shipping_phone,
@@ -222,38 +222,41 @@ VALUES (
   $1,$2,
   $3,$4,$5,
 
-  'paid', now(),
+  'paid',now(),
+
   $6,$7,$8,$9,0,$10,$11,
   'pending_fulfillment',
   $12,$13,$14,$15,$16,
+
   1,$17,
+
   now(),now()
 )
-      RETURNING id
+RETURNING id
       `,
       [
-        intent.buyer_id,
-        intent.seller_id,
+  intent.buyer_id,
+  intent.seller_id,
 
-        piPaymentId,
-        txid,
-        paymentIntentId,
+  piPaymentId,
+  txid,
+  paymentIntentId,
 
-        verifiedAmount,
-        intent.subtotal,
-        intent.discount,
-        intent.shipping_fee,
-        intent.total_amount,
-        intent.currency,
+  intent.subtotal,
+  intent.subtotal,
+  intent.discount,
+  intent.shipping_fee,
+  intent.total_amount,
+  intent.currency,
 
-        intent.shipping_snapshot?.name ?? "",
-        intent.shipping_snapshot?.phone ?? "",
-        intent.shipping_snapshot?.address_line ?? "",
-        intent.country,
-        intent.zone,
+  intent.shipping_snapshot?.name ?? "",
+  intent.shipping_snapshot?.phone ?? "",
+  intent.shipping_snapshot?.address_line ?? "",
+  intent.country,
+  intent.zone,
 
-        intent.quantity,
-      ]
+  intent.quantity,
+]
     );
 
     const orderId = orderRes.rows[0].id;
