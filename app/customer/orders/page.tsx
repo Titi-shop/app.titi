@@ -23,12 +23,6 @@ import CustomerOrdersList from "@/components/CustomerOrdersList";
    TYPES
 ======================================================= */
 
-type OrderItem = {
-  product_id: string;
-  product_name: string;
-  thumbnail?: string | null;
-};
-
 type FulfillmentStatus =
   | "pending"
   | "pending_fulfillment"
@@ -69,6 +63,7 @@ type OrderItem = {
 type Order = {
   id: string;
   order_number: string;
+  status?: string;
   payment_status: PaymentStatus;
   fulfillment_status: FulfillmentStatus;
   total: number | string;
@@ -137,9 +132,15 @@ const fetcher = async (): Promise<Order[]> => {
 
     const data: unknown = await res.json();
 
-    if (Array.isArray(data)) {
-      return data as Order[];
-    }
+   if (Array.isArray(data)) {
+  return data.map((order: any) => ({
+    ...order,
+    status:
+      order.fulfillment_status ??
+      order.payment_status ??
+      "pending",
+  })) as Order[];
+}
 
     if (
       typeof data === "object" &&
@@ -154,8 +155,15 @@ const fetcher = async (): Promise<Order[]> => {
         ).orders ?? [];
 
       return Array.isArray(orders)
-        ? orders
-        : [];
+  ? orders.map((order: any) => ({
+      ...order,
+
+      status:
+        order.fulfillment_status ??
+        order.payment_status ??
+        "pending",
+    }))
+  : [];
     }
 
     return [];
@@ -245,28 +253,24 @@ useEffect(() => {
   const mergedOrders = useMemo(() => {
   if (!optimisticOrder) return orders;
 
-  const hasRealPending = orders.some(
-  (o) =>
-    o.payment_status === "pending" ||
-    o.fulfillment_status === "pending_fulfillment"
-);
+  const hasRealPending =
+    orders.length > 0;
 
-  // nếu backend đã có đơn → xóa fake
   if (hasRealPending) {
-    localStorage.removeItem("optimistic_order");
+    localStorage.removeItem(
+      "optimistic_order"
+    );
+
     setOptimisticOrder(null);
+
     return orders;
   }
 
-  return [optimisticOrder, ...orders];
+  return [
+    optimisticOrder,
+    ...orders,
+  ];
 }, [orders, optimisticOrder]);
-  const totalPi = useMemo(() => {
-  return mergedOrders.reduce(
-    (sum: number, order: Order) =>
-      sum + Number(order.total ?? 0),
-    0
-  );
-}, [mergedOrders]);
 
   /* ================= HELPERS ================= */
 
