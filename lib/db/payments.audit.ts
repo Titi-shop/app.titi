@@ -1,6 +1,6 @@
 
 import { query } from "@/lib/db";
-import { createHash, randomUUID } from "crypto";
+import { createHash } from "crypto";
 
 /* =========================================================
    TYPES
@@ -50,20 +50,26 @@ type WriteAuditParams = {
   severity?: AuditSeverity;
   actorType?: AuditActorType;
   actorId?: string | null;
+
   source?: string | null;
   requestId?: string | null;
+
   orderId?: string | null;
   escrowId?: string | null;
 
   piPaymentId?: string | null;
   txid?: string | null;
+
   oldPaymentStatus?: string | null;
   newPaymentStatus?: string | null;
+
   oldSettlementState?: string | null;
   newSettlementState?: string | null;
+
   reconcileAttempt?: number;
+
   note?: string | null;
-  payload?: JsonValue | null;
+  payload?: JsonValue;
 };
 
 type AuditPiVerifiedParams = {
@@ -75,15 +81,18 @@ type AuditPiVerifiedParams = {
   receiverWallet?: string;
   senderWallet?: string;
 };
+
 type AuditRpcVerifiedParams = {
   source?: string;
   txid?: string;
+  piPaymentId?: string;
   amount?: number;
   ledger?: number | null;
   receiver?: string | null;
   sender?: string | null;
   chainReference?: string | null;
 };
+
 type AuditPiCompletedParams = {
   source?: string;
   txid?: string;
@@ -91,19 +100,23 @@ type AuditPiCompletedParams = {
 };
 
 /* =========================================================
-   HELPERS (IMPORTANT FIX)
+   HELPERS
 ========================================================= */
 
-function safeString(v: any): string | null {
+function safeString(v: unknown): string | null {
   if (v === undefined || v === null) return null;
   const s = String(v).trim();
   return s.length ? s : null;
 }
 
-function safeJson(v: any): JsonValue {
+function safeJson(v: unknown): JsonValue {
   if (v === undefined || v === null) return {};
-  return v;
+  return v as JsonValue;
 }
+
+/* =========================================================
+   FOR FORENSIC HASH (DETERMINISTIC)
+========================================================= */
 
 function makeHash(payload: unknown): string {
   return createHash("sha256")
@@ -112,7 +125,7 @@ function makeHash(payload: unknown): string {
 }
 
 /* =========================================================
-   PREVIOUS HASH
+   GET PREVIOUS HASH (CHAIN)
 ========================================================= */
 
 async function getPreviousHash(paymentIntentId: string): Promise<string | null> {
@@ -131,13 +144,14 @@ async function getPreviousHash(paymentIntentId: string): Promise<string | null> 
 }
 
 /* =========================================================
-   MAIN AUDIT WRITER (FIXED NULL ISSUE)
+   CORE WRITER
 ========================================================= */
 
-export async function writePaymentAudit(params: WriteAuditParams): Promise<void> {
+export async function writePaymentAudit(
+  params: WriteAuditParams
+): Promise<void> {
   const prevHash = await getPreviousHash(params.paymentIntentId);
 
-  // 🔥 FORCE SAFE DEFAULTS (CRITICAL FIX)
   const normalized = {
     paymentIntentId: params.paymentIntentId,
 
@@ -150,8 +164,8 @@ export async function writePaymentAudit(params: WriteAuditParams): Promise<void>
 
     source: safeString(params.source) ?? "unknown",
     requestId:
-    safeString(params.requestId) ??
-    safeString(params.paymentIntentId),
+      safeString(params.requestId) ??
+      safeString(params.paymentIntentId),
 
     orderId: safeString(params.orderId),
     escrowId: safeString(params.escrowId),
@@ -173,22 +187,40 @@ export async function writePaymentAudit(params: WriteAuditParams): Promise<void>
     prevHash,
   };
 
-  const eventHash = makeHash({
-    ...normalized,
-    nonce: randomUUID(),
-  });
-
   /* =========================================================
-     DEBUG (IMPORTANT - KEEP IN PROD UNTIL STABLE)
+     FORENSIC CHAIN HASH (FIXED - NO RANDOM)
   ========================================================= */
-  console.log("[AUDIT][WRITE]", {
+
+  const eventHash = makeHash({
     paymentIntentId: normalized.paymentIntentId,
-    orderId: normalized.orderId,
-    escrowId: normalized.escrowId,
-    piPaymentId: normalized.piPaymentId,
-    txid: normalized.txid,
+    eventCode: normalized.eventCode,
+    stage: normalized.stage,
+    severity: normalized.severity,
+
+    actorType: normalized.actorType,
+    actorId: normalized.actorId,
+
     source: normalized.source,
     requestId: normalized.requestId,
+
+    orderId: normalized.orderId,
+    escrowId: normalized.escrowId,
+
+    piPaymentId: normalized.piPaymentId,
+    txid: normalized.txid,
+
+    oldPaymentStatus: normalized.oldPaymentStatus,
+    newPaymentStatus: normalized.newPaymentStatus,
+
+    oldSettlementState: normalized.oldSettlementState,
+    newSettlementState: normalized.newSettlementState,
+
+    reconcileAttempt: normalized.reconcileAttempt,
+
+    note: normalized.note,
+    payload: normalized.payload,
+
+    prevHash,
   });
 
   await query(
@@ -268,19 +300,8 @@ export async function writePaymentAudit(params: WriteAuditParams): Promise<void>
 }
 
 /* =========================================================
-   PRESET HELPERS (FIXED + CONSISTENT DATA)
+   PRESET HELPERS
 ========================================================= */
-
-export const auditIntentCreated = (paymentIntentId: string, payload?: JsonValue) =>
-  writePaymentAudit({
-    paymentIntentId,
-    eventCode: "INTENT_CREATED",
-    stage: "INTENT",
-    actorType: "api",
-    newPaymentStatus: "pending",
-    newSettlementState: "UNSETTLED",
-    payload,
-  });
 
 export const auditPiVerified = (
   paymentIntentId: string,
@@ -312,9 +333,13 @@ export const auditRpcVerified = (
     eventCode: "RPC_VERIFIED",
     stage: "RPC_VERIFY",
     actorType: "rpc",
+
     source: params.source,
     txid: params.txid,
+    piPaymentId: params.piPaymentId,
+
     newSettlementState: "RPC_VERIFIED",
+
     payload: {
       amount: params.amount,
       ledger: params.ledger,
@@ -323,7 +348,11 @@ export const auditRpcVerified = (
       chainReference: params.chainReference,
     },
   });
-export const auditRpcFailed = (paymentIntentId: string, payload?: JsonValue) =>
+
+export const auditRpcFailed = (
+  paymentIntentId: string,
+  payload?: JsonValue
+) =>
   writePaymentAudit({
     paymentIntentId,
     eventCode: "RPC_FAILED",
@@ -332,6 +361,7 @@ export const auditRpcFailed = (paymentIntentId: string, payload?: JsonValue) =>
     actorType: "rpc",
     payload,
   });
+
 export const auditPiCompleted = (
   paymentIntentId: string,
   params: AuditPiCompletedParams
@@ -341,76 +371,40 @@ export const auditPiCompleted = (
     eventCode: "PI_COMPLETED",
     stage: "PI_COMPLETE",
     actorType: "pi_api",
+
     source: params.source,
     txid: params.txid,
     piPaymentId: params.piPaymentId,
+
     newPaymentStatus: "paid",
     newSettlementState: "PI_COMPLETED",
-    payload: {
-      source: params.source,
-    },
   });
 
 export const auditFinalizeDone = (
   paymentIntentId: string,
-  payload?: any
+  params: {
+    source?: string;
+    orderId?: string | null;
+    escrowId?: string | null;
+    piPaymentId?: string | null;
+    txid?: string | null;
+  }
 ) =>
   writePaymentAudit({
     paymentIntentId,
-
-    orderId: payload?.orderId ?? null,
-    escrowId: payload?.escrowId ?? null,
-    piPaymentId: payload?.piPaymentId ?? null,
-    txid: payload?.txid ?? null,
     eventCode: "ORDER_FINALIZED",
     stage: "FINALIZE",
     actorType: "system",
+
+    source: params.source,
+
+    orderId: params.orderId,
+    escrowId: params.escrowId,
+    piPaymentId: params.piPaymentId,
+    txid: params.txid,
+
     newPaymentStatus: "paid",
     newSettlementState: "ORDER_FINALIZED",
-    payload,
-  });
-
-export const auditOrderFulfillment = (
-  paymentIntentId: string,
-  orderId: string,
-  payload?: JsonValue
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    orderId,
-    eventCode: "ORDER_FULFILLMENT",
-    stage: "FULFILLMENT",
-    actorType: "system",
-    newSettlementState: "PENDING_FULFILLMENT",
-    payload,
-  });
-
-export const auditOrderShipped = (
-  paymentIntentId: string,
-  orderId: string,
-  payload?: JsonValue
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    orderId,
-    eventCode: "ORDER_SHIPPED",
-    stage: "SHIPMENT",
-    actorType: "system",
-    newSettlementState: "SHIPPED",
-    payload,
-  });
-
-export const auditDuplicateSubmit = (
-  paymentIntentId: string,
-  payload?: JsonValue
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    eventCode: "DUPLICATE_SUBMIT",
-    stage: "INTENT",
-    severity: "warn",
-    actorType: "api",
-    payload,
   });
 
 export const auditManualReview = (
