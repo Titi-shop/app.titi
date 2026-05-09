@@ -11,6 +11,7 @@ import {
   auditPiVerified,
   auditRpcFailed,
   auditRpcVerified,
+  writePaymentAudit,
 } from "@/lib/db/payments.audit";
 
 import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
