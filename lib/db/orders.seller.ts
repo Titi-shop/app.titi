@@ -1,4 +1,7 @@
 import { query, withTransaction, syncOrderStatus } from "@/lib/db";
+import {
+  syncOrderFulfillmentStatus,
+} from "@/lib/db/orders";
 
 /* =========================================================
    SELLER — ORDER COUNTS
