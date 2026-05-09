@@ -29,8 +29,8 @@ import OrderActions from "@/components/OrderActions";
 
 type OrderStatus =
   | "pending"
-  | "confirmed"
-  | "shipping"
+  | "processing"
+  | "shipped"
   | "completed"
   | "returned"
   | "cancelled";
@@ -88,8 +88,8 @@ function normalizeStatus(
 
   if (
     v === "pending" ||
-    v === "confirmed" ||
-    v === "shipping" ||
+    v === "processing" ||
+    v === "shipped" ||
     v === "completed" ||
     v === "returned" ||
     v === "cancelled"
@@ -628,7 +628,7 @@ function SellerOrdersContent() {
                   "Pending",
                 confirmed:
                   t.confirmed_orders ??
-                  "Confirmed",
+                  "processing",
                 shipping:
                   t.shipping_orders ??
                   "Shipping",
