@@ -1,7 +1,10 @@
 
 import { withTransaction } from "@/lib/db";
-import { auditManualReview } from "@/lib/db/payments.audit";
 
+import {
+  auditManualReview,
+  writePaymentAudit,
+} from "@/lib/db/payments.audit";
 /* =========================================================
    TYPES
 ========================================================= */
@@ -66,6 +69,17 @@ type PiPayload = {
   status?: {
     developer_approved?: boolean;
   };
+   
+   type ShippingSnapshot = {
+  name?: string | null;
+  phone?: string | null;
+  address_line?: string | null;
+  ward?: string | null;
+  district?: string | null;
+  region?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+};
 };
 /* =========================================================
    HELPERS
@@ -116,9 +130,24 @@ export async function finalizePaidOrderFromIntent({
     }
 
     const intent = rs.rows[0];
-const shipping = intent.shipping_snapshot?.buyer_shipping;
 
-if (!shipping) {
+     
+const shipping: ShippingSnapshot =
+  intent.shipping_snapshot?.buyer_shipping ?? {};
+
+if (
+  !shipping.name ||
+  !shipping.phone ||
+  !shipping.address_line
+) {
+  await auditManualReview(
+    paymentIntentId,
+    "INVALID_SHIPPING_SNAPSHOT",
+    {
+      shipping,
+    }
+  );
+
   throw new Error("INVALID_SHIPPING_SNAPSHOT");
 }
     /* =====================================================
@@ -182,7 +211,22 @@ if (!shipping) {
    /* =====================================================
    4. CREATE ORDER
 ===================================================== */
-const orderRes = await client.query<{ id: string }>(
+await writePaymentAudit({
+  paymentIntentId,
+  eventCode: "ORDER_FINALIZE_STARTED",
+  stage: "FINALIZE",
+  actorType: "system",
+  piPaymentId,
+  txid,
+  source: "orders.payment",
+  newSettlementState: "FINALIZING_ORDER",
+  payload: {
+    verifiedAmount,
+    receiverWallet,
+  },
+});
+     
+     const orderRes = await client.query<{ id: string }>(
       `
       INSERT INTO orders (
         buyer_id,
@@ -200,6 +244,9 @@ const orderRes = await client.query<{ id: string }>(
         total,
         currency,
         fulfillment_status,
+        settlement_status,
+        shipment_status,
+        delivery_status,
         shipping_name,
         shipping_phone,
         shipping_address_line,
@@ -220,8 +267,11 @@ const orderRes = await client.query<{ id: string }>(
         'paid',now(),
         $6,$7,$8,$9,0,$10,$11,
         'pending_fulfillment',
+        'ESCROW_HOLD',
+        'NOT_SHIPPED',
+        'NOT_DELIVERED',
         $12,$13,$14,$15,$16,$17,$18,$19,
-        $20,$21,
+        $20,$21,$22,$23,$24,
         now(),now()
       )
       RETURNING id
@@ -254,7 +304,9 @@ const orderRes = await client.query<{ id: string }>(
     );
 
     const orderId = orderRes.rows[0].id;
-
+if (!orderId) {
+  throw new Error("ORDER_CREATE_FAILED");
+}
     /* =====================================================
        5. CREATE ORDER ITEM
     ===================================================== */
@@ -317,7 +369,7 @@ const orderRes = await client.query<{ id: string }>(
 
     verification_status,
     verify_source,
-
+    settlement_state,
     rpc_confirmed,
     rpc_ledger,
     chain_reference,
@@ -345,9 +397,10 @@ const orderRes = await client.query<{ id: string }>(
     $10,$11,
     'completed',
     'DUAL_AUDIT',
+    'ORDER_FINALIZED',
     $12,$13,$14,$15,
     $16,$17,$18,
-    $19,$20,
+    $19,$20,$21,
     NULL,NULL,
     now(),now(),now(),now()
   )
@@ -495,7 +548,7 @@ const orderRes = await client.query<{ id: string }>(
       UPDATE payment_intents
       SET
         status = 'paid',
-        settlement_state = 'ORDER_FINALIZED',
+        settlement_state = 'ESCROW_PENDING',
         pi_payment_id = $2,
         txid = $3,
         paid_at = now(),
