@@ -245,11 +245,15 @@ RETURNING id
   intent.total_amount,
   intent.currency,
 
-  intent.shipping_snapshot?.name ?? null,
-  intent.shipping_snapshot?.phone ?? "",
-  intent.shipping_snapshot?.address_line ?? "",
-  intent.shipping_snapshot?.country,
-  intent.shipping_snapshot?.zone,
+  intent.shipping_snapshot?.name ?? "",
+intent.shipping_snapshot?.phone ?? "",
+intent.shipping_snapshot?.address_line ?? "",
+intent.shipping_snapshot?.country ?? "",
+intent.shipping_snapshot?.zone ?? "",
+intent.shipping_snapshot?.ward ?? "",
+intent.shipping_snapshot?.district ?? "",
+intent.shipping_snapshot?.region ?? "",
+intent.shipping_snapshot?.postal_code ?? "",
 
   intent.quantity,
 ]
