@@ -32,14 +32,10 @@ type PaymentIntentRow = {
   shipping_fee: string;
   total_amount: string;
   currency: string;
-
   shipping_snapshot: any;
-
   country: string;
   zone: string;
-
   merchant_wallet: string;
-
   status: string;
   settlement_state: string;
 };
@@ -249,11 +245,11 @@ RETURNING id
   intent.total_amount,
   intent.currency,
 
-  intent.shipping_snapshot?.name ?? "",
+  intent.shipping_snapshot?.name ?? null,
   intent.shipping_snapshot?.phone ?? "",
   intent.shipping_snapshot?.address_line ?? "",
-  intent.country,
-  intent.zone,
+  intent.shipping_snapshot?.country,
+  intent.shipping_snapshot?.zone,
 
   intent.quantity,
 ]
