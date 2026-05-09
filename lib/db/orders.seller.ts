@@ -152,7 +152,7 @@ export async function getSellerOrderById(
       o.created_at,
 
       /* 🔥 TIMELINE (QUAN TRỌNG) */
-      o.confirmed_at,
+      o.processing_at,
       o.shipped_at,
       o.delivered_at,
       o.cancelled_at,
@@ -241,7 +241,7 @@ export async function startShippingBySeller(
           updated_at = NOW()
         WHERE order_id = $1
           AND seller_id = $2
-          AND status = 'confirmed'
+          AND status = 'processing'
         `,
         [orderId, sellerId]
       );
@@ -287,7 +287,7 @@ export async function cancelOrderBySeller(
           updated_at = NOW()
         WHERE order_id = $1
           AND seller_id = $2
-          AND status IN ('pending','confirmed')
+          AND status IN ('pending','processing')
         `,
         [orderId, sellerId, reason]
       );
@@ -363,7 +363,7 @@ export async function confirmOrderBySeller(
         `
         UPDATE order_items
         SET
-          status = 'confirmed',
+          status = 'processing',
           confirmed_at = NOW(),
           seller_message = COALESCE($3, seller_message),
           updated_at = NOW()
