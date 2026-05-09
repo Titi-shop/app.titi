@@ -223,7 +223,7 @@ async function safeLedger(
   piPaymentId: string,
   txid: string,
   rpcVerified: RpcAuditResult
-): Promise<void> {
+): Promise<boolean> {
   try {
     if (!paid.orderId) {
       console.warn("[PAYMENT][LEDGER] SKIPPED_NO_ORDER", {
@@ -328,6 +328,7 @@ export async function runPaymentSettlement({
   userId,
   source,
 }: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
+  try {
   console.log("[PAYMENT][SETTLEMENT] START", {
     paymentIntentId,
     piPaymentId,
@@ -497,6 +498,34 @@ if (!rpcVerified.ok) {
     source
   );
 }
+
+  /* =====================================================
+     5. COMPLETE PI
+  ===================================================== */
+
+  const piCompleted = await safeCompletePi(
+    paymentIntentId,
+    piPaymentId,
+    txid,
+    source
+  );
+
+  console.log("[PAYMENT][SETTLEMENT] PI_COMPLETE_RESULT", {
+    paymentIntentId,
+    piCompleted,
+  });
+
+  if (!piCompleted) {
+    console.error("[PAYMENT][SETTLEMENT] STOP_AFTER_PI_COMPLETE_FAIL", {
+      paymentIntentId,
+    });
+
+    return failResult(
+      piVerified.verifiedAmount,
+      rpcVerified.ok,
+      source
+    );
+  }
   /* =====================================================
      6. FINALIZE ORDER
   ===================================================== */
@@ -504,7 +533,15 @@ if (!rpcVerified.ok) {
   console.log("[PAYMENT][SETTLEMENT] FINALIZE_ORDER_START", {
     paymentIntentId,
   });
-
+  await writePaymentAudit({
+  paymentIntentId,
+  eventCode: "FINALIZE_STARTED",
+  stage: "FINALIZE",
+  actorType: "system",
+  source,
+  txid,
+  piPaymentId,
+  });
   const paid = await finalizePaidOrderFromIntent({
   paymentIntentId,
   piPaymentId,
@@ -533,33 +570,7 @@ if (!rpcVerified.ok) {
   throw new Error("FINALIZE_ORDER_FAILED");
 }
   
-/* =====================================================
-     5. COMPLETE PI
-  ===================================================== */
 
-  const piCompleted = await safeCompletePi(
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    source
-  );
-
-  console.log("[PAYMENT][SETTLEMENT] PI_COMPLETE_RESULT", {
-    paymentIntentId,
-    piCompleted,
-  });
-
-  if (!piCompleted) {
-    console.error("[PAYMENT][SETTLEMENT] STOP_AFTER_PI_COMPLETE_FAIL", {
-      paymentIntentId,
-    });
-
-    return failResult(
-      piVerified.verifiedAmount,
-      rpcVerified.ok,
-      source
-    );
-  }
 
   /* =====================================================
      7. LEDGER
@@ -584,12 +595,32 @@ if (!rpcVerified.ok) {
     rpcAudited: rpcVerified.ok,
   });
 
-  return successResult(
+    return successResult(
     paid.orderId,
     paid.amount,
     rpcVerified.ok,
     source
   );
+
+  } catch (e) {
+
+    console.error("[PAYMENT][SETTLEMENT][FATAL]", {
+      paymentIntentId,
+      error: e,
+    });
+
+    await auditManualReview(
+      paymentIntentId,
+      "SETTLEMENT_FATAL",
+      {
+        source,
+        txid,
+        piPaymentId,
+      }
+    );
+
+    return failResult(0, false, source);
+  }
 }
 
 /* =========================================================
