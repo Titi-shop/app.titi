@@ -69,7 +69,7 @@ type PiPayload = {
   status?: {
     developer_approved?: boolean;
   };
-   
+};
    type ShippingSnapshot = {
   name?: string | null;
   phone?: string | null;
@@ -80,7 +80,7 @@ type PiPayload = {
   country?: string | null;
   postal_code?: string | null;
 };
-};
+
 /* =========================================================
    HELPERS
 ========================================================= */
