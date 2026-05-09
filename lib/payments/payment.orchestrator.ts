@@ -539,11 +539,9 @@ if (!rpcVerified.ok) {
   source,
   txid,
   piPaymentId,
+  orderId: null,
   newSettlementState: "FINALIZING",
   newPaymentStatus: "processing",
-  payload: {
-    step: "order_creation_start",
-  },
 });
   const paid = await finalizePaidOrderFromIntent({
   paymentIntentId,
@@ -570,13 +568,9 @@ if (!rpcVerified.ok) {
   severity: "critical",
   actorType: "system",
   source,
-  txid,
-  piPaymentId,
-  newSettlementState: "FAILED",
-  payload: {
-    error: String(e),
-    step: "runPaymentSettlement",
-  },
+  txid: txid ?? null,
+  piPaymentId: piPaymentId ?? null,
+  orderId: null,
 });
 
   throw new Error("FINALIZE_ORDER_FAILED");
