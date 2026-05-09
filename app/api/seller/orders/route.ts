@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 type OrderStatus =
   | "pending"
-  | "confirmed"
-  | "shipping"
+  | "processing"
+  | "shipped"
+  | "delivered"
   | "completed"
   | "cancelled"
   | "returned";
@@ -18,8 +19,9 @@ function parseOrderStatus(v: string | null): OrderStatus | undefined {
 
   const allowed: OrderStatus[] = [
     "pending",
-    "confirmed",
-    "shipping",
+    "processing",
+    "shipped",
+    "delivered"
     "completed",
     "cancelled",
     "returned",
