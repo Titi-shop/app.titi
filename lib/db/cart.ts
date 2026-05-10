@@ -13,24 +13,36 @@ export type CartItemInput = {
 export type CartRow = {
   product_id: string;
   variant_id: string | null;
+
   quantity: number;
+
   price: string;
   sale_price: string;
+
   is_price_changed: boolean;
   is_out_of_stock: boolean;
+
   name: string;
   slug: string;
+
   thumbnail: string;
   images: string[];
 };
 
 /* =========================================================
+   CONST
+========================================================= */
+
+const EMPTY_UUID =
+  "00000000-0000-0000-0000-000000000000";
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
-const EMPTY_UUID = "00000000-0000-0000-0000-000000000000";
-
-function isUUID(value: unknown): value is string {
+function isUUID(
+  value: unknown
+): value is string {
   return (
     typeof value === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -39,15 +51,22 @@ function isUUID(value: unknown): value is string {
   );
 }
 
-function normalizeQuantity(value: unknown): number {
+function normalizeQuantity(
+  value: unknown
+): number {
   const quantity =
     typeof value === "number" &&
     Number.isFinite(value)
       ? Math.floor(value)
       : 1;
 
-  if (quantity <= 0) return 1;
-  if (quantity > 99) return 99;
+  if (quantity <= 0) {
+    return 1;
+  }
+
+  if (quantity > 99) {
+    return 99;
+  }
 
   return quantity;
 }
@@ -59,8 +78,20 @@ function normalizeQuantity(value: unknown): number {
 export async function getCart(
   userId: string
 ): Promise<CartRow[]> {
+  console.log(
+    "[CART][GET] START",
+    { userId }
+  );
+
   if (!isUUID(userId)) {
-    throw new Error("INVALID_USER_ID");
+    console.error(
+      "[CART][GET] INVALID_USER_ID",
+      { userId }
+    );
+
+    throw new Error(
+      "INVALID_USER_ID"
+    );
   }
 
   const rs = await query<CartRow>(
@@ -81,7 +112,6 @@ export async function getCart(
       c.product_slug AS slug,
 
       c.thumbnail,
-
       c.images
 
     FROM cart_items c
@@ -92,6 +122,14 @@ export async function getCart(
     ORDER BY c.created_at DESC
     `,
     [userId]
+  );
+
+  console.log(
+    "[CART][GET] DONE",
+    {
+      userId,
+      count: rs.rows.length,
+    }
   );
 
   return rs.rows;
@@ -106,16 +144,30 @@ export async function deleteCartItem(
   productId: string,
   variantId?: string | null
 ): Promise<void> {
+  console.log(
+    "[CART][DELETE] START",
+    {
+      userId,
+      productId,
+      variantId,
+    }
+  );
+
   if (!isUUID(userId)) {
-    throw new Error("INVALID_USER_ID");
+    throw new Error(
+      "INVALID_USER_ID"
+    );
   }
 
   if (!isUUID(productId)) {
-    throw new Error("INVALID_PRODUCT_ID");
+    throw new Error(
+      "INVALID_PRODUCT_ID"
+    );
   }
 
   const normalizedVariantId =
-    variantId && isUUID(variantId)
+    variantId &&
+    isUUID(variantId)
       ? variantId
       : null;
 
@@ -128,7 +180,14 @@ export async function deleteCartItem(
 
     WHERE user_id = $1
     AND product_id = $2
-    AND variant_key = COALESCE($3, $4::uuid)
+
+    AND COALESCE(
+      variant_id,
+      $4::uuid
+    ) = COALESCE(
+      $3::uuid,
+      $4::uuid
+    )
     `,
     [
       userId,
@@ -136,6 +195,16 @@ export async function deleteCartItem(
       normalizedVariantId,
       EMPTY_UUID,
     ]
+  );
+
+  console.log(
+    "[CART][DELETE] DONE",
+    {
+      userId,
+      productId,
+      variantId:
+        normalizedVariantId,
+    }
   );
 }
 
@@ -149,16 +218,31 @@ export async function updateCartItemQuantity(
   variantId: string | null,
   quantity: number
 ): Promise<void> {
+  console.log(
+    "[CART][PATCH] START",
+    {
+      userId,
+      productId,
+      variantId,
+      quantity,
+    }
+  );
+
   if (!isUUID(userId)) {
-    throw new Error("INVALID_USER_ID");
+    throw new Error(
+      "INVALID_USER_ID"
+    );
   }
 
   if (!isUUID(productId)) {
-    throw new Error("INVALID_PRODUCT_ID");
+    throw new Error(
+      "INVALID_PRODUCT_ID"
+    );
   }
 
   const normalizedVariantId =
-    variantId && isUUID(variantId)
+    variantId &&
+    isUUID(variantId)
       ? variantId
       : null;
 
@@ -166,6 +250,10 @@ export async function updateCartItemQuantity(
     normalizeQuantity(quantity);
 
   if (normalizedQuantity <= 0) {
+    console.log(
+      "[CART][PATCH] DELETE_FLOW"
+    );
+
     return deleteCartItem(
       userId,
       productId,
@@ -182,7 +270,15 @@ export async function updateCartItemQuantity(
 
     WHERE user_id = $1
     AND product_id = $2
-    AND variant_key = COALESCE($3, $5::uuid)
+
+    AND COALESCE(
+      variant_id,
+      $5::uuid
+    ) = COALESCE(
+      $3::uuid,
+      $5::uuid
+    )
+
     AND deleted_at IS NULL
     `,
     [
@@ -193,22 +289,46 @@ export async function updateCartItemQuantity(
       EMPTY_UUID,
     ]
   );
+
+  console.log(
+    "[CART][PATCH] DONE",
+    {
+      userId,
+      productId,
+      variantId:
+        normalizedVariantId,
+      quantity:
+        normalizedQuantity,
+    }
+  );
 }
 
 /* =========================================================
-   UPSERT CART ITEMS
+   UPSERT
 ========================================================= */
 
 export async function upsertCartItems(
   userId: string,
   items: CartItemInput[]
 ): Promise<void> {
+  console.log(
+    "[CART][UPSERT] START",
+    {
+      userId,
+      itemsCount: items.length,
+    }
+  );
+
   if (!isUUID(userId)) {
-    throw new Error("INVALID_USER_ID");
+    throw new Error(
+      "INVALID_USER_ID"
+    );
   }
 
   if (!Array.isArray(items)) {
-    throw new Error("INVALID_ITEMS");
+    throw new Error(
+      "INVALID_ITEMS"
+    );
   }
 
   const deduped = new Map<
@@ -221,37 +341,51 @@ export async function upsertCartItems(
   >();
 
   for (const item of items) {
-    if (!item) continue;
+    if (!item) {
+      continue;
+    }
 
     if (!isUUID(item.product_id)) {
+      console.warn(
+        "[CART][UPSERT] INVALID_PRODUCT_ID",
+        item
+      );
+
       continue;
     }
 
     const variantId =
-      item.variant_id && isUUID(item.variant_id)
+      item.variant_id &&
+      isUUID(item.variant_id)
         ? item.variant_id
         : null;
 
-    const quantity = normalizeQuantity(
-      item.quantity
-    );
+    const quantity =
+      normalizeQuantity(
+        item.quantity
+      );
 
     const key = `${item.product_id}_${variantId ?? EMPTY_UUID}`;
 
     if (deduped.has(key)) {
-      const existed = deduped.get(key);
+      const existed =
+        deduped.get(key);
 
       if (existed) {
         existed.quantity += quantity;
 
-        if (existed.quantity > 99) {
+        if (
+          existed.quantity > 99
+        ) {
           existed.quantity = 99;
         }
       }
     } else {
       deduped.set(key, {
-        product_id: item.product_id,
-        variant_id: variantId,
+        product_id:
+          item.product_id,
+        variant_id:
+          variantId,
         quantity,
       });
     }
@@ -261,21 +395,56 @@ export async function upsertCartItems(
     deduped.values()
   );
 
+  console.log(
+    "[CART][UPSERT] DEDUPED",
+    {
+      count:
+        finalItems.length,
+      finalItems,
+    }
+  );
+
   if (finalItems.length === 0) {
+    console.warn(
+      "[CART][UPSERT] EMPTY_AFTER_DEDUP"
+    );
+
     return;
   }
 
-  const productIds: string[] = [];
-  const variantIds: (string | null)[] = [];
-  const quantities: number[] = [];
+  const productIds: string[] =
+    [];
+
+  const variantIds: (
+    | string
+    | null
+  )[] = [];
+
+  const quantities: number[] =
+    [];
 
   for (const item of finalItems) {
-    productIds.push(item.product_id);
+    productIds.push(
+      item.product_id
+    );
 
-    variantIds.push(item.variant_id);
+    variantIds.push(
+      item.variant_id
+    );
 
-    quantities.push(item.quantity);
+    quantities.push(
+      item.quantity
+    );
   }
+
+  console.log(
+    "[CART][UPSERT] SQL_START",
+    {
+      productIds,
+      variantIds,
+      quantities,
+    }
+  );
 
   await query(
     `
@@ -294,24 +463,23 @@ export async function upsertCartItems(
 
       unit_price,
       final_price,
-      currency,
 
-      price_snapshot,
+      currency,
 
       quantity,
 
       is_selected,
       is_available,
-      is_unlimited,
+
+      stock_snapshot,
+
+      price_snapshot,
 
       is_price_changed,
       is_out_of_stock,
 
-      stock_snapshot,
-
       created_at,
-      updated_at,
-      deleted_at
+      updated_at
     )
 
     SELECT
@@ -325,9 +493,15 @@ export async function upsertCartItems(
       p.name,
       p.slug,
 
-      COALESCE(p.thumbnail, ''),
+      COALESCE(
+        p.thumbnail,
+        ''
+      ),
 
-      COALESCE(p.images, '{}'),
+      COALESCE(
+        p.images,
+        '{}'
+      ),
 
       p.price,
 
@@ -338,39 +512,30 @@ export async function upsertCartItems(
 
       'PI',
 
+      x.quantity,
+
+      true,
+
+      p.is_active,
+
+      p.stock,
+
       COALESCE(
         p.sale_price,
         p.price
       ),
 
-      x.quantity,
-
-      true,
-
-      true,
-
-      COALESCE(
-    p.is_unlimited,
-     false
-   ),
-
       false,
 
       CASE
-        WHEN COALESCE(p.stock, 0) <= 0
-        AND COALESCE(
-         p.is_unlimited,
-          false
-        ) = false
+        WHEN p.is_unlimited = false
+        AND p.stock <= 0
         THEN true
         ELSE false
       END,
 
-      p.stock,
-
       NOW(),
-      NOW(),
-      NULL
+      NOW()
 
     FROM UNNEST(
       $2::uuid[],
@@ -388,21 +553,24 @@ export async function upsertCartItems(
     ON CONFLICT (
       user_id,
       product_id,
-      variant_key
+      variant_id
     )
 
     DO UPDATE SET
-      quantity = EXCLUDED.quantity,
+      quantity =
+        EXCLUDED.quantity,
 
-      unit_price = EXCLUDED.unit_price,
+      unit_price =
+        EXCLUDED.unit_price,
 
-      final_price = EXCLUDED.final_price,
-
-      price_snapshot =
-        EXCLUDED.price_snapshot,
+      final_price =
+        EXCLUDED.final_price,
 
       stock_snapshot =
         EXCLUDED.stock_snapshot,
+
+      price_snapshot =
+        EXCLUDED.price_snapshot,
 
       is_out_of_stock =
         EXCLUDED.is_out_of_stock,
@@ -422,5 +590,14 @@ export async function upsertCartItems(
       variantIds,
       quantities,
     ]
+  );
+
+  console.log(
+    "[CART][UPSERT] DONE",
+    {
+      userId,
+      inserted:
+        finalItems.length,
+    }
   );
 }
