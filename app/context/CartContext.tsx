@@ -2,11 +2,12 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
-  useCallback,
 } from "react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -36,8 +37,12 @@ export type CartItem = {
 
   is_price_changed: boolean;
   is_out_of_stock: boolean;
+};
 
-  synced: boolean;
+type AddCartPayload = {
+  product_id: string;
+  variant_id?: string | null;
+  quantity?: number;
 };
 
 type CartContextType = {
@@ -45,12 +50,10 @@ type CartContextType = {
 
   total: number;
 
+  loading: boolean;
+
   addToCart: (
-    item: {
-      product_id: string;
-      variant_id?: string | null;
-      quantity?: number;
-    }
+    payload: AddCartPayload
   ) => Promise<void>;
 
   removeFromCart: (
@@ -62,7 +65,7 @@ type CartContextType = {
     quantity: number
   ) => Promise<void>;
 
-  clearCart: () => Promise<void>;
+  clearCart: () => void;
 
   refreshCart: () => Promise<void>;
 };
@@ -77,6 +80,13 @@ const CartContext =
   );
 
 /* =========================================================
+   STORAGE
+========================================================= */
+
+const LOCAL_CART_KEY =
+  "guest_cart_v7";
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -87,6 +97,26 @@ function buildCartId(
   return `${productId}_${
     variantId ?? "default"
   }`;
+}
+
+function normalizeQuantity(
+  value: unknown
+): number {
+  const quantity =
+    typeof value === "number" &&
+    Number.isFinite(value)
+      ? Math.floor(value)
+      : 1;
+
+  if (quantity <= 0) {
+    return 1;
+  }
+
+  if (quantity > 99) {
+    return 99;
+  }
+
+  return quantity;
 }
 
 function safeNumber(
@@ -110,27 +140,7 @@ function safeNumber(
   return 0;
 }
 
-function normalizeQuantity(
-  value: unknown
-): number {
-  const quantity =
-    typeof value === "number" &&
-    Number.isFinite(value)
-      ? Math.floor(value)
-      : 1;
-
-  if (quantity <= 0) {
-    return 1;
-  }
-
-  if (quantity > 99) {
-    return 99;
-  }
-
-  return quantity;
-}
-
-function normalizeServerCart(
+function normalizeCart(
   rows: unknown
 ): CartItem[] {
   if (!Array.isArray(rows)) {
@@ -192,9 +202,10 @@ function normalizeServerCart(
             ? row.sale_price
             : "0",
 
-        quantity: normalizeQuantity(
-          row.quantity
-        ),
+        quantity:
+          normalizeQuantity(
+            row.quantity
+          ),
 
         thumbnail:
           typeof row.thumbnail ===
@@ -221,36 +232,41 @@ function normalizeServerCart(
         is_out_of_stock:
           row.is_out_of_stock ===
           true,
-
-        synced: true,
       };
     });
 }
 
-function loadLocalCart(): CartItem[] {
+function loadGuestCart(): CartItem[] {
   try {
     const raw =
-      localStorage.getItem("cart");
+      localStorage.getItem(
+        LOCAL_CART_KEY
+      );
 
     if (!raw) {
       return [];
     }
 
-    const parsed: unknown =
-      JSON.parse(raw);
-
-    return normalizeServerCart(parsed);
+    return normalizeCart(
+      JSON.parse(raw)
+    );
   } catch {
     return [];
   }
 }
 
-function saveLocalCart(
+function saveGuestCart(
   cart: CartItem[]
 ): void {
   localStorage.setItem(
-    "cart",
+    LOCAL_CART_KEY,
     JSON.stringify(cart)
+  );
+}
+
+function clearGuestCart(): void {
+  localStorage.removeItem(
+    LOCAL_CART_KEY
   );
 }
 
@@ -269,27 +285,13 @@ export function CartProvider({
     CartItem[]
   >([]);
 
-  /* =========================================================
-     LOAD LOCAL
-  ========================================================= */
+  const [loading, setLoading] =
+    useState(true);
 
-  useEffect(() => {
-    const local =
-      loadLocalCart();
-
-    setCart(local);
-  }, []);
+  const mergedRef = useRef(false);
 
   /* =========================================================
-     SAVE LOCAL
-  ========================================================= */
-
-  useEffect(() => {
-    saveLocalCart(cart);
-  }, [cart]);
-
-  /* =========================================================
-     FETCH SERVER CART
+     API
   ========================================================= */
 
   const fetchServerCart =
@@ -306,9 +308,13 @@ export function CartProvider({
       const res = await fetch(
         "/api/cart",
         {
+          method: "GET",
+
           headers: {
             Authorization: `Bearer ${token}`,
           },
+
+          cache: "no-store",
         }
       );
 
@@ -321,207 +327,97 @@ export function CartProvider({
       const data: unknown =
         await res.json();
 
-      return normalizeServerCart(
-        data
-      );
+      return normalizeCart(data);
     }, []);
 
   /* =========================================================
-     REFRESH CART
+     INITIAL LOAD
   ========================================================= */
 
-  const refreshCart =
-    useCallback(async () => {
-      if (!user) {
-        return;
-      }
-
+  useEffect(() => {
+    const boot = async () => {
       try {
+        /* ================= GUEST ================= */
+
+        if (!user) {
+          const guestCart =
+            loadGuestCart();
+
+          setCart(guestCart);
+
+          return;
+        }
+
+        /* ================= LOGIN ================= */
+
         const serverCart =
           await fetchServerCart();
 
         setCart(serverCart);
       } catch (err) {
         console.error(
-          "[CART][REFRESH]",
+          "[CART][BOOT]",
           err
         );
+      } finally {
+        setLoading(false);
       }
-    }, [fetchServerCart, user]);
+    };
+
+    boot();
+  }, [user, fetchServerCart]);
 
   /* =========================================================
-     MERGE ON LOGIN
+     MERGE GUEST -> SERVER
   ========================================================= */
 
   useEffect(() => {
     if (!user) {
+      mergedRef.current = false;
       return;
     }
 
-    const merge = async () => {
-      try {
-        const token =
-          await getPiAccessToken();
+    if (mergedRef.current) {
+      return;
+    }
 
-        if (!token) {
-          return;
-        }
+    mergedRef.current = true;
 
-        const localCart =
-          loadLocalCart();
-
-        if (
-          localCart.length > 0
-        ) {
-          await fetch(
-            "/api/cart",
-            {
-              method: "POST",
-
-              headers: {
-                Authorization: `Bearer ${token}`,
-
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify(
-                localCart.map(
-                  (item) => ({
-                    product_id:
-                      item.product_id,
-
-                    variant_id:
-                      item.variant_id,
-
-                    quantity:
-                      item.quantity,
-                  })
-                )
-              ),
-            }
-          );
-        }
-
-        const serverCart =
-          await fetchServerCart();
-
-        setCart(serverCart);
-
-        console.log(
-          "[CART][MERGE_OK]",
-          {
-            items:
-              serverCart.length,
-          }
-        );
-      } catch (err) {
-        console.error(
-          "[CART][MERGE_FAILED]",
-          err
-        );
-      }
-    };
-
-    merge();
-  }, [user, fetchServerCart]);
-
-  /* =========================================================
-     ADD TO CART
-  ========================================================= */
-
-  const addToCart =
-    useCallback(
-      async (item: {
-        product_id: string;
-        variant_id?: string | null;
-        quantity?: number;
-      }) => {
+    const mergeGuestCart =
+      async () => {
         try {
-          const token =
-            await getPiAccessToken();
+          const guestCart =
+            loadGuestCart();
 
-          const payload = {
-            product_id:
-              item.product_id,
+          /* ================= NO GUEST CART ================= */
 
-            variant_id:
-              item.variant_id ??
-              null,
+          if (
+            guestCart.length === 0
+          ) {
+            const serverCart =
+              await fetchServerCart();
 
-            quantity:
-              normalizeQuantity(
-                item.quantity
-              ),
-          };
-
-          /* ================= LOCAL ONLY ================= */
-
-          if (!user || !token) {
-            const local =
-              loadLocalCart();
-
-            const id =
-              buildCartId(
-                payload.product_id,
-                payload.variant_id
-              );
-
-            const existed =
-              local.find(
-                (i) =>
-                  i.id === id
-              );
-
-            if (existed) {
-              existed.quantity +=
-                payload.quantity;
-
-              if (
-                existed.quantity >
-                99
-              ) {
-                existed.quantity = 99;
-              }
-            } else {
-              local.push({
-                id,
-
-                product_id:
-                  payload.product_id,
-
-                variant_id:
-                  payload.variant_id,
-
-                name: "",
-                slug: "",
-
-                price: "0",
-                sale_price: "0",
-
-                quantity:
-                  payload.quantity,
-
-                thumbnail: "",
-
-                images: [],
-
-                is_price_changed:
-                  false,
-
-                is_out_of_stock:
-                  false,
-
-                synced: false,
-              });
-            }
-
-            setCart([...local]);
+            setCart(serverCart);
 
             return;
           }
 
-          /* ================= SERVER ================= */
+          const token =
+            await getPiAccessToken();
+
+          if (!token) {
+            return;
+          }
+
+          console.log(
+            "[CART][MERGE] START",
+            {
+              guestItems:
+                guestCart.length,
+            }
+          );
+
+          /* ================= POST GUEST ================= */
 
           const res = await fetch(
             "/api/cart",
@@ -536,7 +432,201 @@ export function CartProvider({
               },
 
               body: JSON.stringify(
-                payload
+                guestCart.map(
+                  (item) => ({
+                    product_id:
+                      item.product_id,
+
+                    variant_id:
+                      item.variant_id,
+
+                    quantity:
+                      item.quantity,
+                  })
+                )
+              ),
+            }
+          );
+
+          if (!res.ok) {
+            throw new Error(
+              "MERGE_CART_FAILED"
+            );
+          }
+
+          const data: unknown =
+            await res.json();
+
+          const serverCart =
+            normalizeCart(data);
+
+          /* ================= IMPORTANT =================
+             CLEAR LOCAL STORAGE
+          ================================================= */
+
+          clearGuestCart();
+
+          /* ================= USE SERVER ONLY ================= */
+
+          setCart(serverCart);
+
+          console.log(
+            "[CART][MERGE] DONE",
+            {
+              serverItems:
+                serverCart.length,
+            }
+          );
+        } catch (err) {
+          console.error(
+            "[CART][MERGE]",
+            err
+          );
+        }
+      };
+
+    mergeGuestCart();
+  }, [user, fetchServerCart]);
+
+  /* =========================================================
+     REFRESH
+  ========================================================= */
+
+  const refreshCart =
+    useCallback(async () => {
+      try {
+        if (!user) {
+          setCart(
+            loadGuestCart()
+          );
+
+          return;
+        }
+
+        const serverCart =
+          await fetchServerCart();
+
+        setCart(serverCart);
+      } catch (err) {
+        console.error(
+          "[CART][REFRESH]",
+          err
+        );
+      }
+    }, [user, fetchServerCart]);
+
+  /* =========================================================
+     ADD
+  ========================================================= */
+
+  const addToCart =
+    useCallback(
+      async (
+        payload: AddCartPayload
+      ) => {
+        try {
+          const normalized = {
+            product_id:
+              payload.product_id,
+
+            variant_id:
+              payload.variant_id ??
+              null,
+
+            quantity:
+              normalizeQuantity(
+                payload.quantity
+              ),
+          };
+
+          /* ================= GUEST ================= */
+
+          if (!user) {
+            const local =
+              loadGuestCart();
+
+            const id =
+              buildCartId(
+                normalized.product_id,
+                normalized.variant_id
+              );
+
+            const existed =
+              local.find(
+                (item) =>
+                  item.id === id
+              );
+
+            if (existed) {
+              existed.quantity +=
+                normalized.quantity;
+
+              if (
+                existed.quantity >
+                99
+              ) {
+                existed.quantity = 99;
+              }
+            } else {
+              local.push({
+                id,
+
+                product_id:
+                  normalized.product_id,
+
+                variant_id:
+                  normalized.variant_id,
+
+                name: "",
+                slug: "",
+
+                price: "0",
+                sale_price: "0",
+
+                quantity:
+                  normalized.quantity,
+
+                thumbnail: "",
+                images: [],
+
+                is_price_changed:
+                  false,
+
+                is_out_of_stock:
+                  false,
+              });
+            }
+
+            saveGuestCart(local);
+
+            setCart([...local]);
+
+            return;
+          }
+
+          /* ================= SERVER ================= */
+
+          const token =
+            await getPiAccessToken();
+
+          if (!token) {
+            return;
+          }
+
+          const res = await fetch(
+            "/api/cart",
+            {
+              method: "POST",
+
+              headers: {
+                Authorization: `Bearer ${token}`,
+
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify(
+                normalized
               ),
             }
           );
@@ -550,23 +640,12 @@ export function CartProvider({
           const data: unknown =
             await res.json();
 
-          const normalized =
-            normalizeServerCart(
-              data
-            );
-
-          setCart(normalized);
-
-          console.log(
-            "[CART][ADD_OK]",
-            {
-              product:
-                payload.product_id,
-            }
+          setCart(
+            normalizeCart(data)
           );
         } catch (err) {
           console.error(
-            "[CART][ADD_FAILED]",
+            "[CART][ADD]",
             err
           );
         }
@@ -592,7 +671,7 @@ export function CartProvider({
             return;
           }
 
-          /* ================= LOCAL ONLY ================= */
+          /* ================= GUEST ================= */
 
           if (!user) {
             const next =
@@ -601,10 +680,14 @@ export function CartProvider({
                   item.id !== id
               );
 
+            saveGuestCart(next);
+
             setCart(next);
 
             return;
           }
+
+          /* ================= SERVER ================= */
 
           const token =
             await getPiAccessToken();
@@ -646,22 +729,12 @@ export function CartProvider({
           const data: unknown =
             await res.json();
 
-          const normalized =
-            normalizeServerCart(
-              data
-            );
-
-          setCart(normalized);
-
-          console.log(
-            "[CART][DELETE_OK]",
-            {
-              id,
-            }
+          setCart(
+            normalizeCart(data)
           );
         } catch (err) {
           console.error(
-            "[CART][DELETE_FAILED]",
+            "[CART][REMOVE]",
             err
           );
         }
@@ -695,7 +768,7 @@ export function CartProvider({
               quantity
             );
 
-          /* ================= LOCAL ONLY ================= */
+          /* ================= GUEST ================= */
 
           if (!user) {
             const next =
@@ -713,10 +786,14 @@ export function CartProvider({
                 };
               });
 
+            saveGuestCart(next);
+
             setCart(next);
 
             return;
           }
+
+          /* ================= SERVER ================= */
 
           const token =
             await getPiAccessToken();
@@ -761,24 +838,12 @@ export function CartProvider({
           const data: unknown =
             await res.json();
 
-          const normalized =
-            normalizeServerCart(
-              data
-            );
-
-          setCart(normalized);
-
-          console.log(
-            "[CART][QTY_OK]",
-            {
-              id,
-              quantity:
-                normalizedQuantity,
-            }
+          setCart(
+            normalizeCart(data)
           );
         } catch (err) {
           console.error(
-            "[CART][QTY_FAILED]",
+            "[CART][UPDATE_QTY]",
             err
           );
         }
@@ -787,17 +852,17 @@ export function CartProvider({
     );
 
   /* =========================================================
-     CLEAR CART
+     CLEAR
   ========================================================= */
 
   const clearCart =
-    useCallback(async () => {
-      setCart([]);
+    useCallback(() => {
+      if (!user) {
+        clearGuestCart();
+      }
 
-      localStorage.removeItem(
-        "cart"
-      );
-    }, []);
+      setCart([]);
+    }, [user]);
 
   /* =========================================================
      TOTAL
@@ -806,13 +871,11 @@ export function CartProvider({
   const total = useMemo(() => {
     return cart.reduce(
       (sum, item) => {
-        const raw =
-          item.sale_price ||
-          item.price ||
-          "0";
-
         const price =
-          safeNumber(raw);
+          safeNumber(
+            item.sale_price ||
+              item.price
+          );
 
         return (
           sum +
@@ -824,7 +887,7 @@ export function CartProvider({
   }, [cart]);
 
   /* =========================================================
-     CONTEXT
+     PROVIDER
   ========================================================= */
 
   return (
@@ -833,6 +896,8 @@ export function CartProvider({
         cart,
 
         total,
+
+        loading,
 
         addToCart,
 
@@ -855,14 +920,14 @@ export function CartProvider({
 ========================================================= */
 
 export function useCart() {
-  const ctx =
+  const context =
     useContext(CartContext);
 
-  if (!ctx) {
+  if (!context) {
     throw new Error(
       "useCart must be used inside CartProvider"
     );
   }
 
-  return ctx;
+  return context;
 }
