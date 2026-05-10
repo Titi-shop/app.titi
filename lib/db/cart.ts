@@ -13,18 +13,13 @@ export type CartItemInput = {
 export type CartRow = {
   product_id: string;
   variant_id: string | null;
-
   quantity: number;
-
   price: string;
   sale_price: string;
-
   is_price_changed: boolean;
   is_out_of_stock: boolean;
-
   name: string;
   slug: string;
-
   thumbnail: string;
   images: string[];
 };
@@ -98,26 +93,18 @@ export async function getCart(
     SELECT
       product_id,
       variant_id,
-
       quantity,
-
       unit_price::text AS price,
       final_price::text AS sale_price,
-
       is_price_changed,
       is_out_of_stock,
-
       product_name AS name,
       product_slug AS slug,
-
       thumbnail,
       images
-
     FROM cart_items
-
     WHERE user_id = $1
     AND deleted_at IS NULL
-
     ORDER BY created_at DESC
     `,
     [userId]
@@ -370,127 +357,92 @@ export async function upsertCartItems(
       `
       INSERT INTO cart_items (
         user_id,
-
         product_id,
         variant_id,
         seller_id,
-
         product_name,
         product_slug,
-
         thumbnail,
         images,
-
         unit_price,
         final_price,
-
         currency,
-
         quantity,
-
         is_selected,
         is_available,
-
         stock_snapshot,
         price_snapshot,
-
         is_price_changed,
         is_out_of_stock,
-
         created_at,
         updated_at
       )
-
       SELECT
         $1,
-
         p.id,
         $3,
-
         p.seller_id,
-
         p.name,
         p.slug,
-
         COALESCE(
           p.thumbnail,
           ''
         ),
-
         COALESCE(
           p.images,
           '{}'
         ),
-
         p.price,
-
         COALESCE(
           p.sale_price,
           p.final_price,
           p.price
         ),
-
         p.currency,
-
         $4,
-
         true,
-
         p.is_active,
-
         p.stock,
-
         COALESCE(
           p.sale_price,
           p.final_price,
           p.price
         ),
-
         false,
-
         CASE
           WHEN p.is_unlimited = false
           AND p.stock <= 0
           THEN true
           ELSE false
         END,
-
         NOW(),
         NOW()
-
       FROM products p
-
       WHERE p.id = $2
-
-      ON CONFLICT ON CONSTRAINT cart_items_unique_constraint
-
+      ON CONFLICT (
+  user_id,
+  product_id,
+  variant_key
+)
       DO UPDATE SET
         quantity =
           cart_items.quantity
           + EXCLUDED.quantity,
-
         unit_price =
           EXCLUDED.unit_price,
-
         final_price =
           EXCLUDED.final_price,
-
         stock_snapshot =
           EXCLUDED.stock_snapshot,
-
         price_snapshot =
           EXCLUDED.price_snapshot,
-
         is_out_of_stock =
           EXCLUDED.is_out_of_stock,
-
         is_price_changed =
           cart_items.final_price
           IS DISTINCT FROM
           EXCLUDED.final_price,
-
         deleted_at = NULL,
-
         updated_at = NOW()
       `,
       [
