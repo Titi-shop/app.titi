@@ -1,5 +1,3 @@
-// lib/db/cart.ts
-
 import { query } from "@/lib/db";
 
 /* =========================================================
@@ -15,20 +13,14 @@ export type CartItemInput = {
 export type CartRow = {
   product_id: string;
   variant_id: string | null;
-
   quantity: number;
-
   price: string;
   sale_price: string;
-
   is_price_changed: boolean;
   is_out_of_stock: boolean;
-
   name: string;
   slug: string;
-
   thumbnail: string;
-
   images: string[];
 };
 
@@ -367,7 +359,7 @@ export async function upsertCartItems(
       CASE
         WHEN COALESCE(p.stock, 0) <= 0
         AND COALESCE(
-          p.unlimited_stock,
+         p.is_unlimited,
           false
         ) = false
         THEN true
