@@ -1,6 +1,6 @@
 import { submitPiPaymentFromRequest } from "./payment.submit.service";
 import { runPaymentSettlement } from "@/lib/payments/payment.orchestrator";
-import { getPaymentIntent } from "@/lib/db/payment.intent";
+import { getPaymentIntent } from "@/lib/db/payments.intent";
 
 type Input = {
   raw: any;
