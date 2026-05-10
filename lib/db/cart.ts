@@ -30,13 +30,6 @@ export type CartRow = {
 };
 
 /* =========================================================
-   CONST
-========================================================= */
-
-const EMPTY_UUID =
-  "00000000-0000-0000-0000-000000000000";
-
-/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -54,13 +47,16 @@ function isUUID(
 function normalizeQuantity(
   value: unknown
 ): number {
-  const quantity =
-    typeof value === "number" &&
-    Number.isFinite(value)
-      ? Math.floor(value)
-      : 1;
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value)
+  ) {
+    return 1;
+  }
 
-  if (quantity <= 0) {
+  const quantity = Math.floor(value);
+
+  if (quantity < 1) {
     return 1;
   }
 
@@ -69,6 +65,14 @@ function normalizeQuantity(
   }
 
   return quantity;
+}
+
+function normalizeVariantId(
+  value: unknown
+): string | null {
+  return isUUID(value)
+    ? value
+    : null;
 }
 
 /* =========================================================
@@ -84,11 +88,6 @@ export async function getCart(
   );
 
   if (!isUUID(userId)) {
-    console.error(
-      "[CART][GET] INVALID_USER_ID",
-      { userId }
-    );
-
     throw new Error(
       "INVALID_USER_ID"
     );
@@ -97,29 +96,29 @@ export async function getCart(
   const rs = await query<CartRow>(
     `
     SELECT
-      c.product_id,
-      c.variant_id,
+      product_id,
+      variant_id,
 
-      c.quantity,
+      quantity,
 
-      c.unit_price::text AS price,
-      c.final_price::text AS sale_price,
+      unit_price::text AS price,
+      final_price::text AS sale_price,
 
-      c.is_price_changed,
-      c.is_out_of_stock,
+      is_price_changed,
+      is_out_of_stock,
 
-      c.product_name AS name,
-      c.product_slug AS slug,
+      product_name AS name,
+      product_slug AS slug,
 
-      c.thumbnail,
-      c.images
+      thumbnail,
+      images
 
-    FROM cart_items c
+    FROM cart_items
 
-    WHERE c.user_id = $1
-    AND c.deleted_at IS NULL
+    WHERE user_id = $1
+    AND deleted_at IS NULL
 
-    ORDER BY c.created_at DESC
+    ORDER BY created_at DESC
     `,
     [userId]
   );
@@ -166,45 +165,32 @@ export async function deleteCartItem(
   }
 
   const normalizedVariantId =
-    variantId &&
-    isUUID(variantId)
-      ? variantId
-      : null;
+    normalizeVariantId(
+      variantId
+    );
 
   await query(
     `
     UPDATE cart_items
+
     SET
       deleted_at = NOW(),
       updated_at = NOW()
 
     WHERE user_id = $1
     AND product_id = $2
-
-    AND COALESCE(
-      variant_id,
-      $4::uuid
-    ) = COALESCE(
-      $3::uuid,
-      $4::uuid
-    )
+    AND variant_id
+      IS NOT DISTINCT FROM $3
     `,
     [
       userId,
       productId,
       normalizedVariantId,
-      EMPTY_UUID,
     ]
   );
 
   console.log(
-    "[CART][DELETE] DONE",
-    {
-      userId,
-      productId,
-      variantId:
-        normalizedVariantId,
-    }
+    "[CART][DELETE] DONE"
   );
 }
 
@@ -241,44 +227,25 @@ export async function updateCartItemQuantity(
   }
 
   const normalizedVariantId =
-    variantId &&
-    isUUID(variantId)
-      ? variantId
-      : null;
+    normalizeVariantId(
+      variantId
+    );
 
   const normalizedQuantity =
     normalizeQuantity(quantity);
 
-  if (normalizedQuantity <= 0) {
-    console.log(
-      "[CART][PATCH] DELETE_FLOW"
-    );
-
-    return deleteCartItem(
-      userId,
-      productId,
-      normalizedVariantId
-    );
-  }
-
   await query(
     `
     UPDATE cart_items
+
     SET
       quantity = $4,
       updated_at = NOW()
 
     WHERE user_id = $1
     AND product_id = $2
-
-    AND COALESCE(
-      variant_id,
-      $5::uuid
-    ) = COALESCE(
-      $3::uuid,
-      $5::uuid
-    )
-
+    AND variant_id
+      IS NOT DISTINCT FROM $3
     AND deleted_at IS NULL
     `,
     [
@@ -286,20 +253,11 @@ export async function updateCartItemQuantity(
       productId,
       normalizedVariantId,
       normalizedQuantity,
-      EMPTY_UUID,
     ]
   );
 
   console.log(
-    "[CART][PATCH] DONE",
-    {
-      userId,
-      productId,
-      variantId:
-        normalizedVariantId,
-      quantity:
-        normalizedQuantity,
-    }
+    "[CART][PATCH] DONE"
   );
 }
 
@@ -345,50 +303,45 @@ export async function upsertCartItems(
       continue;
     }
 
-    if (!isUUID(item.product_id)) {
-      console.warn(
-        "[CART][UPSERT] INVALID_PRODUCT_ID",
-        item
-      );
-
+    if (
+      !isUUID(item.product_id)
+    ) {
       continue;
     }
 
     const variantId =
-      item.variant_id &&
-      isUUID(item.variant_id)
-        ? item.variant_id
-        : null;
+      normalizeVariantId(
+        item.variant_id
+      );
 
     const quantity =
       normalizeQuantity(
         item.quantity
       );
 
-    const key = `${item.product_id}_${variantId ?? EMPTY_UUID}`;
+    const key = `${item.product_id}_${variantId ?? "null"}`;
 
-    if (deduped.has(key)) {
-      const existed =
-        deduped.get(key);
+    const existing =
+      deduped.get(key);
 
-      if (existed) {
-        existed.quantity += quantity;
+    if (existing) {
+      existing.quantity += quantity;
 
-        if (
-          existed.quantity > 99
-        ) {
-          existed.quantity = 99;
-        }
+      if (
+        existing.quantity > 99
+      ) {
+        existing.quantity = 99;
       }
-    } else {
-      deduped.set(key, {
-        product_id:
-          item.product_id,
-        variant_id:
-          variantId,
-        quantity,
-      });
+
+      continue;
     }
+
+    deduped.set(key, {
+      product_id:
+        item.product_id,
+      variant_id: variantId,
+      quantity,
+    });
   }
 
   const finalItems = Array.from(
@@ -396,208 +349,160 @@ export async function upsertCartItems(
   );
 
   console.log(
-    "[CART][UPSERT] DEDUPED",
+    "[CART][UPSERT] NORMALIZED",
     {
       count:
         finalItems.length,
-      finalItems,
     }
   );
 
   if (finalItems.length === 0) {
-    console.warn(
-      "[CART][UPSERT] EMPTY_AFTER_DEDUP"
-    );
-
     return;
   }
 
-  const productIds: string[] =
-    [];
-
-  const variantIds: (
-    | string
-    | null
-  )[] = [];
-
-  const quantities: number[] =
-    [];
-
   for (const item of finalItems) {
-    productIds.push(
-      item.product_id
+    console.log(
+      "[CART][UPSERT] ITEM",
+      item
     );
 
-    variantIds.push(
-      item.variant_id
-    );
+    await query(
+      `
+      INSERT INTO cart_items (
+        user_id,
 
-    quantities.push(
-      item.quantity
+        product_id,
+        variant_id,
+        seller_id,
+
+        product_name,
+        product_slug,
+
+        thumbnail,
+        images,
+
+        unit_price,
+        final_price,
+
+        currency,
+
+        quantity,
+
+        is_selected,
+        is_available,
+
+        stock_snapshot,
+        price_snapshot,
+
+        is_price_changed,
+        is_out_of_stock,
+
+        created_at,
+        updated_at
+      )
+
+      SELECT
+        $1,
+
+        p.id,
+        $3,
+
+        p.seller_id,
+
+        p.name,
+        p.slug,
+
+        COALESCE(
+          p.thumbnail,
+          ''
+        ),
+
+        COALESCE(
+          p.images,
+          '{}'
+        ),
+
+        p.price,
+
+        COALESCE(
+          p.sale_price,
+          p.final_price,
+          p.price
+        ),
+
+        p.currency,
+
+        $4,
+
+        true,
+
+        p.is_active,
+
+        p.stock,
+
+        COALESCE(
+          p.sale_price,
+          p.final_price,
+          p.price
+        ),
+
+        false,
+
+        CASE
+          WHEN p.is_unlimited = false
+          AND p.stock <= 0
+          THEN true
+          ELSE false
+        END,
+
+        NOW(),
+        NOW()
+
+      FROM products p
+
+      WHERE p.id = $2
+
+      ON CONFLICT ON CONSTRAINT cart_items_unique_constraint
+
+      DO UPDATE SET
+        quantity =
+          cart_items.quantity
+          + EXCLUDED.quantity,
+
+        unit_price =
+          EXCLUDED.unit_price,
+
+        final_price =
+          EXCLUDED.final_price,
+
+        stock_snapshot =
+          EXCLUDED.stock_snapshot,
+
+        price_snapshot =
+          EXCLUDED.price_snapshot,
+
+        is_out_of_stock =
+          EXCLUDED.is_out_of_stock,
+
+        is_price_changed =
+          cart_items.final_price
+          IS DISTINCT FROM
+          EXCLUDED.final_price,
+
+        deleted_at = NULL,
+
+        updated_at = NOW()
+      `,
+      [
+        userId,
+        item.product_id,
+        item.variant_id,
+        item.quantity,
+      ]
     );
   }
 
   console.log(
-    "[CART][UPSERT] SQL_START",
-    {
-      productIds,
-      variantIds,
-      quantities,
-    }
-  );
-
-  await query(
-    `
-    INSERT INTO cart_items (
-      user_id,
-
-      product_id,
-      variant_id,
-      seller_id,
-
-      product_name,
-      product_slug,
-
-      thumbnail,
-      images,
-
-      unit_price,
-      final_price,
-
-      currency,
-
-      quantity,
-
-      is_selected,
-      is_available,
-
-      stock_snapshot,
-
-      price_snapshot,
-
-      is_price_changed,
-      is_out_of_stock,
-
-      created_at,
-      updated_at
-    )
-
-    SELECT
-      $1,
-
-      p.id,
-      x.variant_id,
-
-      p.seller_id,
-
-      p.name,
-      p.slug,
-
-      COALESCE(
-        p.thumbnail,
-        ''
-      ),
-
-      COALESCE(
-        p.images,
-        '{}'
-      ),
-
-      p.price,
-
-      COALESCE(
-        p.sale_price,
-        p.price
-      ),
-
-      'PI',
-
-      x.quantity,
-
-      true,
-
-      p.is_active,
-
-      p.stock,
-
-      COALESCE(
-        p.sale_price,
-        p.price
-      ),
-
-      false,
-
-      CASE
-        WHEN p.is_unlimited = false
-        AND p.stock <= 0
-        THEN true
-        ELSE false
-      END,
-
-      NOW(),
-      NOW()
-
-    FROM UNNEST(
-      $2::uuid[],
-      $3::uuid[],
-      $4::int[]
-    ) AS x(
-      product_id,
-      variant_id,
-      quantity
-    )
-
-    JOIN products p
-      ON p.id = x.product_id
-
-    ON CONFLICT (
-      user_id,
-      product_id,
-      variant_id
-    )
-
-    DO UPDATE SET
-      quantity =
-        EXCLUDED.quantity,
-
-      unit_price =
-        EXCLUDED.unit_price,
-
-      final_price =
-        EXCLUDED.final_price,
-
-      stock_snapshot =
-        EXCLUDED.stock_snapshot,
-
-      price_snapshot =
-        EXCLUDED.price_snapshot,
-
-      is_out_of_stock =
-        EXCLUDED.is_out_of_stock,
-
-      is_price_changed =
-        cart_items.final_price
-        IS DISTINCT FROM
-        EXCLUDED.final_price,
-
-      deleted_at = NULL,
-
-      updated_at = NOW()
-    `,
-    [
-      userId,
-      productIds,
-      variantIds,
-      quantities,
-    ]
-  );
-
-  console.log(
-    "[CART][UPSERT] DONE",
-    {
-      userId,
-      inserted:
-        finalItems.length,
-    }
+    "[CART][UPSERT] DONE"
   );
 }
