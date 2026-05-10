@@ -231,27 +231,21 @@ await writePaymentAudit({
   INSERT INTO orders (
     buyer_id,
     seller_id,
-
     pi_payment_id,
     pi_txid,
     idempotency_key,
-
     payment_status,
     paid_at,
-
     fulfillment_status,
     settlement_status,
     shipment_status,
     delivery_status,
-
     items_total,
     subtotal,
     discount,
     shipping_fee,
-    tax,
     total,
     currency,
-
     shipping_name,
     shipping_phone,
     shipping_address_line,
@@ -260,27 +254,19 @@ await writePaymentAudit({
     shipping_region,
     shipping_country,
     shipping_postal_code,
-
     total_items,
     total_quantity,
-
     created_at,
     updated_at
   )
   VALUES (
     $1,$2,
     $3,$4,$5,
-
     'paid',now(),
-
     $6,$7,$8,$9,
-
-    $10,$11,$12,$13,$14,$15,$16,
-
+    $10,$11,$12,$13,$14,$15,$16
     $17,$18,$19,$20,$21,$22,$23,$24,
-
-    $25,$26,
-
+    $25,$26,$27,$28,$29,
     now(),now()
   )
   RETURNING id
@@ -288,11 +274,9 @@ await writePaymentAudit({
   [
     intent.buyer_id,
     intent.seller_id,
-
     piPaymentId,
     txid,
     paymentIntentId,
-
     // statuses
     "pending_fulfillment",
     "ESCROW_HOLD",
@@ -303,10 +287,8 @@ await writePaymentAudit({
     intent.subtotal,
     intent.discount,
     intent.shipping_fee,
-    0,
     intent.total_amount,
     intent.currency,
-
     shipping.name,
     shipping.phone,
     shipping.address_line,
@@ -315,7 +297,6 @@ await writePaymentAudit({
     shipping.region ?? null,
     shipping.country ?? intent.country,
     shipping.postal_code ?? null,
-
     intent.quantity,
     intent.quantity
   ]
