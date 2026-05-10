@@ -120,7 +120,6 @@ export async function finalizePaidOrderFromIntent({
       SELECT *
       FROM payment_intents
       WHERE id = $1
-      FOR UPDATE
       `,
       [paymentIntentId]
     );
@@ -432,7 +431,7 @@ if (!orderId) {
     paymentIntentId,
     intent.buyer_id,
     orderId,
-    null, // escrow_id (ledger stage sau)
+    null,
 
     piPaymentId,
     piPayload.user_uid ?? null,
