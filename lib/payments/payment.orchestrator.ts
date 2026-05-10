@@ -550,7 +550,9 @@ if (!rpcVerified.ok) {
 
   throw new Error("ORDER_MISSING_AFTER_FINALIZE");
 }
-  
+  if (!paid.orderId) {
+  throw new Error("FINALIZE_RETURNED_NULL_ORDER");
+}
 
 
   /* =====================================================
@@ -595,6 +597,8 @@ if (!rpcVerified.ok) {
   txid: txid ?? null,
   piPaymentId: piPaymentId ?? null,
   reason: String(e),
+  requiresReplay: true,
+  reconcileStage: "FINALIZE_ORDER",
 });
 
     return failResult(0, false, source);
