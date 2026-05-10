@@ -350,9 +350,9 @@ export async function upsertCartItems(
       true,
 
       COALESCE(
-        p.unlimited_stock,
-        false
-      ),
+    p.is_unlimited,
+     false
+   ),
 
       false,
 
