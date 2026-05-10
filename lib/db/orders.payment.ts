@@ -342,6 +342,17 @@ const orderRes = await client.query<{ id: string }>(
 );
 
     const orderId = orderRes.rows[0].id;
+    await writePaymentAudit({
+  paymentIntentId,
+  eventCode: "ORDER_CREATED",
+  stage: "FINALIZE",
+  actorType: "system",
+  piPaymentId,
+  txid,
+  source: "orders.payment",
+  orderId,
+  newSettlementState: "ORDER_CREATED",
+});
 if (!orderId) {
   throw new Error("ORDER_CREATE_FAILED");
 }
@@ -438,7 +449,7 @@ if (!orderId) {
     'ORDER_FINALIZED',
     $12,$13,$14,$15,
     $16,$17,$18,
-    $19,$20,$21,
+    $19,
     NULL,NULL,
     now(),now(),now(),now()
   )
@@ -461,7 +472,7 @@ if (!orderId) {
 
     verification_status = 'completed',
     verify_source = 'DUAL_AUDIT',
-
+    settlement_state = 'ORDER_FINALIZED',
     verified_at = now(),
     completed_at = now(),
     updated_at = now()
@@ -494,7 +505,6 @@ if (!orderId) {
       rpc: rpcPayload,
     }),
 
-    null,
     paymentIntentId
   ]
 );
