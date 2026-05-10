@@ -421,3 +421,15 @@ export const auditManualReview = (
     note: reason,
     payload,
   });
+export const auditDuplicateSubmit = (
+  paymentIntentId: string,
+  payload?: JsonValue
+) =>
+  writePaymentAudit({
+    paymentIntentId,
+    eventCode: "DUPLICATE_SUBMIT",
+    stage: "FINALIZE",
+    severity: "warn",
+    actorType: "system",
+    payload,
+  });
