@@ -229,77 +229,79 @@ await writePaymentAudit({
      const orderRes = await client.query<{ id: string }>(
   `
   INSERT INTO orders (
-    buyer_id,
-    seller_id,
-    pi_payment_id,
-    pi_txid,
-    idempotency_key,
-    payment_status,
-    paid_at,
-    fulfillment_status,
-    settlement_status,
-    shipment_status,
-    delivery_status,
-    items_total,
-    subtotal,
-    discount,
-    shipping_fee,
-    total,
-    currency,
-    shipping_name,
-    shipping_phone,
-    shipping_address_line,
-    shipping_ward,
-    shipping_district,
-    shipping_region,
-    shipping_country,
-    shipping_postal_code,
-    total_items,
-    total_quantity,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,$2,
-    $3,$4,$5,
-    'paid',now(),
-    $6,$7,$8,$9,
-    $10,$11,$12,$13,$14,$15,$16,
-    $17,$18,$19,$20,$21,$22,$23,$24,
-    $25,
-    now(),now()
-  )
+  buyer_id,
+  seller_id,
+  pi_payment_id,
+  pi_txid,
+  idempotency_key,
+  payment_status,
+  paid_at,
+  fulfillment_status,
+  settlement_status,
+  shipment_status,
+  delivery_status,
+  items_total,
+  subtotal,
+  discount,
+  shipping_fee,
+  total,
+  currency,
+  shipping_name,
+  shipping_phone,
+  shipping_address_line,
+  shipping_ward,
+  shipping_district,
+  shipping_region,
+  shipping_country,
+  shipping_postal_code,
+  total_items,
+  total_quantity,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,$2,
+  $3,$4,$5,
+  'paid',now(),
+  $6,$7,$8,$9,
+  $10,$11,$12,$13,$14,$15,
+  $16,$17,$18,$19,$20,$21,$22,$23,
+  $24,$25,
+  now(),now()
+)
   RETURNING id
   `,
   [
-    intent.buyer_id,
-    intent.seller_id,
-    piPaymentId,
-    txid,
-    paymentIntentId,
-    // statuses
-    "pending_fulfillment",
-    "ESCROW_HOLD",
-    "NOT_SHIPPED",
-    "NOT_DELIVERED",
+  intent.buyer_id,        // $1
+  intent.seller_id,       // $2
 
-    intent.subtotal,
-    intent.subtotal,
-    intent.discount,
-    intent.shipping_fee,
-    intent.total_amount,
-    intent.currency,
-    shipping.name,
-    shipping.phone,
-    shipping.address_line,
-    shipping.ward ?? null,
-    shipping.district ?? null,
-    shipping.region ?? null,
-    shipping.country ?? intent.country,
-    shipping.postal_code ?? null,
-    intent.quantity,
-    intent.quantity
-  ]
+  piPaymentId,            // $3
+  txid,                   // $4
+  paymentIntentId,        // $5
+
+  "pending_fulfillment",  // $6
+  "ESCROW_HOLD",          // $7
+  "NOT_SHIPPED",          // $8
+  "NOT_DELIVERED",        // $9
+
+  intent.subtotal,        // $10
+  intent.subtotal,        // $11
+  intent.discount,        // $12
+  intent.shipping_fee,    // $13
+  intent.total_amount,    // $14
+  intent.currency,        // $15
+
+  shipping.name,          // $16
+  shipping.phone,         // $17
+  shipping.address_line,  // $18
+  shipping.ward ?? null,  // $19
+  shipping.district ?? null,// $20
+  shipping.region ?? null,// $21
+  shipping.country ?? intent.country,// $22
+  shipping.postal_code ?? null,// $23
+  intent.quantity,        // $24
+  intent.quantity         // $25
+]
 );
 
     const orderId = orderRes.rows[0].id;
