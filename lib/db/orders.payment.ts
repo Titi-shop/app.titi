@@ -226,81 +226,99 @@ await writePaymentAudit({
 });
      
      const orderRes = await client.query<{ id: string }>(
-      `
-      INSERT INTO orders (
-        buyer_id,
-        seller_id,
-        pi_payment_id,
-        pi_txid,
-        idempotency_key,
-        payment_status,
-        paid_at,
-        items_total,
-        subtotal,
-        discount,
-        shipping_fee,
-        tax,
-        total,
-        currency,
-        fulfillment_status,
-        settlement_status,
-        shipment_status,
-        delivery_status,
-        shipping_name,
-        shipping_phone,
-        shipping_address_line,
-        shipping_ward,
-        shipping_district,
-        shipping_region,
-        shipping_country,
-        shipping_postal_code,
-        total_items,
-        total_quantity,
-        created_at,
-        updated_at
-      )
+  `
+  INSERT INTO orders (
+    buyer_id,
+    seller_id,
 
-      VALUES (
-        $1,$2,
-        $3,$4,$5,
-        'paid',now(),
-        $6,$7,$8,$9,0,$10,$11,
-        'pending_fulfillment',
-        'ESCROW_HOLD',
-        'NOT_SHIPPED',
-        'NOT_DELIVERED',
-        $12,$13,$14,$15,$16,$17,$18,$19,
-        $20,$21,$22,$23,$24,
-        now(),now()
-      )
-      RETURNING id
+    pi_payment_id,
+    pi_txid,
+    idempotency_key,
 
-      `,
+    payment_status,
+    paid_at,
 
-      [
-        intent.buyer_id,
-        intent.seller_id,
-        piPaymentId,
-        txid,
-        paymentIntentId,
-        intent.subtotal,
-        intent.subtotal,
-        intent.discount,
-        intent.shipping_fee,
-        intent.total_amount,
-        intent.currency,
-        shipping.name,
-        shipping.phone,
-        shipping.address_line,
-        shipping.ward ?? null,
-        shipping.district ?? null,
-        shipping.region ?? null,
-        shipping.country ?? intent.country,
-        shipping.postal_code ?? null,
-        intent.quantity,
-        intent.quantity,
-      ]
-    );
+    fulfillment_status,
+    settlement_status,
+    shipment_status,
+    delivery_status,
+
+    items_total,
+    subtotal,
+    discount,
+    shipping_fee,
+    tax,
+    total,
+    currency,
+
+    shipping_name,
+    shipping_phone,
+    shipping_address_line,
+    shipping_ward,
+    shipping_district,
+    shipping_region,
+    shipping_country,
+    shipping_postal_code,
+
+    total_items,
+    total_quantity,
+
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,
+    $3,$4,$5,
+
+    'paid',now(),
+
+    'pending_fulfillment',
+    $6,$7,$8,
+
+    $9,$10,$11,$12,$13,$14,$15,
+
+    $16,$17,$18,$19,$20,$21,$22,$23,
+
+    $24,$25,
+
+    now(),now()
+  )
+  RETURNING id
+  `,
+  [
+    intent.buyer_id,
+    intent.seller_id,
+
+    piPaymentId,
+    txid,
+    paymentIntentId,
+
+    // 3 trạng thái mới
+    'ESCROW_HOLD',
+    'NOT_SHIPPED',
+    'NOT_DELIVERED',
+
+    intent.subtotal,
+    intent.subtotal,
+    intent.discount,
+    intent.shipping_fee,
+    0,
+    intent.total_amount,
+    intent.currency,
+
+    shipping.name,
+    shipping.phone,
+    shipping.address_line,
+    shipping.ward ?? null,
+    shipping.district ?? null,
+    shipping.region ?? null,
+    shipping.country ?? intent.country,
+    shipping.postal_code ?? null,
+
+    intent.quantity,
+    intent.quantity
+  ]
+);
 
     const orderId = orderRes.rows[0].id;
 if (!orderId) {
