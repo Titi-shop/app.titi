@@ -226,13 +226,6 @@ await writePaymentAudit({
   },
 });
      
-     const shipping =
-  intent.shipping_snapshot?.buyer_shipping;
-
-if (!shipping) {
-  throw new Error("INVALID_SHIPPING_SNAPSHOT");
-}
-
 const orderRes = await client.query<{ id: string }>(
   `
   INSERT INTO orders (
