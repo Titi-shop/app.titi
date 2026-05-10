@@ -1,8 +1,13 @@
 // app/api/cart/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
-import { requireAuth } from "@/lib/auth/guard";
+import {
+  requireAuth,
+} from "@/lib/auth/guard";
 
 import {
   getCart,
@@ -12,25 +17,52 @@ import {
   type CartItemInput,
 } from "@/lib/db/cart";
 
-export const runtime = "nodejs";
+export const runtime =
+  "nodejs";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function badRequest(code: string) {
+function badRequest(
+  code: string
+) {
   return NextResponse.json(
-    { error: code },
-    { status: 400 }
+    {
+      error: code,
+    },
+    {
+      status: 400,
+    }
   );
 }
 
-function serverError(code: string) {
+function unauthorized(
+  code: string
+) {
   return NextResponse.json(
-    { error: code },
-    { status: 500 }
+    {
+      error: code,
+    },
+    {
+      status: 401,
+    }
+  );
+}
+
+function serverError(
+  code: string
+) {
+  return NextResponse.json(
+    {
+      error: code,
+    },
+    {
+      status: 500,
+    }
   );
 }
 
@@ -40,19 +72,58 @@ function serverError(code: string) {
 
 export async function GET() {
   try {
-    const auth = await requireAuth();
+    console.log(
+      "[API][CART][GET] START"
+    );
+
+    const auth =
+      await requireAuth();
 
     if (!auth.ok) {
-      return auth.response;
+      console.warn(
+        "[API][CART][GET] UNAUTHORIZED"
+      );
+
+      return unauthorized(
+        "UNAUTHORIZED"
+      );
     }
 
-    const cart = await getCart(auth.userId);
+    console.log(
+      "[API][CART][GET] AUTH_OK",
+      {
+        userId:
+          auth.userId,
+      }
+    );
 
-    return NextResponse.json(cart);
+    const cart =
+      await getCart(
+        auth.userId
+      );
+
+    console.log(
+      "[API][CART][GET] SUCCESS",
+      {
+        userId:
+          auth.userId,
+        count:
+          cart.length,
+      }
+    );
+
+    return NextResponse.json(
+      cart
+    );
   } catch (err) {
-    console.error("[CART][GET]", err);
+    console.error(
+      "[API][CART][GET] ERROR",
+      err
+    );
 
-    return serverError("GET_CART_FAILED");
+    return serverError(
+      "GET_CART_FAILED"
+    );
   }
 }
 
@@ -64,20 +135,59 @@ export async function POST(
   req: NextRequest
 ) {
   try {
-    const auth = await requireAuth();
+    console.log(
+      "[API][CART][POST] START"
+    );
+
+    const auth =
+      await requireAuth();
 
     if (!auth.ok) {
-      return auth.response;
+      console.warn(
+        "[API][CART][POST] UNAUTHORIZED"
+      );
+
+      return unauthorized(
+        "UNAUTHORIZED"
+      );
     }
 
-    const body: unknown = await req.json();
+    console.log(
+      "[API][CART][POST] AUTH_OK",
+      {
+        userId:
+          auth.userId,
+      }
+    );
 
-    const rawItems: unknown[] =
+    let body: unknown;
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      console.error(
+        "[API][CART][POST] INVALID_JSON"
+      );
+
+      return badRequest(
+        "INVALID_JSON"
+      );
+    }
+
+    console.log(
+      "[API][CART][POST] BODY",
+      body
+    );
+
+    const rawItems:
+      unknown[] =
       Array.isArray(body)
         ? body
         : [body];
 
-    const items: CartItemInput[] =
+    const items:
+      CartItemInput[] =
       rawItems
         .filter(
           (
@@ -86,7 +196,8 @@ export async function POST(
             string,
             unknown
           > =>
-            typeof item === "object" &&
+            typeof item ===
+              "object" &&
             item !== null
         )
         .map((item) => ({
@@ -104,12 +215,28 @@ export async function POST(
 
           quantity:
             typeof item.quantity ===
-            "number"
+              "number" &&
+            Number.isFinite(
+              item.quantity
+            )
               ? item.quantity
               : 1,
         }));
 
+    console.log(
+      "[API][CART][POST] NORMALIZED",
+      {
+        count:
+          items.length,
+        items,
+      }
+    );
+
     if (items.length === 0) {
+      console.warn(
+        "[API][CART][POST] EMPTY_ITEMS"
+      );
+
       return badRequest(
         "INVALID_ITEMS"
       );
@@ -120,13 +247,33 @@ export async function POST(
       items
     );
 
-    const updated = await getCart(
-      auth.userId
+    console.log(
+      "[API][CART][POST] UPSERT_DONE"
     );
 
-    return NextResponse.json(updated);
+    const updated =
+      await getCart(
+        auth.userId
+      );
+
+    console.log(
+      "[API][CART][POST] SUCCESS",
+      {
+        userId:
+          auth.userId,
+        count:
+          updated.length,
+      }
+    );
+
+    return NextResponse.json(
+      updated
+    );
   } catch (err) {
-    console.error("[CART][POST]", err);
+    console.error(
+      "[API][CART][POST] ERROR",
+      err
+    );
 
     return serverError(
       "UPSERT_CART_FAILED"
@@ -142,16 +289,41 @@ export async function PATCH(
   req: NextRequest
 ) {
   try {
-    const auth = await requireAuth();
+    console.log(
+      "[API][CART][PATCH] START"
+    );
+
+    const auth =
+      await requireAuth();
 
     if (!auth.ok) {
-      return auth.response;
+      console.warn(
+        "[API][CART][PATCH] UNAUTHORIZED"
+      );
+
+      return unauthorized(
+        "UNAUTHORIZED"
+      );
     }
 
-    const body: unknown = await req.json();
+    let body: unknown;
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      console.error(
+        "[API][CART][PATCH] INVALID_JSON"
+      );
+
+      return badRequest(
+        "INVALID_JSON"
+      );
+    }
 
     if (
-      typeof body !== "object" ||
+      typeof body !==
+        "object" ||
       body === null
     ) {
       return badRequest(
@@ -160,7 +332,10 @@ export async function PATCH(
     }
 
     const data =
-      body as Record<string, unknown>;
+      body as Record<
+        string,
+        unknown
+      >;
 
     const productId =
       typeof data.product_id ===
@@ -177,14 +352,29 @@ export async function PATCH(
     const quantity =
       typeof data.quantity ===
         "number" &&
-      Number.isFinite(data.quantity)
+      Number.isFinite(
+        data.quantity
+      )
         ? data.quantity
         : null;
+
+    console.log(
+      "[API][CART][PATCH] INPUT",
+      {
+        productId,
+        variantId,
+        quantity,
+      }
+    );
 
     if (
       !productId ||
       quantity === null
     ) {
+      console.warn(
+        "[API][CART][PATCH] INVALID_INPUT"
+      );
+
       return badRequest(
         "INVALID_INPUT"
       );
@@ -197,13 +387,23 @@ export async function PATCH(
       quantity
     );
 
-    const updated = await getCart(
-      auth.userId
+    console.log(
+      "[API][CART][PATCH] UPDATE_DONE"
     );
 
-    return NextResponse.json(updated);
+    const updated =
+      await getCart(
+        auth.userId
+      );
+
+    return NextResponse.json(
+      updated
+    );
   } catch (err) {
-    console.error("[CART][PATCH]", err);
+    console.error(
+      "[API][CART][PATCH] ERROR",
+      err
+    );
 
     return serverError(
       "UPDATE_CART_FAILED"
@@ -219,16 +419,41 @@ export async function DELETE(
   req: NextRequest
 ) {
   try {
-    const auth = await requireAuth();
+    console.log(
+      "[API][CART][DELETE] START"
+    );
+
+    const auth =
+      await requireAuth();
 
     if (!auth.ok) {
-      return auth.response;
+      console.warn(
+        "[API][CART][DELETE] UNAUTHORIZED"
+      );
+
+      return unauthorized(
+        "UNAUTHORIZED"
+      );
     }
 
-    const body: unknown = await req.json();
+    let body: unknown;
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      console.error(
+        "[API][CART][DELETE] INVALID_JSON"
+      );
+
+      return badRequest(
+        "INVALID_JSON"
+      );
+    }
 
     if (
-      typeof body !== "object" ||
+      typeof body !==
+        "object" ||
       body === null
     ) {
       return badRequest(
@@ -237,7 +462,10 @@ export async function DELETE(
     }
 
     const data =
-      body as Record<string, unknown>;
+      body as Record<
+        string,
+        unknown
+      >;
 
     const productId =
       typeof data.product_id ===
@@ -251,7 +479,19 @@ export async function DELETE(
         ? data.variant_id
         : null;
 
+    console.log(
+      "[API][CART][DELETE] INPUT",
+      {
+        productId,
+        variantId,
+      }
+    );
+
     if (!productId) {
+      console.warn(
+        "[API][CART][DELETE] INVALID_PRODUCT_ID"
+      );
+
       return badRequest(
         "INVALID_PRODUCT_ID"
       );
@@ -263,13 +503,23 @@ export async function DELETE(
       variantId
     );
 
-    const updated = await getCart(
-      auth.userId
+    console.log(
+      "[API][CART][DELETE] DELETE_DONE"
     );
 
-    return NextResponse.json(updated);
+    const updated =
+      await getCart(
+        auth.userId
+      );
+
+    return NextResponse.json(
+      updated
+    );
   } catch (err) {
-    console.error("[CART][DELETE]", err);
+    console.error(
+      "[API][CART][DELETE] ERROR",
+      err
+    );
 
     return serverError(
       "DELETE_CART_FAILED"
