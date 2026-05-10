@@ -140,12 +140,13 @@ if (
   !shipping.address_line
 ) {
   await auditManualReview(
-    paymentIntentId,
-    "INVALID_SHIPPING_SNAPSHOT",
-    {
-      shipping,
-    }
-  );
+  paymentIntentId,
+  "INVALID_SHIPPING_SNAPSHOT",
+  {
+    shipping,
+  },
+  client
+);
 
   throw new Error("INVALID_SHIPPING_SNAPSHOT");
 }
@@ -228,53 +229,60 @@ await writePaymentAudit({
      const orderRes = await client.query<{ id: string }>(
   `
   INSERT INTO orders (
-  buyer_id,
-  seller_id,
-  pi_payment_id,
-  pi_txid,
-  idempotency_key,
+    buyer_id,
+    seller_id,
 
-  payment_status,
-  fulfillment_status,
-  settlement_status,
-  shipment_status,
-  delivery_status,
+    pi_payment_id,
+    pi_txid,
+    idempotency_key,
 
-  items_total,
-  subtotal,
-  discount,
-  shipping_fee,
-  tax,
-  total,
-  currency,
+    payment_status,
+    paid_at,
 
-  shipping_name,
-  shipping_phone,
-  shipping_address_line,
-  shipping_ward,
-  shipping_district,
-  shipping_region,
-  shipping_country,
-  shipping_postal_code,
+    fulfillment_status,
+    settlement_status,
+    shipment_status,
+    delivery_status,
 
-  total_items,
-  total_quantity,
+    items_total,
+    subtotal,
+    discount,
+    shipping_fee,
+    tax,
+    total,
+    currency,
 
-  created_at,
-  updated_at
-)
-VALUES (
-  $1,$2,$3,$4,$5,
-  'paid',
-  'pending_fulfillment',
-  'ESCROW_HOLD',
-  'NOT_SHIPPED',
-  'NOT_DELIVERED',
-  $6,$7,$8,$9,$10,$11,$12,
-  $13,$14,$15,$16,$17,$18,$19,$20,
-  $21,$22,
-  now(),now()
-)
+    shipping_name,
+    shipping_phone,
+    shipping_address_line,
+    shipping_ward,
+    shipping_district,
+    shipping_region,
+    shipping_country,
+    shipping_postal_code,
+
+    total_items,
+    total_quantity,
+
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,
+    $3,$4,$5,
+
+    'paid',now(),
+
+    $6,$7,$8,$9,
+
+    $10,$11,$12,$13,$14,$15,$16,
+
+    $17,$18,$19,$20,$21,$22,$23,$24,
+
+    $25,$26,
+
+    now(),now()
+  )
   RETURNING id
   `,
   [
@@ -285,10 +293,11 @@ VALUES (
     txid,
     paymentIntentId,
 
-    // 3 trạng thái mới
-    'ESCROW_HOLD',
-    'NOT_SHIPPED',
-    'NOT_DELIVERED',
+    // statuses
+    "pending_fulfillment",
+    "ESCROW_HOLD",
+    "NOT_SHIPPED",
+    "NOT_DELIVERED",
 
     intent.subtotal,
     intent.subtotal,
