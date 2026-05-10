@@ -1,4 +1,4 @@
-import { Pool, PoolClient, QueryResult } from "pg";
+import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 /* =========================================================
    SINGLETON POOL
@@ -27,15 +27,13 @@ if (process.env.NODE_ENV !== "production") {
 /* =========================================================
    QUERY LAYER (ONLY INFRA)
 ========================================================= */
-
-export async function query<T = unknown>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: unknown[],
   db: Pool | PoolClient = pool
 ): Promise<QueryResult<T>> {
-  return db.query<T>(text, params);
+  return db.query(text, params);
 }
-
 /* =========================================================
    TRANSACTION LAYER
 ========================================================= */
