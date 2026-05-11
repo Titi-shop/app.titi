@@ -1,4 +1,4 @@
-
+import { getPaymentIntent } from "@/lib/db/payments.intent";
 import {
   guardPaymentV7,
   acquirePaymentLockV7,
@@ -202,11 +202,15 @@ async function safeCompletePi(
       error: e,
     });
 
-    await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
-      source,
-      txid,
-      piPaymentId,
-    });
+    await auditManualReview(paymentIntentId, "SETTLEMENT_FATAL", {
+    source,
+    txid,
+    piPaymentId,
+  payload: {
+    error: String(e),
+    stage: "FINALIZE_ORDER",
+  },
+   });
 
     return false;
   }
@@ -513,6 +517,10 @@ if (!rpcVerified.ok) {
   },
 });
     const intentRow = await getPaymentIntent(paymentIntentId);
+
+if (!intentRow) {
+  throw new Error("INTENT_NOT_FOUND_FINALIZE");
+}
   const paid = await finalizePaidOrderFromIntent({
   paymentIntentId,
   piPaymentId,
