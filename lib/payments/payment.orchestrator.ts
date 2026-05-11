@@ -50,7 +50,21 @@ function emptyRpc(): RpcAuditResult {
     payload: {},
   };
 }
-
+function emptyRpcPayload(): RpcAuditResult {
+  return {
+    ok: false,
+    audited: false,
+    amount: null,
+    sender: null,
+    receiver: null,
+    ledger: null,
+    confirmed: false,
+    chainReference: null,
+    stage: "EMPTY",
+    reason: "EMPTY_RPC",
+    payload: {},
+  };
+}
 /* =========================================================
    RESULT BUILDERS
 ========================================================= */
@@ -557,9 +571,7 @@ if (!intentRow) {
 
   throw new Error("ORDER_MISSING_AFTER_FINALIZE");
 }
-  if (!paid.orderId) {
-  throw new Error("FINALIZE_RETURNED_NULL_ORDER");
-}
+  
 
   /* =====================================================
      7. LEDGER
