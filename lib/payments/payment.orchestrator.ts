@@ -1,8 +1,8 @@
 
 import {
-  guardPaymentForReconcile,
-  acquirePaymentSettlementLock,
-} from "@/lib/db/payments.guard";
+  guardPaymentV7,
+  acquirePaymentLockV7,
+} from "@/lib/db/payments.guard.v7";
 
 import {
   auditDuplicateSubmit,
@@ -314,10 +314,7 @@ export async function runPaymentSettlement({
     paymentIntentId,
   });
 
-  const guard = await guardPaymentForReconcile({
-    paymentIntentId,
-    userId: userId ?? "",
-  });
+  const guard = await guardPaymentV7(paymentIntentId, userId);
 
   console.log("[PAYMENT][SETTLEMENT] GUARD_RESULT", {
     paymentIntentId,
@@ -367,8 +364,7 @@ export async function runPaymentSettlement({
     paymentIntentId,
   });
 
-  const lock = await acquirePaymentSettlementLock(paymentIntentId);
-
+  const lock = await acquirePaymentLockV7(paymentIntentId);
   console.log("[PAYMENT][SETTLEMENT] LOCK_RESULT", {
     paymentIntentId,
     ok: lock.ok,
