@@ -182,106 +182,120 @@ async function insertRpcLog(
 
   await query(
     `
-    INSERT INTO rpc_verification_logs (
-      payment_intent_id,
-      pi_payment_id,
-      txid,
-      verified,
-      stage,
-      reason,
-      amount,
-      expected_amount,
-      sender,
-      receiver,
-      expected_receiver,
-      amount_match,
-      receiver_match,
-      sender_match,
-      mismatch_reason,
-      fraud_reason,
-      verification_hash,
-      ledger,
-      tx_status,
-      chain_reference,
-      verify_mode,
-      payload
-    )
-    VALUES (
-      $1,$2,$3,$4,$5,$6,
-      $7,$8,
-      $9,$10,$11,
-      $12,$13,$14,
-      $15,$16,
-      $17,
-      $18,
-      $19,$20,
-      'raw_tx',
-      $21::jsonb
-    )
-    ON CONFLICT (txid)
-    DO UPDATE SET
-      verified = EXCLUDED.verified,
-      stage = EXCLUDED.stage,
-      reason = EXCLUDED.reason,
+    await query(
+  `
+  INSERT INTO rpc_verification_logs (
+    payment_intent_id,
+    pi_payment_id,
 
-      amount = EXCLUDED.amount,
-      expected_amount = EXCLUDED.expected_amount,
+    txid,
 
-      sender = EXCLUDED.sender,
-      receiver = EXCLUDED.receiver,
-      expected_receiver = EXCLUDED.expected_receiver,
+    verified,
 
-      amount_match = EXCLUDED.amount_match,
-      receiver_match = EXCLUDED.receiver_match,
-      sender_match = EXCLUDED.sender_match,
+    stage,
+    reason,
 
-      mismatch_reason = EXCLUDED.mismatch_reason,
-      fraud_reason = EXCLUDED.fraud_reason,
+    amount,
+    expected_amount,
 
-      verification_hash = EXCLUDED.verification_hash,
+    sender,
+    receiver,
+    expected_receiver,
 
-      ledger = EXCLUDED.ledger,
+    amount_match,
+    receiver_match,
+    sender_match,
 
-      tx_status = EXCLUDED.tx_status,
-      chain_reference = EXCLUDED.chain_reference,
+    mismatch_reason,
+    fraud_reason,
 
-      payload = EXCLUDED.payload
-    `,
-    [
-      input.paymentIntentId,
-      input.piPaymentId,
+    verification_hash,
 
-      input.txid,
+    ledger,
 
-      input.verified,
+    tx_status,
+    chain_reference,
 
-      input.stage,
-      input.reason,
+    verify_mode,
 
-      input.amount,
-      input.expectedAmount,
+    payload,
+    verified_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,
+    $3,
+    $4,
+    $5,$6,
+    $7,$8,
+    $9,$10,$11,
+    $12,$13,$14,
+    $15,$16,
+    $17,
+    $18,
+    $19,$20,
+    'raw_tx',
+    $21::jsonb,
 
-      input.sender,
-      input.receiver,
-      input.expectedReceiver,
+    CASE WHEN $4 = true THEN now() ELSE NULL END,
+    now(),
+    now()
+  )
+  ON CONFLICT (txid)
+  DO UPDATE SET
+    verified = EXCLUDED.verified,
+    stage = EXCLUDED.stage,
+    reason = EXCLUDED.reason,
+    amount = EXCLUDED.amount,
+    expected_amount = EXCLUDED.expected_amount,
+    sender = EXCLUDED.sender,
+    receiver = EXCLUDED.receiver,
+    expected_receiver = EXCLUDED.expected_receiver,
+    amount_match = EXCLUDED.amount_match,
+    receiver_match = EXCLUDED.receiver_match,
+    sender_match = EXCLUDED.sender_match,
 
-      input.amountMatch,
-      input.receiverMatch,
-      input.senderMatch,
+    mismatch_reason = EXCLUDED.mismatch_reason,
+    fraud_reason = EXCLUDED.fraud_reason,
+    verification_hash = EXCLUDED.verification_hash,
+    ledger = EXCLUDED.ledger,
+    tx_status = EXCLUDED.tx_status,
+    chain_reference = EXCLUDED.chain_reference,
+    payload = EXCLUDED.payload,
+    verified_at =
+      CASE
+        WHEN EXCLUDED.verified = true
+        THEN now()
+        ELSE rpc_verification_logs.verified_at
+      END,
 
-      input.mismatchReason,
-      input.fraudReason,
-
-      input.verificationHash,
-
-      input.ledger,
-
-      input.txStatus,
-      input.chainReference,
-
-      JSON.stringify(input.payload ?? {}),
-    ]
-  );
+    updated_at = now()
+  `,
+  [
+    input.paymentIntentId,
+    input.piPaymentId,
+    input.txid,
+    input.verified,
+    input.stage,
+    input.reason,
+    input.amount,
+    input.expectedAmount,
+    input.sender,
+    input.receiver,
+    input.expectedReceiver,
+    input.amountMatch,
+    input.receiverMatch,
+    input.senderMatch,
+    input.mismatchReason,
+    input.fraudReason,
+    input.verificationHash,
+    input.ledger,
+    input.txStatus,
+    input.chainReference,
+    JSON.stringify(input.payload ?? {}),
+  ]
+);
 }
 
 /* =========================================================
@@ -444,9 +458,15 @@ export async function verifyRpcPaymentForReconcile({
 
   let fraudReason: string | null = null;
 
-  if (!rpcTx.confirmed) {
-    fraudReason = "UNCONFIRMED_TX";
-  }
+if (!rpcTx.rpcReachable) {
+  fraudReason = "RPC_UNREACHABLE";
+} else if (!rpcTx.confirmed) {
+  fraudReason = "UNCONFIRMED_TX";
+} else if (!amountMatch) {
+  fraudReason = "AMOUNT_MISMATCH";
+} else if (!receiverMatch) {
+  fraudReason = "RECEIVER_MISMATCH";
+}
 
   const verificationHash = buildVerificationHash({
     paymentIntentId,
