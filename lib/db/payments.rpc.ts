@@ -181,43 +181,29 @@ async function insertRpcLog(
   });
 
   await query(
-    `
-    await query(
   `
   INSERT INTO rpc_verification_logs (
     payment_intent_id,
     pi_payment_id,
-
     txid,
-
     verified,
-
     stage,
     reason,
-
     amount,
     expected_amount,
-
     sender,
     receiver,
     expected_receiver,
-
     amount_match,
     receiver_match,
     sender_match,
-
     mismatch_reason,
     fraud_reason,
-
     verification_hash,
-
     ledger,
-
     tx_status,
     chain_reference,
-
     verify_mode,
-
     payload,
     verified_at,
     created_at,
