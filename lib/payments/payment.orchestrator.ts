@@ -56,7 +56,11 @@ function emptyRpc(): RpcAuditResult {
    RESULT
 ========================================================= */
 
-function failResult(amount: number, rpcAudited: boolean, source: string): PaymentSettlementResult {
+function failResult(
+  amount: number,
+  rpcAudited: boolean,
+  source: string
+): PaymentSettlementResult {
   return {
     ok: false,
     orderId: null,
@@ -84,7 +88,7 @@ function successResult(
 }
 
 /* =========================================================
-   RPC VERIFY (SAFE)
+   RPC VERIFY
 ========================================================= */
 
 async function safeAuditRpc(
@@ -119,7 +123,7 @@ async function safeAuditRpc(
     }
 
     return rpc;
-  } catch (e) {
+  } catch {
     await auditRpcFailed(paymentIntentId, {
       source,
       txid,
@@ -150,7 +154,7 @@ async function safeCompletePi(
     });
 
     return true;
-  } catch (e) {
+  } catch {
     await auditManualReview(paymentIntentId, "PI_COMPLETE_FAILED", {
       source,
       piPaymentId,
@@ -162,7 +166,7 @@ async function safeCompletePi(
 }
 
 /* =========================================================
-   LEDGER PIPELINE
+   LEDGER
 ========================================================= */
 
 async function safeLedger(
@@ -213,7 +217,7 @@ async function safeLedger(
 }
 
 /* =========================================================
-   MAIN ORCHESTRATOR
+   MAIN ORCHESTRATOR (NO DB CALL HERE)
 ========================================================= */
 
 export async function runPaymentSettlement({
@@ -222,8 +226,10 @@ export async function runPaymentSettlement({
   txid,
   userId,
   source,
-  intent, // 👈 MUST be injected from gateway (NO DB CALL HERE)
-}: RunPaymentSettlementInput & { intent: PaymentIntentRow }): Promise<PaymentSettlementResult> {
+  intent,
+}: RunPaymentSettlementInput & {
+  intent: PaymentIntentRow;
+}): Promise<PaymentSettlementResult> {
   try {
     /* =====================================================
        1. GUARD
@@ -241,11 +247,15 @@ export async function runPaymentSettlement({
           reason: "PAYMENT_ALREADY_PAID",
         });
 
-        return successResult(guard.orderId ?? null, guard.amount ?? 0, true, source);
+        return successResult(
+          guard.orderId ?? null,
+          guard.amount ?? 0,
+          true,
+          source
+        );
       }
 
       await auditManualReview(paymentIntentId, guard.code, { source });
-
       return failResult(0, false, source);
     }
 
@@ -298,7 +308,12 @@ export async function runPaymentSettlement({
        4. RPC VERIFY
     ===================================================== */
 
-    const rpcVerified = await safeAuditRpc(paymentIntentId, piPaymentId, txid, source);
+    const rpcVerified = await safeAuditRpc(
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      source
+    );
 
     if (!rpcVerified.ok) {
       return failResult(piVerified.verifiedAmount, false, source);
@@ -308,10 +323,19 @@ export async function runPaymentSettlement({
        5. PI COMPLETE
     ===================================================== */
 
-    const piCompleted = await safeCompletePi(paymentIntentId, piPaymentId, txid, source);
+    const piCompleted = await safeCompletePi(
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      source
+    );
 
     if (!piCompleted) {
-      return failResult(piVerified.verifiedAmount, rpcVerified.ok, source);
+      return failResult(
+        piVerified.verifiedAmount,
+        rpcVerified.ok,
+        source
+      );
     }
 
     /* =====================================================
@@ -347,9 +371,20 @@ export async function runPaymentSettlement({
        7. LEDGER
     ===================================================== */
 
-    await safeLedger(paid, paymentIntentId, piPaymentId, txid, rpcVerified);
+    await safeLedger(
+      paid,
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      rpcVerified
+    );
 
-    return successResult(paid.orderId, paid.amount, rpcVerified.ok, source);
+    return successResult(
+      paid.orderId,
+      paid.amount,
+      rpcVerified.ok,
+      source
+    );
   } catch (e) {
     await auditManualReview(paymentIntentId, "SETTLEMENT_FATAL", {
       source,
