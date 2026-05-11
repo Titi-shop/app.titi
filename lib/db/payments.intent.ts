@@ -1,5 +1,5 @@
 
-import { withTransaction } from "@/lib/db";
+import { query,withTransaction } from "@/lib/db";
 import crypto from "crypto";
 import { getShippingRatesByProduct } from "@/lib/db/shipping";
 
@@ -416,8 +416,10 @@ export async function createPiPaymentIntent({
   });
 }
 export async function getPaymentIntent(id: string) {
-  return await client.query(
+  const res = await query(
     `SELECT * FROM payment_intents WHERE id = $1`,
     [id]
   );
+
+  return res.rows[0] ?? null;
 }
