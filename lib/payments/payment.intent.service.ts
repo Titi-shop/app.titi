@@ -1,4 +1,4 @@
-import { createPiPaymentIntent } from "@/lib/db/payments.intent";
+import { createPiPaymentIntent,getPaymentIntent } from "@/lib/db/payments.intent";
 
 /* =========================================================
    TYPES
