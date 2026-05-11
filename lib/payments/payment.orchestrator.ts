@@ -2,7 +2,7 @@
 import {
   guardPaymentV7,
   acquirePaymentLockV7,
-} from "@/lib/db/payments.guard.v7";
+} from "@/lib/db/payments.guard";
 
 import {
   auditDuplicateSubmit,
