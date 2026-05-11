@@ -1,11 +1,16 @@
 
+
 import { query } from "@/lib/db";
+import type {
+  GuardPaymentResult,
+  PaymentLockResult,
+} from "@/lib/payments/payment.types";
 
 /* =========================================================
-   TYPES V7
+   REAL STATUS ENUM FROM payment_intents SCHEMA
 ========================================================= */
 
-export type PaymentStatusV7 =
+type PaymentStatus =
   | "created"
   | "wallet_opened"
   | "submitted"
@@ -14,37 +19,19 @@ export type PaymentStatusV7 =
   | "failed"
   | "expired";
 
-export type GuardFailCodeV7 =
-  | "INVALID_UUID"
-  | "NOT_FOUND"
-  | "FORBIDDEN"
-  | "PAYMENT_FAILED"
-  | "PAYMENT_EXPIRED"
-  | "ALREADY_PAID";
+type GuardInput = {
+  paymentIntentId: string;
+  userId: string | null;
+  systemMode?: boolean;
+};
 
-export type GuardResultV7 =
-  | {
-      ok: true;
-      paymentIntentId: string;
-      status: PaymentStatusV7;
-      amount: number;
-      buyerId: string;
-      piPaymentId: string | null;
-      txid: string | null;
-    }
-  | {
-      ok: false;
-      code: GuardFailCodeV7;
-      reason: string;
-    };
-
-export type LockResultV7 =
-  | { ok: true; lockId: string }
-  | { ok: false; code: "LOCK_DENIED"; reason: string };
-
-/* =========================================================
-   HELPERS
-========================================================= */
+type PaymentIntentGuardRow = {
+  buyer_id: string;
+  status: PaymentStatus;
+  total_amount: string;
+  pi_payment_id: string | null;
+  txid: string | null;
+};
 
 function isUUID(v: unknown): v is string {
   return (
@@ -56,33 +43,21 @@ function isUUID(v: unknown): v is string {
 }
 
 /* =========================================================
-   GUARD READ (SOURCE OF TRUTH)
+   MAIN GUARD (READ ONLY)
 ========================================================= */
 
-export async function guardPaymentV7(
-  paymentIntentId: string,
-  userId: string | null,
-  systemMode = false
-): Promise<GuardResultV7> {
+export async function guardPaymentForReconcile({
+  paymentIntentId,
+  userId,
+  systemMode = false,
+}: GuardInput): Promise<GuardPaymentResult> {
   if (!isUUID(paymentIntentId)) {
-    return {
-      ok: false,
-      code: "INVALID_UUID",
-      reason: "paymentIntentId is not a valid UUID",
-    };
+    return { ok: false, code: "PAYMENT_NOT_FOUND" };
   }
 
-  const rs = await query<{
-    id: string;
-    buyer_id: string;
-    status: PaymentStatusV7;
-    total_amount: string;
-    pi_payment_id: string | null;
-    txid: string | null;
-  }>(
+  const rs = await query<PaymentIntentGuardRow>(
     `
     SELECT
-      id,
       buyer_id,
       status,
       total_amount,
@@ -95,117 +70,87 @@ export async function guardPaymentV7(
     [paymentIntentId]
   );
 
-  const row = rs.rows[0];
-
-  if (!row) {
-    return {
-      ok: false,
-      code: "NOT_FOUND",
-      reason: "payment intent not found",
-    };
+  if (!rs.rows.length) {
+    return { ok: false, code: "PAYMENT_NOT_FOUND" };
   }
 
-  /* =====================================================
+  const row = rs.rows[0];
+
+  /* =========================================
      OWNER CHECK
-  ===================================================== */
+  ========================================= */
 
   if (!systemMode) {
-    if (!userId || row.buyer_id !== userId) {
-      return {
-        ok: false,
-        code: "FORBIDDEN",
-        reason: "user does not own this payment intent",
-      };
+    if (!userId || !isUUID(userId) || row.buyer_id !== userId) {
+      return { ok: false, code: "PAYMENT_FORBIDDEN" };
     }
   }
 
-  /* =====================================================
-     STATE VALIDATION
-  ===================================================== */
+  /* =========================================
+     HARD BLOCK STATES
+  ========================================= */
 
   if (row.status === "failed") {
-    return {
-      ok: false,
-      code: "PAYMENT_FAILED",
-      reason: "payment already failed",
-    };
+    return { ok: false, code: "PAYMENT_FAILED" };
   }
 
   if (row.status === "expired") {
-    return {
-      ok: false,
-      code: "PAYMENT_EXPIRED",
-      reason: "payment expired",
-    };
+    return { ok: false, code: "PAYMENT_EXPIRED" };
   }
 
   if (row.status === "paid") {
     return {
       ok: false,
-      code: "ALREADY_PAID",
-      reason: "payment already completed",
+      code: "PAYMENT_ALREADY_PAID",
+      amount: Number(row.total_amount),
     };
   }
 
-  /* =====================================================
-     SUCCESS
-  ===================================================== */
+  /* =========================================
+     ACCEPTABLE FLOW STATES:
+     created / wallet_opened / submitted / verifying
+  ========================================= */
 
   return {
     ok: true,
-    paymentIntentId: row.id,
     status: row.status,
     amount: Number(row.total_amount),
-    buyerId: row.buyer_id,
     piPaymentId: row.pi_payment_id,
     txid: row.txid,
   };
 }
 
 /* =========================================================
-   SETTLEMENT LOCK V7 (ATOMIC)
+   SETTLEMENT LOCK
+   atomic lightweight gate only
 ========================================================= */
 
-export async function acquirePaymentLockV7(
+export async function acquirePaymentSettlementLock(
   paymentIntentId: string
-): Promise<LockResultV7> {
+): Promise<PaymentLockResult> {
   if (!isUUID(paymentIntentId)) {
-    return {
-      ok: false,
-      code: "LOCK_DENIED",
-      reason: "invalid uuid",
-    };
+    return { ok: false, code: "LOCK_DENIED" };
   }
 
   const rs = await query(
-    `
-    UPDATE payment_intents
-    SET
-      settlement_lock_id = gen_random_uuid(),
+  `
+  UPDATE payment_intents
+  SET settlement_lock_id = gen_random_uuid(),
       settlement_locked_at = now()
-    WHERE id = $1
-      AND status IN ('submitted','verifying')
-      AND (
-        settlement_locked_at IS NULL
-        OR settlement_locked_at < now() - interval '2 minutes'
-      )
-    RETURNING settlement_lock_id
-    `,
-    [paymentIntentId]
-  );
+  WHERE id = $1
+    AND status IN ('submitted','verifying')
+    AND (
+      settlement_locked_at IS NULL
+      OR settlement_locked_at < now() - interval '2 minutes'
+    )
+  RETURNING id
+  `,
+  [paymentIntentId]
+);
 
-  const lockId = rs.rows[0]?.settlement_lock_id;
-
-  if (!lockId) {
-    return {
-      ok: false,
-      code: "LOCK_DENIED",
-      reason: "lock already held or invalid state",
-    };
+  if (!rs.rows.length) {
+    return { ok: false, code: "LOCK_DENIED" };
   }
 
-  return {
-    ok: true,
-    lockId,
-  };
+  return { ok: true };
 }
