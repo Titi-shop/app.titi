@@ -15,23 +15,31 @@ type VerifyRpcParams = {
 
 type RpcVerifyResult = {
   ok: boolean;
+
   audited: boolean;
+
   verified: boolean;
 
   amount: number | null;
+
   sender: string | null;
+
   receiver: string | null;
 
   ledger: number | null;
+
   confirmed: boolean;
 
   txStatus: string | null;
+
   chainReference: string | null;
 
   payload: unknown;
 
   reason: string | null;
   stage: string;
+  createdAt: string | null;
+  memo: string | null;
 };
 
 type PaymentIntentRow = {
@@ -80,6 +88,9 @@ receiverFound: boolean;
   chainReference: string | null;
 
   payload: unknown;
+   createdAt: string | null;
+
+memo: string | null;
 };
 
 /* =========================================================
@@ -222,7 +233,9 @@ has_meta,
 has_events,
 sender_found,
 receiver_found,
-amount_found
+amount_found,
+created_at_chain,
+memo
   )
   VALUES (
   $1,$2,
@@ -255,8 +268,10 @@ amount_found
   $25,
   $26,
   $27,
-  $28,
-  $29
+$28,
+$29,
+$30,
+$31
 )
   ON CONFLICT (txid)
   DO UPDATE SET
@@ -286,7 +301,9 @@ amount_found
         ELSE rpc_verification_logs.verified_at
       END,
 
-    updated_at = now()
+    created_at_chain = EXCLUDED.created_at_chain,
+memo = EXCLUDED.memo,
+updated_at = now()
   `,
   [
     
@@ -319,9 +336,12 @@ amount_found
   input.hasMeta,
   input.hasEvents,
   input.senderFound,
-  input.receiverFound,
-  input.amountFound,
+input.receiverFound,
+input.amountFound,
+input.createdAt,
+input.memo,
 ]
+
 );
 }
 
@@ -380,12 +400,16 @@ export async function verifyRpcPaymentForReconcile({
   const rpcTx = await getRpcTransaction(txid);
 
   log("RPC_RAW_RESULT", {
-    confirmed: rpcTx.confirmed,
-    amount: rpcTx.amount,
-    sender: rpcTx.sender,
-    receiver: rpcTx.receiver,
-    ledger: rpcTx.ledger,
-  });
+  confirmed: rpcTx.confirmed,
+  amount: rpcTx.amount,
+  sender: rpcTx.sender,
+  receiver: rpcTx.receiver,
+  ledger: rpcTx.ledger,
+  txStatus: rpcTx.txStatus,
+  chainReference: rpcTx.hash,
+  createdAt: rpcTx.createdAt,
+  memo: rpcTx.memo,
+});
 
   log("RPC_TRACE", {
     rpcReachable: rpcTx.rpcReachable,
@@ -572,18 +596,34 @@ amountFound,
   ===================================================== */
 
   return {
-    ok: verified,
-    audited: true,
-    verified,
-    amount: rpcTx.amount,
-    sender: rpcTx.sender,
-    receiver: rpcTx.receiver,
-    ledger: rpcTx.ledger,
-    confirmed: rpcTx.confirmed,
-    txStatus,
-    chainReference: rpcTx.hash,
-    payload: rpcTx.raw,
-    reason,
-    stage,
-  };
+  ok: verified,
+
+  audited: true,
+
+  verified,
+
+  amount: rpcTx.amount,
+
+  sender: rpcTx.sender,
+
+  receiver: rpcTx.receiver,
+
+  ledger: rpcTx.ledger,
+
+  confirmed: rpcTx.confirmed,
+
+  txStatus,
+
+  chainReference: rpcTx.hash,
+
+  payload: rpcTx.raw,
+
+  reason,
+
+  stage,
+
+  createdAt: rpcTx.createdAt ?? null,
+
+  memo: rpcTx.memo ?? null,
+};
 }
