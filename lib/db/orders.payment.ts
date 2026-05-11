@@ -621,7 +621,7 @@ if (!orderId) {
       UPDATE payment_intents
       SET
         status = 'paid',
-        settlement_state = 'ESCROW_PENDING',
+        settlement_state = 'SETTLED'
         pi_payment_id = $2,
         txid = $3,
         paid_at = now(),
