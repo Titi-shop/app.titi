@@ -521,11 +521,11 @@ if (!orderId) {
     piPayload.from_address ?? null,
     piPayload.to_address ?? receiverWallet,
 
-    rpcPayload.ok
-    rpcPayload.ledger
-    rpcPayload.chainReference
-    rpcPayload.sender
-    rpcPayload.receiver
+    rpcPayload.ok,
+    rpcPayload.ledger,
+    rpcPayload.chainReference,
+    rpcPayload.sender,
+    rpcPayload.receiver,
 
     JSON.stringify(piPayload),
     JSON.stringify(rpcPayload),
