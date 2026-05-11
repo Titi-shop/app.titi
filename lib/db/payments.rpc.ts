@@ -415,7 +415,12 @@ export async function verifyRpcPaymentForReconcile({
       expectedReceiver;
 
   const senderMatch = !!rpcTx.sender;
-
+const senderFound = rpcTx.debug.senderFound;
+const receiverFound = rpcTx.debug.receiverFound;
+const amountFound = rpcTx.debug.amountFound;
+const parseLayer = rpcTx.debug.parseLayer ?? null;
+const hasMeta = rpcTx.debug.hasMeta;
+const hasEvents = rpcTx.debug.hasEvents;
   /* =====================================================
      VALIDATION
   ===================================================== */
@@ -517,9 +522,9 @@ if (!rpcTx.rpcReachable) {
   ledger: rpcTx.ledger,
   rpcReachable: rpcTx.rpcReachable,
   confirmed: rpcTx.confirmed,
-  parseLayer: rpcTx.debug.parseLayer,
-  hasMeta: rpcTx.debug.hasMeta,
-  hasEvents: rpcTx.debug.hasEvents,
+  parseLayer,
+  hasMeta,
+  hasEvents,
 });
 
   /* =====================================================
@@ -545,24 +550,20 @@ if (!rpcTx.rpcReachable) {
     amountMatch,
     receiverMatch,
     senderMatch,
-
     mismatchReason,
     fraudReason,
     verificationHash,
-
     ledger: rpcTx.ledger,
-
     txStatus,
-
     chainReference: rpcTx.hash,
 rpcReachable: rpcTx.rpcReachable,
 confirmed: rpcTx.confirmed,
-parseLayer: rpcTx.debug.parseLayer ?? null,
-hasMeta: rpcTx.debug.hasMeta,
-hasEvents: rpcTx.debug.hasEvents,
-senderFound: rpcTx.debug.senderFound,
-receiverFound: rpcTx.debug.receiverFound,
-amountFound: rpcTx.debug.amountFound,
+parseLayer,
+hasMeta,
+hasEvents,
+senderFound,
+receiverFound,
+amountFound,
     payload: rpcTx.raw,
   });
 
@@ -574,24 +575,15 @@ amountFound: rpcTx.debug.amountFound,
     ok: verified,
     audited: true,
     verified,
-
     amount: rpcTx.amount,
-
     sender: rpcTx.sender,
     receiver: rpcTx.receiver,
-
     ledger: rpcTx.ledger,
-
     confirmed: rpcTx.confirmed,
-
     txStatus,
-
     chainReference: rpcTx.hash,
-
     payload: rpcTx.raw,
-
     reason,
-
     stage,
   };
 }
