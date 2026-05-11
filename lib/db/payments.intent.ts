@@ -421,10 +421,7 @@ export async function getPaymentIntent(id: string) {
     [id]
   );
   
-export {
-  createPiPaymentIntent,
-  getPaymentIntent,
-};
+
 
 
   return res.rows[0] ?? null;
