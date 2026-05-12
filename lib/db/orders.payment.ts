@@ -249,97 +249,151 @@ export async function finalizePaidOrderFromIntent({
     ===================================================== */
 
     await client.query(
-      `
-      INSERT INTO payment_receipts (
-        payment_intent_id,
-        user_id,
-        order_id,
-        escrow_id,
-        pi_payment_id,
-        pi_uid,
-        txid,
-        expected_amount,
-        verified_amount,
-        currency,
-        sender_wallet,
-        receiver_wallet,
-        verification_status,
-        verify_source,
-        settlement_state,
-        rpc_confirmed,
-        rpc_ledger,
-        chain_reference,
-        tx_status,
-        developer_completed,
-        rpc_reason,
-        pi_payload,
-        rpc_payload,
-        merged_payload,
-        developer_completed_at,
-        pi_created_at,
-        pi_memo,
-        rpc_tx_status,
-        rpc_stage,
-        idempotency_key,
-        verified_at,
-        completed_at,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
-        $8,$9,$10,
-        $11,$12,
-        $13,$14,$15,
-        $16,$17,$18,
-        $19,$20,$21,
-        $22,$23,$24,
-        $25,$26,$27,
-        $28,$29,$30,
-        now(),now(),now(),now()
-      )
-      `,
-      [
-        paymentIntentId,
-        intent.buyer_id,
-        orderId,
-        null,
-        piPaymentId,
-        piPayload?.user_uid ?? null,
-        txid,
+  `
+  INSERT INTO payment_receipts (
+    payment_intent_id,
+    user_id,
+    order_id,
+    escrow_id,
 
-        expectedAmount,
-        verifiedAmount,
-        "PI",
+    pi_payment_id,
+    pi_uid,
+    txid,
 
-        piPayload?.from_address ?? null,
-        piPayload?.to_address ?? receiverWallet,
+    expected_amount,
+    verified_amount,
+    currency,
 
-        "completed",
-        "DUAL_AUDIT",
-        "ORDER_FINALIZED",
+    sender_wallet,
+    receiver_wallet,
 
-        rpcPayload?.confirmed ?? rpcPayload?.ok ?? false,
-        rpcPayload?.ledger ?? null,
-        rpcPayload?.chainReference ?? txid,
+    verification_status,
+    verify_source,
+    settlement_state,
 
-        rpcPayload?.txStatus ?? "CONFIRMED",
-        piPayload?.status?.developer_completed ?? false,
-        manualReviewReason,
+    rpc_confirmed,
+    rpc_ledger,
+    chain_reference,
 
-        JSON.stringify(piPayload),
-        JSON.stringify(rpcPayload),
-        JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
+    tx_status,
+    developer_completed,
+    rpc_reason,
 
-        piPayload?.status?.developer_completed ? new Date() : null,
-        piPayload?.created_at ?? null,
-        piPayload?.memo ?? null,
+    pi_payload,
+    rpc_payload,
+    merged_payload,
 
-        rpcPayload?.txStatus ?? "CONFIRMED",
-        rpcPayload?.stage ?? null,
-        paymentIntentId,
-      ]
-    );
+    developer_completed_at,
+
+    pi_created_at,
+    pi_memo,
+
+    rpc_tx_status,
+    rpc_stage,
+
+    idempotency_key,
+
+    verified_at,
+    completed_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,$3,$4,
+    $5,$6,$7,
+    $8,$9,$10,
+    $11,$12,
+    $13,$14,$15,
+    $16,$17,$18,
+    $19,$20,$21,
+    $22,$23,$24,
+    $25,
+    $26,$27,
+    $28,$29,
+    $30,
+    now(),now(),now(),now()
+  )
+  ON CONFLICT (pi_payment_id)
+  DO UPDATE SET
+    order_id = EXCLUDED.order_id,
+    escrow_id = EXCLUDED.escrow_id,
+    txid = EXCLUDED.txid,
+
+    verified_amount = EXCLUDED.verified_amount,
+    expected_amount = EXCLUDED.expected_amount,
+
+    sender_wallet = EXCLUDED.sender_wallet,
+    receiver_wallet = EXCLUDED.receiver_wallet,
+
+    rpc_confirmed = EXCLUDED.rpc_confirmed,
+    rpc_ledger = EXCLUDED.rpc_ledger,
+    chain_reference = EXCLUDED.chain_reference,
+
+    tx_status = EXCLUDED.tx_status,
+    developer_completed = EXCLUDED.developer_completed,
+    rpc_reason = EXCLUDED.rpc_reason,
+
+    pi_payload = EXCLUDED.pi_payload,
+    rpc_payload = EXCLUDED.rpc_payload,
+    merged_payload = EXCLUDED.merged_payload,
+
+    pi_created_at = EXCLUDED.pi_created_at,
+    pi_memo = EXCLUDED.pi_memo,
+
+    rpc_tx_status = EXCLUDED.rpc_tx_status,
+    rpc_stage = EXCLUDED.rpc_stage,
+
+    verification_status = EXCLUDED.verification_status,
+    verify_source = EXCLUDED.verify_source,
+    settlement_state = EXCLUDED.settlement_state,
+
+    verified_at = now(),
+    completed_at = now(),
+    updated_at = now()
+  `,
+  [
+    paymentIntentId,
+    intent.buyer_id,
+    orderId,
+    null,
+
+    piPaymentId,
+    piPayload?.user_uid ?? null,
+    txid,
+
+    expectedAmount,
+    verifiedAmount,
+    "PI",
+
+    piPayload?.from_address ?? null,
+    piPayload?.to_address ?? receiverWallet,
+
+    "completed",
+    "DUAL_AUDIT",
+    "ORDER_FINALIZED",
+
+    rpcPayload?.confirmed ?? rpcPayload?.ok ?? false,
+    rpcPayload?.ledger ?? null,
+    rpcPayload?.chainReference ?? txid,
+
+    rpcPayload?.txStatus ?? "CONFIRMED",
+    piPayload?.status?.developer_completed ?? false,
+    rpcPayload?.reason ?? "NONE",
+
+    JSON.stringify(piPayload),
+    JSON.stringify(rpcPayload),
+    JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
+
+    piPayload?.status?.developer_completed ? new Date() : null,
+    piPayload?.created_at ?? null,
+    piPayload?.memo ?? null,
+
+    rpcPayload?.txStatus ?? "CONFIRMED",
+    rpcPayload?.stage ?? null,
+
+    paymentIntentId,
+  ]
+);
 
     /* =====================================================
        9. PI_PAYMENTS (FIXED 4 NULL COLUMNS)
