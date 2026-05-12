@@ -4,7 +4,13 @@ import {
   piApprovePayment,
 } from "@/lib/pi/client";
 
-import { bindPiPaymentToIntent } from "@/lib/db/payments.bind";
+import {
+  getPaymentIntent,
+} from "@/lib/db/payments.intent";
+
+import {
+  bindPiPaymentToIntent,
+} from "@/lib/db/payments.bind";
 
 /* =========================================================
    TYPES
@@ -13,106 +19,342 @@ import { bindPiPaymentToIntent } from "@/lib/db/payments.bind";
 type AuthorizeBody = {
   paymentIntentId?: string;
   payment_intent_id?: string;
+
   piPaymentId?: string;
   pi_payment_id?: string;
 };
 
 type Input = {
   userId: string;
+
   authorizationHeader: string;
+
   body: AuthorizeBody;
 };
 
 /* =========================================================
-   AUTHORIZE SERVICE (NO DIRECT DB QUERY)
+   HELPERS
+========================================================= */
+
+function vlog(
+  step: string,
+  data?: unknown
+) {
+  console.log(
+    `[PAYMENT][AUTHORIZE_V6][${step}]`,
+    data ?? ""
+  );
+}
+
+function normalizeString(
+  value: unknown
+): string {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function isValidIntentState(
+  status: unknown
+): boolean {
+  if (typeof status !== "string") {
+    return false;
+  }
+
+  return [
+    "created",
+    "authorized",
+    "submitted",
+    "pending_settlement",
+  ].includes(status);
+}
+
+/* =========================================================
+   AUTHORIZE SERVICE
 ========================================================= */
 
 export async function piAuthorizePayment({
   userId,
   authorizationHeader,
   body,
-}: Input): Promise<{ success: true }> {
-  console.log("[PAYMENT][AUTHORIZE] START", {
+}: Input): Promise<{
+  success: true;
+}> {
+  vlog("START", {
     userId,
     body,
   });
 
+  /* =====================================================
+     1. NORMALIZE INPUT
+  ===================================================== */
+
   const paymentIntentId =
-    body.paymentIntentId ?? body.payment_intent_id;
+    normalizeString(
+      body.paymentIntentId ??
+        body.payment_intent_id
+    );
 
   const piPaymentId =
-    body.piPaymentId ?? body.pi_payment_id;
+    normalizeString(
+      body.piPaymentId ??
+        body.pi_payment_id
+    );
 
-  if (!paymentIntentId || !piPaymentId) {
-    console.error("[PAYMENT][AUTHORIZE] INVALID_INPUT");
-    throw new Error("INVALID_INPUT");
+  if (
+    !paymentIntentId ||
+    !piPaymentId
+  ) {
+    throw new Error(
+      "INVALID_INPUT"
+    );
+  }
+
+  vlog("INPUT_OK", {
+    paymentIntentId,
+    piPaymentId,
+  });
+
+  /* =====================================================
+     2. LOAD PAYMENT INTENT
+  ===================================================== */
+
+  const intent =
+    await getPaymentIntent(
+      paymentIntentId
+    );
+
+  if (!intent) {
+    throw new Error(
+      "INTENT_NOT_FOUND"
+    );
+  }
+
+  vlog("INTENT_OK", {
+    id: intent.id,
+    status: intent.status,
+    buyer_id:
+      intent.buyer_id,
+    total_amount:
+      intent.total_amount,
+  });
+
+  /* =====================================================
+     3. VERIFY OWNER
+  ===================================================== */
+
+  if (
+    intent.buyer_id !== userId
+  ) {
+    throw new Error(
+      "INTENT_OWNER_MISMATCH"
+    );
   }
 
   /* =====================================================
-     1. PI VERIFY USER
+     4. VERIFY STATE MACHINE
   ===================================================== */
 
-  console.log("[PAYMENT][AUTHORIZE] PI_VERIFY_START");
+  if (
+    !isValidIntentState(
+      intent.status
+    )
+  ) {
+    throw new Error(
+      "INVALID_INTENT_STATE"
+    );
+  }
 
-  const me = await piGetMe(authorizationHeader);
+  /* =====================================================
+     5. PREVENT RE-BIND
+  ===================================================== */
 
-  console.log("[PAYMENT][AUTHORIZE] PI_OK", {
+  if (
+    intent.pi_payment_id &&
+    intent.pi_payment_id !==
+      piPaymentId
+  ) {
+    throw new Error(
+      "PI_PAYMENT_ALREADY_BOUND"
+    );
+  }
+
+  /* =====================================================
+     6. PI VERIFY USER
+  ===================================================== */
+
+  vlog("PI_VERIFY_START");
+
+  const me = await piGetMe(
+    authorizationHeader
+  );
+
+  vlog("PI_USER_OK", {
     uid: me.uid,
   });
 
   /* =====================================================
-     2. FETCH PI PAYMENT
+     7. FETCH PI PAYMENT
   ===================================================== */
 
-  const payment = await piGetPayment(piPaymentId);
+  const payment =
+    await piGetPayment(
+      piPaymentId
+    );
 
-  console.log("[PAYMENT][AUTHORIZE] PI_PAYMENT_OK", {
+  vlog("PI_PAYMENT_OK", {
     id: piPaymentId,
     amount: payment.amount,
-    user_uid: payment.user_uid,
+    user_uid:
+      payment.user_uid,
+    status:
+      payment.status,
   });
 
-  if (payment.user_uid !== me.uid) {
-    throw new Error("PI_USER_MISMATCH");
+  /* =====================================================
+     8. VERIFY PI USER
+  ===================================================== */
+
+  if (
+    payment.user_uid !==
+    me.uid
+  ) {
+    throw new Error(
+      "PI_USER_MISMATCH"
+    );
   }
 
   /* =====================================================
-     3. BIND TO DB (ONLY PLACE TOUCH DB)
+     9. VERIFY CANCELLED
   ===================================================== */
 
-  console.log("[PAYMENT][AUTHORIZE] BIND_START");
+  if (
+    payment.status
+      ?.cancelled === true ||
+    payment.status
+      ?.user_cancelled === true
+  ) {
+    throw new Error(
+      "PI_PAYMENT_CANCELLED"
+    );
+  }
+
+  /* =====================================================
+     10. VERIFY AMOUNT
+  ===================================================== */
+
+  const intentAmount =
+    Number(
+      intent.total_amount
+    );
+
+  const paymentAmount =
+    Number(payment.amount);
+
+  if (
+    !Number.isFinite(
+      intentAmount
+    ) ||
+    !Number.isFinite(
+      paymentAmount
+    )
+  ) {
+    throw new Error(
+      "INVALID_PAYMENT_AMOUNT"
+    );
+  }
+
+  if (
+    intentAmount !==
+    paymentAmount
+  ) {
+    vlog(
+      "AMOUNT_MISMATCH",
+      {
+        intentAmount,
+        paymentAmount,
+      }
+    );
+
+    throw new Error(
+      "PAYMENT_AMOUNT_MISMATCH"
+    );
+  }
+
+  /* =====================================================
+     11. VERIFY RECEIVER WALLET
+  ===================================================== */
+
+  if (
+    typeof intent.merchant_wallet ===
+      "string" &&
+    intent.merchant_wallet &&
+    payment.to_address !==
+      intent.merchant_wallet
+  ) {
+    throw new Error(
+      "MERCHANT_WALLET_MISMATCH"
+    );
+  }
+
+  /* =====================================================
+     12. BIND PAYMENT
+  ===================================================== */
+
+  vlog("BIND_START");
 
   await bindPiPaymentToIntent({
     userId,
+
     paymentIntentId,
+
     piPaymentId,
+
     piUid: me.uid,
-    verifiedAmount: Number(payment.amount),
+
+    verifiedAmount:
+      paymentAmount,
+
     piPayload: payment,
   });
 
-  console.log("[PAYMENT][AUTHORIZE] BIND_DONE");
+  vlog("BIND_DONE");
 
   /* =====================================================
-     4. PI APPROVE (AFTER BIND ONLY)
+     13. APPROVE PAYMENT
   ===================================================== */
 
-  if (!payment.status?.developer_approved) {
-    console.log("[PAYMENT][AUTHORIZE] PI_APPROVE_START");
+  if (
+    !payment.status
+      ?.developer_approved
+  ) {
+    vlog(
+      "PI_APPROVE_START"
+    );
 
-    await piApprovePayment(piPaymentId);
+    await piApprovePayment(
+      piPaymentId
+    );
 
-    console.log("[PAYMENT][AUTHORIZE] PI_APPROVE_DONE");
+    vlog(
+      "PI_APPROVE_DONE"
+    );
+  } else {
+    vlog(
+      "PI_ALREADY_APPROVED"
+    );
   }
 
   /* =====================================================
-     5. FINAL
+     14. SUCCESS
   ===================================================== */
 
-  console.log("[PAYMENT][AUTHORIZE] SUCCESS", {
+  vlog("SUCCESS", {
     paymentIntentId,
     piPaymentId,
   });
 
-  return { success: true };
+  return {
+    success: true,
+  };
 }
