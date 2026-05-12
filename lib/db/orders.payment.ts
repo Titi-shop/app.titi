@@ -1,122 +1,9 @@
 
 import { withTransaction } from "@/lib/db";
-
 import {
   auditManualReview,
   writePaymentAudit,
 } from "@/lib/db/payments.audit";
-/* =========================================================
-   TYPES
-========================================================= */
-
-type FinalizePaidOrderParams = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-  verifiedAmount: number;
-  receiverWallet: string;
-  piPayload: PiPayload;
-rpcPayload: RpcPayload;
-};
-
-type PaymentIntentRow = {
-  id: string;
-
-  buyer_id: string;
-  seller_id: string;
-
-  product_id: string;
-  variant_id: string | null;
-  quantity: number;
-
-  unit_price: string;
-  subtotal: string;
-  discount: string;
-  shipping_fee: string;
-  total_amount: string;
-  currency: string;
-  shipping_snapshot: any;
-  country: string;
-  zone: string;
-  merchant_wallet: string;
-  status: string;
-  settlement_state: string;
-};
-
-export type FinalizePaidOrderResult = {
-  ok: boolean;
-  already: boolean;
-  orderId: string | null;
-  buyerId: string;
-  sellerId: string;
-  amount: number;
-};
-type RpcPayload = {
-  ok: boolean;
-
-  amount?: number | null;
-  ledger?: number | null;
-  chainReference?: string | null;
-  stage?: string | null;
-  sender?: string | null;
-  receiver?: string | null;
-  reason?: string | null;
-  confirmed?: boolean;
-  txStatus?: string | null;
-  memo?: string | null;
-
-  createdAt?: string | null;
-
-  payload?: unknown;
-};
-
-type PiPayload = {
-  user_uid?: string | null;
-  from_address?: string | null;
-  to_address?: string | null;
-  amount?: number | string | null;
-  identifier?: string | null;
-  memo?: string | null;
-  network?: string | null;
-  created_at?: string | null;
-  transaction?: {
-    txid?: string | null;
-    verified?: boolean;
-  };
-  status?: {
-    developer_approved?: boolean;
-    developer_completed?: boolean;
-    transaction_verified?: boolean;
-    cancelled?: boolean;
-    user_cancelled?: boolean;
-  };
-};
-   type ShippingSnapshot = {
-  name?: string | null;
-  phone?: string | null;
-  address_line?: string | null;
-  ward?: string | null;
-  district?: string | null;
-  region?: string | null;
-  country?: string | null;
-  postal_code?: string | null;
-};
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function toNumber(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) {
-    throw new Error("INVALID_NUMBER");
-  }
-  return n;
-}
-
-function isSameAmount(a: number, b: number): boolean {
-  return Math.abs(a - b) < 0.0000001;
-}
 
 /* =========================================================
    FINALIZER
@@ -130,49 +17,38 @@ export async function finalizePaidOrderFromIntent({
   receiverWallet,
   piPayload,
   rpcPayload,
-  intent, 
+  intent,
 }: FinalizePaidOrderParams & { intent: PaymentIntentRow }) {
   return withTransaction(async (client) => {
     /* =====================================================
-       1. LOCK PAYMENT INTENT
+       1. SHIPPING VALIDATION
     ===================================================== */
 
-const rawShipping =
-  typeof intent.shipping_snapshot === "string"
-    ? JSON.parse(intent.shipping_snapshot)
-    : intent.shipping_snapshot;
+    const rawShipping =
+      typeof intent.shipping_snapshot === "string"
+        ? JSON.parse(intent.shipping_snapshot)
+        : intent.shipping_snapshot;
 
-const shipping: ShippingSnapshot =
-  rawShipping?.buyer_shipping ?? rawShipping ?? {};
+    const shipping: ShippingSnapshot =
+      rawShipping?.buyer_shipping ?? rawShipping ?? {};
 
-if (
-  !shipping.name ||
-  !shipping.phone ||
-  !shipping.address_line
-) {
-  await auditManualReview(
-  paymentIntentId,
-  "INVALID_SHIPPING_SNAPSHOT",
-  {
-    shipping,
-  },
-  client
-);
+    if (!shipping.name || !shipping.phone || !shipping.address_line) {
+      await auditManualReview(
+        paymentIntentId,
+        "INVALID_SHIPPING_SNAPSHOT",
+        { shipping },
+        client
+      );
+      throw new Error("INVALID_SHIPPING_SNAPSHOT");
+    }
 
-  throw new Error("INVALID_SHIPPING_SNAPSHOT");
-}
     /* =====================================================
-       2. IDEMPOTENT IF ALREADY PAID
+       2. IDEMPOTENT CHECK
     ===================================================== */
 
     if (intent.status === "paid") {
       const existedOrder = await client.query<{ id: string }>(
-        `
-        SELECT id
-        FROM orders
-        WHERE pi_payment_id = $1
-        LIMIT 1
-        `,
+        `SELECT id FROM orders WHERE pi_payment_id = $1 LIMIT 1`,
         [piPaymentId]
       );
 
@@ -195,12 +71,12 @@ if (
     }
 
     /* =====================================================
-       3. STRICT AMOUNT + RECEIVER VALIDATION
+       3. AMOUNT + WALLET VALIDATION
     ===================================================== */
 
-    const expectedAmount = toNumber(intent.total_amount);
+    const expectedAmount = Number(intent.total_amount);
 
-    if (!isSameAmount(expectedAmount, verifiedAmount)) {
+    if (Math.abs(expectedAmount - verifiedAmount) > 0.000001) {
       await auditManualReview(paymentIntentId, "AMOUNT_MISMATCH", {
         expectedAmount,
         verifiedAmount,
@@ -209,8 +85,8 @@ if (
     }
 
     if (
-      String(intent.merchant_wallet || "").trim().toLowerCase() !==
-      String(receiverWallet || "").trim().toLowerCase()
+      String(intent.merchant_wallet || "").toLowerCase() !==
+      String(receiverWallet || "").toLowerCase()
     ) {
       await auditManualReview(paymentIntentId, "RECEIVER_MISMATCH", {
         expected: intent.merchant_wallet,
@@ -219,193 +95,125 @@ if (
       throw new Error("RECEIVER_MISMATCH");
     }
 
-   /* =====================================================
-   4. CREATE ORDER
-===================================================== */
-await writePaymentAudit({
-  paymentIntentId,
-  eventCode: "ORDER_FINALIZE_STARTED",
-  stage: "FINALIZE",
-  actorType: "system",
-  piPaymentId,
-  txid,
-  source: "orders.payment",
-  newSettlementState: "FINALIZING_ORDER",
-  payload: {
-    verifiedAmount,
-    receiverWallet,
-  },
-});
-     
-const orderRes = await client.query<{ id: string }>(
-  `
-  INSERT INTO orders (
-    buyer_id,
-    seller_id,
-    pi_payment_id,
-    pi_txid,
-    idempotency_key,
+    /* =====================================================
+       4. AUDIT START
+    ===================================================== */
 
-    payment_status,
-    paid_at,
+    await writePaymentAudit({
+      paymentIntentId,
+      eventCode: "ORDER_FINALIZE_STARTED",
+      stage: "FINALIZE",
+      actorType: "system",
+      piPaymentId,
+      txid,
+      source: "orders.payment",
+      newSettlementState: "FINALIZING_ORDER",
+      payload: { verifiedAmount, receiverWallet },
+    });
 
-    fulfillment_status,
+    /* =====================================================
+       5. ORDER CREATE
+    ===================================================== */
 
-    settlement_status,
-    shipment_status,
-    delivery_status,
+    const orderRes = await client.query<{ id: string }>(
+      `
+      INSERT INTO orders (
+        buyer_id,
+        seller_id,
+        pi_payment_id,
+        pi_txid,
+        idempotency_key,
 
-    items_total,
-    subtotal,
-    discount,
-    shipping_fee,
-    tax,
-    total,
-    currency,
+        payment_status,
+        paid_at,
+        fulfillment_status,
 
-    shipping_name,
-    shipping_phone,
-    shipping_address_line,
-    shipping_ward,
-    shipping_district,
-    shipping_region,
-    shipping_country,
-    shipping_postal_code,
+        settlement_status,
+        shipment_status,
+        delivery_status,
 
-    total_items,
-    total_quantity,
+        items_total,
+        subtotal,
+        discount,
+        shipping_fee,
+        tax,
+        total,
+        currency,
 
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,  -- buyer_id
-    $2,  -- seller_id
+        shipping_name,
+        shipping_phone,
+        shipping_address_line,
+        shipping_ward,
+        shipping_district,
+        shipping_region,
+        shipping_country,
+        shipping_postal_code,
 
-    $3,  -- pi_payment_id
-    $4,  -- pi_txid
-    $5,  -- idempotency_key
+        total_items,
+        total_quantity,
 
-    'paid',
-    now(),
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,
+        'paid',now(),'pending_fulfillment',
+        'ESCROWED','PENDING','PENDING',
+        $6,$7,$8,$9,$10,$11,$12,
+        $13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,
+        now(),now()
+      )
+      RETURNING id
+      `,
+      [
+        intent.buyer_id,
+        intent.seller_id,
+        piPaymentId,
+        txid,
+        paymentIntentId,
 
-    'pending_fulfillment',
+        intent.subtotal,
+        intent.subtotal,
+        intent.discount,
+        intent.shipping_fee,
+        0,
+        intent.total_amount,
+        intent.currency,
 
-    'ESCROWED',
-    'PENDING',
-    'PENDING',
+        shipping.name ?? "",
+        shipping.phone ?? "",
+        shipping.address_line ?? "",
+        shipping.ward ?? null,
+        shipping.district ?? null,
+        shipping.region ?? null,
+        shipping.country ?? intent.country,
+        shipping.postal_code ?? null,
 
-    $6,  -- items_total
-    $7,  -- subtotal
-    $8,  -- discount
-    $9,  -- shipping_fee
-    $10, -- tax
-    $11, -- total
-    $12, -- currency
-
-    $13, -- shipping_name
-    $14, -- shipping_phone
-    $15, -- shipping_address_line
-    $16, -- shipping_ward
-    $17, -- shipping_district
-    $18, -- shipping_region
-    $19, -- shipping_country
-    $20, -- shipping_postal_code
-
-    $21, -- total_items
-    $22, -- total_quantity
-
-    now(),
-    now()
-  )
-  RETURNING id
-  `,
-  [
-    // $1
-    intent.buyer_id,
-
-    // $2
-    intent.seller_id,
-
-    // $3
-    piPaymentId,
-
-    // $4
-    txid,
-
-    // $5
-    paymentIntentId,
-
-    // $6 items_total
-    intent.subtotal,
-
-    // $7 subtotal
-    intent.subtotal,
-
-    // $8 discount
-    intent.discount,
-
-    // $9 shipping_fee
-    intent.shipping_fee,
-
-    // $10 tax
-    0,
-
-    // $11 total
-    intent.total_amount,
-
-    // $12 currency
-    intent.currency,
-
-    // $13 shipping_name
-    shipping.name ?? "",
-
-    // $14 shipping_phone
-    shipping.phone ?? "",
-
-    // $15 shipping_address_line
-    shipping.address_line ?? "",
-
-    // $16 shipping_ward
-    shipping.ward ?? null,
-
-    // $17 shipping_district
-    shipping.district ?? null,
-
-    // $18 shipping_region
-    shipping.region ?? null,
-
-    // $19 shipping_country
-    shipping.country ?? intent.country,
-
-    // $20 shipping_postal_code
-    shipping.postal_code ?? null,
-
-    // $21 total_items
-    intent.quantity,
-
-    // $22 total_quantity
-    intent.quantity,
-  ]
-);
+        intent.quantity,
+        intent.quantity,
+      ]
+    );
 
     const orderId = orderRes.rows[0].id;
-    await writePaymentAudit({
-  paymentIntentId,
-  eventCode: "ORDER_CREATED",
-  stage: "FINALIZE",
-  actorType: "system",
-  piPaymentId,
-  txid,
-  source: "orders.payment",
-  orderId,
-  newSettlementState: "ORDER_CREATED",
-});
-if (!orderId) {
-  throw new Error("ORDER_CREATE_FAILED");
-}
+
     /* =====================================================
-       5. CREATE ORDER ITEM
+       6. LOCK + NOTE + REVIEW REASON (FIX CORE ISSUE)
+    ===================================================== */
+
+    const processingLockId = `${paymentIntentId}:${piPaymentId}`;
+    const processingLockedAt = new Date();
+    const manualReviewReason = rpcPayload?.reason ?? null;
+
+    const note = JSON.stringify({
+      stage: "FINALIZE",
+      txid,
+      piMemo: piPayload?.memo,
+      rpcStage: rpcPayload?.stage,
+    });
+
+    /* =====================================================
+       7. ORDER ITEM
     ===================================================== */
 
     await client.query(
@@ -430,389 +238,222 @@ if (!orderId) {
         intent.variant_id,
         intent.quantity,
         intent.unit_price,
-        toNumber(intent.unit_price) * intent.quantity,
+        Number(intent.unit_price) * intent.quantity,
         intent.currency,
-        JSON.stringify({
-          paymentIntentId,
-          piPaymentId,
-          txid,
-          source: "payment_reconcile",
-        }),
+        JSON.stringify({ paymentIntentId, piPaymentId, txid }),
       ]
     );
 
     /* =====================================================
-       6. CREATE PAYMENT RECEIPT
+       8. PAYMENT RECEIPT
     ===================================================== */
 
     await client.query(
-  `
-  INSERT INTO payment_receipts (
-    payment_intent_id,
-    user_id,
-    order_id,
-    escrow_id,
+      `
+      INSERT INTO payment_receipts (
+        payment_intent_id,
+        user_id,
+        order_id,
+        escrow_id,
+        pi_payment_id,
+        pi_uid,
+        txid,
+        expected_amount,
+        verified_amount,
+        currency,
+        sender_wallet,
+        receiver_wallet,
+        verification_status,
+        verify_source,
+        settlement_state,
+        rpc_confirmed,
+        rpc_ledger,
+        chain_reference,
+        tx_status,
+        developer_completed,
+        rpc_reason,
+        pi_payload,
+        rpc_payload,
+        merged_payload,
+        developer_completed_at,
+        pi_created_at,
+        pi_memo,
+        rpc_tx_status,
+        rpc_stage,
+        idempotency_key,
+        verified_at,
+        completed_at,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,
+        $8,$9,$10,
+        $11,$12,
+        $13,$14,$15,
+        $16,$17,$18,
+        $19,$20,$21,
+        $22,$23,$24,
+        $25,$26,$27,
+        $28,$29,$30,
+        now(),now(),now(),now()
+      )
+      `,
+      [
+        paymentIntentId,
+        intent.buyer_id,
+        orderId,
+        null,
+        piPaymentId,
+        piPayload?.user_uid ?? null,
+        txid,
 
-    pi_payment_id,
-    pi_uid,
-    txid,
+        expectedAmount,
+        verifiedAmount,
+        "PI",
 
-    expected_amount,
-    verified_amount,
-    currency,
+        piPayload?.from_address ?? null,
+        piPayload?.to_address ?? receiverWallet,
 
-    sender_wallet,
-    receiver_wallet,
+        "completed",
+        "DUAL_AUDIT",
+        "ORDER_FINALIZED",
 
-    verification_status,
-    verify_source,
-    settlement_state,
+        rpcPayload?.confirmed ?? rpcPayload?.ok ?? false,
+        rpcPayload?.ledger ?? null,
+        rpcPayload?.chainReference ?? txid,
 
-    rpc_confirmed,
-    rpc_ledger,
-    chain_reference,
+        rpcPayload?.txStatus ?? "CONFIRMED",
+        piPayload?.status?.developer_completed ?? false,
+        manualReviewReason,
 
-    tx_status,
-    developer_completed,
-    rpc_reason,
+        JSON.stringify(piPayload),
+        JSON.stringify(rpcPayload),
+        JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
 
-    pi_payload,
-    rpc_payload,
-    merged_payload,
+        piPayload?.status?.developer_completed ? new Date() : null,
+        piPayload?.created_at ?? null,
+        piPayload?.memo ?? null,
 
-    developer_completed_at,
+        rpcPayload?.txStatus ?? "CONFIRMED",
+        rpcPayload?.stage ?? null,
+        paymentIntentId,
+      ]
+    );
 
-    pi_created_at,
-    pi_memo,
-
-    rpc_tx_status,
-    rpc_stage,
-
-    idempotency_key,
-
-    verified_at,
-    completed_at,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,$2,$3,$4,
-    $5,$6,$7,
-    $8,$9,$10,
-    $11,$12,
-    $13,$14,$15,
-    $16,$17,$18,
-    $19,$20,$21,
-    $22,$23,$24,
-    $25,
-    $26,$27,
-    $28,$29,
-    $30,
-    now(),now(),now(),now()
-  )
-  ON CONFLICT (pi_payment_id)
-  DO UPDATE SET
-    order_id = EXCLUDED.order_id,
-    escrow_id = EXCLUDED.escrow_id,
-
-    pi_uid = EXCLUDED.pi_uid,
-
-    sender_wallet = EXCLUDED.sender_wallet,
-    receiver_wallet = EXCLUDED.receiver_wallet,
-
-    rpc_confirmed = EXCLUDED.rpc_confirmed,
-    rpc_ledger = EXCLUDED.rpc_ledger,
-    chain_reference = EXCLUDED.chain_reference,
-
-    tx_status = EXCLUDED.tx_status,
-    developer_completed = EXCLUDED.developer_completed,
-    rpc_reason = EXCLUDED.rpc_reason,
-
-    pi_payload = EXCLUDED.pi_payload,
-    rpc_payload = EXCLUDED.rpc_payload,
-    merged_payload = EXCLUDED.merged_payload,
-
-    pi_created_at = EXCLUDED.pi_created_at,
-    pi_memo = EXCLUDED.pi_memo,
-
-    rpc_tx_status = EXCLUDED.rpc_tx_status,
-    rpc_stage = EXCLUDED.rpc_stage,
-
-    verification_status = EXCLUDED.verification_status,
-    verify_source = EXCLUDED.verify_source,
-    settlement_state = EXCLUDED.settlement_state,
-
-    developer_completed_at =
-      EXCLUDED.developer_completed_at,
-
-    verified_at = now(),
-    completed_at = now(),
-    updated_at = now()
-  `,
-  [
-    /* $1 */
-    paymentIntentId,
-
-    /* $2 */
-    intent.buyer_id,
-
-    /* $3 */
-    orderId,
-
-    /* $4 */
-    null,
-
-    /* $5 */
-    piPaymentId,
-
-    /* $6 */
-    piPayload?.user_uid ?? null,
-
-    /* $7 */
-    txid,
-
-    /* $8 */
-    expectedAmount,
-
-    /* $9 */
-    verifiedAmount,
-
-    /* $10 */
-    "PI",
-
-    /* $11 */
-    piPayload?.from_address ?? null,
-
-    /* $12 */
-    piPayload?.to_address ?? receiverWallet,
-
-    /* $13 */
-    "completed",
-
-    /* $14 */
-    "DUAL_AUDIT",
-
-    /* $15 */
-    "ORDER_FINALIZED",
-
-    /* $16 */
-    rpcPayload?.confirmed ?? rpcPayload?.ok ?? false,
-
-    /* $17 */
-    rpcPayload?.ledger ?? null,
-
-    /* $18 */
-    rpcPayload?.chainReference ?? txid,
-
-    /* $19 */
-    rpcPayload?.txStatus ??
-(rpcPayload?.confirmed ? "CONFIRMED" : "UNCONFIRMED"),
-
-    /* $20 */
-    piPayload?.status?.developer_completed ?? false,
-
-    /* $21 */
-    rpcPayload?.reason ?? "NONE",
-
-    /* $22 */
-    JSON.stringify({
-      memo: piPayload?.memo ?? null,
-      amount: piPayload?.amount ?? verifiedAmount,
-      network: piPayload?.network ?? null,
-      identifier: piPayload?.identifier ?? null,
-      txid: piPayload?.transaction?.txid ?? txid,
-      verified: piPayload?.transaction?.verified ?? true,
-      created_at: piPayload?.created_at ?? null,
-    }),
-
-    /* $23 */
-    JSON.stringify({
-      ok: rpcPayload?.ok ?? false,
-      amount: rpcPayload?.amount ?? verifiedAmount,
-      ledger: rpcPayload?.ledger ?? null,
-      sender: rpcPayload?.sender ?? null,
-      receiver: rpcPayload?.receiver ?? null,
-      confirmed: rpcPayload?.confirmed ?? true,
-      txStatus: rpcPayload?.txStatus ?? "CONFIRMED",
-      reason: rpcPayload?.reason ?? "NONE",
-    }),
-
-    /* $24 */
-    JSON.stringify({
-      pi_summary: {
-        amount:
-          piPayload?.amount ?? verifiedAmount,
-
-        memo:
-          piPayload?.memo ?? null,
-
-        developer_completed:
-          piPayload?.status
-            ?.developer_completed ?? false,
-      },
-
-      rpc_summary: {
-        ok: rpcPayload?.ok ?? false,
-
-        ledger:
-          rpcPayload?.ledger ?? null,
-
-        txStatus:
-          rpcPayload?.txStatus ??
-          "CONFIRMED",
-      },
-    }),
-
-    /* $25 */
-    piPayload?.status?.developer_completed
-      ? new Date()
-      : null,
-
-    /* $26 */
-    piPayload?.created_at
-  ? new Date(piPayload.created_at)
-  : null,
-
-    /* $27 */
-    piPayload?.memo ?? null,
-
-    /* $28 */
-    rpcPayload?.txStatus ?? "CONFIRMED",
-
-    /* $29 */
-    rpcPayload?.stage ?? null,
-
-    /* $30 */
-    paymentIntentId,
-  ]
-);
     /* =====================================================
-       7. UPSERT PI PAYMENTS (FULL SCHEMA FIX)
+       9. PI_PAYMENTS (FIXED 4 NULL COLUMNS)
     ===================================================== */
 
     await client.query(
-  `
-  INSERT INTO pi_payments (
-    payment_intent_id,
-    order_id,
-    user_id,
+      `
+      INSERT INTO pi_payments (
+        payment_intent_id,
+        order_id,
+        user_id,
+        pi_payment_id,
+        txid,
+        receiver_wallet,
+        amount,
+        expected_amount,
+        verified_amount,
+        currency,
+        status,
+        reconcile_attempts,
+        last_reconcile_at,
 
-    pi_payment_id,
-    txid,
-    receiver_wallet,
+        payment_nonce,
+        verify_token,
+        idempotency_key,
 
-    amount,
-    expected_amount,
-    verified_amount,
-    currency,
+        country,
+        zone,
 
-    status,
+        failure_reason,
+        manual_review_reason,
+        note,
 
-    reconcile_attempts,
-    last_reconcile_at,
+        processing_lock_id,
+        processing_locked_at,
 
-    payment_nonce,
-    verify_token,
-    idempotency_key,
+        pi_raw_payload,
+        rpc_raw_payload,
+        complete_raw_payload,
 
-    country,
-    zone,
+        completed_at,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,
+        $7,$8,$9,$10,$11,
+        $12,$13,
+        $14,$15,$16,
+        $17,$18,
+        $19,$20,$21,
+        $22,$23,
+        $24,$25,$26,
+        $27,$28,$29
+      )
+      `,
+      [
+        paymentIntentId,
+        orderId,
+        intent.buyer_id,
+        piPaymentId,
+        txid,
+        receiverWallet,
 
-    failure_reason,
-    manual_review_reason,
-    note,
+        verifiedAmount,
+        expectedAmount,
+        verifiedAmount,
+        "PI",
+        "SETTLED",
 
-    processing_lock_id,
-    processing_locked_at,
+        1,
+        new Date(),
 
-    pi_raw_payload,
-    rpc_raw_payload,
-    complete_raw_payload,
+        piPayload?.identifier ?? null,
+        rpcPayload?.chainReference ?? txid,
+        paymentIntentId,
 
-    completed_at,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,$2,$3,
-    $4,$5,$6,
-    $7,$8,$9,$10,
-    $11,
-    $12,$13,
-    $14,$15,$16,
-    $17,$18,
-    $19,$20,$21,
-    $22,$23,
-    $24,$25,$26,
-    $27,$28,$29
-  )
-  `,
-  [
-    paymentIntentId,
-    orderId,
-    intent.buyer_id,
+        intent.country ?? null,
+        intent.zone ?? null,
 
-    piPaymentId,
-    txid,
-    receiverWallet,
+        rpcPayload?.reason ?? null,
+        manualReviewReason,
+        note,
 
-    verifiedAmount,
-    expectedAmount,
-    verifiedAmount,
-    "PI",
+        processingLockId,
+        processingLockedAt,
 
-    "SETTLED",
+        JSON.stringify(piPayload),
+        JSON.stringify(rpcPayload),
+        JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
 
-    1,
-    new Date(),
-
-    piPayload?.identifier ?? null,
-    rpcPayload?.chainReference ?? txid,
-    paymentIntentId,
-
-    intent.country ?? null,
-    intent.zone ?? null,
-
-    rpcPayload?.reason ?? null,
-    null,
-    null,
-
-    null,
-    null,
-
-    JSON.stringify(piPayload),
-    JSON.stringify(rpcPayload),
-    JSON.stringify({ pi: piPayload, rpc: rpcPayload, finalized: true }),
-
-    new Date(),
-    new Date(),
-    new Date(),
-  ]
-);
-
+        new Date(),
+        new Date(),
+        new Date(),
+      ]
+    );
 
     /* =====================================================
-       8. FINALIZE PAYMENT INTENT
+       10. FINALIZE INTENT
     ===================================================== */
 
     await client.query(
       `
       UPDATE payment_intents
-      SET
-        status = 'paid',
-        settlement_state = 'SETTLED',
-        pi_payment_id = $2,
-        txid = $3,
-        paid_at = now(),
-        updated_at = now()
+      SET status = 'paid',
+          settlement_state = 'SETTLED',
+          pi_payment_id = $2,
+          txid = $3,
+          paid_at = now(),
+          updated_at = now()
       WHERE id = $1
       `,
       [paymentIntentId, piPaymentId, txid]
     );
-
-    /* =====================================================
-       9. RETURN
-    ===================================================== */
 
     return {
       ok: true,
