@@ -432,3 +432,34 @@ export async function decreaseVariantStock(
     return { success: true };
   });
 }
+
+export type ProductVariantRow = {
+  id: string;
+  product_id: string;
+  price: number;
+  sale_price: number | null;
+  stock: number;
+  is_active: boolean;
+};
+
+export async function getVariantById(
+  variantId: string
+): Promise<ProductVariantRow | null> {
+  const { rows } = await query<ProductVariantRow>(
+    `
+    SELECT
+      id,
+      product_id,
+      price,
+      sale_price,
+      stock,
+      is_active
+    FROM product_variants
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [variantId]
+  );
+
+  return rows[0] ?? null;
+}
