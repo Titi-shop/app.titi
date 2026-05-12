@@ -142,38 +142,24 @@ async function safeAuditRpc(
   ok: rpc.ok,
 
   reason: rpc.reason,
-
   amount: rpc.amount,
-
   confirmed: rpc.confirmed,
-
   ledger: rpc.ledger,
-
   sender: rpc.sender,
-
   receiver: rpc.receiver,
-
   txStatus: rpc.txStatus,
-
   chainReference: rpc.chainReference,
 });
 
     if (rpc.ok) {
       await auditRpcVerified(paymentIntentId, {
   source,
-
   txid,
-
   amount: rpc.amount,
-
   ledger: rpc.ledger,
-
   receiver: rpc.receiver,
-
   sender: rpc.sender,
-
   chainReference: rpc.chainReference,
-
   payload: {
     confirmed: rpc.confirmed,
     txStatus: rpc.txStatus,
@@ -308,9 +294,9 @@ async function safeLedger(
 
     await SettlementLedger.markPiVerified(escrowId);
 
-    if (rpcVerified.ok) {
-      await SettlementLedger.markRpcVerified(escrowId);
-    }
+    if (rpcVerified.confirmed) {
+  await SettlementLedger.markRpcVerified(escrowId);
+   }
 
     await SettlementLedger.linkOrder(escrowId, paid.orderId);
 
@@ -381,7 +367,7 @@ export async function runPaymentSettlement({
     amount: guard.amount,
   });
 
-  if (!guard.ok) {
+  if (!guard.ok || guard.amount === 0) {
     if (guard.code === "PAYMENT_ALREADY_PAID") {
       console.log("[PAYMENT][SETTLEMENT] ALREADY_PAID", {
         paymentIntentId,
@@ -603,17 +589,15 @@ if (!intentRow) {
   receiverWallet: piVerified.receiverWallet,
   piPayload: piVerified.piPayload ?? {},
   rpcPayload:
-  rpcVerified?.ok
-    ? {
-        ...rpcVerified,
-        confirmed:
-          rpcVerified.confirmed ?? true,
-        txStatus:
-          rpcVerified.txStatus ?? "CONFIRMED",
-        chainReference:
-          rpcVerified.chainReference ?? txid,
-      }
-    : emptyRpcPayload(),
+  rpcPayload:
+rpcVerified?.ok
+  ? {
+      ...rpcVerified,
+      confirmed: rpcVerified.confirmed,
+      txStatus: rpcVerified.txStatus,
+      chainReference: rpcVerified.chainReference ?? txid,
+    }
+  : emptyRpcPayload(),
   intent: intentRow,
 });
   console.log("[PAYMENT][SETTLEMENT] FINALIZE_ORDER_RESULT", {
@@ -664,7 +648,7 @@ if (!intentRow) {
     paymentIntentId,
     orderId: paid.orderId,
     amount: paid.amount,
-    rpcAudited: rpcVerified.ok,
+    rpcAudited: rpcVerified.confirmed ?? false
   });
 
     return successResult(
