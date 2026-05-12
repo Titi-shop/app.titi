@@ -245,13 +245,6 @@ async function validateProduct(
         : null,
   };
 
-  if (
-    normalized.status &&
-    normalized.status !== "active"
-  ) {
-    throw new Error("PRODUCT_INACTIVE");
-  }
-
   if (normalized.deleted_at) {
     throw new Error("PRODUCT_DELETED");
   }
