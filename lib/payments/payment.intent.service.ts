@@ -250,17 +250,11 @@ function normalizeCreateIntentInput({
 
   return {
     userId,
-
     productId,
-
     variantId,
-
     quantity,
-
     country,
-
     zone,
-
     shipping,
   };
 }
@@ -374,25 +368,17 @@ export async function createPiIntentFromRequest({
       {
         userId:
           normalized.userId,
-
         productId:
           normalized.productId,
-
         variantId:
           normalized.variantId,
-
         quantity:
           normalized.quantity,
-
         country:
           normalized.country,
-
-        zone:
-          normalized.zone,
-
+        zone: pricing.buyer_zone,
         shipping:
           normalized.shipping,
-
         pricing,
       }
     );
