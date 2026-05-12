@@ -1,7 +1,5 @@
 import crypto from "crypto";
-
 import { query, withTransaction } from "@/lib/db";
-
 import type {
   PaymentIntentStatus,
   SettlementState,
@@ -277,4 +275,25 @@ export async function createPiPaymentIntent({
       },
     };
   });
+}
+/* =========================================================
+   GET PAYMENT INTENT
+========================================================= */
+
+export async function getPaymentIntent(
+  id: string
+) {
+  const res = await query(
+    `
+    SELECT *
+    FROM payment_intents
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [id]
+  );
+
+  return (
+    res.rows[0] ?? null
+  );
 }
