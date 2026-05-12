@@ -667,3 +667,13 @@ export async function calculatePricing(
 
   return result;
 }
+
+/* =========================================================
+   SNAPSHOT BUILDER
+========================================================= */
+
+export async function buildPricingSnapshot(
+  input: PricingInput
+): Promise<PricingResult> {
+  return calculatePricing(input);
+}
