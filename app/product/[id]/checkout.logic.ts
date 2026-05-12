@@ -434,9 +434,7 @@ onReadyForServerCompletion: async (
     ===================================================== */
 
     onClose();
-    setTimeout(() => {
-  router.replace("/customer/orders?tab=pending");
-}, 300);
+    router.replace("/customer/orders?tab=pending&ts=" + Date.now());
 
     showMessage(
       t.payment_success ?? "success",
