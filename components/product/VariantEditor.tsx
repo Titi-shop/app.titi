@@ -454,39 +454,41 @@ export default function VariantEditor({
                       {/* PRICE */}
                       <td className="p-2">
                         <input
-  type="number"
-  step="0.00001"
-  min="0.00001"
-  inputMode="decimal"
-  placeholder={t.sale_price}
-  value={v.salePrice ?? ""}
-  onChange={(e) =>
-    updateField(
-      i,
-      "salePrice",
-      e.target.value
-    )
-  }
-  onBlur={(e) => {
-    const value = e.target.value;
+                          type="number"
+                          step="0.00001"
+                          min="0.00001"
+                          inputMode="decimal"
+                          value={
+                            v.price ?? ""
+                          }
+                          onChange={(
+                            e
+                          ) => {
+                            const parsed =
+                              parseNumberInput(
+                                e.target
+                                  .value
+                              );
 
-    if (!value.trim()) {
-      updateField(i, "salePrice", null);
-      return;
-    }
-
-    const parsed = Number(value);
-
-    updateField(
-      i,
-      "salePrice",
-      parsed < MIN_PRICE
-        ? MIN_PRICE
-        : parsed
-    );
-  }}
-  className="border p-1 w-24 block"
-/>
+                            updateField(
+                              i,
+                              "price",
+                              parsed as ProductVariant["price"]
+                            );
+                          }}
+                          onBlur={() => {
+                            updateField(
+                              i,
+                              "price",
+                              normalizePrice(
+                                Number(
+                                  v.price
+                                )
+                              ) as ProductVariant["price"]
+                            );
+                          }}
+                          className="border p-1 w-24"
+                        />
                       </td>
 
                       {/* STOCK */}
@@ -537,60 +539,59 @@ export default function VariantEditor({
 
                         {v.saleEnabled && (
                           <>
-                           <input
-  type="number"
-  step="0.00001"
-  min="0.00001"
-  inputMode="decimal"
-  placeholder={t.sale_price}
-  value={
-    v.salePrice === null ||
-    v.salePrice === undefined
-      ? ""
-      : String(v.salePrice)
-  }
-  onChange={(e) => {
-    const value = e.target.value;
+                            <input
+                              type="number"
+                              step="0.00001"
+                              min="0.00001"
+                              inputMode="decimal"
+                              placeholder={
+                                t.sale_price
+                              }
+                              value={
+                                v.salePrice ??
+                                ""
+                              }
+                              onChange={(
+                                e
+                              ) => {
+                                const value =
+                                  e
+                                    .target
+                                    .value;
 
-    if (value === "") {
-      updateField(
-        i,
-        "salePrice",
-        null
-      );
+                                updateField(
+                                  i,
+                                  "salePrice",
+                                  value ===
+                                    ""
+                                    ? null
+                                    : Number(
+                                        value
+                                      )
+                                );
+                              }}
+                              onBlur={() => {
+                                if (
+                                  v.salePrice ===
+                                    null ||
+                                  v.salePrice ===
+                                    undefined
+                                ) {
+                                  return;
+                                }
 
-      return;
-    }
-
-    updateField(
-      i,
-      "salePrice",
-      value as unknown as ProductVariant["salePrice"]
-    );
-  }}
-  onBlur={(e) => {
-    const value = e.target.value;
-
-    if (value.trim() === "") {
-      updateField(
-        i,
-        "salePrice",
-        null
-      );
-
-      return;
-    }
-
-    const parsed = Number(value);
-
-    updateField(
-      i,
-      "salePrice",
-      normalizePrice(parsed) as ProductVariant["salePrice"]
-    );
-  }}
-  className="border p-1 w-24 block"
-/>
+                                updateField(
+                                  i,
+                                  "salePrice",
+                                  normalizePrice(
+                                    Number(
+                                      v.salePrice
+                                    )
+                                  ) as ProductVariant["salePrice"]
+                                );
+                              }}
+                              className="border p-1 w-24 block"
+                            />
 
                             <input
                               type="number"
