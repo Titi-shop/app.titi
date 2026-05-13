@@ -598,4 +598,14 @@
     "uploadFailed": "Tải ảnh thất bại",
     "submitFailed": "Đăng sản phẩm thất bại"
   }
+  shipping_fee: "Phí vận chuyển",
+domestic_country: "Quốc gia nội địa",
+domestic_price: "Giá nội địa",
+
+shipping_sea: "Đông Nam Á",
+shipping_asia: "Châu Á",
+shipping_europe: "Châu Âu",
+shipping_north_america: "Bắc Mỹ",
+shipping_rest_of_world: "Phần còn lại thế giới"
+
 }
