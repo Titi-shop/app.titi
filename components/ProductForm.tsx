@@ -488,9 +488,15 @@ console.log(
   "📦 PRODUCT PAYLOAD:",
   payload
 );
-
 await onSubmit(payload);
+    } catch (error) {
+      console.error(error);
+      alert(t.submit_failed);
+    } finally {
+      setSubmitting(false);
+    }
 
+  };
   /* =========================
      UI
   ========================= */
