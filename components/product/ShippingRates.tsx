@@ -1,6 +1,4 @@
 "use client";
-
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { countries } from "@/data/countries";
 
 type ShippingValue = number | "";
@@ -36,7 +34,6 @@ export default function ShippingRates({
   primaryShippingCountry,
   setPrimaryShippingCountry,
 }: Props) {
-  const { t } = useTranslation();
 
   const zones: {
     key: keyof ShippingRatesState;
