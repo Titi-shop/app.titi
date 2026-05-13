@@ -50,38 +50,25 @@ export interface ProductVariant {
 
   optionValue?: string;
   optionName?: string;
-
   name?: string;
 
   /* PRICE */
-  price?: number;
-
-  salePrice?: number | null;
-
+  salePrice?: number | string | null;
+price?: number | string;
   finalPrice?: number;
-
   /* SALE */
   saleEnabled?: boolean;
-
   saleStock?: number;
-
   saleSold?: number;
-
   /* STOCK */
   stock: number;
-
   isUnlimited?: boolean;
-
   /* MEDIA */
   sku?: string | null;
-
   image?: string;
-
   /* STATUS */
   sortOrder?: number;
-
   isActive?: boolean;
-
   /* ANALYTICS */
   sold?: number;
 }
