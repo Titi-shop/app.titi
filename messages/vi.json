@@ -520,85 +520,77 @@
   "mark_as_received": "Mark as Received",
   "waiting_refund": "Waiting refund confirm",
   "action_failed": "Action failed",
+
   "loading": "Đang tải...",
 
-  "product": {
-    "selectCategory": "Chọn danh mục",
-    "productName": "Tên sản phẩm",
-    "description": "Mô tả sản phẩm",
-    "detail": "Chi tiết sản phẩm",
+"product_select_category": "Chọn danh mục",
 
-    "uploadImage": "＋ Tải ảnh lên",
-    "uploading": "Đang tải ảnh...",
-    "detailImage": "+ Ảnh chi tiết",
+"product_name": "Tên sản phẩm",
+"description": "Mô tả sản phẩm",
+"detail": "Chi tiết sản phẩm",
 
-    "price": "Giá",
-    "stock": "Tồn kho",
+"upload_image": "＋ Tải ảnh lên",
+"uploading": "Đang tải ảnh...",
+"detail_image": "+ Ảnh chi tiết",
 
-    "sale": "Giảm giá",
-    "enableSale": "Bật giảm giá",
+"price": "Giá",
+"stock": "Tồn kho",
 
-    "salePrice": "Giá giảm",
-    "saleStock": "Kho giảm giá",
+"sale": "Giảm giá",
+"enable_sale": "Bật giảm giá",
 
-    "saleStart": "Bắt đầu giảm giá",
-    "saleEnd": "Kết thúc giảm giá",
+"sale_price": "Giá giảm",
+"sale_stock": "Kho giảm giá",
 
-    "active": "Hiển thị sản phẩm",
+"sale_start": "Bắt đầu giảm giá",
+"sale_end": "Kết thúc giảm giá",
 
-    "submit": "Đăng sản phẩm",
-    "submitting": "Đang đăng...",
+"active": "Hiển thị sản phẩm",
 
-    "shippingFee": "🚚 Phí vận chuyển",
-    "domesticCountry": "Quốc gia nội địa",
-    "domesticPrice": "Phí nội địa",
+"submit": "Đăng sản phẩm",
+"submitting": "Đang đăng...",
 
-    "sea": "Đông Nam Á",
-    "asia": "Châu Á",
-    "europe": "Châu Âu",
-    "northAmerica": "Bắc Mỹ",
-    "restOfWorld": "Toàn thế giới",
+"shipping_fee": "🚚 Phí vận chuyển",
+"domestic_country": "Quốc gia nội địa",
+"domestic_price": "Phí nội địa",
 
-    "variants": "Biến thể sản phẩm",
+"shipping_sea": "Đông Nam Á",
+"shipping_asia": "Châu Á",
+"shipping_europe": "Châu Âu",
+"shipping_north_america": "Bắc Mỹ",
+"shipping_rest_of_world": "Toàn thế giới",
 
-    "option1Label": "Tên thuộc tính 1",
-    "option2Label": "Tên thuộc tính 2",
+"variants": "Biến thể sản phẩm",
 
-    "option1Placeholder": "Đỏ, Xanh",
-    "option2Placeholder": "S, M",
+"option1_label": "Tên thuộc tính 1",
+"option2_label": "Tên thuộc tính 2",
 
-    "generateVariants": "Tạo biến thể",
+"option1_placeholder": "Đỏ, Xanh",
+"option2_placeholder": "S, M",
 
-    "bulkPrice": "Giá hàng loạt",
-    "bulkStock": "Kho hàng loạt",
+"generate_variants": "Tạo biến thể",
+"bulk_price": "Giá hàng loạt",
+"bulk_stock": "Kho hàng loạt",
 
-    "enableSaleAll": "Bật sale tất cả",
+"enable_sale_all": "Bật sale tất cả",
 
-    "variant": "Biến thể",
+"variant": "Biến thể",
+"remove": "Xóa",
+"invalid_name": "Tên sản phẩm không hợp lệ",
 
-    "remove": "Xóa"
-  },
+"need_image": "Cần ít nhất 1 ảnh",
 
-  "validation": {
-    "invalidName": "Tên sản phẩm không hợp lệ",
+"price_min": "Giá phải lớn hơn hoặc bằng 0.00001 PI",
+"sale_price_min": "Giá giảm phải lớn hơn hoặc bằng 0.00001 PI",
+"sale_price_required": "Cần nhập giá giảm khi có thời gian sale",
+"sale_need_time": "Sale cần thời gian bắt đầu và kết thúc",
+"sale_price_less_than_price": "Giá giảm phải nhỏ hơn giá gốc",
+"sale_stock_exceeded": "Kho sale không được vượt quá kho",
 
-    "needImage": "Cần ít nhất 1 ảnh",
+"upload_failed": "Tải ảnh thất bại",
 
-    "priceMin": "Giá phải lớn hơn hoặc bằng 0.00001 PI",
-
-    "salePriceMin": "Giá giảm phải lớn hơn hoặc bằng 0.00001 PI",
-
-    "salePriceRequired": "Cần nhập giá giảm khi có thời gian sale",
-
-    "saleNeedTime": "Sale cần thời gian bắt đầu và kết thúc",
-
-    "salePriceLessThanPrice": "Giá giảm phải nhỏ hơn giá gốc",
-
-    "saleStockExceeded": "Kho sale không được vượt quá kho",
-    "uploadFailed": "Tải ảnh thất bại",
-    "submitFailed": "Đăng sản phẩm thất bại"
-  }
-  shipping_fee: "Phí vận chuyển",
+"submit_failed": "Đăng sản phẩm thất bại"
+shipping_fee: "Phí vận chuyển",
 domestic_country: "Quốc gia nội địa",
 domestic_price: "Giá nội địa",
 
@@ -606,6 +598,7 @@ shipping_sea: "Đông Nam Á",
 shipping_asia: "Châu Á",
 shipping_europe: "Châu Âu",
 shipping_north_america: "Bắc Mỹ",
-shipping_rest_of_world: "Phần còn lại thế giới"
+shipping_rest_of_world: "Phần còn lại thế giới",
+  
 
 }
