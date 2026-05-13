@@ -519,5 +519,83 @@
   "timeline": "Timeline",
   "mark_as_received": "Mark as Received",
   "waiting_refund": "Waiting refund confirm",
-  "action_failed": "Action failed"
+  "action_failed": "Action failed",
+  "loading": "Đang tải...",
+
+  "product": {
+    "selectCategory": "Chọn danh mục",
+    "productName": "Tên sản phẩm",
+    "description": "Mô tả sản phẩm",
+    "detail": "Chi tiết sản phẩm",
+
+    "uploadImage": "＋ Tải ảnh lên",
+    "uploading": "Đang tải ảnh...",
+    "detailImage": "+ Ảnh chi tiết",
+
+    "price": "Giá",
+    "stock": "Tồn kho",
+
+    "sale": "Giảm giá",
+    "enableSale": "Bật giảm giá",
+
+    "salePrice": "Giá giảm",
+    "saleStock": "Kho giảm giá",
+
+    "saleStart": "Bắt đầu giảm giá",
+    "saleEnd": "Kết thúc giảm giá",
+
+    "active": "Hiển thị sản phẩm",
+
+    "submit": "Đăng sản phẩm",
+    "submitting": "Đang đăng...",
+
+    "shippingFee": "🚚 Phí vận chuyển",
+    "domesticCountry": "Quốc gia nội địa",
+    "domesticPrice": "Phí nội địa",
+
+    "sea": "Đông Nam Á",
+    "asia": "Châu Á",
+    "europe": "Châu Âu",
+    "northAmerica": "Bắc Mỹ",
+    "restOfWorld": "Toàn thế giới",
+
+    "variants": "Biến thể sản phẩm",
+
+    "option1Label": "Tên thuộc tính 1",
+    "option2Label": "Tên thuộc tính 2",
+
+    "option1Placeholder": "Đỏ, Xanh",
+    "option2Placeholder": "S, M",
+
+    "generateVariants": "Tạo biến thể",
+
+    "bulkPrice": "Giá hàng loạt",
+    "bulkStock": "Kho hàng loạt",
+
+    "enableSaleAll": "Bật sale tất cả",
+
+    "variant": "Biến thể",
+
+    "remove": "Xóa"
+  },
+
+  "validation": {
+    "invalidName": "Tên sản phẩm không hợp lệ",
+
+    "needImage": "Cần ít nhất 1 ảnh",
+
+    "priceMin": "Giá phải lớn hơn hoặc bằng 0.00001 PI",
+
+    "salePriceMin": "Giá giảm phải lớn hơn hoặc bằng 0.00001 PI",
+
+    "salePriceRequired": "Cần nhập giá giảm khi có thời gian sale",
+
+    "saleNeedTime": "Sale cần thời gian bắt đầu và kết thúc",
+
+    "salePriceLessThanPrice": "Giá giảm phải nhỏ hơn giá gốc",
+
+    "saleStockExceeded": "Kho sale không được vượt quá kho",
+    "uploadFailed": "Tải ảnh thất bại",
+    "submitFailed": "Đăng sản phẩm thất bại"
+  }
 }
