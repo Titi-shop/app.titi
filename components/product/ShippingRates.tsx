@@ -14,8 +14,6 @@ interface Props {
   setPrimaryShippingCountry: (v: string) => void;
 }
 
-const MIN_SHIPPING_PRICE = 0.00001;
-
 export default function ShippingRates({
   shippingRates,
   setShippingRates,
@@ -30,7 +28,7 @@ export default function ShippingRates({
     { key: "rest_of_world", label: "Rest of World" },
   ];
 
-  const parseNumber = (v: string) => {
+  const parseValue = (v: string) => {
     if (v.trim() === "") return "";
     const n = Number(v);
     return Number.isNaN(n) ? "" : n;
@@ -39,7 +37,7 @@ export default function ShippingRates({
   const handleChange = (key: string, value: string) => {
     setShippingRates((prev) => ({
       ...prev,
-      [key]: parseNumber(value),
+      [key]: parseValue(value),
     }));
   };
 
@@ -68,8 +66,8 @@ export default function ShippingRates({
 
           <input
             type="number"
-            step={MIN_SHIPPING_PRICE}
-            min={0}
+            step="0.00001"
+            min="0"
             placeholder="Domestic Price"
             value={shippingRates.domestic || ""}
             onChange={(e) => handleChange("domestic", e.target.value)}
@@ -84,8 +82,8 @@ export default function ShippingRates({
           <input
             key={z.key}
             type="number"
-            step={MIN_SHIPPING_PRICE}
-            min={0}
+            step="0.00001"
+            min="0"
             placeholder={z.label}
             value={shippingRates[z.key] || ""}
             onChange={(e) => handleChange(z.key, e.target.value)}
