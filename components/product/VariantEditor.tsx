@@ -71,13 +71,7 @@ const hydrateVariant = (
     v.saleEnabled
   );
 
-  const finalSalePrice =
-    saleEnabled &&
-    salePrice !== null &&
-    salePrice > 0 &&
-    salePrice < price
-      ? salePrice
-      : null;
+  const finalSalePrice = salePrice;
 
   const safeSaleStock = Math.min(
     Number(v.saleStock ?? 0),
@@ -91,7 +85,11 @@ const hydrateVariant = (
     optionName: v.optionLabel1 ?? "",
     name: buildName(v),
     saleEnabled,
-    salePrice: finalSalePrice,
+    salePrice:
+  salePrice === null ||
+  salePrice === undefined
+    ? null
+    : salePrice,
     saleStock: safeSaleStock,
     saleSold: Number(v.saleSold ?? 0),
     sold: Number(v.sold ?? 0),
