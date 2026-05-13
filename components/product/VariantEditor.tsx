@@ -11,36 +11,34 @@ interface Props {
 
 const MIN_PRICE = 0.00001;
 
+/* =========================
+   HELPERS
+========================= */
+
 const parseList = (value: string): string[] =>
   value
     .split(",")
     .map((x) => x.trim())
-    .filter((x) => x.length > 0);
+    .filter(Boolean);
 
-const toSafeNumber = (value: string): number => {
-  if (value.trim() === "") return 0;
-  const n = Number(value);
+const toNumber = (v: string): number => {
+  if (v.trim() === "") return 0;
+  const n = Number(v);
   return Number.isNaN(n) ? 0 : n;
-};
-
-const normalizePrice = (value: number): number => {
-  if (Number.isNaN(value)) return MIN_PRICE;
-  return Math.max(value, MIN_PRICE);
 };
 
 const buildName = (v: ProductVariant): string =>
   [v.option1, v.option2, v.option3].filter(Boolean).join(" - ");
 
 const hydrateVariant = (v: ProductVariant): ProductVariant => {
-  const price = normalizePrice(Number(v.price ?? 0));
+  const price = Number(v.price ?? 0);
 
   const salePriceRaw =
     v.salePrice !== null && v.salePrice !== undefined
       ? Number(v.salePrice)
       : null;
 
-  const salePrice =
-    salePriceRaw !== null ? normalizePrice(salePriceRaw) : null;
+  const salePrice = salePriceRaw;
 
   const saleEnabled = Boolean(v.saleEnabled);
 
@@ -59,20 +57,18 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
 
   return {
     ...v,
-    optionValue: v.option1 ?? "",
-    optionName: v.optionLabel1 ?? "",
     name: buildName(v),
-    saleEnabled,
-    salePrice: finalSalePrice,
-    saleStock: safeSaleStock,
-    saleSold: Number(v.saleSold ?? 0),
-    sold: Number(v.sold ?? 0),
-    finalPrice: finalSalePrice ?? price,
     price,
-    isActive: v.isActive !== false,
-    isUnlimited: Boolean(v.isUnlimited),
+    salePrice: finalSalePrice,
+    finalPrice: finalSalePrice ?? price,
+    saleEnabled,
+    saleStock: safeSaleStock,
   };
 };
+
+/* =========================
+   COMPONENT
+========================= */
 
 export default function VariantEditor({
   variants,
@@ -95,23 +91,29 @@ export default function VariantEditor({
     setLabel1(variants[0].optionLabel1 || "Color");
     setLabel2(variants[0].optionLabel2 || "Size");
 
-    const uniq1 = [...new Set(variants.map((v) => v.option1).filter(Boolean))];
-    const uniq2 = [...new Set(variants.map((v) => v.option2).filter(Boolean))];
+    setValues1(
+      [...new Set(variants.map((v) => v.option1).filter(Boolean))].join(", ")
+    );
 
-    setValues1(uniq1.join(", "));
-    setValues2(uniq2.join(", "));
+    setValues2(
+      [...new Set(variants.map((v) => v.option2).filter(Boolean))].join(", ")
+    );
   }, [variants]);
+
+  /* =========================
+     GENERATE
+  ========================= */
 
   const generateVariants = () => {
     const list1 = parseList(values1);
     const list2 = parseList(values2);
 
-    const next: ProductVariant[] = [];
-
     if (!list1.length) {
       setVariants([]);
       return;
     }
+
+    const next: ProductVariant[] = [];
 
     if (list2.length) {
       for (const a of list1) {
@@ -127,7 +129,7 @@ export default function VariantEditor({
               option2: b,
               optionLabel1: label1,
               optionLabel2: label2,
-              price: found?.price ?? MIN_PRICE,
+              price: found?.price ?? 0,
               stock: found?.stock ?? 0,
             })
           );
@@ -135,7 +137,7 @@ export default function VariantEditor({
       }
     } else {
       for (const a of list1) {
-        const found = variants.find((x) => x.option1 === a && !x.option2);
+        const found = variants.find((x) => x.option1 === a);
 
         next.push(
           hydrateVariant({
@@ -144,7 +146,7 @@ export default function VariantEditor({
             option2: null,
             optionLabel1: label1,
             optionLabel2: null,
-            price: found?.price ?? MIN_PRICE,
+            price: found?.price ?? 0,
             stock: found?.stock ?? 0,
           })
         );
@@ -154,27 +156,24 @@ export default function VariantEditor({
     setVariants(next);
   };
 
+  /* =========================
+     UPDATE
+  ========================= */
+
   const updateField = <K extends keyof ProductVariant>(
     index: number,
     key: K,
     value: ProductVariant[K]
   ) => {
     setVariants((prev) =>
-      prev.map((old, i) => {
-        if (i !== index) return old;
-
-        const next = {
-          ...old,
-          [key]:
-            key === "price" || key === "salePrice"
-              ? typeof value === "number"
-                ? normalizePrice(value)
-                : value
-              : value,
-        };
-
-        return hydrateVariant(next);
-      })
+      prev.map((v, i) =>
+        i === index
+          ? hydrateVariant({
+              ...v,
+              [key]: value,
+            })
+          : v
+      )
     );
   };
 
@@ -183,55 +182,49 @@ export default function VariantEditor({
     value: ProductVariant[K]
   ) => {
     setVariants((prev) =>
-      prev.map((old) => {
-        const next = {
-          ...old,
-          [key]:
-            key === "price" || key === "salePrice"
-              ? typeof value === "number"
-                ? normalizePrice(value)
-                : value
-              : value,
-        };
-
-        return hydrateVariant(next);
-      })
+      prev.map((v) =>
+        hydrateVariant({
+          ...v,
+          [key]: value,
+        })
+      )
     );
   };
 
-  const remove = (index: number) => {
-    setVariants((prev) => prev.filter((_, i) => i !== index));
+  const remove = (i: number) => {
+    setVariants((prev) => prev.filter((_, idx) => idx !== i));
   };
+
+  /* =========================
+     UI
+  ========================= */
 
   return (
     <div className="space-y-4">
       <h2 className="font-semibold text-lg">Product Variants</h2>
 
+      {/* GENERATE */}
       <div className="border p-3 rounded bg-gray-50 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <input
             value={label1}
             onChange={(e) => setLabel1(e.target.value)}
             className="border p-2 rounded"
-            placeholder="Option 1 label"
           />
           <input
             value={values1}
             onChange={(e) => setValues1(e.target.value)}
             className="border p-2 rounded"
-            placeholder="Red, Blue"
           />
           <input
             value={label2}
             onChange={(e) => setLabel2(e.target.value)}
             className="border p-2 rounded"
-            placeholder="Option 2 label"
           />
           <input
             value={values2}
             onChange={(e) => setValues2(e.target.value)}
             className="border p-2 rounded"
-            placeholder="S, M"
           />
         </div>
 
@@ -244,148 +237,98 @@ export default function VariantEditor({
         </button>
       </div>
 
+      {/* TABLE */}
       {variants.length > 0 && (
-        <>
-          <div className="grid grid-cols-3 gap-2">
-            <input
-              type="number"
-              min={MIN_PRICE}
-              step={MIN_PRICE}
-              placeholder="Bulk price"
-              className="border p-2 rounded"
-              onBlur={(e) =>
-                bulkSet("price", normalizePrice(toSafeNumber(e.target.value)))
-              }
-            />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-2">Variant</th>
+                <th className="p-2">Price</th>
+                <th className="p-2">Stock</th>
+                <th className="p-2">Sale</th>
+                <th className="p-2"></th>
+              </tr>
+            </thead>
 
-            <input
-              type="number"
-              placeholder="Bulk stock"
-              className="border p-2 rounded"
-              onBlur={(e) => bulkSet("stock", toSafeNumber(e.target.value))}
-            />
+            <tbody>
+              {variants.map((v, i) => (
+                <tr key={v.id ?? i} className="border-t">
+                  <td className="p-2">
+                    {v.option1}
+                    {v.option2 ? ` - ${v.option2}` : ""}
+                  </td>
 
-            <button
-              type="button"
-              className="bg-orange-500 text-white rounded"
-              onClick={() => bulkSet("saleEnabled", true)}
-            >
-              Enable Sale All
-            </button>
-          </div>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={MIN_PRICE}
+                      value={v.price ?? ""}
+                      onChange={(e) =>
+                        updateField(i, "price", toNumber(e.target.value))
+                      }
+                      className="border p-1 w-24"
+                    />
+                  </td>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2">Variant</th>
-                  <th className="p-2">Price</th>
-                  <th className="p-2">Stock</th>
-                  <th className="p-2">Sale</th>
-                  <th className="p-2"></th>
-                </tr>
-              </thead>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      value={v.stock ?? 0}
+                      onChange={(e) =>
+                        updateField(i, "stock", toNumber(e.target.value))
+                      }
+                      className="border p-1 w-20"
+                    />
+                  </td>
 
-              <tbody>
-                {variants.map((v, i) => (
-                  <tr key={v.id ?? i} className="border-t">
-                    <td className="p-2">
-                      {v.option1}
-                      {v.option2 ? ` - ${v.option2}` : ""}
-                    </td>
+                  <td className="p-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(v.saleEnabled)}
+                        onChange={(e) =>
+                          updateField(i, "saleEnabled", e.target.checked)
+                        }
+                      />
+                      Sale
+                    </label>
 
-                    <td className="p-2">
+                    {v.saleEnabled && (
                       <input
                         type="number"
-                        min={MIN_PRICE}
+                        min={0}
                         step={MIN_PRICE}
-                        value={v.price ?? MIN_PRICE}
+                        placeholder="Sale price"
+                        value={v.salePrice ?? ""}
                         onChange={(e) =>
                           updateField(
                             i,
-                            "price",
-                            normalizePrice(toSafeNumber(e.target.value))
+                            "salePrice",
+                            e.target.value === ""
+                              ? null
+                              : toNumber(e.target.value)
                           )
                         }
-                        className="border p-1 w-24"
+                        className="border p-1 w-24 mt-1"
                       />
-                    </td>
+                    )}
+                  </td>
 
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        value={v.stock ?? 0}
-                        onChange={(e) =>
-                          updateField(i, "stock", toSafeNumber(e.target.value))
-                        }
-                        className="border p-1 w-20"
-                      />
-                    </td>
-
-                    <td className="p-2 space-y-1">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(v.saleEnabled)}
-                          onChange={(e) =>
-                            updateField(i, "saleEnabled", e.target.checked)
-                          }
-                        />
-                        Sale
-                      </label>
-
-                      {v.saleEnabled && (
-                        <>
-                          <input
-                            type="number"
-                            min={MIN_PRICE}
-                            step={MIN_PRICE}
-                            placeholder="Sale price"
-                            value={v.salePrice ?? ""}
-                            onChange={(e) =>
-                              updateField(
-                                i,
-                                "salePrice",
-                                e.target.value === ""
-                                  ? null
-                                  : normalizePrice(toSafeNumber(e.target.value))
-                              )
-                            }
-                            className="border p-1 w-24 block"
-                          />
-
-                          <input
-                            type="number"
-                            placeholder="Sale stock"
-                            value={v.saleStock ?? 0}
-                            onChange={(e) =>
-                              updateField(
-                                i,
-                                "saleStock",
-                                toSafeNumber(e.target.value)
-                              )
-                            }
-                            className="border p-1 w-24 block"
-                          />
-                        </>
-                      )}
-                    </td>
-
-                    <td className="p-2">
-                      <button
-                        type="button"
-                        onClick={() => remove(i)}
-                        className="text-red-500"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+                  <td className="p-2">
+                    <button
+                      onClick={() => remove(i)}
+                      className="text-red-500"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
