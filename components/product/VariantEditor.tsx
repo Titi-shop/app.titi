@@ -65,10 +65,10 @@ const hydrateVariant = (
   const price = Number(v.price ?? 0);
 
   const salePrice =
-    v.salePrice !== null &&
-    v.salePrice !== undefined
-      ? Number(v.salePrice)
-      : null;
+  v.salePrice !== null &&
+  v.salePrice !== undefined
+    ? v.salePrice
+    : null;
 
   const saleEnabled = Boolean(
     v.saleEnabled
@@ -92,25 +92,16 @@ const hydrateVariant = (
 
     optionValue: v.option1 ?? "",
     optionName: v.optionLabel1 ?? "",
-
     name: buildName(v),
-
     saleEnabled,
-
     salePrice: finalSalePrice,
-
     saleStock: safeSaleStock,
-
     saleSold: Number(v.saleSold ?? 0),
-
     sold: Number(v.sold ?? 0),
-
     finalPrice:
       finalSalePrice ?? price,
-
     isActive:
       v.isActive !== false,
-
     isUnlimited: Boolean(
       v.isUnlimited
     ),
@@ -122,13 +113,10 @@ export default function VariantEditor({
   setVariants,
 }: Props) {
   const { t } = useTranslation();
-
   const [label1, setLabel1] =
     useState("Color");
-
   const [values1, setValues1] =
     useState("");
-
   const [label2, setLabel2] =
     useState("Size");
 
@@ -136,14 +124,10 @@ export default function VariantEditor({
     useState("");
 
   const hydrated = useRef(false);
-
   useEffect(() => {
     if (hydrated.current) return;
-
     if (!variants.length) return;
-
     hydrated.current = true;
-
     setLabel1(
       variants[0].optionLabel1 ||
         "Color"
@@ -540,82 +524,44 @@ export default function VariantEditor({
                         {v.saleEnabled && (
                           <>
                             <input
-                              type="number"
-                              step="0.00001"
-                              min="0.00001"
-                              inputMode="decimal"
-                              placeholder={
-                                t.sale_price
-                              }
-                              value={
-                                v.salePrice ??
-                                ""
-                              }
-                              onChange={(
-                                e
-                              ) => {
-                                const value =
-                                  e
-                                    .target
-                                    .value;
+  type="number"
+  step="0.00001"
+  min="0.00001"
+  inputMode="decimal"
+  placeholder={t.sale_price}
+  value={v.salePrice ?? ""}
+  onChange={(e) => {
+    updateField(
+      i,
+      "salePrice",
+      e.target.value as ProductVariant["salePrice"]
+    );
+  }}
+  onBlur={(e) => {
+    const value = e.target.value;
 
-                                updateField(
-                                  i,
-                                  "salePrice",
-                                  value ===
-                                    ""
-                                    ? null
-                                    : Number(
-                                        value
-                                      )
-                                );
-                              }}
-                              onBlur={() => {
-                                if (
-                                  v.salePrice ===
-                                    null ||
-                                  v.salePrice ===
-                                    undefined
-                                ) {
-                                  return;
-                                }
+    if (!value.trim()) {
+      updateField(
+        i,
+        "salePrice",
+        null
+      );
 
-                                updateField(
-                                  i,
-                                  "salePrice",
-                                  normalizePrice(
-                                    Number(
-                                      v.salePrice
-                                    )
-                                  ) as ProductVariant["salePrice"]
-                                );
-                              }}
-                              className="border p-1 w-24 block"
-                            />
+      return;
+    }
 
-                            <input
-                              type="number"
-                              placeholder={
-                                t.sale_stock
-                              }
-                              value={
-                                v.saleStock ??
-                                0
-                              }
-                              onChange={(
-                                e
-                              ) =>
-                                updateField(
-                                  i,
-                                  "saleStock",
-                                  Number(
-                                    e.target
-                                      .value
-                                  ) || 0
-                                )
-                              }
-                              className="border p-1 w-24 block"
-                            />
+    const parsed = Number(value);
+
+    updateField(
+      i,
+      "salePrice",
+      normalizePrice(
+        parsed
+      ) as ProductVariant["salePrice"]
+    );
+  }}
+  className="border p-1 w-24 block"
+/>
                           </>
                         )}
                       </td>
