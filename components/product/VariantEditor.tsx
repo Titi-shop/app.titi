@@ -1,4 +1,6 @@
 
+Viết lại file này đầy đủ .
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -9,21 +11,13 @@ interface Props {
   setVariants: React.Dispatch<React.SetStateAction<ProductVariant[]>>;
 }
 
-/* =========================
-   HELPERS (UX SAFE)
-========================= */
-
 const parseList = (value: string): string[] =>
   value
     .split(",")
     .map((x) => x.trim())
-    .filter(Boolean);
+    .filter((x) => x.length > 0);
 
-/**
- * UX SAFE: KHÔNG ép min value
- * giống ProductForm (Number(...) only)
- */
-const toNumber = (value: string): number => {
+const toSafeNumber = (value: string): number => {
   if (value.trim() === "") return 0;
   const n = Number(value);
   return Number.isNaN(n) ? 0 : n;
@@ -32,14 +26,9 @@ const toNumber = (value: string): number => {
 const buildName = (v: ProductVariant): string =>
   [v.option1, v.option2, v.option3].filter(Boolean).join(" - ");
 
-/* =========================
-   HYDRATE (validate logic only)
-========================= */
-
 const hydrateVariant = (v: ProductVariant): ProductVariant => {
   const price = Number(v.price ?? 0);
-
-  const salePriceRaw =
+  const salePrice =
     v.salePrice !== null && v.salePrice !== undefined
       ? Number(v.salePrice)
       : null;
@@ -48,10 +37,10 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
 
   const finalSalePrice =
     saleEnabled &&
-    salePriceRaw !== null &&
-    salePriceRaw > 0 &&
-    salePriceRaw < price
-      ? salePriceRaw
+    salePrice !== null &&
+    salePrice > 0 &&
+    salePrice < price
+      ? salePrice
       : null;
 
   const safeSaleStock = Math.min(
@@ -61,27 +50,19 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
 
   return {
     ...v,
-
+    optionValue: v.option1 ?? "",
+    optionName: v.optionLabel1 ?? "",
     name: buildName(v),
-
-    price,
-    salePrice: finalSalePrice,
-    finalPrice: finalSalePrice ?? price,
-
     saleEnabled,
+    salePrice: finalSalePrice,
     saleStock: safeSaleStock,
-
     saleSold: Number(v.saleSold ?? 0),
     sold: Number(v.sold ?? 0),
-
+    finalPrice: finalSalePrice ?? price,
     isActive: v.isActive !== false,
     isUnlimited: Boolean(v.isUnlimited),
   };
 };
-
-/* =========================
-   COMPONENT
-========================= */
 
 export default function VariantEditor({
   variants,
@@ -95,9 +76,6 @@ export default function VariantEditor({
 
   const hydrated = useRef(false);
 
-  /* =========================
-     INIT FROM EXISTING DATA
-  ========================= */
   useEffect(() => {
     if (hydrated.current) return;
     if (!variants.length) return;
@@ -107,30 +85,23 @@ export default function VariantEditor({
     setLabel1(variants[0].optionLabel1 || "Color");
     setLabel2(variants[0].optionLabel2 || "Size");
 
-    const uniq1 = [
-      ...new Set(variants.map((v) => v.option1).filter(Boolean)),
-    ];
-    const uniq2 = [
-      ...new Set(variants.map((v) => v.option2).filter(Boolean)),
-    ];
+    const uniq1 = [...new Set(variants.map((v) => v.option1).filter(Boolean))];
+    const uniq2 = [...new Set(variants.map((v) => v.option2).filter(Boolean))];
 
     setValues1(uniq1.join(", "));
     setValues2(uniq2.join(", "));
   }, [variants]);
 
-  /* =========================
-     GENERATE VARIANTS
-  ========================= */
   const generateVariants = () => {
     const list1 = parseList(values1);
     const list2 = parseList(values2);
+
+    const next: ProductVariant[] = [];
 
     if (!list1.length) {
       setVariants([]);
       return;
     }
-
-    const next: ProductVariant[] = [];
 
     if (list2.length) {
       for (const a of list1) {
@@ -154,7 +125,9 @@ export default function VariantEditor({
       }
     } else {
       for (const a of list1) {
-        const found = variants.find((x) => x.option1 === a);
+        const found = variants.find(
+          (x) => x.option1 === a && !x.option2
+        );
 
         next.push(
           hydrateVariant({
@@ -173,23 +146,19 @@ export default function VariantEditor({
     setVariants(next);
   };
 
-  /* =========================
-     UPDATE FIELD (NO AUTO CLAMP)
-  ========================= */
   const updateField = <K extends keyof ProductVariant>(
     index: number,
     key: K,
     value: ProductVariant[K]
   ) => {
     setVariants((prev) =>
-      prev.map((v, i) =>
-        i === index
-          ? hydrateVariant({
-              ...v,
-              [key]: value,
-            })
-          : v
-      )
+      prev.map((old, i) => {
+        if (i !== index) return old;
+        return hydrateVariant({
+          ...old,
+          [key]: value,
+        });
+      })
     );
   };
 
@@ -198,9 +167,9 @@ export default function VariantEditor({
     value: ProductVariant[K]
   ) => {
     setVariants((prev) =>
-      prev.map((v) =>
+      prev.map((old) =>
         hydrateVariant({
-          ...v,
+          ...old,
           [key]: value,
         })
       )
@@ -211,15 +180,10 @@ export default function VariantEditor({
     setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
     <div className="space-y-4">
       <h2 className="font-semibold text-lg">Product Variants</h2>
 
-      {/* GENERATE */}
       <div className="border p-3 rounded bg-gray-50 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -257,99 +221,136 @@ export default function VariantEditor({
         </button>
       </div>
 
-      {/* TABLE */}
       {variants.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2">Variant</th>
-                <th className="p-2">Price</th>
-                <th className="p-2">Stock</th>
-                <th className="p-2">Sale</th>
-                <th className="p-2"></th>
-              </tr>
-            </thead>
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="number"
+              placeholder="Bulk price"
+              className="border p-2 rounded"
+              onBlur={(e) => bulkSet("price", toSafeNumber(e.target.value))}
+            />
 
-            <tbody>
-              {variants.map((v, i) => (
-                <tr key={v.id ?? i} className="border-t">
-                  <td className="p-2">
-                    {v.option1}
-                    {v.option2 ? ` - ${v.option2}` : ""}
-                  </td>
+            <input
+              type="number"
+              placeholder="Bulk stock"
+              className="border p-2 rounded"
+              onBlur={(e) => bulkSet("stock", toSafeNumber(e.target.value))}
+            />
 
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      step="0.00001"
-                      min="0"
-                      value={v.price ?? ""}
-                      onChange={(e) =>
-                        updateField(i, "price", toNumber(e.target.value))
-                      }
-                      className="border p-1 w-24"
-                    />
-                  </td>
+            <button
+              type="button"
+              className="bg-orange-500 text-white rounded"
+              onClick={() => bulkSet("saleEnabled", true)}
+            >
+              Enable Sale All
+            </button>
+          </div>
 
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      value={v.stock ?? 0}
-                      onChange={(e) =>
-                        updateField(i, "stock", toNumber(e.target.value))
-                      }
-                      className="border p-1 w-20"
-                    />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-2">Variant</th>
+                  <th className="p-2">Price</th>
+                  <th className="p-2">Stock</th>
+                  <th className="p-2">Sale</th>
+                  <th className="p-2"></th>
+                </tr>
+              </thead>
 
-                  <td className="p-2 space-y-1">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(v.saleEnabled)}
-                        onChange={(e) =>
-                          updateField(i, "saleEnabled", e.target.checked)
-                        }
-                      />
-                      Sale
-                    </label>
+              <tbody>
+                {variants.map((v, i) => (
+                  <tr key={v.id ?? i} className="border-t">
+                    <td className="p-2">
+                      {v.option1}
+                      {v.option2 ? ` - ${v.option2}` : ""}
+                    </td>
 
-                    {v.saleEnabled && (
+                    <td className="p-2">
                       <input
                         type="number"
-                        step="0.00001"
-                        min="0"
-                        placeholder="Sale price"
-                        value={v.salePrice ?? ""}
+                        value={v.price ?? 0}
                         onChange={(e) =>
-                          updateField(
-                            i,
-                            "salePrice",
-                            e.target.value === ""
-                              ? null
-                              : toNumber(e.target.value)
-                          )
+                          updateField(i, "price", toSafeNumber(e.target.value))
                         }
-                        className="border p-1 w-24 block"
+                        className="border p-1 w-24"
                       />
-                    )}
-                  </td>
+                    </td>
 
-                  <td className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => remove(i)}
-                      className="text-red-500"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <td className="p-2">
+                      <input
+                        type="number"
+                        value={v.stock ?? 0}
+                        onChange={(e) =>
+                          updateField(i, "stock", toSafeNumber(e.target.value))
+                        }
+                        className="border p-1 w-20"
+                      />
+                    </td>
+
+                    <td className="p-2 space-y-1">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(v.saleEnabled)}
+                          onChange={(e) =>
+                            updateField(i, "saleEnabled", e.target.checked)
+                          }
+                        />
+                        Sale
+                      </label>
+
+                      {v.saleEnabled && (
+                        <>
+                          <input
+                            type="number"
+                            placeholder="Sale price"
+                            value={v.salePrice ?? ""}
+                            onChange={(e) =>
+                              updateField(
+                                i,
+                                "salePrice",
+                                e.target.value === ""
+                                  ? null
+                                  : toSafeNumber(e.target.value)
+                              )
+                            }
+                            className="border p-1 w-24 block"
+                          />
+
+                          <input
+                            type="number"
+                            placeholder="Sale stock"
+                            value={v.saleStock ?? 0}
+                            onChange={(e) =>
+                              updateField(
+                                i,
+                                "saleStock",
+                                toSafeNumber(e.target.value)
+                              )
+                            }
+                            className="border p-1 w-24 block"
+                          />
+                        </>
+                      )}
+                    </td>
+
+                    <td className="p-2">
+                      <button
+                        type="button"
+                        onClick={() => remove(i)}
+                        className="text-red-500"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
