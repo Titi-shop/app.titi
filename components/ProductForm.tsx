@@ -398,80 +398,98 @@ export default function ProductForm({
          PAYLOAD
       ========================= */
 
-      const payload: ProductPayload = {
-        id:
-          typeof form.id === "string"
-            ? form.id
-            : undefined,
+      const hasVariantSale = normalizedVariants.some(
+  (v) =>
+    Boolean(v.saleEnabled) &&
+    Number(v.salePrice) > 0
+);
 
-        name: form.name,
-        categoryId:
-  form.categoryId.trim() || null,
-        description: form.description,
+const payload: ProductPayload = {
+  id:
+    typeof form.id === "string"
+      ? form.id
+      : undefined,
 
-        detail: form.detail,
+  name: form.name,
 
-        images: form.images,
+  categoryId:
+    form.categoryId.trim() || null,
 
-        thumbnail: form.images[0],
+  description: form.description,
 
-        isActive: form.isActive,
+  detail: form.detail,
 
-        shippingRates: shippingRatesPayload,
+  images: form.images,
 
-        domesticCountryCode:
-          form.primaryShippingCountry || null,
+  thumbnail: form.images[0] || null,
 
-        price: hasVariants
-          ? undefined
-          : Number(form.price),
+  isActive: form.isActive,
 
-        stock: hasVariants
-          ? undefined
-          : Number(form.stock || 0),
+  shippingRates: shippingRatesPayload,
 
-        salePrice:
-          hasVariants || !form.saleEnabled
-            ? null
-            : Number(form.salePrice),
+  domesticCountryCode:
+    form.primaryShippingCountry || null,
 
-        saleEnabled: hasVariants
-          ? undefined
-          : form.saleEnabled &&
-            hasSaleTime &&
-            hasSalePrice,
+  /* =====================================================
+     PRODUCT PRICE / STOCK
+  ===================================================== */
 
-        saleStock:
-          hasVariants || !form.saleEnabled
-            ? 0
-            : Number(form.saleStock || 0),
+  price: hasVariants
+    ? undefined
+    : Number(form.price),
 
-        saleStart: form.saleStart
-          ? toUTCFromInput(form.saleStart)
-          : null,
+  stock: hasVariants
+    ? undefined
+    : Number(form.stock || 0),
 
-        saleEnd: form.saleEnd
-          ? toUTCFromInput(form.saleEnd)
-          : null,
+  /* =====================================================
+     SALE
+  ===================================================== */
 
-        variants: normalizedVariants,
+  saleEnabled: hasVariants
+    ? hasVariantSale
+    : form.saleEnabled &&
+      hasSaleTime &&
+      hasSalePrice,
 
-        idempotencyKey: generateKey(),
-      };
+  salePrice: hasVariants
+    ? null
+    : !form.saleEnabled
+      ? null
+      : Number(form.salePrice),
 
-      console.log("📦 PRODUCT PAYLOAD:", payload);
+  saleStock:
+    hasVariants || !form.saleEnabled
+      ? 0
+      : Number(form.saleStock || 0),
 
-      await onSubmit(payload);
+  /*
+    KHÔNG phụ thuộc saleEnabled nữa
+    để variant sale vẫn lưu được thời gian sale
+  */
+  saleStart: hasSaleTime
+    ? toUTCFromInput(form.saleStart)
+    : null,
 
-    } catch (error) {
-      console.error(error);
+  saleEnd: hasSaleTime
+    ? toUTCFromInput(form.saleEnd)
+    : null,
 
-      alert(t.submit_failed);
+  /* =====================================================
+     VARIANTS
+  ===================================================== */
 
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  variants: normalizedVariants,
+
+  idempotencyKey: generateKey(),
+};
+
+console.log(
+  "📦 PRODUCT PAYLOAD:",
+  payload
+);
+
+await onSubmit(payload);
 
   /* =========================
      UI
