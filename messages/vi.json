@@ -598,7 +598,9 @@
 "shipping_asia": "Châu Á",
 "shipping_europe": "Châu Âu",
 "shipping_north_america": "Bắc Mỹ",
-"shipping_rest_of_world": "Toàn thế giới"
+"shipping_rest_of_world": "Toàn thế giới",
+  "submit_product": "Đăng sản phẩm",
+"upload_detail_image": "Tải ảnh chi tiết"
   
 
 }
