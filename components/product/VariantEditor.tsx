@@ -9,10 +9,8 @@ interface Props {
   setVariants: React.Dispatch<React.SetStateAction<ProductVariant[]>>;
 }
 
-const MIN_PRICE = 0.00001;
-
 /* =========================
-   HELPERS
+   HELPERS (UX SAFE)
 ========================= */
 
 const parseList = (value: string): string[] =>
@@ -21,14 +19,22 @@ const parseList = (value: string): string[] =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-const toNumber = (v: string): number => {
-  if (v.trim() === "") return 0;
-  const n = Number(v);
+/**
+ * UX SAFE: KHÔNG ép min value
+ * giống ProductForm (Number(...) only)
+ */
+const toNumber = (value: string): number => {
+  if (value.trim() === "") return 0;
+  const n = Number(value);
   return Number.isNaN(n) ? 0 : n;
 };
 
 const buildName = (v: ProductVariant): string =>
   [v.option1, v.option2, v.option3].filter(Boolean).join(" - ");
+
+/* =========================
+   HYDRATE (validate logic only)
+========================= */
 
 const hydrateVariant = (v: ProductVariant): ProductVariant => {
   const price = Number(v.price ?? 0);
@@ -38,16 +44,14 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
       ? Number(v.salePrice)
       : null;
 
-  const salePrice = salePriceRaw;
-
   const saleEnabled = Boolean(v.saleEnabled);
 
   const finalSalePrice =
     saleEnabled &&
-    salePrice !== null &&
-    salePrice > 0 &&
-    salePrice < price
-      ? salePrice
+    salePriceRaw !== null &&
+    salePriceRaw > 0 &&
+    salePriceRaw < price
+      ? salePriceRaw
       : null;
 
   const safeSaleStock = Math.min(
@@ -57,12 +61,21 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
 
   return {
     ...v,
+
     name: buildName(v),
+
     price,
     salePrice: finalSalePrice,
     finalPrice: finalSalePrice ?? price,
+
     saleEnabled,
     saleStock: safeSaleStock,
+
+    saleSold: Number(v.saleSold ?? 0),
+    sold: Number(v.sold ?? 0),
+
+    isActive: v.isActive !== false,
+    isUnlimited: Boolean(v.isUnlimited),
   };
 };
 
@@ -82,6 +95,9 @@ export default function VariantEditor({
 
   const hydrated = useRef(false);
 
+  /* =========================
+     INIT FROM EXISTING DATA
+  ========================= */
   useEffect(() => {
     if (hydrated.current) return;
     if (!variants.length) return;
@@ -91,19 +107,20 @@ export default function VariantEditor({
     setLabel1(variants[0].optionLabel1 || "Color");
     setLabel2(variants[0].optionLabel2 || "Size");
 
-    setValues1(
-      [...new Set(variants.map((v) => v.option1).filter(Boolean))].join(", ")
-    );
+    const uniq1 = [
+      ...new Set(variants.map((v) => v.option1).filter(Boolean)),
+    ];
+    const uniq2 = [
+      ...new Set(variants.map((v) => v.option2).filter(Boolean)),
+    ];
 
-    setValues2(
-      [...new Set(variants.map((v) => v.option2).filter(Boolean))].join(", ")
-    );
+    setValues1(uniq1.join(", "));
+    setValues2(uniq2.join(", "));
   }, [variants]);
 
   /* =========================
-     GENERATE
+     GENERATE VARIANTS
   ========================= */
-
   const generateVariants = () => {
     const list1 = parseList(values1);
     const list2 = parseList(values2);
@@ -157,9 +174,8 @@ export default function VariantEditor({
   };
 
   /* =========================
-     UPDATE
+     UPDATE FIELD (NO AUTO CLAMP)
   ========================= */
-
   const updateField = <K extends keyof ProductVariant>(
     index: number,
     key: K,
@@ -191,8 +207,8 @@ export default function VariantEditor({
     );
   };
 
-  const remove = (i: number) => {
-    setVariants((prev) => prev.filter((_, idx) => idx !== i));
+  const remove = (index: number) => {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
   /* =========================
@@ -210,21 +226,25 @@ export default function VariantEditor({
             value={label1}
             onChange={(e) => setLabel1(e.target.value)}
             className="border p-2 rounded"
+            placeholder="Option 1 label"
           />
           <input
             value={values1}
             onChange={(e) => setValues1(e.target.value)}
             className="border p-2 rounded"
+            placeholder="Red, Blue"
           />
           <input
             value={label2}
             onChange={(e) => setLabel2(e.target.value)}
             className="border p-2 rounded"
+            placeholder="Option 2 label"
           />
           <input
             value={values2}
             onChange={(e) => setValues2(e.target.value)}
             className="border p-2 rounded"
+            placeholder="S, M"
           />
         </div>
 
@@ -262,8 +282,8 @@ export default function VariantEditor({
                   <td className="p-2">
                     <input
                       type="number"
-                      min={0}
-                      step={MIN_PRICE}
+                      step="0.00001"
+                      min="0"
                       value={v.price ?? ""}
                       onChange={(e) =>
                         updateField(i, "price", toNumber(e.target.value))
@@ -283,7 +303,7 @@ export default function VariantEditor({
                     />
                   </td>
 
-                  <td className="p-2">
+                  <td className="p-2 space-y-1">
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -298,8 +318,8 @@ export default function VariantEditor({
                     {v.saleEnabled && (
                       <input
                         type="number"
-                        min={0}
-                        step={MIN_PRICE}
+                        step="0.00001"
+                        min="0"
                         placeholder="Sale price"
                         value={v.salePrice ?? ""}
                         onChange={(e) =>
@@ -311,13 +331,14 @@ export default function VariantEditor({
                               : toNumber(e.target.value)
                           )
                         }
-                        className="border p-1 w-24 mt-1"
+                        className="border p-1 w-24 block"
                       />
                     )}
                   </td>
 
                   <td className="p-2">
                     <button
+                      type="button"
                       onClick={() => remove(i)}
                       className="text-red-500"
                     >
