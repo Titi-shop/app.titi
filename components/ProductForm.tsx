@@ -413,7 +413,10 @@ const payload: ProductPayload = {
   name: form.name,
 
   categoryId:
-    form.categoryId.trim() || null,
+  typeof form.categoryId === "string" &&
+  form.categoryId.trim().length > 0
+    ? form.categoryId.trim()
+    : undefined,
 
   description: form.description,
 
