@@ -9,12 +9,6 @@ interface Props {
   setVariants: React.Dispatch<React.SetStateAction<ProductVariant[]>>;
 }
 
-const MIN_PRICE = 0.00001;
-
-/* =========================
-   HELPERS
-========================= */
-
 const parseList = (value: string): string[] =>
   value
     .split(",")
@@ -33,12 +27,10 @@ const buildName = (v: ProductVariant): string =>
 const hydrateVariant = (v: ProductVariant): ProductVariant => {
   const price = Number(v.price ?? 0);
 
-  const salePriceRaw =
+  const salePrice =
     v.salePrice !== null && v.salePrice !== undefined
       ? Number(v.salePrice)
       : null;
-
-  const salePrice = salePriceRaw;
 
   const saleEnabled = Boolean(v.saleEnabled);
 
@@ -50,11 +42,6 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
       ? salePrice
       : null;
 
-  const safeSaleStock = Math.min(
-    Number(v.saleStock ?? 0),
-    Number(v.stock ?? 0)
-  );
-
   return {
     ...v,
     name: buildName(v),
@@ -62,13 +49,9 @@ const hydrateVariant = (v: ProductVariant): ProductVariant => {
     salePrice: finalSalePrice,
     finalPrice: finalSalePrice ?? price,
     saleEnabled,
-    saleStock: safeSaleStock,
+    saleStock: Number(v.saleStock ?? 0),
   };
 };
-
-/* =========================
-   COMPONENT
-========================= */
 
 export default function VariantEditor({
   variants,
@@ -99,10 +82,6 @@ export default function VariantEditor({
       [...new Set(variants.map((v) => v.option2).filter(Boolean))].join(", ")
     );
   }, [variants]);
-
-  /* =========================
-     GENERATE
-  ========================= */
 
   const generateVariants = () => {
     const list1 = parseList(values1);
@@ -156,10 +135,6 @@ export default function VariantEditor({
     setVariants(next);
   };
 
-  /* =========================
-     UPDATE
-  ========================= */
-
   const updateField = <K extends keyof ProductVariant>(
     index: number,
     key: K,
@@ -195,10 +170,6 @@ export default function VariantEditor({
     setVariants((prev) => prev.filter((_, idx) => idx !== i));
   };
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
     <div className="space-y-4">
       <h2 className="font-semibold text-lg">Product Variants</h2>
@@ -206,33 +177,13 @@ export default function VariantEditor({
       {/* GENERATE */}
       <div className="border p-3 rounded bg-gray-50 space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <input
-            value={label1}
-            onChange={(e) => setLabel1(e.target.value)}
-            className="border p-2 rounded"
-          />
-          <input
-            value={values1}
-            onChange={(e) => setValues1(e.target.value)}
-            className="border p-2 rounded"
-          />
-          <input
-            value={label2}
-            onChange={(e) => setLabel2(e.target.value)}
-            className="border p-2 rounded"
-          />
-          <input
-            value={values2}
-            onChange={(e) => setValues2(e.target.value)}
-            className="border p-2 rounded"
-          />
+          <input value={label1} onChange={(e) => setLabel1(e.target.value)} />
+          <input value={values1} onChange={(e) => setValues1(e.target.value)} />
+          <input value={label2} onChange={(e) => setLabel2(e.target.value)} />
+          <input value={values2} onChange={(e) => setValues2(e.target.value)} />
         </div>
 
-        <button
-          type="button"
-          onClick={generateVariants}
-          className="w-full bg-blue-500 text-white py-2 rounded"
-        >
+        <button onClick={generateVariants}>
           Generate Variants
         </button>
       </div>
@@ -241,88 +192,45 @@ export default function VariantEditor({
       {variants.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2">Variant</th>
-                <th className="p-2">Price</th>
-                <th className="p-2">Stock</th>
-                <th className="p-2">Sale</th>
-                <th className="p-2"></th>
-              </tr>
-            </thead>
-
             <tbody>
               {variants.map((v, i) => (
-                <tr key={v.id ?? i} className="border-t">
-                  <td className="p-2">
-                    {v.option1}
-                    {v.option2 ? ` - ${v.option2}` : ""}
-                  </td>
+                <tr key={i}>
+                  <td>{v.option1}</td>
 
-                  <td className="p-2">
+                  <td>
                     <input
                       type="number"
-                      min={0}
-                      step={MIN_PRICE}
+                      step="0.00001"
+                      min="0"
                       value={v.price ?? ""}
                       onChange={(e) =>
                         updateField(i, "price", toNumber(e.target.value))
                       }
-                      className="border p-1 w-24"
                     />
                   </td>
 
-                  <td className="p-2">
+                  <td>
                     <input
                       type="number"
                       value={v.stock ?? 0}
                       onChange={(e) =>
                         updateField(i, "stock", toNumber(e.target.value))
                       }
-                      className="border p-1 w-20"
                     />
                   </td>
 
-                  <td className="p-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(v.saleEnabled)}
-                        onChange={(e) =>
-                          updateField(i, "saleEnabled", e.target.checked)
-                        }
-                      />
-                      Sale
-                    </label>
-
-                    {v.saleEnabled && (
-                      <input
-                        type="number"
-                        min={0}
-                        step={MIN_PRICE}
-                        placeholder="Sale price"
-                        value={v.salePrice ?? ""}
-                        onChange={(e) =>
-                          updateField(
-                            i,
-                            "salePrice",
-                            e.target.value === ""
-                              ? null
-                              : toNumber(e.target.value)
-                          )
-                        }
-                        className="border p-1 w-24 mt-1"
-                      />
-                    )}
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(v.saleEnabled)}
+                      onChange={(e) =>
+                        updateField(i, "saleEnabled", e.target.checked)
+                      }
+                    />
                   </td>
 
-                  <td className="p-2">
-                    <button
-                      onClick={() => remove(i)}
-                      className="text-red-500"
-                    >
-                      ✕
-                    </button>
+                  <td>
+                    <button onClick={() => remove(i)}>✕</button>
                   </td>
                 </tr>
               ))}
