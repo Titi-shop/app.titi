@@ -1,78 +1,14 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
 import { countries } from "@/data/countries";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
-type ShippingRateValue = number | "";
-
-type ShippingRatesState = Record<string, ShippingRateValue>;
 
 interface Props {
-  shippingRates: ShippingRatesState;
-  setShippingRates: Dispatch<SetStateAction<ShippingRatesState>>;
+  shippingRates: Record<string, number | "">;
+  setShippingRates: (v: any) => void;
 
   primaryShippingCountry: string;
-  setPrimaryShippingCountry: (value: string) => void;
+  setPrimaryShippingCountry: (v: string) => void;
 }
-
-interface ZoneItem {
-  key: string;
-  label: string;
-}
-
-const MIN_PRICE = 0.00001;
-
-const zones: ZoneItem[] = [
-  {
-    key: "sea",
-    label: "shipping_zone_southeast_asia",
-  },
-  {
-    key: "asia",
-    label: "shipping_zone_asia",
-  },
-  {
-    key: "europe",
-    label: "shipping_zone_europe",
-  },
-  {
-    key: "north_america",
-    label: "shipping_zone_north_america",
-  },
-  {
-    key: "rest_of_world",
-    label: "shipping_zone_rest_of_world",
-  },
-];
-
-const parseShippingValue = (
-  value: string
-): number | "" => {
-  if (value === "") return "";
-
-  const parsed = Number(value);
-
-  if (Number.isNaN(parsed)) {
-    return "";
-  }
-
-  return parsed;
-};
-
-const normalizeShippingValue = (
-  value: number | ""
-): number | "" => {
-  if (value === "") {
-    return "";
-  }
-
-  if (value > 0 && value < MIN_PRICE) {
-    return MIN_PRICE;
-  }
-
-  return value;
-};
 
 export default function ShippingRates({
   shippingRates,
@@ -80,124 +16,78 @@ export default function ShippingRates({
   primaryShippingCountry,
   setPrimaryShippingCountry,
 }: Props) {
-  const { t } = useTranslation();
-
-  const updateRate = (
-    key: string,
-    rawValue: string
-  ) => {
-    const parsed = parseShippingValue(rawValue);
-
-    setShippingRates((prev) => ({
-      ...prev,
-      [key]: parsed,
-    }));
-  };
-
-  const validateRate = (key: string) => {
-    setShippingRates((prev) => ({
-      ...prev,
-      [key]: normalizeShippingValue(prev[key] ?? ""),
-    }));
-  };
+  const zones = [
+    { key: "sea", label: "Southeast Asia" },
+    { key: "asia", label: "Asia" },
+    { key: "europe", label: "Europe" },
+    { key: "north_america", label: "North America" },
+    { key: "rest_of_world", label: "Rest of World" },
+  ];
 
   return (
-    <div className="space-y-4">
-      <p className="font-medium">
-        🚚 {t.shipping_fee}
-      </p>
+    <div className="space-y-3">
+      <p className="font-medium">🚚 Shipping Fee</p>
 
       {/* DOMESTIC */}
-      <div className="border rounded-xl p-3 bg-gray-50 space-y-3">
+      <div className="border rounded-xl p-3 bg-gray-50 space-y-2">
         <p className="text-sm font-medium text-gray-700">
-          {t.domestic_country}
+          Domestic Country
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          {/* COUNTRY */}
           <select
             value={primaryShippingCountry}
             onChange={(e) =>
-              setPrimaryShippingCountry(
-                e.target.value
-              )
+              setPrimaryShippingCountry(e.target.value)
             }
-            className="border p-2 rounded bg-white"
+            className="border p-2 rounded"
           >
-            {countries.map((country) => (
-              <option
-                key={country.code}
-                value={country.code}
-              >
-                {country.name}
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
               </option>
             ))}
           </select>
 
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500">
-              {t.domestic_shipping_price}
-            </label>
+          {/* PRICE */}
+          <input
+            type="number"
+            step="0.00001"
+            placeholder="Domestic Price"
+            value={shippingRates.domestic || ""}
+            onChange={(e) => {
+              const val = Number(e.target.value);
 
-            <input
-              type="number"
-              step="0.00001"
-              min="0.00001"
-              inputMode="decimal"
-              placeholder="0.00001"
-              value={
-                shippingRates.domestic === ""
-                  ? ""
-                  : shippingRates.domestic
-              }
-              onChange={(e) =>
-                updateRate(
-                  "domestic",
-                  e.target.value
-                )
-              }
-              onBlur={() =>
-                validateRate("domestic")
-              }
-              className="w-full border p-2 rounded bg-white"
-            />
-          </div>
+              setShippingRates((prev: any) => ({
+                ...prev,
+                domestic: Number.isNaN(val) ? 0 : val,
+              }));
+            }}
+            className="border p-2 rounded"
+          />
         </div>
       </div>
 
       {/* ZONES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {zones.map((zone) => (
-          <div
-            key={zone.key}
-            className="space-y-1"
-          >
-            <label className="text-sm text-gray-700">
-              {t(zone.label)}
-            </label>
+      <div className="grid grid-cols-2 gap-3">
+        {zones.map((z) => (
+          <input
+            key={z.key}
+            type="number"
+            step="0.00001"
+            placeholder={z.label}
+            value={shippingRates[z.key] || ""}
+            onChange={(e) => {
+              const val = Number(e.target.value);
 
-            <input
-              type="number"
-              step="0.00001"
-              min="0.00001"
-              inputMode="decimal"
-              placeholder="0.00001"
-              value={
-                shippingRates[zone.key] === ""
-                  ? ""
-                  : shippingRates[zone.key]
-              }
-              onChange={(e) =>
-                updateRate(
-                  zone.key,
-                  e.target.value
-                )
-              }
-              onBlur={() =>
-                validateRate(zone.key)
-              }
-              className="w-full border p-2 rounded"
-            />
-          </div>
+              setShippingRates((prev: any) => ({
+                ...prev,
+                [z.key]: Number.isNaN(val) ? 0 : val,
+              }));
+            }}
+            className="border p-2 rounded"
+          />
         ))}
       </div>
     </div>
