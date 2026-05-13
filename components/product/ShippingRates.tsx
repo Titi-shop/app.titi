@@ -1,355 +1,205 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ProductVariant } from "./types";
+import { Dispatch, SetStateAction } from "react";
+import { countries } from "@/data/countries";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+
+type ShippingRateValue = number | "";
+
+type ShippingRatesState = Record<string, ShippingRateValue>;
 
 interface Props {
-  variants: ProductVariant[];
-  setVariants: React.Dispatch<React.SetStateAction<ProductVariant[]>>;
+  shippingRates: ShippingRatesState;
+  setShippingRates: Dispatch<SetStateAction<ShippingRatesState>>;
+
+  primaryShippingCountry: string;
+  setPrimaryShippingCountry: (value: string) => void;
 }
 
-/* =========================
-   HELPERS (UX SAFE)
-========================= */
+interface ZoneItem {
+  key: string;
+  label: string;
+}
 
-const parseList = (value: string): string[] =>
-  value
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
+const MIN_PRICE = 0.00001;
 
-/**
- * UX SAFE: KHÔNG ép min value
- * giống ProductForm (Number(...) only)
- */
-const toNumber = (value: string): number => {
-  if (value.trim() === "") return 0;
-  const n = Number(value);
-  return Number.isNaN(n) ? 0 : n;
+const zones: ZoneItem[] = [
+  {
+    key: "sea",
+    label: "shipping_zone_southeast_asia",
+  },
+  {
+    key: "asia",
+    label: "shipping_zone_asia",
+  },
+  {
+    key: "europe",
+    label: "shipping_zone_europe",
+  },
+  {
+    key: "north_america",
+    label: "shipping_zone_north_america",
+  },
+  {
+    key: "rest_of_world",
+    label: "shipping_zone_rest_of_world",
+  },
+];
+
+const parseShippingValue = (
+  value: string
+): number | "" => {
+  if (value === "") return "";
+
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed)) {
+    return "";
+  }
+
+  return parsed;
 };
 
-const buildName = (v: ProductVariant): string =>
-  [v.option1, v.option2, v.option3].filter(Boolean).join(" - ");
+const normalizeShippingValue = (
+  value: number | ""
+): number | "" => {
+  if (value === "") {
+    return "";
+  }
 
-/* =========================
-   HYDRATE (validate logic only)
-========================= */
+  if (value > 0 && value < MIN_PRICE) {
+    return MIN_PRICE;
+  }
 
-const hydrateVariant = (v: ProductVariant): ProductVariant => {
-  const price = Number(v.price ?? 0);
-
-  const salePriceRaw =
-    v.salePrice !== null && v.salePrice !== undefined
-      ? Number(v.salePrice)
-      : null;
-
-  const saleEnabled = Boolean(v.saleEnabled);
-
-  const finalSalePrice =
-    saleEnabled &&
-    salePriceRaw !== null &&
-    salePriceRaw > 0 &&
-    salePriceRaw < price
-      ? salePriceRaw
-      : null;
-
-  const safeSaleStock = Math.min(
-    Number(v.saleStock ?? 0),
-    Number(v.stock ?? 0)
-  );
-
-  return {
-    ...v,
-
-    name: buildName(v),
-
-    price,
-    salePrice: finalSalePrice,
-    finalPrice: finalSalePrice ?? price,
-
-    saleEnabled,
-    saleStock: safeSaleStock,
-
-    saleSold: Number(v.saleSold ?? 0),
-    sold: Number(v.sold ?? 0),
-
-    isActive: v.isActive !== false,
-    isUnlimited: Boolean(v.isUnlimited),
-  };
+  return value;
 };
 
-/* =========================
-   COMPONENT
-========================= */
-
-export default function VariantEditor({
-  variants,
-  setVariants,
+export default function ShippingRates({
+  shippingRates,
+  setShippingRates,
+  primaryShippingCountry,
+  setPrimaryShippingCountry,
 }: Props) {
-  const [label1, setLabel1] = useState("Color");
-  const [values1, setValues1] = useState("");
+  const { t } = useTranslation();
 
-  const [label2, setLabel2] = useState("Size");
-  const [values2, setValues2] = useState("");
-
-  const hydrated = useRef(false);
-
-  /* =========================
-     INIT FROM EXISTING DATA
-  ========================= */
-  useEffect(() => {
-    if (hydrated.current) return;
-    if (!variants.length) return;
-
-    hydrated.current = true;
-
-    setLabel1(variants[0].optionLabel1 || "Color");
-    setLabel2(variants[0].optionLabel2 || "Size");
-
-    const uniq1 = [
-      ...new Set(variants.map((v) => v.option1).filter(Boolean)),
-    ];
-    const uniq2 = [
-      ...new Set(variants.map((v) => v.option2).filter(Boolean)),
-    ];
-
-    setValues1(uniq1.join(", "));
-    setValues2(uniq2.join(", "));
-  }, [variants]);
-
-  /* =========================
-     GENERATE VARIANTS
-  ========================= */
-  const generateVariants = () => {
-    const list1 = parseList(values1);
-    const list2 = parseList(values2);
-
-    if (!list1.length) {
-      setVariants([]);
-      return;
-    }
-
-    const next: ProductVariant[] = [];
-
-    if (list2.length) {
-      for (const a of list1) {
-        for (const b of list2) {
-          const found = variants.find(
-            (x) => x.option1 === a && x.option2 === b
-          );
-
-          next.push(
-            hydrateVariant({
-              ...found,
-              option1: a,
-              option2: b,
-              optionLabel1: label1,
-              optionLabel2: label2,
-              price: found?.price ?? 0,
-              stock: found?.stock ?? 0,
-            })
-          );
-        }
-      }
-    } else {
-      for (const a of list1) {
-        const found = variants.find((x) => x.option1 === a);
-
-        next.push(
-          hydrateVariant({
-            ...found,
-            option1: a,
-            option2: null,
-            optionLabel1: label1,
-            optionLabel2: null,
-            price: found?.price ?? 0,
-            stock: found?.stock ?? 0,
-          })
-        );
-      }
-    }
-
-    setVariants(next);
-  };
-
-  /* =========================
-     UPDATE FIELD (NO AUTO CLAMP)
-  ========================= */
-  const updateField = <K extends keyof ProductVariant>(
-    index: number,
-    key: K,
-    value: ProductVariant[K]
+  const updateRate = (
+    key: string,
+    rawValue: string
   ) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === index
-          ? hydrateVariant({
-              ...v,
-              [key]: value,
-            })
-          : v
-      )
-    );
+    const parsed = parseShippingValue(rawValue);
+
+    setShippingRates((prev) => ({
+      ...prev,
+      [key]: parsed,
+    }));
   };
 
-  const bulkSet = <K extends keyof ProductVariant>(
-    key: K,
-    value: ProductVariant[K]
-  ) => {
-    setVariants((prev) =>
-      prev.map((v) =>
-        hydrateVariant({
-          ...v,
-          [key]: value,
-        })
-      )
-    );
+  const validateRate = (key: string) => {
+    setShippingRates((prev) => ({
+      ...prev,
+      [key]: normalizeShippingValue(prev[key] ?? ""),
+    }));
   };
-
-  const remove = (index: number) => {
-    setVariants((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  /* =========================
-     UI
-  ========================= */
 
   return (
     <div className="space-y-4">
-      <h2 className="font-semibold text-lg">Product Variants</h2>
+      <p className="font-medium">
+        🚚 {t.shipping_fee}
+      </p>
 
-      {/* GENERATE */}
-      <div className="border p-3 rounded bg-gray-50 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={label1}
-            onChange={(e) => setLabel1(e.target.value)}
-            className="border p-2 rounded"
-            placeholder="Option 1 label"
-          />
-          <input
-            value={values1}
-            onChange={(e) => setValues1(e.target.value)}
-            className="border p-2 rounded"
-            placeholder="Red, Blue"
-          />
-          <input
-            value={label2}
-            onChange={(e) => setLabel2(e.target.value)}
-            className="border p-2 rounded"
-            placeholder="Option 2 label"
-          />
-          <input
-            value={values2}
-            onChange={(e) => setValues2(e.target.value)}
-            className="border p-2 rounded"
-            placeholder="S, M"
-          />
+      {/* DOMESTIC */}
+      <div className="border rounded-xl p-3 bg-gray-50 space-y-3">
+        <p className="text-sm font-medium text-gray-700">
+          {t.domestic_country}
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <select
+            value={primaryShippingCountry}
+            onChange={(e) =>
+              setPrimaryShippingCountry(
+                e.target.value
+              )
+            }
+            className="border p-2 rounded bg-white"
+          >
+            {countries.map((country) => (
+              <option
+                key={country.code}
+                value={country.code}
+              >
+                {country.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">
+              {t.domestic_shipping_price}
+            </label>
+
+            <input
+              type="number"
+              step="0.00001"
+              min="0.00001"
+              inputMode="decimal"
+              placeholder="0.00001"
+              value={
+                shippingRates.domestic === ""
+                  ? ""
+                  : shippingRates.domestic
+              }
+              onChange={(e) =>
+                updateRate(
+                  "domestic",
+                  e.target.value
+                )
+              }
+              onBlur={() =>
+                validateRate("domestic")
+              }
+              className="w-full border p-2 rounded bg-white"
+            />
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={generateVariants}
-          className="w-full bg-blue-500 text-white py-2 rounded"
-        >
-          Generate Variants
-        </button>
       </div>
 
-      {/* TABLE */}
-      {variants.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2">Variant</th>
-                <th className="p-2">Price</th>
-                <th className="p-2">Stock</th>
-                <th className="p-2">Sale</th>
-                <th className="p-2"></th>
-              </tr>
-            </thead>
+      {/* ZONES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {zones.map((zone) => (
+          <div
+            key={zone.key}
+            className="space-y-1"
+          >
+            <label className="text-sm text-gray-700">
+              {t(zone.label)}
+            </label>
 
-            <tbody>
-              {variants.map((v, i) => (
-                <tr key={v.id ?? i} className="border-t">
-                  <td className="p-2">
-                    {v.option1}
-                    {v.option2 ? ` - ${v.option2}` : ""}
-                  </td>
-
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      step="0.00001"
-                      min="0"
-                      value={v.price ?? ""}
-                      onChange={(e) =>
-                        updateField(i, "price", toNumber(e.target.value))
-                      }
-                      className="border p-1 w-24"
-                    />
-                  </td>
-
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      value={v.stock ?? 0}
-                      onChange={(e) =>
-                        updateField(i, "stock", toNumber(e.target.value))
-                      }
-                      className="border p-1 w-20"
-                    />
-                  </td>
-
-                  <td className="p-2 space-y-1">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(v.saleEnabled)}
-                        onChange={(e) =>
-                          updateField(i, "saleEnabled", e.target.checked)
-                        }
-                      />
-                      Sale
-                    </label>
-
-                    {v.saleEnabled && (
-                      <input
-                        type="number"
-                        step="0.00001"
-                        min="0"
-                        placeholder="Sale price"
-                        value={v.salePrice ?? ""}
-                        onChange={(e) =>
-                          updateField(
-                            i,
-                            "salePrice",
-                            e.target.value === ""
-                              ? null
-                              : toNumber(e.target.value)
-                          )
-                        }
-                        className="border p-1 w-24 block"
-                      />
-                    )}
-                  </td>
-
-                  <td className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => remove(i)}
-                      className="text-red-500"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            <input
+              type="number"
+              step="0.00001"
+              min="0.00001"
+              inputMode="decimal"
+              placeholder="0.00001"
+              value={
+                shippingRates[zone.key] === ""
+                  ? ""
+                  : shippingRates[zone.key]
+              }
+              onChange={(e) =>
+                updateRate(
+                  zone.key,
+                  e.target.value
+                )
+              }
+              onBlur={() =>
+                validateRate(zone.key)
+              }
+              className="w-full border p-2 rounded"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
