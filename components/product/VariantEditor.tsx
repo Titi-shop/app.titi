@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { ProductVariant } from "./types";
-
 interface Props {
   variants: ProductVariant[];
   setVariants: React.Dispatch<
@@ -13,7 +11,6 @@ interface Props {
 }
 
 const MIN_PRICE = 0.00001;
-
 const parseList = (
   value: string
 ): string[] =>
@@ -119,15 +116,16 @@ export default function VariantEditor({
     useState("");
   const [label2, setLabel2] =
     useState("Size");
-
   const [values2, setValues2] =
     useState("");
-
   const hydrated = useRef(false);
   useEffect(() => {
     if (hydrated.current) return;
+
     if (!variants.length) return;
+
     hydrated.current = true;
+
     setLabel1(
       variants[0].optionLabel1 ||
         "Color"
@@ -523,7 +521,7 @@ export default function VariantEditor({
 
                         {v.saleEnabled && (
                           <>
-                            <input
+                           <input
   type="number"
   step="0.00001"
   min="0.00001"
@@ -562,6 +560,30 @@ export default function VariantEditor({
   }}
   className="border p-1 w-24 block"
 />
+
+                            <input
+                              type="number"
+                              placeholder={
+                                t.sale_stock
+                              }
+                              value={
+                                v.saleStock ??
+                                0
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateField(
+                                  i,
+                                  "saleStock",
+                                  Number(
+                                    e.target
+                                      .value
+                                  ) || 0
+                                )
+                              }
+                              className="border p-1 w-24 block"
+                            />
                           </>
                         )}
                       </td>
