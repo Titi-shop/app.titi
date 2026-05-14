@@ -115,9 +115,10 @@ export function normalizeVariants(
       const option1 =
         item.option1?.trim();
 
-      if (!option1) {
-        return null;
-      }
+      const option1 = item.option1;
+if (typeof option1 !== "string") {
+  return null;
+}
 
       const variant: ProductVariant = {
         id: item.id,
