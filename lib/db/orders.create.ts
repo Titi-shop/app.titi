@@ -339,19 +339,31 @@ console.log("🟢 [ORDER][CREATE] FINAL REALZONE", { realZone });
 
     /* ================= CREATE ORDER ================= */
 
-      const orderRes = await client.query(
+      const orderRes = await client.query<{ id: string }>(
   `
   INSERT INTO orders (
-    order_number,
     buyer_id,
     seller_id,
-
-    subtotal,
-    shipping_fee,
-    total,
+    pi_payment_id,
+    pi_txid,
+    idempotency_key,
 
     payment_status,
+    paid_at,
+
     fulfillment_status,
+
+    settlement_status,
+    shipment_status,
+    delivery_status,
+
+    items_total,
+    subtotal,
+    discount,
+    shipping_fee,
+    tax,
+    total,
+    currency,
 
     shipping_name,
     shipping_phone,
@@ -361,49 +373,140 @@ console.log("🟢 [ORDER][CREATE] FINAL REALZONE", { realZone });
     shipping_region,
     shipping_country,
     shipping_postal_code,
-    shipping_zone,
 
     total_items,
-    total_quantity
+    total_quantity,
+
+    created_at,
+    updated_at
   )
   VALUES (
-    gen_random_uuid()::text,
-    $1,$2,
-    $3,$4,$5,
+    $1,  -- buyer_id
+    $2,  -- seller_id
 
-    'pending',
+    $3,  -- pi_payment_id
+    $4,  -- pi_txid
+    $5,  -- idempotency_key
+
+    'paid',
+    now(),
+
     'pending_fulfillment',
 
-    $6,$7,$8,$9,$10,$11,$12,$13,$14,
+    'ESCROWED',
+    'PENDING',
+    'PENDING',
 
-    $15,$16
+    $6,  -- items_total
+    $7,  -- subtotal
+    $8,  -- discount
+    $9,  -- shipping_fee
+    $10, -- tax
+    $11, -- total
+    $12, -- currency
+
+    $13, -- shipping_name
+    $14, -- shipping_phone
+    $15, -- shipping_address_line
+    $16, -- shipping_ward
+    $17, -- shipping_district
+    $18, -- shipping_region
+    $19, -- shipping_country
+    $20, -- shipping_postal_code
+
+    $21, -- total_items
+    $22, -- total_quantity
+
+    now(),
+    now()
   )
   RETURNING id
   `,
-      [
-        userId,
-        orderItems[0].product.seller_id,
+  [
+    // $1
+    intent.buyer_id,
 
-        subtotal,
-        shippingFee,
-        total,
+    // $2
+    intent.seller_id,
 
-        input.shipping.name,
-        input.shipping.phone,
-        input.shipping.address_line,
-        input.shipping.ward ?? null,
-        input.shipping.district ?? null,
-        input.shipping.region ?? null,
-        country,
-        input.shipping.postal_code ?? null,
-        realZone,
+    // $3
+    piPaymentId,
 
-        orderItems.length,
-        totalQuantity,
-      ]
-    );
+    // $4
+    txid,
+
+    // $5
+    paymentIntentId,
+
+    // $6 items_total
+    intent.subtotal,
+
+    // $7 subtotal
+    intent.subtotal,
+
+    // $8 discount
+    intent.discount,
+
+    // $9 shipping_fee
+    intent.shipping_fee,
+
+    // $10 tax
+    0,
+
+    // $11 total
+    intent.total_amount,
+
+    // $12 currency
+    intent.currency,
+
+    // $13 shipping_name
+    shipping.name ?? "",
+
+    // $14 shipping_phone
+    shipping.phone ?? "",
+
+    // $15 shipping_address_line
+    shipping.address_line ?? "",
+
+    // $16 shipping_ward
+    shipping.ward ?? null,
+
+    // $17 shipping_district
+    shipping.district ?? null,
+
+    // $18 shipping_region
+    shipping.region ?? null,
+
+    // $19 shipping_country
+    shipping.country ?? intent.country,
+
+    // $20 shipping_postal_code
+    shipping.postal_code ?? null,
+
+    // $21 total_items
+    intent.quantity,
+
+    // $22 total_quantity
+    intent.quantity,
+  ]
+);
 
     const orderId = orderRes.rows[0].id;
+    await writePaymentAudit({
+  paymentIntentId,
+  eventCode: "ORDER_CREATED",
+  stage: "FINALIZE",
+  actorType: "system",
+  piPaymentId,
+  txid,
+  source: "orders.payment",
+  orderId,
+  newSettlementState: "ORDER_CREATED",
+});
+if (!orderId) {
+  throw new Error("ORDER_CREATE_FAILED");
+}
+
 
     /* ================= ORDER ITEMS ================= */
 
