@@ -409,37 +409,104 @@ if (!orderId) {
     ===================================================== */
 
     await client.query(
-      `
-      INSERT INTO order_items (
-        order_id,
-        seller_id,
-        product_id,
-        variant_id,
-        quantity,
-        unit_price,
-        total_price,
-        currency,
-        snapshot
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      `,
-      [
-        orderId,
-        intent.seller_id,
-        intent.product_id,
-        intent.variant_id,
-        intent.quantity,
-        intent.unit_price,
-        toNumber(intent.unit_price) * intent.quantity,
-        intent.currency,
-        JSON.stringify({
-          paymentIntentId,
-          piPaymentId,
-          txid,
-          source: "payment_reconcile",
-        }),
-      ]
-    );
+  `
+  INSERT INTO order_items (
+    order_id,
+
+    seller_id,
+
+    product_id,
+    variant_id,
+
+    product_name,
+    product_slug,
+
+    thumbnail,
+    images,
+
+    variant_name,
+    variant_value,
+
+    quantity,
+
+    unit_price,
+    total_price,
+
+    currency,
+
+    fulfillment_status,
+
+    snapshot
+  )
+  VALUES (
+    $1,$2,$3,$4,
+    $5,$6,
+    $7,$8,
+    $9,$10,
+    $11,
+    $12,$13,
+    $14,
+    'pending_fulfillment',
+    $15
+  )
+  `,
+  [
+    orderId,
+
+    intent.seller_id,
+
+    intent.product_id,
+    intent.variant_id,
+
+    product?.name ?? null,
+    product?.slug ?? null,
+
+    product?.thumbnail ??
+      (
+        Array.isArray(product?.images)
+          ? product?.images?.[0]
+          : null
+      ) ??
+      "",
+
+    JSON.stringify(
+      product?.images ?? []
+    ),
+
+    product?.variant_name ?? null,
+    product?.variant_value ?? null,
+
+    intent.quantity,
+
+    intent.unit_price,
+
+    toNumber(intent.unit_price) *
+      intent.quantity,
+
+    intent.currency,
+
+    JSON.stringify({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+
+      source:
+        "payment_reconcile",
+
+      product_snapshot: {
+        name:
+          product?.name ?? null,
+
+        slug:
+          product?.slug ?? null,
+
+        thumbnail:
+          product?.thumbnail ??
+          null,
+      },
+    }),
+  ]
+);
 
     /* =====================================================
        6. CREATE PAYMENT RECEIPT
@@ -686,10 +753,6 @@ if (!orderId) {
     paymentIntentId,
   ]
 );
-    /* =====================================================
-       7. UPSERT PI PAYMENTS (FULL SCHEMA FIX)
-    ===================================================== */
-
     /* =====================================================
    7. UPSERT PI PAYMENTS (FIXED FULL)
 ===================================================== */
