@@ -90,19 +90,39 @@ export async function createProductService(req: Request, userId: string) {
       : Number(body.price);
 
   const product = await createProduct(userId, {
-    name: body.name,
-    description: body.description ?? "",
-    detail: body.detail ?? "",
-    images: body.images ?? [],
-    thumbnail: body.thumbnail ?? "",
-    category_id: body.categoryId ?? null,
-    price,
-    stock: variants.length
-      ? variants.reduce((s, v) => s + v.stock, 0)
-      : Number(body.stock || 0),
-    sale_price: body.salePrice ?? null,
-    sale_enabled: body.saleEnabled ?? false,
-  });
+  name: body.name,
+
+  description: body.description ?? "",
+
+  detail: body.detail ?? "",
+
+  images: body.images ?? [],
+
+  thumbnail: body.thumbnail ?? "",
+
+  category_id:
+    body.categoryId !== undefined &&
+    body.categoryId !== null
+      ? Number(body.categoryId)
+      : null,
+
+  price,
+  stock: variants.length
+    ? variants.reduce((s, v) => s + v.stock, 0)
+    : Number(body.stock || 0),
+
+  sale_price:
+    body.salePrice !== undefined &&
+    body.salePrice !== null
+      ? Number(body.salePrice)
+      : null,
+  sale_start: body.saleStart ?? null,
+  sale_end: body.saleEnd ?? null,
+  sale_stock: Number(body.saleStock ?? 0),
+  sale_enabled: Boolean(body.saleEnabled),
+  is_active:
+    body.isActive !== false,
+});
 
   if (variants.length) {
     await replaceVariantsByProductId(product.id, variants);
