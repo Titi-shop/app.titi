@@ -1,4 +1,4 @@
-import { ProductVariant } from "@/lib/db/variants";
+import type { ProductVariant } from "@/components/product/types";
 
 /* =========================================================
    TYPES
@@ -72,7 +72,9 @@ function safeNullableString(
 
   const trimmed = value.trim();
 
-  return trimmed.length ? trimmed : null;
+  return trimmed.length > 0
+    ? trimmed
+    : null;
 }
 
 function safeNumber(
@@ -89,11 +91,9 @@ function safeNumber(
 
   const parsed = Number(value);
 
-  if (Number.isNaN(parsed)) {
-    return fallback;
-  }
-
-  return parsed;
+  return Number.isNaN(parsed)
+    ? fallback
+    : parsed;
 }
 
 function safeNullableNumber(
@@ -109,11 +109,9 @@ function safeNullableNumber(
 
   const parsed = Number(value);
 
-  if (Number.isNaN(parsed)) {
-    return null;
-  }
-
-  return parsed;
+  return Number.isNaN(parsed)
+    ? null
+    : parsed;
 }
 
 function safeBoolean(
@@ -176,44 +174,72 @@ export function normalizeVariant(
 
   const item = raw as VariantInput;
 
-  const option1 = safeString(item.option1);
+  /* =========================
+     REQUIRED
+  ========================= */
+
+  const option1 = safeString(
+    item.option1
+  );
 
   if (!option1) {
     console.warn(
-      "[VALIDATOR][VARIANT] INVALID_OPTION1",
-      {
-        index,
-      }
+      "❌ [VARIANT] INVALID_OPTION1",
+      { index }
     );
 
     return null;
   }
 
+  const price = safeNumber(
+    item.price
+  );
+
+  const stock = safeNumber(
+    item.stock
+  );
+
+  /* =========================
+     OPTIONAL
+  ========================= */
+
   const option2 =
-    safeNullableString(item.option2);
+    safeNullableString(
+      item.option2
+    );
 
   const option3 =
-    safeNullableString(item.option3);
+    safeNullableString(
+      item.option3
+    );
 
-  const price = safeNumber(item.price);
+  const saleEnabled =
+    safeBoolean(
+      item.saleEnabled
+    );
 
   const salePrice =
-    safeNullableNumber(item.salePrice);
+    safeNullableNumber(
+      item.salePrice
+    );
 
-  const saleEnabled = safeBoolean(
-    item.saleEnabled
-  );
+  const finalPrice =
+    calcFinalPrice(
+      price,
+      salePrice,
+      saleEnabled
+    );
 
-  const stock = safeNumber(item.stock);
-
-  const finalPrice = calcFinalPrice(
-    price,
-    salePrice,
-    saleEnabled
-  );
+  /* =========================
+     NORMALIZED
+  ========================= */
 
   const variant: ProductVariant = {
-    id: safeNullableString(item.id) ?? undefined,
+    id:
+      safeNullableString(item.id) ??
+      undefined,
+
+    /* OPTIONS */
 
     option1,
 
@@ -244,13 +270,22 @@ export function normalizeVariant(
         option3
       ),
 
-    sku: safeNullableString(item.sku),
+    /* SKU */
+
+    sku:
+      safeNullableString(item.sku),
+
+    /* PRICE */
 
     price,
 
     salePrice,
 
     finalPrice,
+
+    currency: "PI",
+
+    /* FLASH SALE */
 
     saleEnabled,
 
@@ -262,13 +297,22 @@ export function normalizeVariant(
       item.saleSold
     ),
 
+    /* STOCK */
+
     stock,
 
-    isUnlimited: safeBoolean(
-      item.isUnlimited
+    isUnlimited:
+      safeBoolean(
+        item.isUnlimited
+      ),
+
+    /* MEDIA */
+
+    image: safeString(
+      item.image
     ),
 
-    image: safeString(item.image),
+    /* STATUS */
 
     isActive:
       item.isActive !== false,
@@ -278,7 +322,11 @@ export function normalizeVariant(
       index
     ),
 
-    sold: safeNumber(item.sold),
+    /* ANALYTICS */
+
+    sold: safeNumber(
+      item.sold
+    ),
   };
 
   return variant;
@@ -316,5 +364,4 @@ export function normalizeVariants(
   }
 
   return result;
-}
 }
