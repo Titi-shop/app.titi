@@ -1,6 +1,6 @@
 
 import { withTransaction } from "@/lib/db";
-
+import { createOrder } from "@/lib/db/orders.create";
 import {
   auditManualReview,
   writePaymentAudit,
@@ -219,9 +219,10 @@ if (
       throw new Error("RECEIVER_MISMATCH");
     }
 
-   /* =====================================================
+/* =====================================================
    4. CREATE ORDER
 ===================================================== */
+
 await writePaymentAudit({
   paymentIntentId,
   eventCode: "ORDER_FINALIZE_STARTED",
@@ -236,161 +237,39 @@ await writePaymentAudit({
     receiverWallet,
   },
 });
-     
-const orderRes = await client.query<{ id: string }>(
-  `
-  INSERT INTO orders (
-    buyer_id,
-    seller_id,
-    pi_payment_id,
-    pi_txid,
-    idempotency_key,
 
-    payment_status,
-    paid_at,
+const createdOrder = await createOrder({
+  userId: intent.buyer_id,
 
-    fulfillment_status,
+  country: intent.country,
+  zone: intent.zone,
 
-    settlement_status,
-    shipment_status,
-    delivery_status,
+  shipping: {
+    name: shipping.name ?? "",
+    phone: shipping.phone ?? "",
+    address_line: shipping.address_line ?? "",
+    ward: shipping.ward ?? null,
+    district: shipping.district ?? null,
+    region: shipping.region ?? null,
+    postal_code: shipping.postal_code ?? null,
+  },
 
-    items_total,
-    subtotal,
-    discount,
-    shipping_fee,
-    tax,
-    total,
-    currency,
+  items: [
+    {
+      product_id: intent.product_id,
+      variant_id: intent.variant_id,
+      quantity: intent.quantity,
+    },
+  ],
+});
 
-    shipping_name,
-    shipping_phone,
-    shipping_address_line,
-    shipping_ward,
-    shipping_district,
-    shipping_region,
-    shipping_country,
-    shipping_postal_code,
+const orderId = createdOrder.orderId;
 
-    total_items,
-    total_quantity,
+if (!orderId) {
+  throw new Error("ORDER_CREATE_FAILED");
+}
 
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,  -- buyer_id
-    $2,  -- seller_id
-
-    $3,  -- pi_payment_id
-    $4,  -- pi_txid
-    $5,  -- idempotency_key
-
-    'paid',
-    now(),
-
-    'pending_fulfillment',
-
-    'ESCROWED',
-    'PENDING',
-    'PENDING',
-
-    $6,  -- items_total
-    $7,  -- subtotal
-    $8,  -- discount
-    $9,  -- shipping_fee
-    $10, -- tax
-    $11, -- total
-    $12, -- currency
-
-    $13, -- shipping_name
-    $14, -- shipping_phone
-    $15, -- shipping_address_line
-    $16, -- shipping_ward
-    $17, -- shipping_district
-    $18, -- shipping_region
-    $19, -- shipping_country
-    $20, -- shipping_postal_code
-
-    $21, -- total_items
-    $22, -- total_quantity
-
-    now(),
-    now()
-  )
-  RETURNING id
-  `,
-  [
-    // $1
-    intent.buyer_id,
-
-    // $2
-    intent.seller_id,
-
-    // $3
-    piPaymentId,
-
-    // $4
-    txid,
-
-    // $5
-    paymentIntentId,
-
-    // $6 items_total
-    intent.subtotal,
-
-    // $7 subtotal
-    intent.subtotal,
-
-    // $8 discount
-    intent.discount,
-
-    // $9 shipping_fee
-    intent.shipping_fee,
-
-    // $10 tax
-    0,
-
-    // $11 total
-    intent.total_amount,
-
-    // $12 currency
-    intent.currency,
-
-    // $13 shipping_name
-    shipping.name ?? "",
-
-    // $14 shipping_phone
-    shipping.phone ?? "",
-
-    // $15 shipping_address_line
-    shipping.address_line ?? "",
-
-    // $16 shipping_ward
-    shipping.ward ?? null,
-
-    // $17 shipping_district
-    shipping.district ?? null,
-
-    // $18 shipping_region
-    shipping.region ?? null,
-
-    // $19 shipping_country
-    shipping.country ?? intent.country,
-
-    // $20 shipping_postal_code
-    shipping.postal_code ?? null,
-
-    // $21 total_items
-    intent.quantity,
-
-    // $22 total_quantity
-    intent.quantity,
-  ]
-);
-
-    const orderId = orderRes.rows[0].id;
-    await writePaymentAudit({
+await writePaymentAudit({
   paymentIntentId,
   eventCode: "ORDER_CREATED",
   stage: "FINALIZE",
@@ -401,46 +280,6 @@ const orderRes = await client.query<{ id: string }>(
   orderId,
   newSettlementState: "ORDER_CREATED",
 });
-if (!orderId) {
-  throw new Error("ORDER_CREATE_FAILED");
-}
-    /* =====================================================
-       5. CREATE ORDER ITEM
-    ===================================================== */
-
-    await client.query(
-      `
-      INSERT INTO order_items (
-        order_id,
-        seller_id,
-        product_id,
-        variant_id,
-        quantity,
-        unit_price,
-        total_price,
-        currency,
-        snapshot
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      `,
-      [
-        orderId,
-        intent.seller_id,
-        intent.product_id,
-        intent.variant_id,
-        intent.quantity,
-        intent.unit_price,
-        toNumber(intent.unit_price) * intent.quantity,
-        intent.currency,
-        JSON.stringify({
-          paymentIntentId,
-          piPaymentId,
-          txid,
-          source: "payment_reconcile",
-        }),
-      ]
-    );
-
     /* =====================================================
        6. CREATE PAYMENT RECEIPT
     ===================================================== */
@@ -686,10 +525,7 @@ if (!orderId) {
     paymentIntentId,
   ]
 );
-    /* =====================================================
-       7. UPSERT PI PAYMENTS (FULL SCHEMA FIX)
-    ===================================================== */
-
+    
     /* =====================================================
    7. UPSERT PI PAYMENTS (FIXED FULL)
 ===================================================== */
