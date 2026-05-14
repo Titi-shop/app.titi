@@ -10,7 +10,7 @@ function vlog(step: string, data?: unknown) {
 }
 
 /* =========================================================
-   DB TYPES
+   TYPES
 ========================================================= */
 
 export type ProductVariantDB = {
@@ -62,7 +62,7 @@ export type ProductVariantDB = {
 export type ProductVariant = {
   id?: string;
 
-  option1?: string;
+  option1: string;
   option2?: string | null;
   option3?: string | null;
 
@@ -77,13 +77,16 @@ export type ProductVariant = {
 
   sku?: string | null;
 
-  price?: number;
+  price: number;
+
   salePrice?: number | null;
+
   finalPrice?: number;
 
   saleEnabled?: boolean;
 
   saleStock?: number;
+
   saleSold?: number;
 
   stock: number;
@@ -117,11 +120,19 @@ export type ProductVariantRow = {
   is_active: boolean;
 };
 
+type VariantWithSaleWindow = ProductVariantDB & {
+  sale_start: string | null;
+  sale_end: string | null;
+};
+
 /* =========================================================
    SAFE HELPERS
 ========================================================= */
 
-function safeNumber(value: unknown, fallback = 0): number {
+function safeNumber(
+  value: unknown,
+  fallback = 0
+): number {
   if (
     value === null ||
     value === undefined ||
@@ -167,7 +178,11 @@ function buildVariantName(
     variant.option2,
     variant.option3,
   ]
-    .filter(Boolean)
+    .filter(
+      (value): value is string =>
+        typeof value === "string" &&
+        value.trim().length > 0
+    )
     .join(" - ");
 }
 
@@ -203,26 +218,30 @@ export function mapVariantToApp(
     id: variant.id,
 
     option1: variant.option_1 ?? "",
-    option2: variant.option_2 ?? null,
-    option3: variant.option_3 ?? null,
+
+    option2: variant.option_2,
+
+    option3: variant.option_3,
 
     optionLabel1:
-      variant.option_label_1 ?? null,
+      variant.option_label_1,
 
     optionLabel2:
-      variant.option_label_2 ?? null,
+      variant.option_label_2,
 
     optionLabel3:
-      variant.option_label_3 ?? null,
+      variant.option_label_3,
 
     optionName:
-      variant.option_label_1 ?? "option",
+      variant.option_label_1 ??
+      "option",
 
-    optionValue: variant.option_1 ?? "",
+    optionValue:
+      variant.option_1 ?? "",
 
     name: variant.name,
 
-    sku: variant.sku ?? null,
+    sku: variant.sku,
 
     price: safeNumber(variant.price),
 
@@ -252,9 +271,11 @@ export function mapVariantToApp(
       variant.is_unlimited
     ),
 
-    image: variant.image ?? "",
+    image: variant.image,
 
-    isActive: Boolean(variant.is_active),
+    isActive: Boolean(
+      variant.is_active
+    ),
 
     sortOrder: safeNumber(
       variant.sort_order
@@ -283,7 +304,7 @@ export function mapVariantToDB(
     product_id: productId,
 
     option_1:
-      variant.option1?.trim() || null,
+      variant.option1.trim() || null,
 
     option_2:
       variant.option2?.trim() || null,
@@ -292,13 +313,16 @@ export function mapVariantToDB(
       variant.option3?.trim() || null,
 
     option_label_1:
-      variant.optionLabel1?.trim() || null,
+      variant.optionLabel1?.trim() ||
+      null,
 
     option_label_2:
-      variant.optionLabel2?.trim() || null,
+      variant.optionLabel2?.trim() ||
+      null,
 
     option_label_3:
-      variant.optionLabel3?.trim() || null,
+      variant.optionLabel3?.trim() ||
+      null,
 
     name:
       variant.name?.trim() ||
@@ -312,7 +336,9 @@ export function mapVariantToDB(
       variant.salePrice
     ),
 
-    final_price: calcFinalPrice(variant),
+    final_price: calcFinalPrice(
+      variant
+    ),
 
     sale_enabled: Boolean(
       variant.saleEnabled
@@ -334,7 +360,8 @@ export function mapVariantToDB(
 
     image: variant.image ?? "",
 
-    is_active: variant.isActive !== false,
+    is_active:
+      variant.isActive !== false,
 
     sort_order: sortOrder,
 
@@ -355,22 +382,32 @@ export function mapVariantToDB(
 export async function getVariantsByProductId(
   productId: string
 ): Promise<ProductVariant[]> {
-  vlog("GET_BY_PRODUCT_START", productId);
-
-  const result = await query<ProductVariantDB>(
-    `
-    SELECT *
-    FROM product_variants
-    WHERE product_id = $1
-      AND deleted_at IS NULL
-    ORDER BY sort_order ASC, created_at ASC
-    `,
-    [productId]
+  vlog(
+    "GET_BY_PRODUCT_START",
+    productId
   );
 
-  vlog("GET_BY_PRODUCT_ROWS", result.rows);
+  const result =
+    await query<ProductVariantDB>(
+      `
+      SELECT *
+      FROM product_variants
+      WHERE product_id = $1
+        AND deleted_at IS NULL
+      ORDER BY sort_order ASC,
+               created_at ASC
+      `,
+      [productId]
+    );
 
-  return result.rows.map(mapVariantToApp);
+  vlog(
+    "GET_BY_PRODUCT_ROWS",
+    result.rows
+  );
+
+  return result.rows.map(
+    mapVariantToApp
+  );
 }
 
 /* =========================================================
@@ -382,26 +419,28 @@ export async function getVariantById(
 ): Promise<ProductVariantRow | null> {
   vlog("GET_VARIANT_START", variantId);
 
-  const result = await query<ProductVariantRow>(
-    `
-    SELECT
-      id,
-      product_id,
-      price,
-      sale_price,
-      final_price,
-      stock,
-      is_unlimited,
-      is_active
-    FROM product_variants
-    WHERE id = $1
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [variantId]
-  );
+  const result =
+    await query<ProductVariantRow>(
+      `
+      SELECT
+        id,
+        product_id,
+        price,
+        sale_price,
+        final_price,
+        stock,
+        is_unlimited,
+        is_active
+      FROM product_variants
+      WHERE id = $1
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [variantId]
+    );
 
-  const row = result.rows[0] ?? null;
+  const row =
+    result.rows[0] ?? null;
 
   vlog("GET_VARIANT_RESULT", row);
 
@@ -409,30 +448,38 @@ export async function getVariantById(
 }
 
 /* =========================================================
-   VALIDATE VARIANT OWNERSHIP
+   VALIDATE OWNERSHIP
 ========================================================= */
 
 export async function validateVariantOwnership(
   variantId: string,
   productId: string
 ): Promise<boolean> {
-  vlog("VALIDATE_VARIANT_START", {
-    variantId,
-    productId,
-  });
-
-  const variant = await getVariantById(
-    variantId
+  vlog(
+    "VALIDATE_VARIANT_START",
+    {
+      variantId,
+      productId,
+    }
   );
 
+  const variant =
+    await getVariantById(
+      variantId
+    );
+
   if (!variant) {
-    vlog("VALIDATE_VARIANT_NOT_FOUND");
+    vlog(
+      "VALIDATE_VARIANT_NOT_FOUND"
+    );
 
     return false;
   }
 
   if (!variant.is_active) {
-    vlog("VALIDATE_VARIANT_INACTIVE");
+    vlog(
+      "VALIDATE_VARIANT_INACTIVE"
+    );
 
     return false;
   }
@@ -440,9 +487,10 @@ export async function validateVariantOwnership(
   const matched =
     variant.product_id === productId;
 
-  vlog("VALIDATE_VARIANT_RESULT", {
-    matched,
-  });
+  vlog(
+    "VALIDATE_VARIANT_RESULT",
+    { matched }
+  );
 
   return matched;
 }
@@ -455,114 +503,133 @@ export async function replaceVariantsByProductId(
   productId: string,
   variants: ProductVariant[]
 ): Promise<void> {
-  await withTransaction(async (client) => {
-    vlog("REPLACE_START", {
-      productId,
-      count: variants.length,
-    });
-
-    await client.query(
-      `
-      UPDATE product_variants
-      SET
-        deleted_at = NOW(),
-        updated_at = NOW()
-      WHERE product_id = $1
-        AND deleted_at IS NULL
-      `,
-      [productId]
-    );
-
-    vlog("OLD_VARIANTS_SOFT_DELETED");
-
-    if (!variants.length) {
-      vlog("NO_NEW_VARIANTS");
-
-      return;
-    }
-
-    const FIELD_COUNT = 22;
-
-    const placeholders: string[] = [];
-
-    const values: unknown[] = [];
-
-    variants.forEach((variant, index) => {
-      const db = mapVariantToDB(
-        variant,
+  await withTransaction(
+    async (client) => {
+      vlog("REPLACE_START", {
         productId,
-        index
+        count: variants.length,
+      });
+
+      await client.query(
+        `
+        UPDATE product_variants
+        SET
+          deleted_at = NOW(),
+          updated_at = NOW()
+        WHERE product_id = $1
+          AND deleted_at IS NULL
+        `,
+        [productId]
       );
 
-      const rowPlaceholders = Array.from(
-        { length: FIELD_COUNT },
-        (_, k) =>
-          `$${index * FIELD_COUNT + k + 1}`
-      ).join(",");
-
-      placeholders.push(
-        `(${rowPlaceholders})`
+      vlog(
+        "OLD_VARIANTS_SOFT_DELETED"
       );
 
-      values.push(
-        db.product_id,
-        db.option_1,
-        db.option_2,
-        db.option_3,
-        db.option_label_1,
-        db.option_label_2,
-        db.option_label_3,
-        db.name,
-        db.sku,
-        db.price,
-        db.sale_price,
-        db.final_price,
-        db.sale_enabled,
-        db.sale_stock,
-        db.sale_sold,
-        db.stock,
-        db.is_unlimited,
-        db.image,
-        db.is_active,
-        db.sort_order,
-        db.sold,
-        db.currency
+      if (!variants.length) {
+        vlog("NO_NEW_VARIANTS");
+
+        return;
+      }
+
+      const FIELD_COUNT = 22;
+
+      const placeholders: string[] =
+        [];
+
+      const values: Array<
+        string | number | boolean | null
+      > = [];
+
+      variants.forEach(
+        (variant, index) => {
+          const db =
+            mapVariantToDB(
+              variant,
+              productId,
+              index
+            );
+
+          const rowPlaceholders =
+            Array.from(
+              {
+                length: FIELD_COUNT,
+              },
+              (_, k) =>
+                `$${
+                  index *
+                    FIELD_COUNT +
+                  k +
+                  1
+                }`
+            ).join(",");
+
+          placeholders.push(
+            `(${rowPlaceholders})`
+          );
+
+          values.push(
+            db.product_id,
+            db.option_1,
+            db.option_2,
+            db.option_3,
+            db.option_label_1,
+            db.option_label_2,
+            db.option_label_3,
+            db.name,
+            db.sku,
+            db.price,
+            db.sale_price,
+            db.final_price,
+            db.sale_enabled,
+            db.sale_stock,
+            db.sale_sold,
+            db.stock,
+            db.is_unlimited,
+            db.image,
+            db.is_active,
+            db.sort_order,
+            db.sold,
+            db.currency
+          );
+        }
       );
-    });
 
-    await client.query(
-      `
-      INSERT INTO product_variants (
-        product_id,
-        option_1,
-        option_2,
-        option_3,
-        option_label_1,
-        option_label_2,
-        option_label_3,
-        name,
-        sku,
-        price,
-        sale_price,
-        final_price,
-        sale_enabled,
-        sale_stock,
-        sale_sold,
-        stock,
-        is_unlimited,
-        image,
-        is_active,
-        sort_order,
-        sold,
-        currency
-      )
-      VALUES ${placeholders.join(",")}
-      `,
-      values
-    );
+      await client.query(
+        `
+        INSERT INTO product_variants (
+          product_id,
+          option_1,
+          option_2,
+          option_3,
+          option_label_1,
+          option_label_2,
+          option_label_3,
+          name,
+          sku,
+          price,
+          sale_price,
+          final_price,
+          sale_enabled,
+          sale_stock,
+          sale_sold,
+          stock,
+          is_unlimited,
+          image,
+          is_active,
+          sort_order,
+          sold,
+          currency
+        )
+        VALUES
+        ${placeholders.join(",")}
+        `,
+        values
+      );
 
-    vlog("REPLACE_SUCCESS");
-  });
+      vlog("REPLACE_SUCCESS");
+    }
+  );
 }
 
 /* =========================================================
@@ -573,123 +640,145 @@ export async function decreaseVariantStock(
   variantId: string,
   quantity: number
 ): Promise<{ success: true }> {
-  return withTransaction(async (client) => {
-    vlog("DECREASE_START", {
-      variantId,
-      quantity,
-    });
-
-    const result = await client.query<
-      ProductVariantDB & {
-        sale_start: string | null;
-        sale_end: string | null;
-      }
-    >(
-      `
-      SELECT
-        v.*,
-        p.sale_start,
-        p.sale_end
-      FROM product_variants v
-      JOIN products p
-        ON p.id = v.product_id
-      WHERE v.id = $1
-        AND v.deleted_at IS NULL
-      FOR UPDATE
-      `,
-      [variantId]
-    );
-
-    if (!result.rows.length) {
-      vlog("VARIANT_NOT_FOUND");
-
-      throw new Error("VARIANT_NOT_FOUND");
-    }
-
-    const row = result.rows[0];
-
-    vlog("LOCKED_VARIANT", row);
-
-    if (!row.is_active) {
-      throw new Error("VARIANT_INACTIVE");
-    }
-
-    if (
-      !row.is_unlimited &&
-      safeNumber(row.stock) < quantity
-    ) {
-      throw new Error("OUT_OF_STOCK");
-    }
-
-    const now = Date.now();
-
-    const start = row.sale_start
-      ? new Date(row.sale_start).getTime()
-      : null;
-
-    const end = row.sale_end
-      ? new Date(row.sale_end).getTime()
-      : null;
-
-    const isSaleWindow =
-      Boolean(row.sale_enabled) &&
-      row.sale_price !== null &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
-
-    vlog("SALE_WINDOW", {
-      isSaleWindow,
-    });
-
-    if (isSaleWindow) {
-      const left =
-        safeNumber(row.sale_stock) -
-        safeNumber(row.sale_sold);
-
-      vlog("SALE_STOCK_LEFT", left);
-
-      if (left < quantity) {
-        throw new Error(
-          "FLASH_SALE_SOLD_OUT"
-        );
-      }
-    }
-
-    await client.query(
-      `
-      UPDATE product_variants
-      SET
-        stock = CASE
-          WHEN is_unlimited
-          THEN stock
-          ELSE stock - $2
-        END,
-
-        sale_sold = CASE
-          WHEN $3 = true
-          THEN sale_sold + $2
-          ELSE sale_sold
-        END,
-
-        sold = sold + $2,
-
-        updated_at = NOW()
-
-      WHERE id = $1
-      `,
-      [
+  return withTransaction(
+    async (client) => {
+      vlog("DECREASE_START", {
         variantId,
         quantity,
+      });
+
+      const result =
+        await client.query<VariantWithSaleWindow>(
+          `
+          SELECT
+            v.*,
+            p.sale_start,
+            p.sale_end
+          FROM product_variants v
+          JOIN products p
+            ON p.id = v.product_id
+          WHERE v.id = $1
+            AND v.deleted_at IS NULL
+          FOR UPDATE
+          `,
+          [variantId]
+        );
+
+      if (!result.rows.length) {
+        vlog(
+          "VARIANT_NOT_FOUND"
+        );
+
+        throw new Error(
+          "VARIANT_NOT_FOUND"
+        );
+      }
+
+      const row = result.rows[0];
+
+      vlog("LOCKED_VARIANT", row);
+
+      if (!row.is_active) {
+        throw new Error(
+          "VARIANT_INACTIVE"
+        );
+      }
+
+      if (
+        !row.is_unlimited &&
+        safeNumber(row.stock) <
+          quantity
+      ) {
+        throw new Error(
+          "OUT_OF_STOCK"
+        );
+      }
+
+      const now = Date.now();
+
+      const start =
+        row.sale_start
+          ? new Date(
+              row.sale_start
+            ).getTime()
+          : null;
+
+      const end =
+        row.sale_end
+          ? new Date(
+              row.sale_end
+            ).getTime()
+          : null;
+
+      const isSaleWindow =
+        Boolean(
+          row.sale_enabled
+        ) &&
+        row.sale_price !== null &&
+        start !== null &&
+        end !== null &&
+        now >= start &&
+        now <= end;
+
+      vlog("SALE_WINDOW", {
         isSaleWindow,
-      ]
-    );
+      });
 
-    vlog("DECREASE_SUCCESS");
+      if (isSaleWindow) {
+        const left =
+          safeNumber(
+            row.sale_stock
+          ) -
+          safeNumber(
+            row.sale_sold
+          );
 
-    return {
-      success: true,
-    };
-  });
+        vlog(
+          "SALE_STOCK_LEFT",
+          left
+        );
+
+        if (left < quantity) {
+          throw new Error(
+            "FLASH_SALE_SOLD_OUT"
+          );
+        }
+      }
+
+      await client.query(
+        `
+        UPDATE product_variants
+        SET
+          stock = CASE
+            WHEN is_unlimited
+            THEN stock
+            ELSE stock - $2
+          END,
+
+          sale_sold = CASE
+            WHEN $3 = true
+            THEN sale_sold + $2
+            ELSE sale_sold
+          END,
+
+          sold = sold + $2,
+
+          updated_at = NOW()
+
+        WHERE id = $1
+        `,
+        [
+          variantId,
+          quantity,
+          isSaleWindow,
+        ]
+      );
+
+      vlog("DECREASE_SUCCESS");
+
+      return {
+        success: true,
+      };
+    }
+  );
 }
