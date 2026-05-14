@@ -341,42 +341,47 @@ console.log("🟢 [ORDER][CREATE] FINAL REALZONE", { realZone });
 
     const orderRes = await client.query(
       `
-      INSERT INTO orders (
-        order_number,
-        buyer_id,
-        seller_id,
+      const orderRes = await client.query(
+  `
+  INSERT INTO orders (
+    order_number,
+    buyer_id,
+    seller_id,
 
-        subtotal,
-        shipping_fee,
-        total,
+    subtotal,
+    shipping_fee,
+    total,
 
-        payment_status,
-        status,
+    payment_status,
+    fulfillment_status,
 
-        shipping_name,
-        shipping_phone,
-        shipping_address_line,
-        shipping_ward,
-        shipping_district,
-        shipping_region,
-        shipping_country,
-        shipping_postal_code,
-        shipping_zone,
+    shipping_name,
+    shipping_phone,
+    shipping_address_line,
+    shipping_ward,
+    shipping_district,
+    shipping_region,
+    shipping_country,
+    shipping_postal_code,
+    shipping_zone,
 
-        total_items,
-        total_quantity
-      )
-      VALUES (
-        gen_random_uuid()::text,
-        $1,$2,
-        $3,$4,$5,
-        'pending',
-        'pending',
-        $6,$7,$8,$9,$10,$11,$12,$13,$14,
-        $15,$16
-      )
-      RETURNING id
-      `,
+    total_items,
+    total_quantity
+  )
+  VALUES (
+    gen_random_uuid()::text,
+    $1,$2,
+    $3,$4,$5,
+
+    'pending',
+    'pending_fulfillment',
+
+    $6,$7,$8,$9,$10,$11,$12,$13,$14,
+
+    $15,$16
+  )
+  RETURNING id
+  `,
       [
         userId,
         orderItems[0].product.seller_id,
