@@ -625,12 +625,14 @@ if (!intentRow) {
   });
 
   await safeLedger(
-    paid,
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    rpcVerified
-  );
+  {
+    ok: true,
+    already: false,
+    orderId: createdOrder.orderId,
+    buyerId: createdOrder.buyerId,
+    sellerId: createdOrder.sellerId,
+    amount: createdOrder.amount,
+  },
 
   console.log("[PAYMENT][SETTLEMENT] SUCCESS", {
     paymentIntentId,
