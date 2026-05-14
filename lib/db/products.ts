@@ -137,8 +137,9 @@ function isInSaleTime(start: string | null, end: string | null): boolean {
 
 function toAppProduct(row: ProductRow): ProductRecord {
   const price = Number(row.price ?? 0);
-  const salePrice =
-    row.sale_price !== null ? Number(row.sale_price) : null;
+  const salePrice = row.sale_price !== null
+    ? Number(row.sale_price)
+    : null;
 
   const saleActive =
     Boolean(row.sale_enabled) &&
@@ -151,6 +152,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
 
   return {
     ...row,
+
     price,
     sale_price: salePrice,
     final_price,
@@ -165,6 +167,13 @@ function toAppProduct(row: ProductRow): ProductRecord {
     views: Number(row.views ?? 0),
 
     is_active: row.is_active !== false,
+
+    // 🔥 ENSURE NEVER LOST FIELDS
+    category_id: row.category_id ?? null,
+    sale_start: row.sale_start ?? null,
+    sale_end: row.sale_end ?? null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -339,76 +348,78 @@ export async function createProduct(
       : price;
 
   try {
-    const { rows } = await query<ProductRow>(
-      `
-      INSERT INTO products (
-        name,
-        slug,
-        description,
-        detail,
-        images,
-        thumbnail,
-        category_id,
+    const values: unknown[] = [
+  product.name.trim(),                  // $1
+  slug,                                 // $2
+  product.description ?? "",           // $3
+  product.detail ?? "",                // $4
+  product.images ?? [],                // $5
+  product.thumbnail ?? "",             // $6
+  product.category_id,                 // $7
 
-        price,
-        sale_price,
-        final_price,
+  price,                               // $8
+  salePrice,                           // $9
+  finalPrice,                          // $10
 
-        sale_start,
-        sale_end,
+  product.sale_start,                  // $11
+  product.sale_end,                    // $12
 
-        sale_stock,
-        sale_sold,
-        sale_enabled,
+  Number(product.sale_stock ?? 0),     // $13
+  0,                                   // $14 sale_sold (fix: luôn default 0 khi create)
+  Boolean(product.sale_enabled),       // $15
 
-        stock,
-        is_active,
+  Number(product.stock ?? 0),          // $16
+  Boolean(product.is_active),          // $17
 
-        views,
-        sold,
+  Number(product.views ?? 0),          // $18
+  Number(product.sold ?? 0),           // $19
 
-        seller_id
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
-        $8,$9,$10,
-        $11,$12,
-        $13,$14,$15,
-        $16,$17,
-        $18,$19,
-        $20
-      )
-      RETURNING *
-      `,
-      [
-        product.name.trim(),
-        slug,
-        product.description ?? "",
-        product.detail ?? "",
-        product.images ?? [],
-        product.thumbnail ?? "",
-        product.category_id,
+  sellerId,                            // $20
+];
 
-        price,
-        salePrice,
-        finalPrice,
+const { rows } = await query<ProductRow>(
+  `
+  INSERT INTO products (
+    name,
+    slug,
+    description,
+    detail,
+    images,
+    thumbnail,
+    category_id,
 
-        product.sale_start,
-        product.sale_end,
+    price,
+    sale_price,
+    final_price,
 
-        Number(product.sale_stock ?? 0),
-        0,
-        Boolean(product.sale_enabled),
+    sale_start,
+    sale_end,
 
-        Number(product.stock ?? 0),
-        Boolean(product.is_active),
+    sale_stock,
+    sale_sold,
+    sale_enabled,
 
-        Number(product.views ?? 0),
-        Number(product.sold ?? 0),
+    stock,
+    is_active,
 
-        sellerId,
-      ]
-    );
+    views,
+    sold,
+
+    seller_id
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,$6,$7,
+    $8,$9,$10,
+    $11,$12,
+    $13,$14,$15,
+    $16,$17,
+    $18,$19,
+    $20
+  )
+  RETURNING *
+  `,
+  values
+);
 
     if (!rows.length) {
       throw new Error("FAILED_TO_CREATE_PRODUCT");
