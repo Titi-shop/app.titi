@@ -6,7 +6,10 @@ import { query, withTransaction } from "@/lib/db";
 ========================================================= */
 
 function vlog(step: string, data?: unknown) {
-  console.log(`🧪 [DB][VARIANTS][V7] ${step}`, data ?? "");
+  console.log(
+    `🧪 [DB][VARIANTS][V8] ${step}`,
+    data ?? ""
+  );
 }
 
 /* =========================================================
@@ -31,13 +34,18 @@ export type ProductVariantDB = {
   sku: string | null;
 
   price: number;
+
   sale_price: number | null;
+
   final_price: number;
 
   sale_enabled: boolean;
 
   sale_stock: number;
+
   sale_sold: number;
+
+  currency: string;
 
   stock: number;
 
@@ -51,9 +59,8 @@ export type ProductVariantDB = {
 
   sold: number;
 
-  currency: string;
-
   created_at?: string;
+
   updated_at?: string;
 
   deleted_at?: string | null;
@@ -63,14 +70,19 @@ export type ProductVariant = {
   id?: string;
 
   option1: string;
+
   option2?: string | null;
+
   option3?: string | null;
 
   optionLabel1?: string | null;
+
   optionLabel2?: string | null;
+
   optionLabel3?: string | null;
 
   optionName?: string;
+
   optionValue?: string;
 
   name?: string;
@@ -120,10 +132,12 @@ export type ProductVariantRow = {
   is_active: boolean;
 };
 
-type VariantWithSaleWindow = ProductVariantDB & {
-  sale_start: string | null;
-  sale_end: string | null;
-};
+type VariantWithSaleWindow =
+  ProductVariantDB & {
+    sale_start: string | null;
+
+    sale_end: string | null;
+  };
 
 /* =========================================================
    SAFE HELPERS
@@ -187,13 +201,20 @@ function buildVariantName(
 }
 
 function calcFinalPrice(
-  variant: ProductVariant
+  variant: {
+    price: number;
+    salePrice?: number | null;
+    saleEnabled?: boolean;
+  }
 ): number {
-  const price = safeNumber(variant.price);
-
-  const salePrice = safeNullableNumber(
-    variant.salePrice
+  const price = safeNumber(
+    variant.price
   );
+
+  const salePrice =
+    safeNullableNumber(
+      variant.salePrice
+    );
 
   if (
     Boolean(variant.saleEnabled) &&
@@ -216,11 +237,19 @@ export function mapVariantToApp(
 ): ProductVariant {
   const mapped: ProductVariant = {
     id: variant.id,
-    option1: variant.option_1 ?? "",
-    option2: variant.option_2,
-    option3: variant.option_3,
+
+    option1:
+      variant.option_1 ?? "",
+
+    option2:
+      variant.option_2,
+
+    option3:
+      variant.option_3,
+
     optionLabel1:
       variant.option_label_1,
+
     optionLabel2:
       variant.option_label_2,
 
@@ -238,19 +267,27 @@ export function mapVariantToApp(
 
     sku: variant.sku,
 
-    price: safeNumber(variant.price),
-
-    salePrice: safeNullableNumber(
-      variant.sale_price
+    price: safeNumber(
+      variant.price
     ),
 
+    salePrice:
+      safeNullableNumber(
+        variant.sale_price
+      ),
+
     finalPrice:
-  variant.final_price ??
-  calcFinalPrice({
-    price: variant.price,
-    salePrice: variant.sale_price,
-    saleEnabled: variant.sale_enabled,
-  } as any),
+      safeNumber(
+        variant.final_price,
+        calcFinalPrice({
+          price: variant.price,
+          salePrice:
+            variant.sale_price,
+          saleEnabled:
+            variant.sale_enabled,
+        })
+      ),
+
     saleEnabled: Boolean(
       variant.sale_enabled
     ),
@@ -263,7 +300,9 @@ export function mapVariantToApp(
       variant.sale_sold
     ),
 
-    stock: safeNumber(variant.stock),
+    stock: safeNumber(
+      variant.stock
+    ),
 
     isUnlimited: Boolean(
       variant.is_unlimited
@@ -279,7 +318,9 @@ export function mapVariantToApp(
       variant.sort_order
     ),
 
-    sold: safeNumber(variant.sold),
+    sold: safeNumber(
+      variant.sold
+    ),
   };
 
   vlog("MAP_DB_TO_APP", mapped);
@@ -296,19 +337,44 @@ export function mapVariantToDB(
   productId: string,
   sortOrder: number
 ): ProductVariantDB {
+  const price = safeNumber(
+    variant.price
+  );
+
+  const salePrice =
+    safeNullableNumber(
+      variant.salePrice
+    );
+
+  const saleEnabled =
+    Boolean(variant.saleEnabled) &&
+    salePrice !== null &&
+    salePrice > 0 &&
+    salePrice < price;
+
+  const finalPrice =
+    calcFinalPrice({
+      price,
+      salePrice,
+      saleEnabled,
+    });
+
   const mapped: ProductVariantDB = {
     id: variant.id,
 
     product_id: productId,
 
     option_1:
-      variant.option1.trim() || null,
+      variant.option1?.trim() ||
+      null,
 
     option_2:
-      variant.option2?.trim() || null,
+      variant.option2?.trim() ||
+      null,
 
     option_3:
-      variant.option3?.trim() || null,
+      variant.option3?.trim() ||
+      null,
 
     option_label_1:
       variant.optionLabel1?.trim() ||
@@ -326,43 +392,53 @@ export function mapVariantToDB(
       variant.name?.trim() ||
       buildVariantName(variant),
 
-    sku: variant.sku?.trim() || null,
+    sku:
+      variant.sku?.trim() ||
+      null,
 
-    price: safeNumber(variant.price),
+    price,
 
-    sale_price: safeNullableNumber(
-      variant.salePrice
-    ),
+    sale_price:
+      saleEnabled
+        ? salePrice
+        : null,
 
-    final_price: safeNumber(variant.finalPrice ?? calcFinalPrice(variant)),
-    sale_enabled: Boolean(
-      variant.saleEnabled
-    ),
+    final_price: finalPrice,
 
-    sale_stock: safeNumber(
-      variant.saleStock
-    ),
+    sale_enabled: saleEnabled,
+
+    sale_stock:
+      saleEnabled
+        ? safeNumber(
+            variant.saleStock
+          )
+        : 0,
 
     sale_sold: safeNumber(
       variant.saleSold
     ),
 
-    stock: safeNumber(variant.stock),
+    currency: "PI",
+
+    stock: safeNumber(
+      variant.stock
+    ),
 
     is_unlimited: Boolean(
       variant.isUnlimited
     ),
 
-    image: variant.image ?? "",
+    image:
+      variant.image ?? "",
 
     is_active:
       variant.isActive !== false,
 
     sort_order: sortOrder,
 
-    sold: safeNumber(variant.sold),
-
-    currency: "PI",
+    sold: safeNumber(
+      variant.sold
+    ),
   };
 
   vlog("MAP_APP_TO_DB", mapped);
@@ -389,8 +465,9 @@ export async function getVariantsByProductId(
       FROM product_variants
       WHERE product_id = $1
         AND deleted_at IS NULL
-      ORDER BY sort_order ASC,
-               created_at ASC
+      ORDER BY
+        sort_order ASC,
+        created_at ASC
       `,
       [productId]
     );
@@ -412,7 +489,10 @@ export async function getVariantsByProductId(
 export async function getVariantById(
   variantId: string
 ): Promise<ProductVariantRow | null> {
-  vlog("GET_VARIANT_START", variantId);
+  vlog(
+    "GET_VARIANT_START",
+    variantId
+  );
 
   const result =
     await query<ProductVariantRow>(
@@ -437,7 +517,10 @@ export async function getVariantById(
   const row =
     result.rows[0] ?? null;
 
-  vlog("GET_VARIANT_RESULT", row);
+  vlog(
+    "GET_VARIANT_RESULT",
+    row
+  );
 
   return row;
 }
@@ -480,11 +563,14 @@ export async function validateVariantOwnership(
   }
 
   const matched =
-    variant.product_id === productId;
+    variant.product_id ===
+    productId;
 
   vlog(
     "VALIDATE_VARIANT_RESULT",
-    { matched }
+    {
+      matched,
+    }
   );
 
   return matched;
@@ -533,7 +619,10 @@ export async function replaceVariantsByProductId(
         [];
 
       const values: Array<
-        string | number | boolean | null
+        | string
+        | number
+        | boolean
+        | null
       > = [];
 
       variants.forEach(
@@ -548,7 +637,8 @@ export async function replaceVariantsByProductId(
           const rowPlaceholders =
             Array.from(
               {
-                length: FIELD_COUNT,
+                length:
+                  FIELD_COUNT,
               },
               (_, k) =>
                 `$${
@@ -579,13 +669,13 @@ export async function replaceVariantsByProductId(
             db.sale_enabled,
             db.sale_stock,
             db.sale_sold,
+            db.currency,
             db.stock,
             db.is_unlimited,
             db.image,
             db.is_active,
             db.sort_order,
-            db.sold,
-            db.currency
+            db.sold
           );
         }
       );
@@ -608,13 +698,13 @@ export async function replaceVariantsByProductId(
           sale_enabled,
           sale_stock,
           sale_sold,
+          currency,
           stock,
           is_unlimited,
           image,
           is_active,
           sort_order,
-          sold,
-          currency
+          sold
         )
         VALUES
         ${placeholders.join(",")}
@@ -637,10 +727,13 @@ export async function decreaseVariantStock(
 ): Promise<{ success: true }> {
   return withTransaction(
     async (client) => {
-      vlog("DECREASE_START", {
-        variantId,
-        quantity,
-      });
+      vlog(
+        "DECREASE_START",
+        {
+          variantId,
+          quantity,
+        }
+      );
 
       const result =
         await client.query<VariantWithSaleWindow>(
@@ -669,9 +762,13 @@ export async function decreaseVariantStock(
         );
       }
 
-      const row = result.rows[0];
+      const row =
+        result.rows[0];
 
-      vlog("LOCKED_VARIANT", row);
+      vlog(
+        "LOCKED_VARIANT",
+        row
+      );
 
       if (!row.is_active) {
         throw new Error(
@@ -709,7 +806,8 @@ export async function decreaseVariantStock(
         Boolean(
           row.sale_enabled
         ) &&
-        row.sale_price !== null &&
+        row.sale_price !==
+          null &&
         start !== null &&
         end !== null &&
         now >= start &&
@@ -769,7 +867,9 @@ export async function decreaseVariantStock(
         ]
       );
 
-      vlog("DECREASE_SUCCESS");
+      vlog(
+        "DECREASE_SUCCESS"
+      );
 
       return {
         success: true,
