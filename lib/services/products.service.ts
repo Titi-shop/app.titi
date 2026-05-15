@@ -129,6 +129,16 @@ export async function listProductsService(req: Request) {
 export async function createProductService(req: Request, userId: string) {
   const body = await req.json();
 
+  console.log(
+    "🌍 primaryShippingCountry =",
+    body.primaryShippingCountry
+  );
+
+  console.log(
+    "📦 shippingRates RAW =",
+    body.shippingRates
+  );
+
   const variants = normalizeVariants(body.variants || []);
   const price = calcFinalPrice(variants, Number(body.price || 0));
 
