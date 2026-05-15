@@ -210,13 +210,10 @@ export async function updateProductService(req: Request, userId: string) {
   await replaceVariantsByProductId(body.id, variants);
 
   /* ================= SHIPPING (FIXED) ================= */
-  const cleanedRates = normalizeShippingRates(body);
-
-  if (cleanedRates.length) {
-    await upsertShippingRates({
-      productId: body.id,
-      rates: cleanedRates,
-    });
+  const cleanedRates = normalizeShippingRates(
+  body,
+  body.primaryShippingCountry
+);
   }
 
   return {
