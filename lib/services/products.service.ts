@@ -45,13 +45,13 @@ function normalizeShippingRates(
   const country =
   primaryCountry ??
   body.primaryShippingCountry ??
-  body.domesticCountryCode ??
+  body.domestic_country_code ??
   "";
 
   return rates.map((r: any) => ({
     zone: r.zone,
     price: Number(r.price ?? 0),
-    domestic_country_code::
+    domestic_country_code:
   r.zone === "domestic" && country
     ? country
     : null,
@@ -87,7 +87,7 @@ export async function listProductsService(req: Request) {
     shippingMap.get(r.product_id)!.push({
       zone: r.zone,
       price: r.price,
-      domesticCountryCode: r.domestic_country_code,
+      domestic_country_code: r.domestic_country_code,
     });
   }
 
