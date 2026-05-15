@@ -145,12 +145,20 @@ export async function upsertShippingRates({
       `($${values.length + 1}, $${values.length + 2}, $${values.length + 3}, $${values.length + 4})`
     );
 
-    values.push(
-      productId,
-      zoneId,
-      r.price,
-      isDomestic ? r.domesticCountryCode ?? null : null
-    );
+    const domesticCountry =
+  isDomestic ? (r.domesticCountryCode?.trim() || null) : null;
+
+if (isDomestic && !domesticCountry) {
+  console.error("❌ MISSING domestic_country_code", r);
+  throw new Error("DOMESTIC_COUNTRY_REQUIRED");
+}
+
+values.push(
+  productId,
+  zoneId,
+  r.price,
+  domesticCountry
+);
   }
 
   console.log("🧱 INSERT ROWS COUNT:", rows.length);
