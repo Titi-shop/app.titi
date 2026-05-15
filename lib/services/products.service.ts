@@ -31,28 +31,30 @@ function calcFinalPrice(variants: any[], fallbackPrice: number) {
   return Math.min(...variants.map(v => Number(v.price || 0)));
 }
 
-function normalizeShippingRates(body: any) {
+/**
+ * FIX CORE:
+ * - luôn nhận primaryShippingCountry rõ ràng
+ * - domestic chỉ set country cho zone = domestic
+ */
+function normalizeShippingRates(
+  body: any,
+  primaryCountry?: string
+) {
   const rates = body.shippingRates || [];
 
-  const primaryCountry = body.primaryShippingCountry || null;
+  const country =
+    primaryCountry || body.primaryShippingCountry || null;
 
-  return rates.map((r: any) => {
-    const zone = r.zone;
-    const price = Number(r.price ?? 0);
-
-    return {
-      zone,
-      price,
-
-      // 🔥 FIX CORE BUG
-      domestic_country_code:
-        zone === "domestic" ? primaryCountry : null,
-    };
-  });
+  return rates.map((r: any) => ({
+    zone: r.zone,
+    price: Number(r.price ?? 0),
+    domestic_country_code:
+      r.zone === "domestic" ? country : null,
+  }));
 }
 
 /* =========================================================
-   GET LIST PRODUCTS
+   LIST PRODUCTS
 ========================================================= */
 
 export async function listProductsService(req: Request) {
@@ -154,9 +156,12 @@ export async function createProductService(req: Request, userId: string) {
     await replaceVariantsByProductId(product.id, variants);
   }
 
-  /* ================= SHIPPING (FIXED) ================= */
+  /* ================= SHIPPING ================= */
   if (body.shippingRates?.length) {
-    const cleanedRates = normalizeShippingRates(body);
+    const cleanedRates = normalizeShippingRates(
+      body,
+      body.primaryShippingCountry
+    );
 
     await upsertShippingRates({
       productId: product.id,
@@ -171,7 +176,7 @@ export async function createProductService(req: Request, userId: string) {
 }
 
 /* =========================================================
-   UPDATE PRODUCT
+   UPDATE PRODUCT (FIXED FULL)
 ========================================================= */
 
 export async function updateProductService(req: Request, userId: string) {
@@ -210,10 +215,16 @@ export async function updateProductService(req: Request, userId: string) {
   await replaceVariantsByProductId(body.id, variants);
 
   /* ================= SHIPPING (FIXED) ================= */
-  const cleanedRates = normalizeShippingRates(
-  body,
-  body.primaryShippingCountry
-);
+  if (body.shippingRates?.length) {
+    const cleanedRates = normalizeShippingRates(
+      body,
+      body.primaryShippingCountry
+    );
+
+    await upsertShippingRates({
+      productId: body.id,
+      rates: cleanedRates,
+    });
   }
 
   return {
