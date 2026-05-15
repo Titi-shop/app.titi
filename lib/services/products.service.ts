@@ -43,13 +43,18 @@ function normalizeShippingRates(
   const rates = body.shippingRates || [];
 
   const country =
-    primaryCountry || body.primaryShippingCountry || null;
+  primaryCountry ??
+  body.primaryShippingCountry ??
+  body.domesticCountryCode ??
+  "";
 
   return rates.map((r: any) => ({
     zone: r.zone,
     price: Number(r.price ?? 0),
     domestic_country_code:
-      r.zone === "domestic" ? country : null,
+  r.zone === "domestic" && country
+    ? country
+    : null,
   }));
 }
 
