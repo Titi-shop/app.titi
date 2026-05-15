@@ -31,6 +31,26 @@ function calcFinalPrice(variants: any[], fallbackPrice: number) {
   return Math.min(...variants.map(v => Number(v.price || 0)));
 }
 
+function normalizeShippingRates(body: any) {
+  const rates = body.shippingRates || [];
+
+  const primaryCountry = body.primaryShippingCountry || null;
+
+  return rates.map((r: any) => {
+    const zone = r.zone;
+    const price = Number(r.price ?? 0);
+
+    return {
+      zone,
+      price,
+
+      // 🔥 FIX CORE BUG
+      domestic_country_code:
+        zone === "domestic" ? primaryCountry : null,
+    };
+  });
+}
+
 /* =========================================================
    GET LIST PRODUCTS
 ========================================================= */
@@ -103,7 +123,6 @@ export async function createProductService(req: Request, userId: string) {
   const body = await req.json();
 
   const variants = normalizeVariants(body.variants || []);
-
   const price = calcFinalPrice(variants, Number(body.price || 0));
 
   const product = await createProduct(userId, {
@@ -130,14 +149,18 @@ export async function createProductService(req: Request, userId: string) {
     is_active: body.isActive !== false,
   });
 
+  /* ================= VARIANTS ================= */
   if (variants.length) {
     await replaceVariantsByProductId(product.id, variants);
   }
 
+  /* ================= SHIPPING (FIXED) ================= */
   if (body.shippingRates?.length) {
+    const cleanedRates = normalizeShippingRates(body);
+
     await upsertShippingRates({
       productId: product.id,
-      rates: body.shippingRates,
+      rates: cleanedRates,
     });
   }
 
@@ -155,7 +178,6 @@ export async function updateProductService(req: Request, userId: string) {
   const body = await req.json();
 
   const variants = normalizeVariants(body.variants || []);
-
   const finalPrice = calcFinalPrice(variants, Number(body.price || 0));
 
   const updated = await updateProductBySeller(userId, body.id, {
@@ -168,6 +190,7 @@ export async function updateProductService(req: Request, userId: string) {
     category_id: getCategoryId(body),
 
     price: finalPrice,
+
     stock: variants.length
       ? variants.reduce((s, v) => s + Number(v.stock || 0), 0)
       : Number(body.stock || 0),
@@ -183,7 +206,18 @@ export async function updateProductService(req: Request, userId: string) {
 
   if (!updated) return { error: "NOT_FOUND" };
 
+  /* ================= VARIANTS ================= */
   await replaceVariantsByProductId(body.id, variants);
+
+  /* ================= SHIPPING (FIXED) ================= */
+  const cleanedRates = normalizeShippingRates(body);
+
+  if (cleanedRates.length) {
+    await upsertShippingRates({
+      productId: body.id,
+      rates: cleanedRates,
+    });
+  }
 
   return {
     success: true,
