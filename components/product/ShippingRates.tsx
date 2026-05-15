@@ -15,6 +15,9 @@ interface ShippingRatesState {
   rest_of_world: ShippingValue;
 
   domestic_country_code?: string | null;
+
+  // optional legacy
+  domesticCountryCode?: string | null;
 }
 
 interface Props {
