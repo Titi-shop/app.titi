@@ -435,11 +435,12 @@ const payload: ProductPayload = {
 
   isActive: form.isActive,
 
-  shippingRates: shippingRatesPayload.map(rate => ({
-  ...rate,
+  shippingRates: Object.entries(form.shippingRates).map(([zone, price]) => ({
+  zone,
+  price: Number(price || 0),
   domestic_country_code:
-    rate.zone === "domestic"
-      ? form.primaryShippingCountry
+    zone === "domestic"
+      ? form.primaryShippingCountry || null
       : null,
 })),
 
