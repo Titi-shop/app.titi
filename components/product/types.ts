@@ -40,7 +40,7 @@ export interface ShippingRate {
 
   currency?: "PI";
 
-  domesticCountryCode?: string | null;
+  domesticCountryCode: string;
 }
 
 export type ShippingRatesState = Record<
