@@ -930,7 +930,43 @@ export async function incrementProductView(
     result.rows[0]?.views
   );
 }
+export async function getProductsByIds(ids: string[]) {
+  if (!ids.length) return [];
 
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM products
+    WHERE id = ANY($1::uuid[])
+    `,
+    [ids]
+  );
+
+  return rows;
+}
+export async function deleteProductById(id: string) {
+  const { rowCount } = await query(
+    `
+    DELETE FROM products
+    WHERE id = $1
+    `,
+    [id]
+  );
+
+  return rowCount > 0;
+}
+export async function getSoldByProduct(productId: string) {
+  const { rows } = await query(
+    `
+    SELECT COALESCE(SUM(quantity), 0) as sold
+    FROM order_items
+    WHERE product_id = $1
+    `,
+    [productId]
+  );
+
+  return Number(rows[0]?.sold || 0);
+}
 /* =========================================================
    RECALCULATE PRODUCT FROM VARIANTS
 ========================================================= */
