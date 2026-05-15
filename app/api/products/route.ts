@@ -22,7 +22,19 @@ export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
-  const result = await createProductService(req, auth.userId);
+  const body = await req.json();
+
+  console.log("🔥 [PRODUCT CREATE BODY]", body);
+
+  const result = await createProductService(
+    new Request(req.url, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: req.headers,
+    }),
+    auth.userId
+  );
+
   return NextResponse.json(result);
 }
 
