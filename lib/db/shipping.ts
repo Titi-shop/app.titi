@@ -1,4 +1,4 @@
-
+lib/db/shipping.ts
 "use server";
 
 import { query } from "@/lib/db";
@@ -377,4 +377,4 @@ price: globalRate.price,
 }
 
 throw new Error("SHIPPING_NOT_AVAILABLE");
-}
+  }
