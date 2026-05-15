@@ -362,9 +362,10 @@ export default function ProductForm({
       price: Number(price || 0),
 
       domestic_country_code:
-        zone === "domestic"
-          ? form.primaryShippingCountry || null
-          : null,
+  zone === "domestic" &&
+  form.primaryShippingCountry
+    ? form.primaryShippingCountry
+    : null,
     })
   );
 
