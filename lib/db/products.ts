@@ -13,130 +13,70 @@ export type ProductStatus =
 
 export type ProductRow = {
   id: string;
-
   seller_id: string;
-
   name: string;
   slug: string;
-
   short_description: string;
-
   description: string;
-
   detail: string;
-
   thumbnail: string;
-
   images: string[];
-
   detail_images: string[];
-
   video_url: string;
-
   price: number;
-
   sale_price: number | null;
-
   final_price: number;
-
   currency: "PI";
-
   stock: number;
-
   is_unlimited: boolean;
-
   sold: number;
-
   views: number;
-
   rating_avg: number;
-
   rating_count: number;
-
   is_active: boolean;
-
   is_featured: boolean;
-
   is_digital: boolean;
-
   status: ProductStatus;
-
   category_id: number | null;
-
   sale_start: string | null;
-
   sale_end: string | null;
-
   sale_enabled: boolean;
-
   sale_stock: number;
-
   sale_sold: number;
-
   meta_title: string;
-
   meta_description: string;
-
   has_variants: boolean;
-
   created_at: string;
-
   updated_at: string;
-
   deleted_at: string | null;
 };
 
 export type ProductRecord = ProductRow;
-
 export type CreateProductInput = {
   name: string;
-
   short_description?: string;
-
   description?: string;
-
   detail?: string;
-
   thumbnail?: string;
-
   images?: string[];
-
   detail_images?: string[];
-
   video_url?: string;
-
   category_id?: number | null;
-
   price?: number;
-
   sale_price?: number | null;
-
   currency?: "PI";
-
   stock?: number;
-
   is_unlimited?: boolean;
-
   is_featured?: boolean;
-
   is_digital?: boolean;
-
   sale_start?: string | null;
-
   sale_end?: string | null;
-
   sale_enabled?: boolean;
-
   sale_stock?: number;
-
   meta_title?: string;
-
   meta_description?: string;
-
   status?: ProductStatus;
-
   is_active?: boolean;
-
   has_variants?: boolean;
 };
 
@@ -380,41 +320,138 @@ export async function getAllProducts(
   return result.rows.map(mapRow);
 }
 
-/* =========================================================
-   GET PRODUCT BY ID
-========================================================= */
 
+/* =====================================================
+   GET PRODUCT BY ID
+===================================================== */
 export async function getProductById(
   productId: string
 ): Promise<ProductRecord | null> {
-  log("GET_BY_ID_START", {
-    productId,
-  });
+  console.log(
+    "\n🚀 [PRODUCTS][GET_BY_ID] ===== START ====="
+  );
 
-  if (!isUUID(productId)) {
-    return null;
-  }
+  try {
+    console.log(
+      "📥 Incoming productId:",
+      productId
+    );
 
-  const result =
-    await query<ProductRow>(
-      `
+    log("GET_BY_ID_START", {
+      productId,
+    });
+
+    if (!productId) {
+      console.error(
+        "❌ Missing productId"
+      );
+
+      return null;
+    }
+
+    console.log(
+      "🔍 Validating UUID..."
+    );
+
+    if (!isUUID(productId)) {
+      console.error(
+        "❌ INVALID_PRODUCT_ID:",
+        productId
+      );
+
+      return null;
+    }
+
+    console.log(
+      "✅ UUID valid"
+    );
+
+    const sql = `
       SELECT *
       FROM products
       WHERE id = $1
         AND deleted_at IS NULL
       LIMIT 1
-      `,
+    `;
+
+    console.log(
+      "📜 SQL:",
+      sql
+    );
+
+    console.log(
+      "📦 SQL PARAMS:",
       [productId]
     );
 
-  const row =
-    result.rows[0] ?? null;
+    console.log(
+      "🗄️ Executing product query..."
+    );
 
-  if (!row) {
-    return null;
+    const result =
+      await query<ProductRow>(
+        sql,
+        [productId]
+      );
+
+    console.log(
+      "✅ Query success"
+    );
+
+    console.log(
+      "📊 Rows count:",
+      result.rows.length
+    );
+
+    console.log(
+      "📦 RAW PRODUCT ROWS:",
+      result.rows
+    );
+
+    const row =
+      result.rows[0] ?? null;
+
+    console.log(
+      "🎯 Selected row:",
+      row
+    );
+
+    if (!row) {
+      console.warn(
+        "⚠️ PRODUCT_NOT_FOUND"
+      );
+
+      console.log(
+        "🏁 [PRODUCTS][GET_BY_ID] RETURN NULL\n"
+      );
+
+      return null;
+    }
+
+    console.log(
+      "🧩 Mapping database row..."
+    );
+
+    const mapped = mapRow(row);
+
+    console.log(
+      "✅ Mapped product:",
+      mapped
+    );
+
+    console.log(
+      "🏁 [PRODUCTS][GET_BY_ID] ===== SUCCESS =====\n"
+    );
+
+    return mapped;
+  } catch (error) {
+    console.error(
+      "💥 [PRODUCTS][GET_BY_ID] ERROR:",
+      error
+    );
+
+    throw error;
   }
-
-  return mapRow(row);
 }
 
 /* =========================================================
