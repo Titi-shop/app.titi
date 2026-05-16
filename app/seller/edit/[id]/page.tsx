@@ -83,9 +83,9 @@ function mapProductToPayload(
     name: product.name,
 
     categoryId:
-      product.categoryId !== null
-        ? String(product.categoryId)
-        : null,
+  product.category_id !== null
+    ? String(product.category_id)
+    : null,
 
     description:
       product.description || "",
@@ -101,8 +101,8 @@ function mapProductToPayload(
       product.thumbnail || null,
 
     isActive:
-      Boolean(product.isActive),
-
+  Boolean(product.is_active),
+    
     shippingRates:
       Array.isArray(
         product.shippingRates
@@ -128,23 +128,23 @@ function mapProductToPayload(
     ===================================================== */
 
     saleEnabled:
-      Boolean(product.saleEnabled),
+  Boolean(product.sale_enabled),
 
     salePrice:
-      product.salePrice,
+  product.sale_price,
 
     saleStock:
-      product.saleStock || 0,
+  product.sale_stock || 0,
 
     saleStart:
-      toDateTimeLocal(
-        product.saleStart
-      ),
+  toDateTimeLocal(
+    product.sale_start
+  ),
 
     saleEnd:
-      toDateTimeLocal(
-        product.saleEnd
-      ),
+  toDateTimeLocal(
+    product.sale_end
+  ),
 
     /* =====================================================
        VARIANTS
