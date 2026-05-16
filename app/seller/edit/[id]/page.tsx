@@ -1,102 +1,234 @@
 "use client";
 
 import useSWR from "swr";
-import { useRouter, useParams } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
+
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import ProductForm from "@/components/ProductForm";
 
-/* ================= TYPES ================= */
+import type {
+  Product,
+  ProductPayload,
+} from "@/types/Product";
+
+/* =====================================================
+   TYPES
+===================================================== */
 
 interface Category {
   id: string;
   key: string;
 }
 
-interface ProductPayload {
-  id: string;
-  name: string;
-  price: number;
-  salePrice?: number | null;
-  saleStart?: string | null;
-  saleEnd?: string | null;
-  description: string;
-  detail: string;
-  images: string[];
-  thumbnail: string;
-  categoryId: string;
-  stock: number;
-  isActive: boolean;
+/* =====================================================
+   FETCHER
+===================================================== */
 
-  // 🔥 QUAN TRỌNG
-  shippingRates?: { zone: string; price: number }[];
+const fetcher = async (
+  url: string
+) => {
+  const res = await apiAuthFetch(url, {
+    cache: "no-store",
+  });
 
-  variants?: any[];
-}
+  if (!res.ok) {
+    throw new Error("FETCH_FAILED");
+  }
 
-/* ================= FETCHER ================= */
+  return res.json();
+};
 
-const fetcher = (url: string) =>
-  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
-    res.ok ? res.json() : null
-  );
+/* =====================================================
+   TIME
+===================================================== */
 
-/* ================= TIME FIX ================= */
-
-function toDateTimeLocal(value?: string | null) {
-  if (!value) return "";
+function toDateTimeLocal(
+  value?: string | null
+): string | null {
+  if (!value) {
+    return null;
+  }
 
   const date = new Date(value);
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60000);
 
-  return local.toISOString().slice(0, 16);
+  const offset =
+    date.getTimezoneOffset();
+
+  const local = new Date(
+    date.getTime() -
+      offset * 60000
+  );
+
+  return local
+    .toISOString()
+    .slice(0, 16);
 }
 
-/* ================= PAGE ================= */
+/* =====================================================
+   MAP PRODUCT -> FORM PAYLOAD
+===================================================== */
+
+function mapProductToPayload(
+  product: Product
+): ProductPayload {
+  return {
+    id: product.id,
+
+    name: product.name,
+
+    categoryId:
+      product.categoryId !== null
+        ? String(product.categoryId)
+        : null,
+
+    description:
+      product.description || "",
+
+    detail: product.detail || "",
+
+    images:
+      Array.isArray(product.images)
+        ? product.images
+        : [],
+
+    thumbnail:
+      product.thumbnail || null,
+
+    isActive:
+      Boolean(product.isActive),
+
+    shippingRates:
+      Array.isArray(
+        product.shippingRates
+      )
+        ? product.shippingRates
+        : [],
+
+    domestic_country_code:
+      product
+        .domestic_country_code ??
+      null,
+
+    /* =====================================================
+       PRICE / STOCK
+    ===================================================== */
+
+    price: product.price,
+
+    stock: product.stock,
+
+    /* =====================================================
+       SALE
+    ===================================================== */
+
+    saleEnabled:
+      Boolean(product.saleEnabled),
+
+    salePrice:
+      product.salePrice,
+
+    saleStock:
+      product.saleStock || 0,
+
+    saleStart:
+      toDateTimeLocal(
+        product.saleStart
+      ),
+
+    saleEnd:
+      toDateTimeLocal(
+        product.saleEnd
+      ),
+
+    /* =====================================================
+       VARIANTS
+    ===================================================== */
+
+    variants:
+      Array.isArray(
+        product.variants
+      )
+        ? product.variants
+        : [],
+  };
+}
+
+/* =====================================================
+   PAGE
+===================================================== */
 
 export default function SellerEditPage() {
-  const { t } = useTranslation();
+  const { t } =
+    useTranslation();
+
   const router = useRouter();
+
   const params = useParams();
-  const { user, loading } = useAuth();
 
-  const isSeller = user?.role === "seller";
-  const id = typeof params.id === "string" ? params.id : "";
+  const { user, loading } =
+    useAuth();
 
-  /* ================= LOAD ================= */
+  const isSeller =
+    user?.role === "seller";
 
-  const { data: categories = [] } = useSWR("/api/categories", fetcher);
+  const id =
+    typeof params.id === "string"
+      ? params.id
+      : "";
 
-  const { data: productData, isLoading } = useSWR(
-    id ? `/api/products/${id}` : null,
+  /* =====================================================
+     LOAD CATEGORIES
+  ===================================================== */
+
+  const {
+    data: categories = [],
+  } = useSWR<Category[]>(
+    "/api/categories",
     fetcher
   );
 
-  /* ================= BUILD PRODUCT ================= */
+  /* =====================================================
+     LOAD PRODUCT
+  ===================================================== */
 
-  const product: ProductPayload | null = productData
-    ? {
-        ...productData,
+  const {
+    data: productData,
+    isLoading,
+    error,
+  } = useSWR<Product>(
+    id
+      ? `/api/products/${id}`
+      : null,
+    fetcher
+  );
 
-        // 🔥 FIX TIME
-        saleStart: toDateTimeLocal(productData.saleStart),
-        saleEnd: toDateTimeLocal(productData.saleEnd),
+  /* =====================================================
+     BUILD INITIAL DATA
+  ===================================================== */
 
-        // 🔥 GIỮ NGUYÊN ARRAY (KHÔNG MAP)
-        shippingRates: productData.shippingRates || [],
+  const initialData:
+    | ProductPayload
+    | undefined = productData
+    ? mapProductToPayload(
+        productData
+      )
+    : undefined;
 
-        variants: productData.variants || [],
-      }
-    : null;
-
-  /* ================= GUARD ================= */
+  /* =====================================================
+     GUARDS
+  ===================================================== */
 
   if (loading || isLoading) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.loading ?? "Loading..."}
+        {t.loading ??
+          "Loading..."}
       </div>
     );
   }
@@ -104,40 +236,71 @@ export default function SellerEditPage() {
   if (!user || !isSeller) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.no_permission ?? "No permission"}
+        {t.no_permission ??
+          "No permission"}
       </div>
     );
   }
 
-  if (!product) {
+  if (error || !initialData) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.not_found ?? "Product not found"}
+        {t.not_found ??
+          "Product not found"}
       </div>
     );
   }
 
-  /* ================= UPDATE ================= */
+  /* =====================================================
+     UPDATE
+  ===================================================== */
 
-  const updateProduct = async (payload: ProductPayload) => {
-    console.log("📦 [EDIT] SUBMIT:", payload);
+  const updateProduct = async (
+    payload: ProductPayload
+  ) => {
+    console.log(
+      "📦 [EDIT_PRODUCT] PAYLOAD:",
+      payload
+    );
 
-    const res = await apiAuthFetch(`/api/products/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
+    const res =
+      await apiAuthFetch(
+        `/api/products/${id}`,
+        {
+          method: "PATCH",
+
+          body: JSON.stringify(
+            payload
+          ),
+        }
+      );
 
     if (!res.ok) {
-      console.error("❌ PATCH FAILED");
-      throw new Error("PATCH_FAILED");
+      const text =
+        await res.text();
+
+      console.error(
+        "❌ UPDATE FAILED:",
+        text
+      );
+
+      throw new Error(
+        "UPDATE_FAILED"
+      );
     }
 
-    console.log("✅ UPDATE SUCCESS");
+    console.log(
+      "✅ PRODUCT UPDATED"
+    );
 
-    router.push("/seller/stock");
+    router.push(
+      "/seller/stock"
+    );
   };
 
-  /* ================= UI ================= */
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <main className="max-w-2xl mx-auto p-4 pb-28">
@@ -147,7 +310,7 @@ export default function SellerEditPage() {
 
       <ProductForm
         categories={categories}
-        initialData={product}
+        initialData={initialData}
         onSubmit={updateProduct}
       />
     </main>
