@@ -185,49 +185,130 @@ export async function upsertShippingRates({
 
   console.log("🎉 [SHIPPING][UPSERT] SUCCESS\n");
 }
-/* =========================================================
-   GET SHIPPING BY PRODUCT
-========================================================= */
 
-export async function getShippingRatesByProduct(productId: string) {
-  console.log("\n🚀 [SHIPPING][GET] START:", productId);
-
-  if (!isUUID(productId)) {
-    console.error("❌ INVALID_PRODUCT_ID");
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  const { rows } = await query<ShippingRateRow>(
-    `
-    SELECT
-      sr.product_id,
-      sz.code AS zone,
-      sr.price,
-      sr.domestic_country_code
-    FROM shipping_rates sr
-    JOIN shipping_zones sz
-      ON sz.id = sr.zone_id
-    WHERE sr.product_id = $1
-    `,
-    [productId]
+/* =====================================================
+   GET SHIPPING RATES BY PRODUCT
+===================================================== */
+export async function getShippingRatesByProduct(
+  productId: string
+) {
+  console.log(
+    "\n🚀 [SHIPPING][GET_BY_PRODUCT] ===== START ====="
   );
 
-  console.log("📦 RAW DB ROWS:", rows);
+  try {
+    console.log(
+      "📥 Product ID:",
+      productId
+    );
 
-  const mapped = rows
-    .filter((r) => isValidRegion(r.zone))
-    .map((r) => ({
-      zone: r.zone as Region,
-      price: Number(r.price),
-      domestic_country_code: r.domestic_country_code,
-    }));
+    if (!isUUID(productId)) {
+      console.error(
+        "❌ INVALID_PRODUCT_ID:",
+        productId
+      );
 
-  console.log("🎯 FINAL SHIPPING RESULT:", mapped);
-  console.log("🏁 [SHIPPING][GET] END\n");
+      throw new Error(
+        "INVALID_PRODUCT_ID"
+      );
+    }
 
-  return mapped;
+    console.log(
+      "🗄️ Preparing shipping query..."
+    );
+
+    const sql = `
+      SELECT
+        sr.product_id,
+        sz.code AS zone,
+        sr.price,
+        sr.domestic_country_code
+      FROM shipping_rates sr
+      JOIN shipping_zones sz
+        ON sz.id = sr.zone_id
+      WHERE sr.product_id = $1
+    `;
+
+    console.log(
+      "📜 SQL:",
+      sql
+    );
+
+    console.log(
+      "📦 SQL PARAMS:",
+      [productId]
+    );
+
+    const { rows } =
+      await query<ShippingRateRow>(
+        sql,
+        [productId]
+      );
+
+    console.log(
+      "✅ Shipping query success"
+    );
+
+    console.log(
+      "📊 Raw rows count:",
+      rows.length
+    );
+
+    console.log(
+      "📦 RAW DB ROWS:",
+      rows
+    );
+
+    console.log(
+      "🔎 Filtering valid regions..."
+    );
+
+    const filtered = rows.filter((r) =>
+      isValidRegion(r.zone)
+    );
+
+    console.log(
+      "✅ Valid region rows:",
+      filtered
+    );
+
+    console.log(
+      "🧩 Mapping shipping rows..."
+    );
+
+    const mapped = filtered.map(
+      (r) => ({
+        zone: r.zone as Region,
+        price: Number(r.price),
+        domestic_country_code:
+          r.domestic_country_code,
+      })
+    );
+
+    console.log(
+      "🎯 FINAL SHIPPING RESULT:",
+      mapped
+    );
+
+    console.log(
+      "📊 Final shipping count:",
+      mapped.length
+    );
+
+    console.log(
+      "🏁 [SHIPPING][GET_BY_PRODUCT] ===== SUCCESS =====\n"
+    );
+
+    return mapped;
+  } catch (error) {
+    console.error(
+      "💥 [SHIPPING][GET_BY_PRODUCT] ERROR:",
+      error
+    );
+
+    throw error;
+  }
 }
-
 /* =========================================================
    GET MULTI PRODUCTS
 ========================================================= */
