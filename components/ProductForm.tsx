@@ -80,7 +80,11 @@ export default function ProductForm({
   const { t } = useTranslation();
 
   const { user, loading } = useAuth();
-  const form = useProductForm(initialData);
+  const form = useProductForm({
+  ...initialData,
+  saleStart: initialData?.sale_start,
+  saleEnd: initialData?.sale_end,
+});
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
