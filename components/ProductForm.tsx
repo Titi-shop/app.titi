@@ -12,56 +12,24 @@ import { useProductForm } from "./product/useProductForm";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
 
-import type { ProductVariant } from "./product/types";
-
+import type {
+  Category,
+  ProductPayload,
+  ProductVariant,
+  ShippingRate,
+} from "@/types/product";
 /* =========================
    TYPES
 ========================= */
-
-interface Category {
-  id: string;
-  key: string;
-}
-
 interface ProductFormProps {
   categories: Category[];
-  initialData?: Record<string, unknown>;
-  onSubmit: (payload: ProductPayload) => Promise<void>;
+
+  initialData?: Partial<ProductPayload>;
+
+  onSubmit: (
+    payload: ProductPayload
+  ) => Promise<void>;
 }
-
-interface ShippingRatePayload {
-  zone: string;
-  price: number;
-}
-
-interface ProductPayload {
-  id?: string;
-  name: string;
-  categoryId: string | null;
-  description: string;
-  detail: string;
-  images: string[];
-  thumbnail: string;
-  isActive: boolean;
-
-  shippingRates: ShippingRatePayload[];
-  domestic_country_code: string | null;
-
-  price?: number;
-  stock?: number;
-
-  salePrice: number | null;
-  saleEnabled?: boolean;
-  saleStock: number;
-
-  saleStart: string | null;
-  saleEnd: string | null;
-
-  variants: ProductVariant[];
-
-  idempotencyKey: string;
-}
-
 interface SignedUrlResponse {
   uploadUrl: string;
   publicUrl: string;
@@ -354,7 +322,7 @@ export default function ProductForm({
          SHIPPING
       ========================= */
 
-      const shippingRatesPayload: ShippingRatePayload[] =
+      const shippingRatesPayload: ShippingRate[] =
         Object.entries(form.shippingRates).map(
           ([zone, price]) => ({
             zone,
@@ -422,11 +390,8 @@ const payload: ProductPayload = {
   description: form.description,
 
   detail: form.detail,
-
   images: form.images,
-
   thumbnail: form.images[0] || null,
-
   isActive: form.isActive,
 
   shippingRates: shippingRatesPayload,
