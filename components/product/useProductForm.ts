@@ -142,26 +142,20 @@ function normalizeInitVariants(
 
       saleEnabled,
 
-      saleStock: Math.min(
+      sale_stock: Math.min(
         normalizeNumber(v.saleStock),
         normalizeNumber(v.stock)
       ),
 
       saleSold: normalizeNumber(v.saleSold),
-
       stock: normalizeNumber(v.stock),
-
       isUnlimited: Boolean(v.isUnlimited),
-
       image: v.image ?? "",
-
       isActive: v.isActive !== false,
-
       sortOrder: normalizeNumber(
         v.sortOrder,
         index
       ),
-
       sold: normalizeNumber(v.sold),
     };
   });
@@ -207,7 +201,7 @@ export function useProductForm(
   const [salePrice, setSalePrice] =
     useState<number | "">("");
 
-  const [saleStock, setSaleStock] =
+  const [sale_stock, setsale_stock] =
     useState<number>(0);
 
   const [saleStart, setSaleStart] =
@@ -409,7 +403,7 @@ setIsActive(
     }
 
     setSalePrice("");
-    setSaleStock(0);
+    setsale_stock(0);
     setSaleStart("");
     setSaleEnd("");
   }, [saleEnabled]);
@@ -421,7 +415,7 @@ setIsActive(
   useEffect(() => {
     if (
       typeof stock === "number" &&
-      saleStock > stock
+      sale_stock > stock
     ) {
       setSaleStock(stock);
     }
@@ -461,8 +455,8 @@ setIsActive(
     salePrice,
     setSalePrice,
 
-    saleStock,
-    setSaleStock,
+    sale_stock,
+    setsale_stock,
 
     saleStart,
     setSaleStart,
