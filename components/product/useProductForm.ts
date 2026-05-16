@@ -1,9 +1,12 @@
-
+```ts
 "use client";
 
 import { useEffect, useState } from "react";
 
-import type { ProductPayload, ProductVariant } from "./types";
+import type {
+  ProductPayload,
+  ProductVariant,
+} from "./types";
 
 /* =========================================================
    TYPES
@@ -28,14 +31,15 @@ type ShippingRateItem = {
    CONSTANTS
 ========================================================= */
 
-const DEFAULT_SHIPPING: ShippingRatesState = {
-  domestic: "",
-  sea: "",
-  asia: "",
-  europe: "",
-  north_america: "",
-  rest_of_world: "",
-};
+const DEFAULT_SHIPPING: ShippingRatesState =
+  {
+    domestic: "",
+    sea: "",
+    asia: "",
+    europe: "",
+    north_america: "",
+    rest_of_world: "",
+  };
 
 /* =========================================================
    HELPERS
@@ -74,6 +78,22 @@ const normalizePriceInput = (
   return n;
 };
 
+const normalizeDateInput = (
+  value: unknown
+): string => {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new Date(String(value))
+      .toISOString()
+      .slice(0, 16);
+  } catch {
+    return "";
+  }
+};
+
 /* =========================================================
    VARIANT NORMALIZE
 ========================================================= */
@@ -86,7 +106,9 @@ function normalizeInitVariants(
   }
 
   return input.map((v, index) => {
-    const price = normalizeNumber(v.price);
+    const price = normalizeNumber(
+      v.price
+    );
 
     const salePrice =
       v.salePrice !== null &&
@@ -94,7 +116,9 @@ function normalizeInitVariants(
         ? normalizeNumber(v.salePrice)
         : null;
 
-    const saleEnabled = Boolean(v.saleEnabled);
+    const saleEnabled = Boolean(
+      v.saleEnabled
+    );
 
     const finalPrice =
       saleEnabled &&
@@ -108,14 +132,25 @@ function normalizeInitVariants(
       id: v.id,
 
       option1: v.option1 ?? "",
+
       option2: v.option2 ?? null,
+
       option3: v.option3 ?? null,
 
-      optionLabel1: v.optionLabel1 ?? null,
-      optionLabel2: v.optionLabel2 ?? null,
-      optionLabel3: v.optionLabel3 ?? null,
+      optionLabel1:
+        v.optionLabel1 ?? null,
 
-      optionValue: v.optionValue ?? v.option1 ?? "",
+      optionLabel2:
+        v.optionLabel2 ?? null,
+
+      optionLabel3:
+        v.optionLabel3 ?? null,
+
+      optionValue:
+        v.optionValue ??
+        v.option1 ??
+        "",
+
       optionName:
         v.optionName ??
         v.optionLabel1 ??
@@ -123,7 +158,11 @@ function normalizeInitVariants(
 
       name:
         v.name ??
-        [v.option1, v.option2, v.option3]
+        [
+          v.option1,
+          v.option2,
+          v.option3,
+        ]
           .filter(Boolean)
           .join(" - "),
 
@@ -148,15 +187,22 @@ function normalizeInitVariants(
         normalizeNumber(v.stock)
       ),
 
-      saleSold: normalizeNumber(v.saleSold),
+      saleSold: normalizeNumber(
+        v.saleSold
+      ),
 
-      stock: normalizeNumber(v.stock),
+      stock: normalizeNumber(
+        v.stock
+      ),
 
-      isUnlimited: Boolean(v.isUnlimited),
+      isUnlimited: Boolean(
+        v.isUnlimited
+      ),
 
       image: v.image ?? "",
 
-      isActive: v.isActive !== false,
+      isActive:
+        v.isActive !== false,
 
       sortOrder: normalizeNumber(
         v.sortOrder,
@@ -177,13 +223,14 @@ export function useProductForm(
 ) {
   /* ================= BASIC ================= */
 
-  const [id, setId] = useState<string>("");
+  const [id, setId] =
+    useState<string>("");
+
   const [name, setName] =
     useState<string>("");
 
-  const [price, setPrice] = useState<
-    number | ""
-  >("");
+  const [price, setPrice] =
+    useState<number | "">("");
 
   const [categoryId, setCategoryId] =
     useState<string>("");
@@ -191,9 +238,8 @@ export function useProductForm(
   const [description, setDescription] =
     useState<string>("");
 
-  const [images, setImages] = useState<
-    string[]
-  >([]);
+  const [images, setImages] =
+    useState<string[]>([]);
 
   /* ================= DETAIL ================= */
 
@@ -202,8 +248,10 @@ export function useProductForm(
 
   /* ================= SALE ================= */
 
-  const [saleEnabled, setSaleEnabled] =
-    useState<boolean>(false);
+  const [
+    saleEnabled,
+    setSaleEnabled,
+  ] = useState<boolean>(false);
 
   const [salePrice, setSalePrice] =
     useState<number | "">("");
@@ -219,9 +267,8 @@ export function useProductForm(
 
   /* ================= STOCK ================= */
 
-  const [stock, setStock] = useState<
-    number | ""
-  >(1);
+  const [stock, setStock] =
+    useState<number | "">(1);
 
   /* ================= STATUS ================= */
 
@@ -235,10 +282,12 @@ export function useProductForm(
 
   /* ================= SHIPPING ================= */
 
-  const [shippingRates, setShippingRates] =
-    useState<ShippingRatesState>(
-      DEFAULT_SHIPPING
-    );
+  const [
+    shippingRates,
+    setShippingRates,
+  ] = useState<ShippingRatesState>(
+    DEFAULT_SHIPPING
+  );
 
   const [
     primaryShippingCountry,
@@ -261,11 +310,17 @@ export function useProductForm(
     setName(initialData.name || "");
 
     setPrice(
-      normalizePriceInput(initialData.price)
+      normalizePriceInput(
+        initialData.price
+      )
     );
 
     setCategoryId(
-      String(initialData.categoryId || "")
+      String(
+        initialData.category_id ||
+          initialData.categoryId ||
+          ""
+      )
     );
 
     setDescription(
@@ -278,74 +333,70 @@ export function useProductForm(
         : []
     );
 
-    setDetail(initialData.detail || "");
+    setDetail(
+      initialData.detail || ""
+    );
 
     /* ================= SALE ================= */
 
-    /* ================= SALE ================= */
+    const rawSaleEnabled =
+      initialData.sale_enabled;
 
-const rawSalePrice =
-  initialData.salePrice ??
-  initialData.sale_price;
+    const rawSalePrice =
+      initialData.sale_price;
 
-const rawSaleEnabled =
-  initialData.saleEnabled ??
-  initialData.sale_enabled;
+    const rawSaleStock =
+      initialData.sale_stock;
 
-const rawSaleStock =
-  initialData.saleStock ??
-  initialData.sale_stock;
+    const rawSaleStart =
+      initialData.sale_start;
 
-const rawSaleStart =
-  initialData.saleStart ??
-  initialData.sale_start;
+    const rawSaleEnd =
+      initialData.sale_end;
 
-const rawSaleEnd =
-  initialData.saleEnd ??
-  initialData.sale_end;
+    setSaleEnabled(
+      Boolean(rawSaleEnabled)
+    );
 
-const hasSale =
-  Boolean(rawSaleEnabled) &&
-  typeof Number(rawSalePrice) === "number" &&
-  Number(rawSalePrice) >= 0.00001;
+    setSalePrice(
+      normalizePriceInput(
+        rawSalePrice
+      )
+    );
 
-setSaleEnabled(hasSale);
+    setSaleStock(
+      normalizeNumber(rawSaleStock)
+    );
 
-setSalePrice(
-  normalizePriceInput(rawSalePrice)
-);
+    setSaleStart(
+      normalizeDateInput(
+        rawSaleStart
+      )
+    );
 
-setSaleStock(
-  normalizeNumber(rawSaleStock)
-);
+    setSaleEnd(
+      normalizeDateInput(
+        rawSaleEnd
+      )
+    );
 
-setSaleStart(
-  rawSaleStart
-    ? new Date(rawSaleStart)
-        .toISOString()
-        .slice(0, 16)
-    : ""
-);
+    /* ================= STOCK ================= */
 
-setSaleEnd(
-  rawSaleEnd
-    ? new Date(rawSaleEnd)
-        .toISOString()
-        .slice(0, 16)
-    : ""
-);
+    setStock(
+      normalizePriceInput(
+        initialData.stock
+      ) || 1
+    );
 
-/* ================= STATUS ================= */
+    /* ================= STATUS ================= */
 
-const rawIsActive =
-  initialData.isActive ??
-  initialData.is_active;
+    setIsActive(
+      typeof initialData.is_active ===
+        "boolean"
+        ? initialData.is_active
+        : true
+    );
 
-setIsActive(
-  typeof rawIsActive === "boolean"
-    ? rawIsActive
-    : true
-);
     /* ================= VARIANTS ================= */
 
     setVariants(
@@ -359,9 +410,7 @@ setIsActive(
     const rates = Array.isArray(
       initialData.shippingRates
     )
-      ? (
-          initialData.shippingRates as ShippingRateItem[]
-        )
+      ? (initialData.shippingRates as ShippingRateItem[])
       : [];
 
     const rateMap = new Map<
@@ -378,12 +427,15 @@ setIsActive(
       domestic:
         rateMap.get("domestic") ?? "",
 
-      sea: rateMap.get("sea") ?? "",
+      sea:
+        rateMap.get("sea") ?? "",
 
-      asia: rateMap.get("asia") ?? "",
+      asia:
+        rateMap.get("asia") ?? "",
 
       europe:
-        rateMap.get("europe") ?? "",
+        rateMap.get("europe") ??
+        "",
 
       north_america:
         rateMap.get(
@@ -398,14 +450,16 @@ setIsActive(
 
     /* ================= COUNTRY ================= */
 
-    const domesticRate = rates.find(
-      (r) => r.zone === "domestic"
-    );
+    const domesticRate =
+      rates.find(
+        (r) =>
+          r.zone === "domestic"
+      );
 
     setPrimaryShippingCountry(
-  domesticRate
-    ?.domestic_country_code || ""
-);
+      domesticRate
+        ?.domestic_country_code || ""
+    );
   }, [initialData]);
 
   /* =========================================================
@@ -499,3 +553,4 @@ setIsActive(
     setPrimaryShippingCountry,
   };
 }
+```
