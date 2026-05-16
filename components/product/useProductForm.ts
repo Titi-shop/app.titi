@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProductVariant } from "./types";
 
 /* =========================================================
@@ -50,7 +50,9 @@ const toInputNumber = (v: any): number | "" => {
   return Number.isNaN(n) ? "" : n;
 };
 
-/* FIX: datetime-local safe (no crash, no invalid date) */
+/**
+ * FIXED: datetime-local safe + timezone correct
+ */
 const toDateInput = (v: any): string => {
   if (!v) return "";
 
@@ -59,16 +61,18 @@ const toDateInput = (v: any): string => {
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+
   return (
-    d.getFullYear() +
+    local.getFullYear() +
     "-" +
-    pad(d.getMonth() + 1) +
+    pad(local.getMonth() + 1) +
     "-" +
-    pad(d.getDate()) +
+    pad(local.getDate()) +
     "T" +
-    pad(d.getHours()) +
+    pad(local.getHours()) +
     ":" +
-    pad(d.getMinutes())
+    pad(local.getMinutes())
   );
 };
 
@@ -91,24 +95,18 @@ function normalizeVariants(input?: ProductVariant[]): ProductVariant[] {
 
     return {
       ...v,
-
       price,
       sale_price:
         saleEnabled && salePrice !== null && salePrice < price
           ? salePrice
           : null,
-
       final_price: finalPrice,
-
       sale_enabled: saleEnabled,
-
       stock: toNumber(v.stock),
       sale_stock: toNumber(v.sale_stock),
       sale_sold: toNumber(v.sale_sold),
-
       is_active: v.is_active !== false,
       is_unlimited: Boolean(v.is_unlimited),
-
       sort_order: toNumber(v.sort_order, index),
     };
   });
@@ -119,7 +117,9 @@ function normalizeVariants(input?: ProductVariant[]): ProductVariant[] {
 ========================================================= */
 
 export function useProductForm(initialData?: any) {
-  /* ================= BASIC ================= */
+  /* =========================================================
+     BASIC
+  ========================================================= */
 
   const [id, setId] = useState("");
   const [name, setName] = useState("");
@@ -129,58 +129,80 @@ export function useProductForm(initialData?: any) {
   const [images, setImages] = useState<string[]>([]);
   const [detail, setDetail] = useState("");
 
-  /* ================= SALE ================= */
+  /* =========================================================
+     SALE
+  ========================================================= */
 
   const [saleEnabled, setSaleEnabled] = useState(false);
   const [salePrice, setSalePrice] = useState<number | "">("");
-  const [saleStock, setSaleStock] = useState(0);
+  const [saleStock, setSaleStock] = useState<number>(0);
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
-  /* ================= STOCK ================= */
+  /* =========================================================
+     STOCK
+  ========================================================= */
 
   const [stock, setStock] = useState<number | "">(1);
 
-  /* ================= STATUS ================= */
+  /* =========================================================
+     STATUS
+  ========================================================= */
 
   const [isActive, setIsActive] = useState(true);
 
-  /* ================= VARIANTS ================= */
+  /* =========================================================
+     VARIANTS
+  ========================================================= */
 
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
-  /* ================= SHIPPING ================= */
+  /* =========================================================
+     SHIPPING
+  ========================================================= */
 
   const [shippingRates, setShippingRates] =
     useState<ShippingRatesState>(DEFAULT_SHIPPING);
 
-  const [primaryShippingCountry, setPrimaryShippingCountry] = useState("");
+  const [primaryShippingCountry, setPrimaryShippingCountry] =
+    useState("");
 
   /* =========================================================
-     INIT (FIXED + SAFE MAPPING)
+     INIT GUARD (IMPORTANT FIX)
   ========================================================= */
+
+  const didInit = useRef(false);
 
   useEffect(() => {
     if (!initialData) return;
+    if (didInit.current) return;
+    didInit.current = true;
 
     setId(initialData.id || "");
     setName(initialData.name || "");
 
     setPrice(toInputNumber(initialData.price));
 
-    setCategoryId( initialData.category_id != null  ? String(initialData.category_id)  : "");
+    setCategoryId(
+      initialData.category_id != null
+        ? String(initialData.category_id)
+        : ""
+    );
 
     setDescription(initialData.description || "");
     setImages(Array.isArray(initialData.images) ? initialData.images : []);
     setDetail(initialData.detail || "");
 
-    /* ================= SALE FIX ================= */
+    /* ================= SALE ================= */
 
-   const rawSaleEnabled = Boolean(initialData.sale_enabled);
+    const enabled = Boolean(initialData.sale_enabled);
+    setSaleEnabled(enabled);
 
-    setSaleEnabled(rawSaleEnabled);
-
-    setSalePrice(  initialData.sale_price != null  ? Number(initialData.sale_price)  : "");
+    setSalePrice(
+      initialData.sale_price != null
+        ? Number(initialData.sale_price)
+        : ""
+    );
 
     setSaleStock(toNumber(initialData.sale_stock));
 
@@ -189,7 +211,9 @@ export function useProductForm(initialData?: any) {
 
     /* ================= STOCK ================= */
 
-    setStock(  initialData.stock != null  ? Number(initialData.stock)  : 1);
+    setStock(
+      initialData.stock != null ? Number(initialData.stock) : 1
+    );
 
     /* ================= STATUS ================= */
 
