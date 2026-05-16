@@ -51,8 +51,6 @@ const toInputNumber = (v: any): number | "" => {
 };
 
 /**
- * FIXED: datetime-local safe + timezone correct
- */
 const toDateInput = (v: any): string => {
   if (!v) return "";
 
@@ -61,18 +59,16 @@ const toDateInput = (v: any): string => {
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-
   return (
-    local.getFullYear() +
+    d.getFullYear() +
     "-" +
-    pad(local.getMonth() + 1) +
+    pad(d.getMonth() + 1) +
     "-" +
-    pad(local.getDate()) +
+    pad(d.getDate()) +
     "T" +
-    pad(local.getHours()) +
+    pad(d.getHours()) +
     ":" +
-    pad(local.getMinutes())
+    pad(d.getMinutes())
   );
 };
 
@@ -206,8 +202,13 @@ export function useProductForm(initialData?: any) {
 
     setSaleStock(toNumber(initialData.sale_stock));
 
-    setSaleStart(toDateInput(initialData.sale_start));
-    setSaleEnd(toDateInput(initialData.sale_end));
+   setSaleStart(
+  toDateInput(initialData.sale_start ?? initialData.saleStart)
+);
+
+setSaleEnd(
+  toDateInput(initialData.sale_end ?? initialData.saleEnd)
+);
 
     /* ================= STOCK ================= */
 
