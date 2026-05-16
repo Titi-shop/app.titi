@@ -246,10 +246,10 @@ export async function updateProductService(
       sale_stock: body.saleStock ?? 0,
 
       sale_start:
-        body.saleStart ?? null,
+  body.saleStart ?? body.sale_start ?? null,
 
-      sale_end:
-        body.saleEnd ?? null,
+sale_end:
+  body.saleEnd ?? body.sale_end ?? null,
 
       is_active: body.isActive,
     };
