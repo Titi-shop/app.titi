@@ -168,8 +168,8 @@ export function useProductForm(initialData?: ProductPayload) {
     setSalePrice(sp);
 
     setSaleStock(toNumber(initialData.sale_stock));
-    setSaleStart(toDateInput(initialData.sale_start));
-    setSaleEnd(toDateInput(initialData.sale_end));
+    setSaleStart(toDateInput((initialData as any).saleStart ?? (initialData as any).sale_start));
+setSaleEnd(toDateInput((initialData as any).saleEnd ?? (initialData as any).sale_end));
 
     /* STOCK */
     setStock(toInputNumber(initialData.stock) || 1);
