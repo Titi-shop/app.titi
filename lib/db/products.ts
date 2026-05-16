@@ -868,16 +868,16 @@ export async function updateProductBySeller(
           current.meta_description,
 
         input.is_active !==
-        undefined
-          ? input.is_active
-          : current.is_active,
+undefined
+  ? input.is_active
+  : current.is_active,
 
-        Array.isArray((input as any).variants)
-       ? (input as any).variants.length > 0
-        : current.has_variants,
+input.has_variants !== undefined
+  ? input.has_variants
+  : current.has_variants,
 
-        productId,
-        sellerId,
+productId,
+sellerId,
       ]
     );
 
