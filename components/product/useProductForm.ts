@@ -20,7 +20,7 @@ export type ShippingRatesState = {
 type ShippingRateItem = {
   zone: string;
   price: number;
-  domesticCountryCode?: string | null;
+  domestic_country_code?: string | null;
 };
 
 /* =========================================================
@@ -148,15 +148,10 @@ function normalizeInitVariants(
       ),
 
       saleSold: normalizeNumber(v.saleSold),
-
       stock: normalizeNumber(v.stock),
-
       isUnlimited: Boolean(v.isUnlimited),
-
       image: v.image ?? "",
-
       isActive: v.isActive !== false,
-
       sortOrder: normalizeNumber(
         v.sortOrder,
         index
@@ -256,13 +251,10 @@ export function useProductForm(
     /* ================= BASIC ================= */
 
     setId(initialData.id || "");
-
     setName(initialData.name || "");
-
     setPrice(
       normalizePriceInput(initialData.price)
     );
-
     setCategoryId(
       String(initialData.categoryId || "")
     );
@@ -285,9 +277,7 @@ export function useProductForm(
       typeof initialData.salePrice ===
         "number" &&
       initialData.salePrice >= 0.00001;
-
     setSaleEnabled(hasSale);
-
     setSalePrice(
       normalizePriceInput(
         initialData.salePrice
@@ -356,11 +346,8 @@ export function useProductForm(
     setShippingRates({
       domestic:
         rateMap.get("domestic") ?? "",
-
       sea: rateMap.get("sea") ?? "",
-
       asia: rateMap.get("asia") ?? "",
-
       europe:
         rateMap.get("europe") ?? "",
 
@@ -383,7 +370,7 @@ export function useProductForm(
 
     setPrimaryShippingCountry(
       domesticRate
-        ?.domesticCountryCode || ""
+        ?.domestic_country_code || ""
     );
   }, [initialData]);
 
