@@ -646,9 +646,8 @@ export async function createProduct(
         input.is_active !==
           false,
 
-        Boolean(
-          input.has_variants
-        ),
+        Array.isArray((input as any).variants) &&
+(input as any).variants.length > 0,
       ]
     );
 
@@ -804,11 +803,8 @@ export async function updateProductBySeller(
 
         input.video_url ??
           current.video_url,
-
         nextPrice,
-
         nextSalePrice,
-
         nextFinalPrice,
 
         input.stock !==
@@ -876,10 +872,9 @@ export async function updateProductBySeller(
           ? input.is_active
           : current.is_active,
 
-        input.has_variants !==
-        undefined
-          ? input.has_variants
-          : current.has_variants,
+        Array.isArray((input as any).variants)
+       ? (input as any).variants.length > 0
+        : current.has_variants,
 
         productId,
         sellerId,
