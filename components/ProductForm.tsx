@@ -1,6 +1,3 @@
-viết đầy đủ 1-1 không thay đổi logic sửa lổi cần sửa .
-components/ProductForm.tsx
-
 "use client";
 
 import { FormEvent, useState } from "react";
