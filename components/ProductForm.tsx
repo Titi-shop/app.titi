@@ -7,6 +7,7 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
+
 import { useProductForm } from "./product/useProductForm";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
@@ -31,7 +32,6 @@ interface ProductFormProps {
 interface ShippingRatePayload {
   zone: string;
   price: number;
-  domestic_country_code?: string | null;
 }
 
 interface ProductPayload {
@@ -42,20 +42,20 @@ interface ProductPayload {
   detail: string;
   images: string[];
   thumbnail: string;
-  is_active: form.isActive,
+  isActive: boolean;
 
   shippingRates: ShippingRatePayload[];
-  domestic_country_code: string | null;
+  domesticCountryCode: string | null;
 
   price?: number;
   stock?: number;
 
-  sale_price?: number;
-  sale_enabled?: boolean;
-  sale_stock?: number;
+  salePrice: number | null;
+  saleEnabled?: boolean;
+  saleStock: number;
 
-   sale_start?: string;
-   sale_end?: string;
+  saleStart: string | null;
+  saleEnd: string | null;
 
   variants: ProductVariant[];
 
@@ -79,11 +79,7 @@ export default function ProductForm({
   const { t } = useTranslation();
 
   const { user, loading } = useAuth();
-  const form = useProductForm({
-  ...initialData,
-  saleStart: initialData?.sale_start,
-  saleEnd: initialData?.sale_end,
-});
+  const form = useProductForm(initialData);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -358,15 +354,13 @@ export default function ProductForm({
          SHIPPING
       ========================= */
 
-     const shippingRatesPayload: ShippingRatePayload[] =
-  Object.entries(form.shippingRates).map(([zone, price]) => ({
-    zone,
-    price: Number(price || 0),
-    domestic_country_code:
-      zone === "domestic"
-        ? form.primaryShippingCountry || null
-        : null,
-  }));
+      const shippingRatesPayload: ShippingRatePayload[] =
+        Object.entries(form.shippingRates).map(
+          ([zone, price]) => ({
+            zone,
+            price: Number(price || 0),
+          })
+        );
 
       /* =========================
          VARIANTS
@@ -419,7 +413,11 @@ const payload: ProductPayload = {
 
   name: form.name,
 
-  categoryId: Number(form.categoryId),
+  categoryId:
+    typeof form.categoryId === "string" &&
+    form.categoryId.trim().length > 0
+      ? form.categoryId.trim()
+      : undefined,
 
   description: form.description,
 
@@ -427,11 +425,14 @@ const payload: ProductPayload = {
 
   images: form.images,
 
-  thumbnail: form.images[0] || "",
+  thumbnail: form.images[0] || null,
 
   isActive: form.isActive,
 
   shippingRates: shippingRatesPayload,
+
+  domesticCountryCode:
+    form.primaryShippingCountry || null,
 
   /* =====================================================
      PRODUCT PRICE / STOCK
@@ -453,11 +454,11 @@ const payload: ProductPayload = {
         hasSalePrice,
 
   salePrice:
-  hasVariants
-    ? null
-    : form.saleEnabled && form.salePrice !== ""
-      ? Number(form.salePrice)
-      : null,
+    hasVariants
+      ? null
+      : !form.saleEnabled
+        ? null
+        : Number(form.salePrice),
 
   saleStock:
     hasVariants || !form.saleEnabled
@@ -503,7 +504,7 @@ await onSubmit(payload);
     >
       {/* CATEGORY */}
 <select
-  value={form.categoryId ?? ""}
+  value={form.categoryId}
   onChange={(e) =>
     form.setCategoryId(e.target.value)
   }
@@ -626,7 +627,7 @@ await onSubmit(payload);
 
             <input
               type="checkbox"
-              checked={form.saleEnabled}
+              checked={Boolean(form.saleEnabled)}
               onChange={(e) => {
                 const checked =
                   e.target.checked;
@@ -634,23 +635,27 @@ await onSubmit(payload);
                 form.setSaleEnabled(checked);
 
                 if (!checked) {
-                  form.setSaleStart("");
-                    form.setSaleEnd("");
+                  form.setSaleStart(null);
+                  form.setSaleEnd(null);
                   form.setSalePrice("");
-                 form.setSaleStock(0);
+                  form.setSaleStock(0);
                 }
               }}
             />
           </label>
 
           {/* SALE PRICE */}
-          {form.saleEnabled === true && (
+          {form.saleEnabled && (
             <input
               type="number"
               step="0.00001"
               min="0.00001"
               inputMode="decimal"
-              value={form.salePrice ?? ""}
+              value={
+                form.salePrice === ""
+                  ? ""
+                  : form.salePrice
+              }
               onChange={(e) => {
                 const value =
                   e.target.value;
@@ -673,13 +678,13 @@ await onSubmit(payload);
           {form.saleEnabled && (
             <input
               type="number"
-              value={form.saleStock}
+              value={form.saleStock || 0}
               onChange={(e) => {
                 const value = Number(
                   e.target.value
                 );
 
-                if (Number(value) > Number(form.stock || 0)){
+                if (value > form.stock) {
                   alert(
                     t.sale_stock_exceed
                   );
@@ -700,7 +705,7 @@ await onSubmit(payload);
       <div className="grid grid-cols-2 gap-2">
         <input
           type="datetime-local"
-          value={form.saleStart ?? ""}
+          value={form.saleStart || ""}
           onChange={(e) =>
             form.setSaleStart(
               e.target.value
@@ -711,7 +716,7 @@ await onSubmit(payload);
 
         <input
           type="datetime-local"
-          value={form.saleEnd ?? ""}
+          value={form.saleEnd || ""}
           onChange={(e) =>
             form.setSaleEnd(
               e.target.value
