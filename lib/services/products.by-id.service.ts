@@ -226,15 +226,9 @@ export async function updateProductService(
       detail: body.detail,
       images: body.images,
       thumbnail: body.thumbnail,
-
-      category_id:
-  body.category_id ??
-  body.categoryId ??
-  null,
-domestic_country_code:
-  body.domestic_country_code ??
-  body.domesticCountryCode ??
-  null,
+      has_variants: hasVariants,
+      category_id:  body.category_id ??  body.categoryId ??  null,
+      domestic_country_code:  body.domestic_country_code ??  body.domesticCountryCode ??  null,
       price: finalPrice,
       stock: finalStock,
 
