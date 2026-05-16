@@ -38,7 +38,7 @@ interface ShippingRatePayload {
 interface ProductPayload {
   id?: string;
   name: string;
-  category_id: string | null;
+  categoryId: string | null;
   description: string;
   detail: string;
   images: string[];
@@ -46,14 +46,14 @@ interface ProductPayload {
   isActive: boolean;
 
   shippingRates: ShippingRatePayload[];
-  domestic_country_code: string | null;
+  domesticCountryCode: string | null;
 
   price?: number;
   stock?: number;
 
   salePrice: number | null;
   saleEnabled?: boolean;
-  sale_stock: number;
+  saleStock: number;
 
   saleStart: string | null;
   saleEnd: string | null;
@@ -381,9 +381,9 @@ export default function ProductForm({
               ? Number(v.salePrice)
               : null,
 
-          sale_stock:
+          saleStock:
             v.saleEnabled
-              ? Number(v.sale_stock || 0)
+              ? Number(v.saleStock || 0)
               : 0,
 
           saleSold: Number(v.saleSold || 0),
@@ -416,10 +416,10 @@ const payload: ProductPayload = {
 
   name: form.name,
 
-  category_id:
-    typeof form.category_id === "string" &&
-    form.category_id.trim().length > 0
-      ? form.category_id.trim()
+  categoryId:
+    typeof form.categoryId === "string" &&
+    form.categoryId.trim().length > 0
+      ? form.categoryId.trim()
       : undefined,
 
   description: form.description,
@@ -460,10 +460,10 @@ const payload: ProductPayload = {
         ? null
         : Number(form.salePrice),
 
-  sale_stock:
+  saleStock:
     hasVariants || !form.saleEnabled
       ? 0
-      : Number(form.sale_stock || 0),
+      : Number(form.saleStock || 0),
 
   saleStart:
     hasSaleTime
@@ -678,7 +678,7 @@ await onSubmit(payload);
           {form.saleEnabled && (
             <input
               type="number"
-              value={form.sale_stock || 0}
+              value={form.saleStock || 0}
               onChange={(e) => {
                 const value = Number(
                   e.target.value
