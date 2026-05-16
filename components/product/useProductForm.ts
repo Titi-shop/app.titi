@@ -177,9 +177,7 @@ export function useProductForm(initialData?: any) {
 
     /* ================= SALE FIX ================= */
 
-    const rawSaleEnabled =
-      initialData.sale_enabled === true ||
-      initialData.sale_enabled === 1;
+   const rawSaleEnabled = Boolean(initialData.sale_enabled);
 
     setSaleEnabled(rawSaleEnabled);
 
