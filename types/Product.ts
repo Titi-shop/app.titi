@@ -288,7 +288,7 @@ export interface ProductRecord {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
-
+}
   /* ========================
      RAW DB SUPPORT (FIX BUG EDIT)
   ======================== */
