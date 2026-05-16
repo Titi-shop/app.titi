@@ -505,7 +505,7 @@ await onSubmit(payload);
     >
       {/* CATEGORY */}
 <select
-  value={form.categoryId}
+  value={form.categoryId ?? ""}
   onChange={(e) =>
     form.setCategoryId(e.target.value)
   }
@@ -628,7 +628,7 @@ await onSubmit(payload);
 
             <input
               type="checkbox"
-              checked={Boolean(form.saleEnabled)}
+              checked={form.saleEnabled}
               onChange={(e) => {
                 const checked =
                   e.target.checked;
@@ -639,24 +639,20 @@ await onSubmit(payload);
                   form.setSaleStart("");
                     form.setSaleEnd("");
                   form.setSalePrice("");
-                  form.setSaleStock("");
+                 form.setSaleStock(0);
                 }
               }}
             />
           </label>
 
           {/* SALE PRICE */}
-          {form.saleEnabled && (
+          {form.saleEnabled === true && (
             <input
               type="number"
               step="0.00001"
               min="0.00001"
               inputMode="decimal"
-              value={
-                form.salePrice === ""
-                  ? ""
-                  : form.salePrice
-              }
+              value={form.salePrice ?? ""}
               onChange={(e) => {
                 const value =
                   e.target.value;
@@ -679,13 +675,13 @@ await onSubmit(payload);
           {form.saleEnabled && (
             <input
               type="number"
-              value={form.saleStock || 0}
+              value={form.saleStock}
               onChange={(e) => {
                 const value = Number(
                   e.target.value
                 );
 
-                if (value > form.stock) {
+                if (Number(value) > Number(form.stock || 0)){
                   alert(
                     t.sale_stock_exceed
                   );
@@ -706,7 +702,7 @@ await onSubmit(payload);
       <div className="grid grid-cols-2 gap-2">
         <input
           type="datetime-local"
-          value={form.saleStart || ""}
+          value={form.saleStart ?? ""}
           onChange={(e) =>
             form.setSaleStart(
               e.target.value
@@ -717,7 +713,7 @@ await onSubmit(payload);
 
         <input
           type="datetime-local"
-          value={form.saleEnd || ""}
+          value={form.saleEnd ?? ""}
           onChange={(e) =>
             form.setSaleEnd(
               e.target.value
