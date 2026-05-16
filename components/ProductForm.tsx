@@ -7,7 +7,6 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
-
 import { useProductForm } from "./product/useProductForm";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
