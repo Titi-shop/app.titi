@@ -930,19 +930,101 @@ export async function incrementProductView(
     result.rows[0]?.views
   );
 }
-export async function getProductsByIds(ids: string[]) {
-  if (!ids.length) return [];
-
-  const { rows } = await query(
-    `
-    SELECT *
-    FROM products
-    WHERE id = ANY($1::uuid[])
-    `,
-    [ids]
+/* =====================================================
+   GET PRODUCTS BY IDS
+===================================================== */
+export async function getProductsByIds(
+  ids: string[]
+) {
+  console.log(
+    "\n🚀 [PRODUCTS][GET_BY_IDS] ===== START ====="
   );
 
-  return rows;
+  try {
+    console.log(
+      "📥 Incoming ids:",
+      ids
+    );
+
+    console.log(
+      "📊 Total ids:",
+      ids?.length ?? 0
+    );
+
+    if (!Array.isArray(ids)) {
+      console.error(
+        "❌ ids is not array"
+      );
+
+      throw new Error(
+        "INVALID_PRODUCT_IDS"
+      );
+    }
+
+    if (!ids.length) {
+      console.warn(
+        "⚠️ Empty ids array"
+      );
+
+      console.log(
+        "🏁 [PRODUCTS][GET_BY_IDS] RETURN EMPTY ARRAY\n"
+      );
+
+      return [];
+    }
+
+    console.log(
+      "🗄️ Executing database query..."
+    );
+
+    const sql = `
+      SELECT *
+      FROM products
+      WHERE id = ANY($1::uuid[])
+    `;
+
+    console.log(
+      "📜 SQL:",
+      sql
+    );
+
+    console.log(
+      "📦 SQL PARAMS:",
+      [ids]
+    );
+
+    const { rows } = await query(
+      sql,
+      [ids]
+    );
+
+    console.log(
+      "✅ Query success"
+    );
+
+    console.log(
+      "📊 Rows count:",
+      rows.length
+    );
+
+    console.log(
+      "📦 Rows data:",
+      rows
+    );
+
+    console.log(
+      "🏁 [PRODUCTS][GET_BY_IDS] ===== SUCCESS =====\n"
+    );
+
+    return rows;
+  } catch (error) {
+    console.error(
+      "💥 [PRODUCTS][GET_BY_IDS] ERROR:",
+      error
+    );
+
+    throw error;
+  }
 }
 export async function deleteProductById(
   productId: string,
