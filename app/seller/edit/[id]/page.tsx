@@ -11,12 +11,10 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import ProductForm from "@/components/ProductForm";
-
 import type {
-  Product,
+  ProductRecord,
   ProductPayload,
 } from "@/types/Product";
-
 /* =====================================================
    TYPES
 ===================================================== */
@@ -75,14 +73,13 @@ function toDateTimeLocal(
 ===================================================== */
 
 function mapProductToPayload(
-  product: Product
+  product: ProductRecord
 ): ProductPayload {
   return {
     id: product.id,
 
     name: product.name,
-
-    categoryId:
+    category_id:
   product.category_id !== null
     ? String(product.category_id)
     : null,
@@ -100,14 +97,14 @@ function mapProductToPayload(
     thumbnail:
       product.thumbnail || null,
 
-    isActive:
+    is_active:
   Boolean(product.is_active),
     
-    shippingRates:
+    shipping_rates:
       Array.isArray(
-        product.shippingRates
+        product.shipping_rates
       )
-        ? product.shippingRates
+        ? product.shipping_rates
         : [],
 
     domestic_country_code:
@@ -127,21 +124,21 @@ function mapProductToPayload(
        SALE
     ===================================================== */
 
-    saleEnabled:
+    sale_enabled:
   Boolean(product.sale_enabled),
 
-    salePrice:
+    sale_price:
   product.sale_price,
 
-    saleStock:
+    sale_stock:
   product.sale_stock || 0,
 
-    saleStart:
+    sale_start:
   toDateTimeLocal(
     product.sale_start
   ),
 
-    saleEnd:
+    sale_end:
   toDateTimeLocal(
     product.sale_end
   ),
@@ -201,7 +198,7 @@ export default function SellerEditPage() {
     data: productData,
     isLoading,
     error,
-  } = useSWR<Product>(
+  } = useSWR<ProductRecord>(
     id
       ? `/api/products/${id}`
       : null,
