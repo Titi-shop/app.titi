@@ -424,7 +424,7 @@ shipping_rates: shippingRatesPayload,
       : null,
 
   variants: normalizedVariants,
-  idempotencyKey: generateKey(),
+  idempotency_key: generateKey(),
 };
 
 console.log("🧪 FORM CATEGORY:", form.category_id);
