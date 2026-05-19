@@ -1,20 +1,13 @@
 "use client";
-
 import useSWR from "swr";
-
 import { useRouter } from "next/navigation";
-
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { useAuth } from "@/context/AuthContext";
-
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
 import ProductForm from "@/components/ProductForm";
-
 import type {
   ProductPayload,
-} from "@/types/Product";
+} from "@/types/product";
 
 /* =====================================================
    TYPES
