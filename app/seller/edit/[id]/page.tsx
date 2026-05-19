@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from "swr";
-
 import {
   useParams,
   useRouter,
@@ -10,11 +9,16 @@ import {
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
 import ProductForm from "@/components/ProductForm";
+
 import type {
-  ProductRecord,
   ProductPayload,
-} from "@/types/Product";
+  ProductRecord,
+  ProductVariant,
+  ShippingRate,
+} from "@/types/product";
+
 /* =====================================================
    TYPES
 ===================================================== */
@@ -48,9 +52,9 @@ const fetcher = async (
 
 function toDateTimeLocal(
   value?: string | null
-): string | null {
+): string {
   if (!value) {
-    return null;
+    return "";
   }
 
   const date = new Date(value);
@@ -69,90 +73,238 @@ function toDateTimeLocal(
 }
 
 /* =====================================================
+   NORMALIZE VARIANT
+===================================================== */
+
+function normalizeVariant(
+  v: ProductVariant
+): ProductVariant {
+  const price =
+    Number(v.price || 0);
+
+  const sale_price =
+    v.sale_price !== null &&
+    v.sale_price !== undefined
+      ? Number(v.sale_price)
+      : null;
+
+  const sale_enabled =
+    Boolean(v.sale_enabled);
+
+  return {
+    ...v,
+
+    option1: v.option1 || "",
+    option2:
+      v.option2 || null,
+    option3:
+      v.option3 || null,
+
+    option_label1:
+      v.option_label1 || null,
+
+    option_label2:
+      v.option_label2 || null,
+
+    option_label3:
+      v.option_label3 || null,
+
+    name:
+      v.name ||
+      [
+        v.option1,
+        v.option2,
+        v.option3,
+      ]
+        .filter(Boolean)
+        .join(" - "),
+
+    sku: v.sku || null,
+
+    currency:
+      v.currency || "PI",
+
+    image: v.image || "",
+
+    price,
+
+    stock: Number(
+      v.stock || 0
+    ),
+
+    sold: Number(
+      v.sold || 0
+    ),
+
+    is_unlimited:
+      Boolean(
+        v.is_unlimited
+      ),
+
+    is_active:
+      v.is_active !== false,
+
+    sort_order: Number(
+      v.sort_order || 0
+    ),
+
+    sale_enabled,
+
+    sale_price:
+      sale_enabled &&
+      sale_price !== null &&
+      sale_price > 0 &&
+      sale_price < price
+        ? sale_price
+        : null,
+
+    sale_stock:
+      sale_enabled
+        ? Math.min(
+            Number(
+              v.sale_stock || 0
+            ),
+            Number(
+              v.stock || 0
+            )
+          )
+        : 0,
+
+    sale_sold: Number(
+      v.sale_sold || 0
+    ),
+
+    final_price:
+      sale_enabled &&
+      sale_price !== null &&
+      sale_price > 0 &&
+      sale_price < price
+        ? sale_price
+        : price,
+  };
+}
+
+/* =====================================================
    MAP PRODUCT -> FORM PAYLOAD
 ===================================================== */
 
 function mapProductToPayload(
   product: ProductRecord
 ): ProductPayload {
+  const shippingRates =
+    Array.isArray(
+      product.shipping_rates
+    )
+      ? (product.shipping_rates as ShippingRate[])
+      : [];
+
   return {
     id: product.id,
 
-    name: product.name,
+    /* BASIC */
+    name:
+      product.name || "",
+
     category_id:
-  product.category_id !== null
-    ? String(product.category_id)
-    : null,
+      typeof product.category_id ===
+        "string" &&
+      product.category_id.trim()
+        .length > 0
+        ? product.category_id
+        : undefined,
 
     description:
       product.description || "",
 
-    detail: product.detail || "",
+    detail:
+      product.detail || "",
 
     images:
-      Array.isArray(product.images)
+      Array.isArray(
+        product.images
+      )
         ? product.images
         : [],
 
     thumbnail:
-      product.thumbnail || null,
-
-    is_active:
-  Boolean(product.is_active),
-    
-    shipping_rates:
-      Array.isArray(
-        product.shipping_rates
-      )
-        ? product.shipping_rates
-        : [],
-
-    domestic_country_code:
-      product
-        .domestic_country_code ??
+      product.thumbnail ||
       null,
 
-    /* =====================================================
-       PRICE / STOCK
-    ===================================================== */
+    is_active:
+      Boolean(
+        product.is_active
+      ),
 
-    price: product.price,
+    /* SHIPPING */
+    shipping_rates:
+      shippingRates,
 
-    stock: product.stock,
+    domestic_country_code:
+      product.domestic_country_code ||
+      null,
 
-    /* =====================================================
-       SALE
-    ===================================================== */
+    /* PRICE */
+    price:
+      product.price !==
+        null &&
+      product.price !==
+        undefined
+        ? Number(
+            product.price
+          )
+        : "",
 
+    stock:
+      product.stock !==
+        null &&
+      product.stock !==
+        undefined
+        ? Number(
+            product.stock
+          )
+        : 0,
+
+    /* SALE */
     sale_enabled:
-  Boolean(product.sale_enabled),
+      Boolean(
+        product.sale_enabled
+      ),
 
     sale_price:
-  product.sale_price,
+      product.sale_price !==
+        null &&
+      product.sale_price !==
+        undefined
+        ? Number(
+            product.sale_price
+          )
+        : "",
 
-    sale_stock:
-  product.sale_stock || 0,
+    sale_stock: Number(
+      product.sale_stock || 0
+    ),
 
     sale_start:
-  toDateTimeLocal(
-    product.sale_start
-  ),
+      toDateTimeLocal(
+        product.sale_start
+      ),
 
     sale_end:
-  toDateTimeLocal(
-    product.sale_end
-  ),
+      toDateTimeLocal(
+        product.sale_end
+      ),
 
-    /* =====================================================
-       VARIANTS
-    ===================================================== */
-
+    /* VARIANTS */
     variants:
       Array.isArray(
         product.variants
       )
-        ? product.variants
+        ? product.variants.map(
+            normalizeVariant
+          )
         : [],
+
+    idempotency_key: "",
   };
 }
 
@@ -164,23 +316,29 @@ export default function SellerEditPage() {
   const { t } =
     useTranslation();
 
-  const router = useRouter();
+  const router =
+    useRouter();
 
-  const params = useParams();
+  const params =
+    useParams();
 
-  const { user, loading } =
-    useAuth();
+  const {
+    user,
+    loading,
+  } = useAuth();
 
   const isSeller =
-    user?.role === "seller";
+    user?.role ===
+    "seller";
 
   const id =
-    typeof params.id === "string"
+    typeof params.id ===
+    "string"
       ? params.id
       : "";
 
   /* =====================================================
-     LOAD CATEGORIES
+     CATEGORIES
   ===================================================== */
 
   const {
@@ -191,7 +349,7 @@ export default function SellerEditPage() {
   );
 
   /* =====================================================
-     LOAD PRODUCT
+     PRODUCT
   ===================================================== */
 
   const {
@@ -206,16 +364,17 @@ export default function SellerEditPage() {
   );
 
   /* =====================================================
-     BUILD INITIAL DATA
+     INITIAL DATA
   ===================================================== */
 
   const initialData:
     | ProductPayload
-    | undefined = productData
-    ? mapProductToPayload(
-        productData
-      )
-    : undefined;
+    | undefined =
+    productData
+      ? mapProductToPayload(
+          productData
+        )
+      : undefined;
 
   /* =====================================================
      GUARDS
@@ -224,25 +383,31 @@ export default function SellerEditPage() {
   if (loading || isLoading) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.loading ??
+        {t.loading ||
           "Loading..."}
       </div>
     );
   }
 
-  if (!user || !isSeller) {
+  if (
+    !user ||
+    !isSeller
+  ) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.no_permission ??
+        {t.no_permission ||
           "No permission"}
       </div>
     );
   }
 
-  if (error || !initialData) {
+  if (
+    error ||
+    !initialData
+  ) {
     return (
       <div className="p-8 text-center text-gray-400">
-        {t.not_found ??
+        {t.not_found ||
           "Product not found"}
       </div>
     );
@@ -252,48 +417,54 @@ export default function SellerEditPage() {
      UPDATE
   ===================================================== */
 
-  const updateProduct = async (
-    payload: ProductPayload
-  ) => {
-    console.log(
-      "📦 [EDIT_PRODUCT] PAYLOAD:",
-      payload
-    );
-
-    const res =
-      await apiAuthFetch(
-        `/api/products/${id}`,
-        {
-          method: "PATCH",
-
-          body: JSON.stringify(
-            payload
-          ),
-        }
+  const updateProduct =
+    async (
+      payload: ProductPayload
+    ) => {
+      console.log(
+        "📦 [EDIT_PRODUCT] PAYLOAD:",
+        payload
       );
 
-    if (!res.ok) {
-      const text =
-        await res.text();
+      const res =
+        await apiAuthFetch(
+          `/api/products/${id}`,
+          {
+            method: "PATCH",
 
-      console.error(
-        "❌ UPDATE FAILED:",
-        text
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify(
+              payload
+            ),
+          }
+        );
+
+      if (!res.ok) {
+        const text =
+          await res.text();
+
+        console.error(
+          "❌ UPDATE FAILED:",
+          text
+        );
+
+        throw new Error(
+          "UPDATE_FAILED"
+        );
+      }
+
+      console.log(
+        "✅ PRODUCT UPDATED"
       );
 
-      throw new Error(
-        "UPDATE_FAILED"
+      router.push(
+        "/seller/stock"
       );
-    }
-
-    console.log(
-      "✅ PRODUCT UPDATED"
-    );
-
-    router.push(
-      "/seller/stock"
-    );
-  };
+    };
 
   /* =====================================================
      UI
@@ -307,8 +478,12 @@ export default function SellerEditPage() {
 
       <ProductForm
         categories={categories}
-        initialData={initialData}
-        onSubmit={updateProduct}
+        initialData={
+          initialData
+        }
+        onSubmit={
+          updateProduct
+        }
       />
     </main>
   );
