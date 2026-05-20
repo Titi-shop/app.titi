@@ -15,127 +15,120 @@ import {
 } from "@/lib/db/shipping";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { normalizeVariants } from "@/lib/validators/products";
+
+import {
+  normalizeVariants,
+} from "@/lib/validators/products";
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function calcVariantFinalPrice(v: any) {
+  const saleActive =
+    v.sale_enabled &&
+    v.sale_price !== null &&
+    v.sale_price > 0 &&
+    v.sale_price < v.price;
+
+  return saleActive
+    ? Number(v.sale_price)
+    : Number(v.price);
+}
+
+function normalizeShippingRates(body: any) {
+  const rates =
+    body.shipping_rates ??
+    body.shippingRates ??
+    [];
+
+  return rates.map((r: any) => ({
+    zone: r.zone,
+
+    price: Number(r.price ?? 0),
+
+    domestic_country_code:
+      r.zone === "domestic"
+        ? (
+            r.domestic_country_code ??
+            body.primary_shipping_country ??
+            body.primaryShippingCountry ??
+            null
+          )
+        : null,
+  }));
+}
 
 /* =====================================================
    GET PRODUCT
 ===================================================== */
-export async function getProductService(id: string) {
+
+export async function getProductService(
+  id: string
+) {
   console.log(
     "[products.by-id.service][GET] ===== START ====="
   );
 
   try {
-    console.log(
-      "[products.by-id.service][GET] Incoming product id:",
-      id
-    );
-
     if (!id) {
-      console.error(
-        "[products.by-id.service][GET] INVALID_PRODUCT_ID"
-      );
-
-      return { error: "INVALID_PRODUCT_ID" };
+      return {
+        error: "INVALID_PRODUCT_ID",
+      };
     }
 
-    console.log(
-      "[products.by-id.service][GET] Fetching product..."
-    );
-
-    const product = await getProductById(id);
-
-    console.log(
-      "[products.by-id.service][GET] Product result:",
-      product
-    );
+    const product =
+      await getProductById(id);
 
     if (!product) {
-      console.error(
-        "[products.by-id.service][GET] PRODUCT_NOT_FOUND"
-      );
-
-      return { error: "PRODUCT_NOT_FOUND" };
+      return {
+        error: "PRODUCT_NOT_FOUND",
+      };
     }
 
-    console.log(
-      "[products.by-id.service][GET] Fetching variants..."
-    );
+    const variants =
+      await getVariantsByProductId(id);
 
-    const variants = await getVariantsByProductId(id);
-
-    console.log(
-      "[products.by-id.service][GET] Variants count:",
-      variants?.length ?? 0
-    );
-
-    console.log(
-      "[products.by-id.service][GET] Variants data:",
-      variants
-    );
-
-    console.log(
-      "[products.by-id.service][GET] Fetching shipping rates..."
-    );
-
-    const shippingRates =
+    const shipping_rates =
       await getShippingRatesByProduct(id);
 
-    console.log(
-      "[products.by-id.service][GET] Shipping rates:",
-      shippingRates
-    );
+    const enrichedVariants =
+      variants.map((v: any) => ({
+        ...v,
 
-    const enrichedVariants = variants.map((v) => ({
-      ...v,
-      finalPrice:
-        v.saleEnabled &&
-        v.salePrice &&
-        v.salePrice < v.price
-          ? v.salePrice
-          : v.price,
-    }));
+        final_price:
+          calcVariantFinalPrice(v),
+      }));
 
-    console.log(
-      "[products.by-id.service][GET] Enriched variants:",
-      enrichedVariants
-    );
+    const prices =
+      enrichedVariants.map(
+        (v: any) => v.final_price
+      );
 
-    const prices = enrichedVariants.map(
-      (v) => v.finalPrice
-    );
-
-    console.log(
-      "[products.by-id.service][GET] Calculated prices:",
-      prices
-    );
-
-    const response = {
+    return {
       ...product,
-      hasVariants: variants.length > 0,
-      minPrice: prices.length
-        ? Math.min(...prices)
-        : null,
-      maxPrice: prices.length
-        ? Math.max(...prices)
-        : null,
-      variants: enrichedVariants,
-      shippingRates,
+
+      has_variants:
+        variants.length > 0,
+
+      min_price:
+        prices.length
+          ? Math.min(...prices)
+          : null,
+
+      max_price:
+        prices.length
+          ? Math.max(...prices)
+          : null,
+
+      variants:
+        enrichedVariants,
+
+      shipping_rates,
     };
-
-    console.log(
-      "[products.by-id.service][GET] Final response:",
-      response
-    );
-
-    console.log(
-      "[products.by-id.service][GET] ===== SUCCESS ====="
-    );
-
-    return response;
   } catch (error) {
     console.error(
-      "[products.by-id.service][GET] UNHANDLED ERROR:",
+      "[products.by-id.service][GET] ERROR:",
       error
     );
 
@@ -148,6 +141,7 @@ export async function getProductService(id: string) {
 /* =====================================================
    UPDATE PRODUCT
 ===================================================== */
+
 export async function updateProductService(
   id: string,
   userId: string,
@@ -158,106 +152,113 @@ export async function updateProductService(
   );
 
   try {
-    console.log(
-      "[products.by-id.service][PATCH] Product id:",
-      id
-    );
-
-    console.log(
-      "[products.by-id.service][PATCH] User id:",
-      userId
-    );
-
-    console.log(
-      "[products.by-id.service][PATCH] Request body:",
-      body
-    );
-
     if (!id) {
-      console.error(
-        "[products.by-id.service][PATCH] INVALID_PRODUCT_ID"
-      );
-
-      return { error: "INVALID_PRODUCT_ID" };
+      return {
+        error: "INVALID_PRODUCT_ID",
+      };
     }
 
-    console.log(
-      "[products.by-id.service][PATCH] Normalizing variants..."
-    );
+    const variants =
+      normalizeVariants(
+        body.variants ?? []
+      );
 
-    const variants = normalizeVariants(body.variants);
+    const hasVariants =
+      variants.length > 0;
 
-    console.log(
-      "[products.by-id.service][PATCH] Normalized variants:",
-      variants
-    );
-
-    const hasVariants = variants.length > 0;
-
-    console.log(
-      "[products.by-id.service][PATCH] hasVariants:",
+    const finalPrice =
       hasVariants
-    );
+        ? Math.min(
+            ...variants.map(
+              (v: any) =>
+                Number(
+                  v.final_price
+                )
+            )
+          )
+        : Number(
+            body.price ?? 0
+          );
 
-    const finalPrice = hasVariants
-      ? Math.min(...variants.map((v) => v.price))
-      : Number(body.price ?? 0);
-
-    console.log(
-      "[products.by-id.service][PATCH] finalPrice:",
-      finalPrice
-    );
-
-    const finalStock = hasVariants
-      ? variants.reduce(
-          (s, v) => s + v.stock,
-          0
-        )
-      : Number(body.stock ?? 0);
-
-    console.log(
-      "[products.by-id.service][PATCH] finalStock:",
-      finalStock
-    );
+    const finalStock =
+      hasVariants
+        ? variants.reduce(
+            (
+              sum: number,
+              v: any
+            ) =>
+              sum +
+              (
+                v.is_unlimited
+                  ? 0
+                  : Number(
+                      v.stock ?? 0
+                    )
+              ),
+            0
+          )
+        : Number(
+            body.stock ?? 0
+          );
 
     const payload = {
       name: body.name,
-      description: body.description,
-      detail: body.detail,
-      images: body.images,
-      thumbnail: body.thumbnail,
-      has_variants: hasVariants,
-      category_id:  body.category_id ??  body.category_id ??  null,
-      domestic_country_code:  body.domestic_country_code ??  body.domesticCountryCode ??  null,
-      price: finalPrice,
-      stock: finalStock,
 
-      sale_price: hasVariants
-        ? null
-        : body.salePrice ?? null,
+      description:
+        body.description,
+
+      detail:
+        body.detail,
+
+      images:
+        body.images,
+
+      thumbnail:
+        body.thumbnail,
+
+      category_id:
+        body.category_id ??
+        body.categoryId ??
+        null,
+
+      price:
+        finalPrice,
+
+      stock:
+        finalStock,
+
+      sale_price:
+        hasVariants
+          ? null
+          : (
+              body.sale_price ??
+              null
+            ),
 
       sale_enabled:
-        body.saleEnabled ?? false,
+        body.sale_enabled ??
+        false,
 
-      sale_stock: body.saleStock ?? 0,
+      sale_stock:
+        Number(
+          body.sale_stock ?? 0
+        ),
 
       sale_start:
-  body.saleStart ?? body.sale_start ?? null,
+        body.sale_start ??
+        null,
 
-sale_end:
-  body.saleEnd ?? body.sale_end ?? null,
+      sale_end:
+        body.sale_end ??
+        null,
 
-      is_active: body.isActive,
+      is_active:
+        body.is_active ??
+        true,
+
+      has_variants:
+        hasVariants,
     };
-
-    console.log(
-      "[products.by-id.service][PATCH] Update payload:",
-      payload
-    );
-
-    console.log(
-      "[products.by-id.service][PATCH] Updating product..."
-    );
 
     const updated =
       await updateProductBySeller(
@@ -266,115 +267,64 @@ sale_end:
         payload
       );
 
-    console.log(
-      "[products.by-id.service][PATCH] Update result:",
-      updated
-    );
-
     if (!updated) {
-      console.error(
-        "[products.by-id.service][PATCH] Product not found or update failed"
-      );
-
-      return { error: "NOT_FOUND" };
+      return {
+        error: "NOT_FOUND",
+      };
     }
 
-    console.log(
-      "[products.by-id.service][PATCH] Replacing variants..."
-    );
+    /* =========================
+       VARIANTS
+    ========================= */
 
     await replaceVariantsByProductId(
       id,
       variants
     );
 
-    console.log(
-      "[products.by-id.service][PATCH] Variants replaced successfully"
-    );
+    /* =========================
+       SHIPPING
+    ========================= */
 
-    console.log(
-      "[products.by-id.service][PATCH] Syncing final product price/stock..."
-    );
-
-    const syncResult =
-      await updateProductBySeller(
-  sellerId,
-  productId,
-  {
-    price: finalPrice,
-    stock: finalStock,
-    has_variants:
-      normalizedVariants.length > 0,
-  }
-);
-
-    console.log(
-      "[products.by-id.service][PATCH] Sync result:",
-      syncResult
-    );
+    const shippingRates =
+      body.shipping_rates ??
+      body.shippingRates;
 
     if (
-  Array.isArray(body.shippingRates)
-) {
-  console.log(
-    "[products.by-id.service][PATCH] Updating shipping rates..."
-  );
+      Array.isArray(
+        shippingRates
+      )
+    ) {
+      const cleanedRates =
+        normalizeShippingRates(
+          body
+        );
 
-  const shippingRatesPayload =
-    body.shippingRates.map((r: any) => ({
-      ...r,
+      await upsertShippingRates({
+        productId: id,
+        rates: cleanedRates,
+      });
+    }
 
-      domestic_country_code:
-        r.zone === "domestic"
-          ? (
-              body.domestic_country_code ??
-              body.domesticCountryCode ??
-              null
-            )
-          : null,
-    }));
-
-  console.log(
-    "[products.by-id.service][PATCH] Shipping rates payload:",
-    shippingRatesPayload
-  );
-
-  await upsertShippingRates({
-    productId: id,
-    rates: shippingRatesPayload,
-  });
-
-  console.log(
-    "[products.by-id.service][PATCH] Shipping rates updated successfully"
-  );
-} else {
-  console.log(
-    "[products.by-id.service][PATCH] No shippingRates provided"
-  );
-}
-
-    const response = {
+    return {
       success: true,
+
       data: {
         id,
-        price: finalPrice,
-        stock: finalStock,
+
+        price:
+          finalPrice,
+
+        stock:
+          finalStock,
+
+        has_variants:
+          hasVariants,
       },
     };
-
-    console.log(
-      "[products.by-id.service][PATCH] Final response:",
-      response
-    );
-
-    console.log(
-      "[products.by-id.service][PATCH] ===== SUCCESS ====="
-    );
-
-    return response;
   } catch (error) {
     console.error(
-      "[products.by-id.service][PATCH] UNHANDLED ERROR:",
+      "[products.by-id.service][PATCH] ERROR:",
       error
     );
 
@@ -387,6 +337,7 @@ sale_end:
 /* =====================================================
    DELETE PRODUCT
 ===================================================== */
+
 export async function deleteProductService(
   id: string,
   userId: string
@@ -396,74 +347,90 @@ export async function deleteProductService(
   );
 
   try {
-    console.log(
-      "[products.by-id.service][DELETE] Product id:",
-      id
-    );
-
-    console.log(
-      "[products.by-id.service][DELETE] User id:",
-      userId
-    );
-
-    console.log(
-      "[products.by-id.service][DELETE] Deleting product..."
-    );
-
-    const result = await deleteProductById(
-      id,
-      userId
-    );
-
-    console.log(
-      "[products.by-id.service][DELETE] Delete result:",
-      result
-    );
-
-    if (!result.ok) {
-      console.error(
-        "[products.by-id.service][DELETE] Delete failed:",
-        result.error
-      );
-
+    if (!id) {
       return {
-        error: result.error,
+        error: "INVALID_PRODUCT_ID",
       };
     }
 
-    if (result.paths?.length) {
-      console.log(
-        "[products.by-id.service][DELETE] Removing storage files..."
-      );
+    const product =
+      await getProductById(id);
 
-      console.log(
-        "[products.by-id.service][DELETE] Paths:",
-        result.paths
-      );
-
-      const storageResult =
-        await supabaseAdmin.storage
-          .from("products")
-          .remove(result.paths);
-
-      console.log(
-        "[products.by-id.service][DELETE] Storage remove result:",
-        storageResult
-      );
-    } else {
-      console.log(
-        "[products.by-id.service][DELETE] No storage files to remove"
-      );
+    if (!product) {
+      return {
+        error: "PRODUCT_NOT_FOUND",
+      };
     }
 
-    console.log(
-      "[products.by-id.service][DELETE] ===== SUCCESS ====="
+    const paths: string[] = [];
+
+    const collectPath = (
+      url?: string | null
+    ) => {
+      if (!url) {
+        return;
+      }
+
+      const marker =
+        "/products/";
+
+      const index =
+        url.indexOf(marker);
+
+      if (index === -1) {
+        return;
+      }
+
+      const path =
+        url.substring(
+          index +
+            marker.length
+        );
+
+      if (path) {
+        paths.push(path);
+      }
+    };
+
+    collectPath(
+      product.thumbnail
     );
 
-    return { success: true };
+    if (
+      Array.isArray(
+        product.images
+      )
+    ) {
+      for (const image of product.images) {
+        collectPath(image);
+      }
+    }
+
+    const result =
+      await deleteProductById(
+        id,
+        userId
+      );
+
+    if (!result.ok) {
+      return {
+        error:
+          "DELETE_FAILED",
+      };
+    }
+
+    if (paths.length) {
+      await supabaseAdmin.storage
+        .from("products")
+        .remove(paths);
+    }
+
+    return {
+      success: true,
+    };
   } catch (error) {
     console.error(
-      "[products.by-id.service][DELETE] UNHANDLED ERROR:",
+      "[products.by-id.service][DELETE] ERROR:",
       error
     );
 
