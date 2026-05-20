@@ -1,367 +1,466 @@
-import type { ProductVariant } from "@/components/product/types";
+import {
+  getAllProducts,
+  getProductsByIds,
+  createProduct,
+  updateProductBySeller,
+  deleteProductBySeller,
+} from "@/lib/db/products";
 
-/* =========================================================
-   TYPES
-========================================================= */
+import {
+  getVariantsByProductId,
+  replaceVariantsByProductId,
+} from "@/lib/db/variants";
 
-type VariantInput = {
-  id?: unknown;
+import {
+  getShippingRatesByProducts,
+  upsertShippingRates,
+} from "@/lib/db/shipping";
 
-  option1?: unknown;
-  option2?: unknown;
-  option3?: unknown;
-
-  optionLabel1?: unknown;
-  optionLabel2?: unknown;
-  optionLabel3?: unknown;
-
-  name?: unknown;
-
-  sku?: unknown;
-
-  price?: unknown;
-
-  salePrice?: unknown;
-
-  saleEnabled?: unknown;
-
-  saleStock?: unknown;
-
-  saleSold?: unknown;
-
-  stock?: unknown;
-
-  isUnlimited?: unknown;
-
-  image?: unknown;
-
-  isActive?: unknown;
-
-  sortOrder?: unknown;
-
-  sold?: unknown;
-};
+import { normalizeVariants } from "@/lib/validators/products";
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function isObject(
-  value: unknown
-): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function safeString(
-  value: unknown,
-  fallback = ""
-): string {
-  if (typeof value !== "string") {
-    return fallback;
-  }
-
-  return value.trim();
-}
-
-function safeNullableString(
-  value: unknown
-): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-
-  return trimmed.length > 0
-    ? trimmed
-    : null;
-}
-
-function safeNumber(
-  value: unknown,
-  fallback = 0
-): number {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return fallback;
-  }
-
-  const parsed = Number(value);
-
-  return Number.isNaN(parsed)
-    ? fallback
-    : parsed;
-}
-
-function safeNullableNumber(
-  value: unknown
-): number | null {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return null;
-  }
-
-  const parsed = Number(value);
-
-  return Number.isNaN(parsed)
-    ? null
-    : parsed;
-}
-
-function safeBoolean(
-  value: unknown,
-  fallback = false
-): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return value === "true";
-  }
-
-  return fallback;
-}
-
-function buildVariantName(
-  option1: string,
-  option2?: string | null,
-  option3?: string | null
-): string {
-  return [option1, option2, option3]
-    .filter(
-      (value): value is string =>
-        typeof value === "string" &&
-        value.trim().length > 0
-    )
-    .join(" - ");
+function getCategoryId(body: any) {
+  return (
+    body.category_id ??
+    body.categoryId ??
+    null
+  );
 }
 
 function calcFinalPrice(
-  price: number,
-  salePrice: number | null,
-  saleEnabled: boolean
-): number {
-  if (
-    saleEnabled &&
-    salePrice !== null &&
-    salePrice > 0 &&
-    salePrice < price
-  ) {
-    return salePrice;
+  variants: any[],
+  fallbackPrice: number
+) {
+  if (!variants.length) {
+    return fallbackPrice;
   }
 
-  return price;
+  return Math.min(
+    ...variants.map((v) =>
+      Number(v.final_price ?? v.price ?? 0)
+    )
+  );
+}
+
+function normalizeShippingRates(
+  body: any,
+  primaryCountry?: string
+) {
+  const rates =
+    body.shipping_rates ??
+    body.shippingRates ??
+    [];
+
+  return rates.map((r: any) => ({
+    zone: r.zone,
+
+    price: Number(r.price ?? 0),
+
+    domestic_country_code:
+      r.zone === "domestic"
+        ? (
+            r.domestic_country_code ??
+            primaryCountry ??
+            body.primary_shipping_country ??
+            body.primaryShippingCountry ??
+            body.domestic_country_code ??
+            null
+          )
+        : null,
+  }));
 }
 
 /* =========================================================
-   NORMALIZE SINGLE VARIANT
+   LIST PRODUCTS
 ========================================================= */
 
-export function normalizeVariant(
-  raw: unknown,
-  index = 0
-): ProductVariant | null {
-  if (!isObject(raw)) {
-    return null;
+export async function listProductsService(
+  req: Request
+) {
+  const { searchParams } = new URL(req.url);
+
+  const ids =
+    searchParams.get("ids");
+
+  const products = ids
+    ? await getProductsByIds(
+        ids
+          .split(",")
+          .filter(Boolean)
+      )
+    : await getAllProducts();
+
+  const productIds =
+    products.map((p) => p.id);
+
+  const shippingRows =
+    productIds.length > 0
+      ? await getShippingRatesByProducts(
+          productIds
+        )
+      : [];
+
+  const shippingMap =
+    new Map<string, any[]>();
+
+  for (const r of shippingRows) {
+    if (
+      !shippingMap.has(r.product_id)
+    ) {
+      shippingMap.set(
+        r.product_id,
+        []
+      );
+    }
+
+    shippingMap
+      .get(r.product_id)!
+      .push({
+        zone: r.zone,
+        price: r.price,
+        domestic_country_code:
+          r.domestic_country_code,
+      });
   }
 
-  const item = raw as VariantInput;
+  return Promise.all(
+    products.map(async (p) => {
+      const variants =
+        await getVariantsByProductId(
+          p.id
+        );
 
-  /* =========================
-     REQUIRED
-  ========================= */
+      const enrichedVariants =
+        variants.map((v: any) => {
+          const saleActive =
+            v.sale_enabled &&
+            v.sale_price !== null &&
+            Number(v.sale_price) > 0 &&
+            Number(v.sale_price) <
+              Number(v.price);
 
-  const option1 = safeString(
-    item.option1
+          return {
+            ...v,
+
+            final_price:
+              saleActive
+                ? Number(v.sale_price)
+                : Number(v.price),
+          };
+        });
+
+      const prices =
+        enrichedVariants.map(
+          (v: any) =>
+            Number(v.final_price)
+        );
+
+      return {
+        ...p,
+
+        has_variants:
+          variants.length > 0,
+
+        min_price:
+          prices.length
+            ? Math.min(...prices)
+            : null,
+
+        max_price:
+          prices.length
+            ? Math.max(...prices)
+            : null,
+
+        variants:
+          enrichedVariants,
+
+        shipping_rates:
+          shippingMap.get(p.id) ??
+          [],
+      };
+    })
   );
+}
 
-  if (!option1) {
-    console.warn(
-      "❌ [VARIANT] INVALID_OPTION1",
-      { index }
-    );
+/* =========================================================
+   CREATE PRODUCT
+========================================================= */
 
-    return null;
-  }
+export async function createProductService(
+  req: Request,
+  userId: string
+) {
+  const body =
+    await req.json();
 
-  const price = safeNumber(
-    item.price
-  );
-
-  const stock = safeNumber(
-    item.stock
-  );
-
-  /* =========================
-     OPTIONAL
-  ========================= */
-
-  const option2 =
-    safeNullableString(
-      item.option2
-    );
-
-  const option3 =
-    safeNullableString(
-      item.option3
-    );
-
-  const saleEnabled =
-    safeBoolean(
-      item.saleEnabled
-    );
-
-  const salePrice =
-    safeNullableNumber(
-      item.salePrice
+  const variants =
+    normalizeVariants(
+      body.variants || []
     );
 
   const finalPrice =
     calcFinalPrice(
-      price,
-      salePrice,
-      saleEnabled
+      variants,
+      Number(body.price || 0)
     );
 
-  /* =========================
-     NORMALIZED
-  ========================= */
+  const product =
+    await createProduct(userId, {
+      name: body.name,
 
-  const variant: ProductVariant = {
-    id:
-      safeNullableString(item.id) ??
-      undefined,
+      description:
+        body.description ?? "",
 
-    /* OPTIONS */
+      detail:
+        body.detail ?? "",
 
-    option1,
+      images:
+        body.images ?? [],
 
-    option2,
+      thumbnail:
+        body.thumbnail ?? "",
 
-    option3,
+      category_id:
+        getCategoryId(body),
 
-    optionLabel1:
-      safeNullableString(
-        item.optionLabel1
+      price: finalPrice,
+
+      stock: variants.length
+        ? variants.reduce(
+            (
+              s: number,
+              v: any
+            ) =>
+              s +
+              Number(
+                v.stock || 0
+              ),
+            0
+          )
+        : Number(
+            body.stock || 0
+          ),
+
+      sale_price:
+        body.sale_price ??
+        null,
+
+      sale_start:
+        body.sale_start ??
+        null,
+
+      sale_end:
+        body.sale_end ??
+        null,
+
+      sale_stock: Number(
+        body.sale_stock ?? 0
       ),
 
-    optionLabel2:
-      safeNullableString(
-        item.optionLabel2
-      ),
+      sale_enabled:
+        Boolean(
+          body.sale_enabled
+        ),
 
-    optionLabel3:
-      safeNullableString(
-        item.optionLabel3
-      ),
+      is_active:
+        body.is_active !== false,
+    });
 
-    name:
-      safeNullableString(item.name) ??
-      buildVariantName(
-        option1,
-        option2,
-        option3
-      ),
+  /* ================= VARIANTS ================= */
 
-    /* SKU */
+  if (variants.length) {
+    await replaceVariantsByProductId(
+      product.id,
+      variants
+    );
+  }
 
-    sku:
-      safeNullableString(item.sku),
+  /* ================= SHIPPING ================= */
 
-    /* PRICE */
+  const shippingRates =
+    normalizeShippingRates(
+      body,
+      body.primary_shipping_country
+    );
 
-    price,
+  if (shippingRates.length) {
+    await upsertShippingRates({
+      productId: product.id,
+      rates: shippingRates,
+    });
+  }
 
-    salePrice,
+  return {
+    success: true,
 
-    finalPrice,
-
-    currency: "PI",
-
-    /* FLASH SALE */
-
-    saleEnabled,
-
-    saleStock: safeNumber(
-      item.saleStock
-    ),
-
-    saleSold: safeNumber(
-      item.saleSold
-    ),
-
-    /* STOCK */
-
-    stock,
-
-    isUnlimited:
-      safeBoolean(
-        item.isUnlimited
-      ),
-
-    /* MEDIA */
-
-    image: safeString(
-      item.image
-    ),
-
-    /* STATUS */
-
-    isActive:
-      item.isActive !== false,
-
-    sortOrder: safeNumber(
-      item.sortOrder,
-      index
-    ),
-
-    /* ANALYTICS */
-
-    sold: safeNumber(
-      item.sold
-    ),
+    data: {
+      id: product.id,
+    },
   };
-
-  return variant;
 }
 
 /* =========================================================
-   NORMALIZE VARIANTS
+   UPDATE PRODUCT
 ========================================================= */
 
-export function normalizeVariants(
-  input: unknown
-): ProductVariant[] {
-  if (!Array.isArray(input)) {
-    return [];
+export async function updateProductService(
+  req: Request,
+  userId: string
+) {
+  const body =
+    await req.json();
+
+  const variants =
+    normalizeVariants(
+      body.variants || []
+    );
+
+  const finalPrice =
+    calcFinalPrice(
+      variants,
+      Number(body.price || 0)
+    );
+
+  const updated =
+    await updateProductBySeller(
+      userId,
+      body.id,
+      {
+        name: body.name,
+
+        description:
+          body.description,
+
+        detail:
+          body.detail,
+
+        images:
+          body.images,
+
+        thumbnail:
+          body.thumbnail,
+
+        category_id:
+          getCategoryId(body),
+
+        price: finalPrice,
+
+        stock: variants.length
+          ? variants.reduce(
+              (
+                s: number,
+                v: any
+              ) =>
+                s +
+                Number(
+                  v.stock || 0
+                ),
+              0
+            )
+          : Number(
+              body.stock || 0
+            ),
+
+        sale_price:
+          body.sale_price ??
+          null,
+
+        sale_enabled:
+          body.sale_enabled ??
+          false,
+
+        sale_start:
+          body.sale_start ??
+          null,
+
+        sale_end:
+          body.sale_end ??
+          null,
+
+        sale_stock:
+          body.sale_stock ??
+          0,
+
+        is_active:
+          body.is_active ??
+          true,
+      }
+    );
+
+  if (!updated) {
+    return {
+      error: "NOT_FOUND",
+    };
   }
 
-  const result: ProductVariant[] = [];
+  /* ================= VARIANTS ================= */
 
-  for (
-    let index = 0;
-    index < input.length;
-    index++
-  ) {
-    const normalized =
-      normalizeVariant(
-        input[index],
-        index
-      );
+  await replaceVariantsByProductId(
+    body.id,
+    variants
+  );
 
-    if (!normalized) {
-      continue;
-    }
+  /* ================= SHIPPING ================= */
 
-    result.push(normalized);
+  const shippingRates =
+    normalizeShippingRates(
+      body,
+      body.primary_shipping_country
+    );
+
+  if (shippingRates.length) {
+    await upsertShippingRates({
+      productId: body.id,
+      rates: shippingRates,
+    });
   }
 
-  return result;
+  return {
+    success: true,
+
+    data: {
+      id: body.id,
+      price: finalPrice,
+    },
+  };
+}
+
+/* =========================================================
+   DELETE PRODUCT
+========================================================= */
+
+export async function deleteProductService(
+  req: Request,
+  userId: string
+) {
+  const { searchParams } =
+    new URL(req.url);
+
+  const id =
+    searchParams.get("id");
+
+  if (!id) {
+    return {
+      error: "MISSING_ID",
+    };
+  }
+
+  const ok =
+    await deleteProductBySeller(
+      userId,
+      id
+    );
+
+  if (!ok) {
+    return {
+      error: "NOT_FOUND",
+    };
+  }
+
+  return {
+    success: true,
+  };
 }
