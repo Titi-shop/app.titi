@@ -40,8 +40,10 @@ function normalizeShippingRates(
   body: any,
   primaryCountry?: string
 ) {
-  const rates = body.shippingRates || [];
-
+  const rates =
+  body.shipping_rates ??
+  body.shippingRates ??
+  [];
   return rates.map((r: any) => ({
     zone: r.zone,
 
@@ -52,7 +54,8 @@ function normalizeShippingRates(
         ? (
             r.domestic_country_code ??
             primaryCountry ??
-            body.primaryShippingCountry ??
+            body.primary_shipping_country ??
+            body.primaryShippingCountry
             body.domestic_country_code ??
             null
           )
@@ -106,20 +109,35 @@ export async function listProductsService(req: Request) {
 
         return {
           ...v,
-          finalPrice: saleActive ? v.sale_price : v.price,
+         final_price: saleActive  ? v.sale_price  : v.price,
         };
       });
 
       const prices = enrichedVariants.map(v => v.finalPrice);
 
       return {
-        ...p,
-        hasVariants: variants.length > 0,
-        minPrice: prices.length ? Math.min(...prices) : null,
-        maxPrice: prices.length ? Math.max(...prices) : null,
-        variants: enrichedVariants,
-        shippingRates: shippingMap.get(p.id) ?? [],
-      };
+  ...p,
+
+  has_variants:
+    variants.length > 0,
+
+  min_price:
+    prices.length
+      ? Math.min(...prices)
+      : null,
+
+  max_price:
+    prices.length
+      ? Math.max(...prices)
+      : null,
+
+  variants:
+    enrichedVariants,
+
+  shipping_rates:
+    shippingMap.get(p.id) ??
+    [],
+};
     })
   );
 }
@@ -159,12 +177,16 @@ export async function createProductService(req: Request, userId: string) {
       ? variants.reduce((s, v) => s + Number(v.stock || 0), 0)
       : Number(body.stock || 0),
 
-    sale_price: body.salePrice ?? null,
-    sale_start: body.saleStart ?? null,
-    sale_end: body.saleEnd ?? null,
-    sale_stock: Number(body.saleStock ?? 0),
-    sale_enabled: Boolean(body.saleEnabled),
-
+    sale_price:
+  body.sale_price ?? null,
+sale_start:
+  body.sale_start ?? null,
+sale_end:
+  body.sale_end ?? null,
+sale_stock:
+  Number(body.sale_stock ?? 0),
+sale_enabled:
+  Boolean(body.sale_enabled),
     is_active: body.isActive !== false,
   });
 
@@ -174,7 +196,8 @@ export async function createProductService(req: Request, userId: string) {
   }
 
   /* ================= SHIPPING ================= */
-  if (body.shippingRates?.length) {
+ if (
+  body.shipping_rates?.length)
     const cleanedRates = normalizeShippingRates(
       body,
       body.primaryShippingCountry
@@ -211,18 +234,22 @@ export async function updateProductService(req: Request, userId: string) {
 
     category_id: getCategoryId(body),
 
-    price: finalPrice,
+    price: final_price,
 
     stock: variants.length
       ? variants.reduce((s, v) => s + Number(v.stock || 0), 0)
       : Number(body.stock || 0),
 
-    sale_price: body.salePrice ?? null,
-    sale_enabled: body.saleEnabled ?? false,
-    sale_start: body.saleStart ?? null,
-    sale_end: body.saleEnd ?? null,
-    sale_stock: body.saleStock ?? 0,
-
+    sale_price:
+  body.sale_price ?? null,
+sale_enabled:
+  body.sale_enabled ?? false,
+sale_start:
+  body.sale_start ?? null,
+sale_end:
+  body.sale_end ?? null,
+sale_stock:
+  body.sale_stock ?? 0,
     is_active: body.isActive ?? true,
   });
 
@@ -232,7 +259,8 @@ export async function updateProductService(req: Request, userId: string) {
   await replaceVariantsByProductId(body.id, variants);
 
   /* ================= SHIPPING (FIXED) ================= */
-  if (body.shippingRates?.length) {
+ if (
+  body.shipping_rates?.length)
     const cleanedRates = normalizeShippingRates(
       body,
       body.primaryShippingCountry
@@ -248,7 +276,7 @@ export async function updateProductService(req: Request, userId: string) {
     success: true,
     data: {
       id: body.id,
-      price: finalPrice,
+      price: final_price,
     },
   };
 }
