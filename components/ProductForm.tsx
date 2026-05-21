@@ -634,7 +634,7 @@ await onSubmit(payload);
                   return;
                 }
 
-                form.setsale_stock(value);
+                form.setSale_stock(value);
               }}
               placeholder={t.sale_stock}
               className="w-full border p-2 rounded"
