@@ -452,7 +452,7 @@ await onSubmit(payload);
 <select
   value={form.category_id ?? ""}
   onChange={(e) =>
-    form.setCategoryId(  e.target.value   ? Number(e.target.value)   : "")
+    form.setCategory_id(  e.target.value   ? Number(e.target.value)   : "")
   }
   className="w-full border p-2 rounded"
 >
