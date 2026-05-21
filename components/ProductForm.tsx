@@ -366,11 +366,12 @@ const payload: ProductPayload = {
       ? form.id
       : undefined,
   name: form.name,
-  category_id:
-    typeof form.category_id === "string" &&
-    form.category_id.trim().length > 0
-      ? form.category_id.trim()
-      : undefined,
+ category_id:
+  form.category_id !== "" &&
+  form.category_id !== null &&
+  form.category_id !== undefined
+    ? Number(form.category_id)
+    : undefined,
 
   description: form.description,
   detail: form.detail,
