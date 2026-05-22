@@ -18,11 +18,6 @@ type VariantInput = {
   option_label2?: unknown;
   option_label3?: unknown;
 
-  /* LEGACY SUPPORT */
-  optionLabel1?: unknown;
-  optionLabel2?: unknown;
-  optionLabel3?: unknown;
-
   /* BASIC */
   name?: unknown;
   sku?: unknown;
@@ -32,30 +27,16 @@ type VariantInput = {
   sale_price?: unknown;
   final_price?: unknown;
 
-  /* LEGACY SUPPORT */
-  salePrice?: unknown;
-
   currency?: unknown;
 
   /* SALE */
   sale_enabled?: unknown;
-
-  /* LEGACY SUPPORT */
-  saleEnabled?: unknown;
-
   sale_stock?: unknown;
   sale_sold?: unknown;
-
-  /* LEGACY SUPPORT */
-  saleStock?: unknown;
-  saleSold?: unknown;
 
   /* STOCK */
   stock?: unknown;
   is_unlimited?: unknown;
-
-  /* LEGACY SUPPORT */
-  isUnlimited?: unknown;
 
   /* MEDIA */
   image?: unknown;
@@ -63,13 +44,7 @@ type VariantInput = {
   /* STATUS */
   is_active?: unknown;
 
-  /* LEGACY SUPPORT */
-  isActive?: unknown;
-
   sort_order?: unknown;
-
-  /* LEGACY SUPPORT */
-  sortOrder?: unknown;
 
   /* ANALYTICS */
   sold?: unknown;
@@ -106,7 +81,8 @@ function safeNullableString(
     return null;
   }
 
-  const trimmed = value.trim();
+  const trimmed =
+    value.trim();
 
   return trimmed.length > 0
     ? trimmed
@@ -125,7 +101,8 @@ function safeNumber(
     return fallback;
   }
 
-  const n = Number(value);
+  const n =
+    Number(value);
 
   return Number.isNaN(n)
     ? fallback
@@ -143,7 +120,8 @@ function safeNullableNumber(
     return null;
   }
 
-  const n = Number(value);
+  const n =
+    Number(value);
 
   return Number.isNaN(n)
     ? null
@@ -154,15 +132,24 @@ function safeBoolean(
   value: unknown,
   fallback = false
 ): boolean {
-  if (typeof value === "boolean") {
+  if (
+    typeof value ===
+    "boolean"
+  ) {
     return value;
   }
 
-  if (typeof value === "string") {
+  if (
+    typeof value ===
+    "string"
+  ) {
     return value === "true";
   }
 
-  if (typeof value === "number") {
+  if (
+    typeof value ===
+    "number"
+  ) {
     return value === 1;
   }
 
@@ -194,16 +181,16 @@ function buildVariantName(
 
 function calcFinalPrice(
   price: number,
-  salePrice: number | null,
-  saleEnabled: boolean
+  sale_price: number | null,
+  sale_enabled: boolean
 ): number {
   if (
-    saleEnabled &&
-    salePrice !== null &&
-    salePrice > 0 &&
-    salePrice < price
+    sale_enabled &&
+    sale_price !== null &&
+    sale_price > 0 &&
+    sale_price < price
   ) {
-    return salePrice;
+    return sale_price;
   }
 
   return price;
@@ -260,23 +247,21 @@ export function normalizeVariant(
       item.price
     );
 
-  const saleEnabled =
+  const sale_enabled =
     safeBoolean(
-      item.sale_enabled ??
-        item.saleEnabled
+      item.sale_enabled
     );
 
-  const salePrice =
+  const sale_price =
     safeNullableNumber(
-      item.sale_price ??
-        item.salePrice
+      item.sale_price
     );
 
-  const finalPrice =
+  const final_price =
     calcFinalPrice(
       price,
-      salePrice,
-      saleEnabled
+      sale_price,
+      sale_enabled
     );
 
   /* ================= STOCK ================= */
@@ -286,10 +271,9 @@ export function normalizeVariant(
       item.stock
     );
 
-  const saleStock =
+  const sale_stock =
     safeNumber(
-      item.sale_stock ??
-        item.saleStock
+      item.sale_stock
     );
 
   /* ================= NORMALIZED ================= */
@@ -311,20 +295,17 @@ export function normalizeVariant(
 
       option_label1:
         safeNullableString(
-          item.option_label1 ??
-            item.optionLabel1
+          item.option_label1
         ),
 
       option_label2:
         safeNullableString(
-          item.option_label2 ??
-            item.optionLabel2
+          item.option_label2
         ),
 
       option_label3:
         safeNullableString(
-          item.option_label3 ??
-            item.optionLabel3
+          item.option_label3
         ),
 
       name:
@@ -349,30 +330,27 @@ export function normalizeVariant(
       price,
 
       sale_price:
-        saleEnabled
-          ? salePrice
+        sale_enabled
+          ? sale_price
           : null,
 
-      final_price:
-        finalPrice,
+      final_price,
 
       currency: "PI",
 
       /* SALE */
 
-      sale_enabled:
-        saleEnabled,
+      sale_enabled,
 
       sale_stock:
         Math.min(
-          saleStock,
+          sale_stock,
           stock
         ),
 
       sale_sold:
         safeNumber(
-          item.sale_sold ??
-            item.saleSold
+          item.sale_sold
         ),
 
       /* STOCK */
@@ -381,8 +359,7 @@ export function normalizeVariant(
 
       is_unlimited:
         safeBoolean(
-          item.is_unlimited ??
-            item.isUnlimited
+          item.is_unlimited
         ),
 
       /* MEDIA */
@@ -396,15 +373,13 @@ export function normalizeVariant(
 
       is_active:
         safeBoolean(
-          item.is_active ??
-            item.isActive,
+          item.is_active,
           true
         ),
 
       sort_order:
         safeNumber(
-          item.sort_order ??
-            item.sortOrder,
+          item.sort_order,
           index
         ),
 
