@@ -177,6 +177,35 @@ function slugify(
     .replace(/-+/g, "-");
 }
 
+async function generateUniqueSlug(
+  name: string
+): Promise<string> {
+  const baseSlug = slugify(name);
+
+  let slug = baseSlug;
+
+  let counter = 1;
+
+  while (true) {
+    const result = await query(
+      `
+      SELECT id
+      FROM products
+      WHERE slug = $1
+      LIMIT 1
+      `,
+      [slug]
+    );
+
+    if (result.rows.length === 0) {
+      return slug;
+    }
+
+    slug = `${baseSlug}-${counter}`;
+
+    counter++;
+  }
+}
 function normalizeStatus(
   status?: ProductStatus,
   isActive?: boolean
