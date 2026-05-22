@@ -201,13 +201,13 @@ export async function createProductService(
 
   const variants =
     normalizeVariants(
-      body.variants || []
+      body.variants ?? []
     );
 
   const finalPrice =
     calcFinalPrice(
       variants,
-      Number(body.price || 0)
+      Number(body.price ?? 0)
     );
 
   const product =
@@ -324,7 +324,7 @@ export async function updateProductService(
   const final_price =
     calcFinalPrice(
       variants,
-      Number(body.price || 0)
+      Number(body.price ?? 0)
     );
 
   const updated =
