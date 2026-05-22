@@ -22,10 +22,9 @@ import { normalizeVariants } from "@/lib/validators/products";
    HELPERS
 ========================================================= */
 
-function getCategoryId(body: any) {
+function getCategory_id(body: any) {
   return (
     body.category_id ??
-    body.categoryId ??
     null
   );
 }
@@ -56,7 +55,6 @@ function normalizeShippingRates(
 ) {
   const rates =
     body.shipping_rates ??
-    body.shippingRates ??
     [];
 
   return rates.map((r: any) => ({
@@ -70,7 +68,6 @@ function normalizeShippingRates(
             r.domestic_country_code ??
             primaryCountry ??
             body.primary_shipping_country ??
-            body.primaryShippingCountry ??
             body.domestic_country_code ??
             null
           )
@@ -141,7 +138,7 @@ export async function listProductsService(
 
       const enrichedVariants =
         variants.map((v: any) => {
-          const saleActive =
+          const sale_active =
             v.sale_enabled &&
             v.sale_price !== null &&
             Number(v.sale_price) > 0 &&
@@ -152,7 +149,7 @@ export async function listProductsService(
             ...v,
 
             final_price:
-              saleActive
+              sale_active
                 ? Number(v.sale_price)
                 : Number(v.price),
           };
@@ -350,7 +347,7 @@ export async function updateProductService(
           body.thumbnail,
 
         category_id:
-          getCategoryId(body),
+          getCategory_id(body),
 
         price: finalPrice,
 
