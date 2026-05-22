@@ -216,7 +216,6 @@ export async function updateProductService(
 
       category_id:
         body.category_id ??
-        body.categoryId ??
         null,
 
       price:
@@ -284,7 +283,7 @@ export async function updateProductService(
        SHIPPING
     ========================= */
 
-    const shippingRates =
+    const shipping_rates =
       body.shipping_rates ??
 
     if (
@@ -292,13 +291,13 @@ export async function updateProductService(
         shippingRates
       )
     ) {
-      const cleanedRates =
+      const cleaned_rates =
         normalizeShippingRates(
           body
         );
 
       await upsertShippingRates({
-        productId: id,
+        product_id: id,
         rates: cleanedRates,
       });
     }
