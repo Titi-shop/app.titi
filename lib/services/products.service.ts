@@ -100,26 +100,26 @@ export async function listProductsService(
     products.map((p) => p.id);
 
   const shipping_rows =
-    productIds.length > 0
+    product_ids.length > 0
       ? await getShippingRatesByProducts(
-          productIds
+          product_ids
         )
       : [];
 
   const shipping_map =
     new Map<string, any[]>();
 
-  for (const r of shippingRows) {
+  for (const r of shipping_ows) {
     if (
-      !shippingMap.has(r.product_id)
+      !shipping_map.has(r.product_id)
     ) {
-      shippingMap.set(
+      shipping_map.set(
         r.product_id,
         []
       );
     }
 
-    shippingMap
+    shipping_map
       .get(r.product_id)!
       .push({
         zone: r.zone,
@@ -156,7 +156,7 @@ export async function listProductsService(
         });
 
       const prices =
-        enrichedVariants.map(
+        enriched_ariants.map(
           (v: any) =>
             Number(v.final_price)
         );
@@ -178,10 +178,10 @@ export async function listProductsService(
             : null,
 
         variants:
-          enrichedVariants,
+          enriched_variants,
 
         shipping_rates:
-          shippingMap.get(p.id) ??
+          shipping_map.get(p.id) ??
           [],
       };
     })
@@ -194,7 +194,7 @@ export async function listProductsService(
 
 export async function createProductService(
   req: Request,
-  userId: string
+  user_d: string
 ) {
   const body =
     await req.json();
