@@ -460,23 +460,10 @@ export async function createProduct(
         input.sale_enabled,
     });
 
-  const slug =
-    slugify(
-      input.name
-    );
+  const slug = await generateUniqueSlug(  input.name );
+  const status =    normalizeStatus(  input.status,     input.is_active   );
 
-  const status =
-    normalizeStatus(
-      input.status,
-      input.is_active
-    );
-
-  const has_variants =
-    Array.isArray(
-      (input as any).variants
-    ) &&
-    (input as any).variants
-      .length > 0;
+  const has_variants =    Array.isArray(    (input as any).variants    ) &&    (input as any).variants    .length > 0;
 
   const result =
     await query<ProductRow>(
