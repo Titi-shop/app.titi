@@ -349,138 +349,73 @@ export async function getAllProducts(
   return result.rows.map(mapRow);
 }
 
+/* =========================================================
+   GET ALL PRODUCTS
+========================================================= */
 
-/* =====================================================
-   GET PRODUCT BY ID
-===================================================== */
-export async function getProductById(
-  productId: string
-): Promise<ProductRecord | null> {
-  console.log(
-    "\n🚀 [PRODUCTS][GET_BY_ID] ===== START ====="
+export async function getAllProducts(
+  limit = 20
+): Promise<ProductRecord[]> {
+  log("GET_ALL_START", {
+    limit,
+  });
+
+  const result =
+    await query<ProductRow>(
+      `
+      SELECT *
+      FROM products
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT $1
+      `,
+      [limit]
+    );
+
+  return result.rows.map(
+    mapRow
   );
+}
 
-  try {
-    console.log(
-      "📥 Incoming productId:",
-      productId
-    );
+/* =========================================================
+   GET PRODUCT BY ID
+========================================================= */
 
-    log("GET_BY_ID_START", {
-      productId,
-    });
+export async function getProductById(
+  product_id: string
+): Promise<ProductRecord | null> {
+  log("GET_BY_ID_START", {
+    product_id,
+  });
 
-    if (!productId) {
-      console.error(
-        "❌ Missing productId"
-      );
+  if (!product_id) {
+    return null;
+  }
 
-      return null;
-    }
+  if (!isUUID(product_id)) {
+    return null;
+  }
 
-    console.log(
-      "🔍 Validating UUID..."
-    );
-
-    if (!isUUID(productId)) {
-      console.error(
-        "❌ INVALID_PRODUCT_ID:",
-        productId
-      );
-
-      return null;
-    }
-
-    console.log(
-      "✅ UUID valid"
-    );
-
-    const sql = `
+  const result =
+    await query<ProductRow>(
+      `
       SELECT *
       FROM products
       WHERE id = $1
         AND deleted_at IS NULL
       LIMIT 1
-    `;
-
-    console.log(
-      "📜 SQL:",
-      sql
+      `,
+      [product_id]
     );
 
-    console.log(
-      "📦 SQL PARAMS:",
-      [productId]
-    );
+  const row =
+    result.rows[0] ?? null;
 
-    console.log(
-      "🗄️ Executing product query..."
-    );
-
-    const result =
-      await query<ProductRow>(
-        sql,
-        [productId]
-      );
-
-    console.log(
-      "✅ Query success"
-    );
-
-    console.log(
-      "📊 Rows count:",
-      result.rows.length
-    );
-
-    console.log(
-      "📦 RAW PRODUCT ROWS:",
-      result.rows
-    );
-
-    const row =
-      result.rows[0] ?? null;
-
-    console.log(
-      "🎯 Selected row:",
-      row
-    );
-
-    if (!row) {
-      console.warn(
-        "⚠️ PRODUCT_NOT_FOUND"
-      );
-
-      console.log(
-        "🏁 [PRODUCTS][GET_BY_ID] RETURN NULL\n"
-      );
-
-      return null;
-    }
-
-    console.log(
-      "🧩 Mapping database row..."
-    );
-
-    const mapped = mapRow(row);
-
-    console.log(
-      "✅ Mapped product:",
-      mapped
-    );
-
-    console.log(
-      "🏁 [PRODUCTS][GET_BY_ID] ===== SUCCESS =====\n"
-    );
-
-    return mapped;
-  } catch (error) {
-    console.error(
-      "💥 [PRODUCTS][GET_BY_ID] ERROR:",
-      error
-    );
-
-    throw error;
+  if (!row) {
+    return null;
   }
+
+  return mapRow(row);
 }
 
 /* =========================================================
@@ -488,13 +423,13 @@ export async function getProductById(
 ========================================================= */
 
 export async function getSellerProducts(
-  sellerId: string
+  seller_id: string
 ): Promise<ProductRecord[]> {
   log("GET_SELLER_PRODUCTS", {
-    sellerId,
+    seller_id,
   });
 
-  if (!isUUID(sellerId)) {
+  if (!isUUID(seller_id)) {
     return [];
   }
 
@@ -507,10 +442,12 @@ export async function getSellerProducts(
         AND deleted_at IS NULL
       ORDER BY created_at DESC
       `,
-      [sellerId]
+      [seller_id]
     );
 
-  return result.rows.map(mapRow);
+  return result.rows.map(
+    mapRow
+  );
 }
 
 /* =========================================================
@@ -518,43 +455,52 @@ export async function getSellerProducts(
 ========================================================= */
 
 export async function createProduct(
-  sellerId: string,
+  seller_id: string,
   input: CreateProductInput
 ): Promise<ProductRecord> {
   log("CREATE_START", input);
 
-  if (!isUUID(sellerId)) {
+  if (!isUUID(seller_id)) {
     throw new Error(
       "INVALID_SELLER_ID"
     );
   }
 
-  const price = safeNumber(
-    input.price
-  );
+  const price =
+    safeNumber(
+      input.price
+    );
 
-  const salePrice =
+  const sale_price =
     safeNullableNumber(
       input.sale_price
     );
 
-  const finalPrice =
+  const final_price =
     calcFinalPrice({
       price,
-      sale_price: salePrice,
+      sale_price,
       sale_enabled:
         input.sale_enabled,
     });
 
-  const slug = slugify(
-    input.name
-  );
+  const slug =
+    slugify(
+      input.name
+    );
 
   const status =
     normalizeStatus(
       input.status,
       input.is_active
     );
+
+  const has_variants =
+    Array.isArray(
+      (input as any).variants
+    ) &&
+    (input as any).variants
+      .length > 0;
 
   const result =
     await query<ProductRow>(
@@ -601,18 +547,23 @@ export async function createProduct(
       RETURNING *
       `,
       [
-        sellerId,
+        seller_id,
+
         input.name.trim(),
+
         slug,
 
         input.short_description ??
           "",
 
-        input.description ?? "",
+        input.description ??
+          "",
 
-        input.detail ?? "",
+        input.detail ??
+          "",
 
-        input.thumbnail ?? "",
+        input.thumbnail ??
+          "",
 
         normalizeImages(
           input.images
@@ -622,7 +573,8 @@ export async function createProduct(
           input.detail_images
         ),
 
-        input.video_url ?? "",
+        input.video_url ??
+          "",
 
         price,
 
@@ -667,7 +619,8 @@ export async function createProduct(
           input.sale_stock
         ),
 
-        input.meta_title ?? "",
+        input.meta_title ??
+          "",
 
         input.meta_description ??
           "",
@@ -675,8 +628,7 @@ export async function createProduct(
         input.is_active !==
           false,
 
-        Array.isArray((input as any).variants) &&
-(input as any).variants.length > 0,
+        has_variants,
       ]
     );
 
@@ -689,7 +641,10 @@ export async function createProduct(
     );
   }
 
-  log("CREATE_SUCCESS", row.id);
+  log(
+    "CREATE_SUCCESS",
+    row.id
+  );
 
   return mapRow(row);
 }
