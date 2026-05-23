@@ -311,7 +311,7 @@ export async function createProductService(
 
 export async function updateProductService(
   req: Request,
-  userId: string
+  user_id: string
 ) {
   const body =
     await req.json();
