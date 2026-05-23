@@ -1,5 +1,3 @@
-bạn nên viết lại file này .
-components/product/VariantEditor.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
