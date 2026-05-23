@@ -16,8 +16,10 @@ import {
   upsertShippingRates,
 } from "@/lib/db/shipping";
 
-import { normalizeVariants } from "@/lib/validators/products";
-
+import {
+  normalizeVariants,
+  validateProductPayload,
+} from "@/lib/validators/products";
 /* =========================================================
    TYPES
 ========================================================= */
