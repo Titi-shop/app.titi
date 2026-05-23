@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-import type { ProductVariant } from "@/types/product";
+import type {
+  ProductVariant,
+} from "@/types/Product";
 
 interface Props {
   variants: ProductVariant[];
@@ -20,18 +26,19 @@ const MIN_PRICE = 0.00001;
    HELPERS
 ========================================================= */
 
-const parseList = (
+function parseList(
   value: string
-): string[] =>
-  value
+): string[] {
+  return value
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+}
 
-const parseNumberInput = (
+function parseNumber(
   value: string
-): number | "" => {
-  if (value.trim() === "") {
+): number | "" {
+  if (!value.trim()) {
     return "";
   }
 
@@ -40,11 +47,11 @@ const parseNumberInput = (
   return Number.isNaN(parsed)
     ? ""
     : parsed;
-};
+}
 
-const normalizePrice = (
+function normalizePrice(
   value: number | ""
-): number | "" => {
+): number | "" {
   if (value === "") {
     return "";
   }
@@ -57,84 +64,104 @@ const normalizePrice = (
   }
 
   return value;
-};
+}
 
-const buildName = (
-  v: ProductVariant
-): string =>
-  [
-    v.option1,
-    v.option2,
-    v.option3,
+function buildVariantName(
+  variant: Partial<ProductVariant>
+): string {
+  return [
+    variant.option1,
+    variant.option2,
+    variant.option3,
   ]
     .filter(Boolean)
     .join(" - ");
+}
 
-const hydrateVariant = (
-  v: Partial<ProductVariant>
-): ProductVariant => {
-  const price = Number(
-    v.price ?? 0
-  );
-
-  const sale_price =
-    v.sale_price !== null &&
-    v.sale_price !== undefined
-      ? Number(v.sale_price)
-      : null;
-
-  const sale_enabled = Boolean(
-    v.sale_enabled
-  );
-
-  const final_price =
+function calcFinalPrice(
+  price: number,
+  sale_price: number | null,
+  sale_enabled: boolean
+): number {
+  const valid_sale =
     sale_enabled &&
     sale_price !== null &&
     sale_price > 0 &&
-    sale_price < price
-      ? sale_price
-      : price;
+    sale_price < price;
+
+  return valid_sale
+    ? sale_price
+    : price;
+}
+
+function hydrateVariant(
+  variant: Partial<ProductVariant>
+): ProductVariant {
+  const price = Number(
+    variant.price ?? 0
+  );
+
+  const sale_price =
+    variant.sale_price !==
+      undefined &&
+    variant.sale_price !== null
+      ? Number(
+          variant.sale_price
+        )
+      : null;
+
+  const sale_enabled =
+    Boolean(
+      variant.sale_enabled
+    );
 
   const stock = Number(
-    v.stock ?? 0
+    variant.stock ?? 0
   );
 
-  const sale_stock = Math.min(
-    Number(v.sale_stock ?? 0),
-    stock
-  );
+  const final_price =
+    calcFinalPrice(
+      price,
+      sale_price,
+      sale_enabled
+    );
 
   return {
-    id: v.id,
+    id: variant.id,
 
-    option1: v.option1 ?? "",
+    option1:
+      variant.option1 ?? "",
 
     option2:
-      v.option2 ?? null,
+      variant.option2 ??
+      null,
 
     option3:
-      v.option3 ?? null,
+      variant.option3 ??
+      null,
 
     option_label1:
-      v.option_label1 ?? "Color",
+      variant.option_label1 ??
+      "Color",
 
     option_label2:
-      v.option_label2 ?? null,
+      variant.option_label2 ??
+      null,
 
     option_label3:
-      v.option_label3 ?? null,
+      variant.option_label3 ??
+      null,
 
     name:
-      v.name ??
-      buildName(
-        v as ProductVariant
+      variant.name ??
+      buildVariantName(
+        variant
       ),
 
-    sku: v.sku ?? null,
+    sku:
+      variant.sku ?? null,
 
     price,
-
-    sale_enabled,
 
     sale_price:
       sale_enabled &&
@@ -144,28 +171,49 @@ const hydrateVariant = (
         ? sale_price
         : null,
 
-    sale_stock,
-    sale_sold: Number(
-      v.sale_sold ?? 0
+    final_price,
+
+    currency:
+      variant.currency ??
+      "PI",
+
+    sale_enabled,
+
+    sale_stock: Math.min(
+      Number(
+        variant.sale_stock ??
+          0
+      ),
+      stock
     ),
 
-    final_price,
-    stock,
-    sold: Number(v.sold ?? 0),
-    currency:
-      v.currency ?? "PI",
-    image: v.image ?? "",
-    is_active:
-      v.is_active !== false,
-    is_unlimited: Boolean(
-      v.is_unlimited
+    sale_sold: Number(
+      variant.sale_sold ?? 0
     ),
+
+    stock,
+
+    is_unlimited:
+      Boolean(
+        variant.is_unlimited
+      ),
+
+    image:
+      variant.image ?? "",
+
+    is_active:
+      variant.is_active !==
+      false,
 
     sort_order: Number(
-      v.sort_order ?? 0
+      variant.sort_order ?? 0
+    ),
+
+    sold: Number(
+      variant.sold ?? 0
     ),
   };
-};
+}
 
 /* =========================================================
    COMPONENT
@@ -207,145 +255,59 @@ export default function VariantEditor({
 
     hydrated.current = true;
 
+    const first =
+      variants[0];
+
     setLabel1(
-      variants[0]
-        ?.option_label1 ||
+      first.option_label1 ??
         "Color"
     );
 
     setLabel2(
-      variants[0]
-        ?.option_label2 ||
+      first.option_label2 ??
         "Size"
     );
 
-    const uniq1 = [
+    const unique1 = [
       ...new Set(
         variants
-          .map((v) => v.option1)
+          .map(
+            (v) => v.option1
+          )
           .filter(Boolean)
       ),
     ];
 
-    const uniq2 = [
+    const unique2 = [
       ...new Set(
         variants
-          .map((v) => v.option2)
+          .map(
+            (v) => v.option2
+          )
           .filter(Boolean)
       ),
     ];
 
     setValues1(
-      uniq1.join(", ")
+      unique1.join(", ")
     );
 
     setValues2(
-      uniq2.join(", ")
+      unique2.join(", ")
     );
   }, [variants]);
-
-  /* =========================================================
-     GENERATE VARIANTS
-  ========================================================= */
-
-  const generateVariants = () => {
-    const list1 =
-      parseList(values1);
-
-    const list2 =
-      parseList(values2);
-
-    const next: ProductVariant[] =
-      [];
-
-    if (!list1.length) {
-      setVariants([]);
-      return;
-    }
-
-    if (list2.length) {
-      for (const a of list1) {
-        for (const b of list2) {
-          const found =
-            variants.find(
-              (x) =>
-                x.option1 === a &&
-                x.option2 === b
-            );
-
-          next.push(
-            hydrateVariant({
-              ...found,
-
-              option1: a,
-              option2: b,
-
-              option_label1:
-                label1,
-
-              option_label2:
-                label2,
-
-              price:
-                found?.price ??
-                0,
-
-              stock:
-                found?.stock ??
-                0,
-            })
-          );
-        }
-      }
-    } else {
-      for (const a of list1) {
-        const found =
-          variants.find(
-            (x) =>
-              x.option1 === a &&
-              !x.option2
-          );
-
-        next.push(
-          hydrateVariant({
-            ...found,
-
-            option1: a,
-
-            option2: null,
-
-            option_label1:
-              label1,
-
-            option_label2:
-              null,
-
-            price:
-              found?.price ??
-              0,
-
-            stock:
-              found?.stock ??
-              0,
-          })
-        );
-      }
-    }
-
-    setVariants(next);
-  };
 
   /* =========================================================
      UPDATE FIELD
   ========================================================= */
 
-  const updateField = <
-    K extends keyof ProductVariant
+  function updateField<
+    K extends keyof ProductVariant,
   >(
     index: number,
     key: K,
     value: ProductVariant[K]
-  ) => {
+  ) {
     setVariants((prev) =>
       prev.map((old, i) => {
         if (i !== index) {
@@ -358,18 +320,18 @@ export default function VariantEditor({
         });
       })
     );
-  };
+  }
 
   /* =========================================================
      BULK SET
   ========================================================= */
 
-  const bulkSet = <
-    K extends keyof ProductVariant
+  function bulkSet<
+    K extends keyof ProductVariant,
   >(
     key: K,
     value: ProductVariant[K]
-  ) => {
+  ) {
     setVariants((prev) =>
       prev.map((old) =>
         hydrateVariant({
@@ -378,21 +340,99 @@ export default function VariantEditor({
         })
       )
     );
-  };
+  }
 
   /* =========================================================
      REMOVE
   ========================================================= */
 
-  const remove = (
+  function removeVariant(
     index: number
-  ) => {
+  ) {
     setVariants((prev) =>
       prev.filter(
         (_, i) => i !== index
       )
     );
-  };
+  }
+
+  /* =========================================================
+     GENERATE
+  ========================================================= */
+
+  function generateVariants() {
+    const list1 =
+      parseList(values1);
+
+    const list2 =
+      parseList(values2);
+
+    if (!list1.length) {
+      setVariants([]);
+      return;
+    }
+
+    const next: ProductVariant[] =
+      [];
+
+    for (const option1 of list1) {
+      if (list2.length) {
+        for (const option2 of list2) {
+          const found =
+            variants.find(
+              (v) =>
+                v.option1 ===
+                  option1 &&
+                v.option2 ===
+                  option2
+            );
+
+          next.push(
+            hydrateVariant({
+              ...found,
+
+              option1,
+              option2,
+
+              option_label1:
+                label1,
+
+              option_label2:
+                label2,
+            })
+          );
+        }
+
+        continue;
+      }
+
+      const found =
+        variants.find(
+          (v) =>
+            v.option1 ===
+              option1 &&
+            !v.option2
+        );
+
+      next.push(
+        hydrateVariant({
+          ...found,
+
+          option1,
+
+          option2: null,
+
+          option_label1:
+            label1,
+
+          option_label2:
+            null,
+        })
+      );
+    }
+
+    setVariants(next);
+  }
 
   /* =========================================================
      UI
@@ -404,8 +444,7 @@ export default function VariantEditor({
         {t.product_variants}
       </h2>
 
-      {/* GENERATOR */}
-      <div className="border p-3 rounded bg-gray-50 space-y-2">
+      <div className="border rounded bg-gray-50 p-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <input
             value={label1}
@@ -414,10 +453,10 @@ export default function VariantEditor({
                 e.target.value
               )
             }
-            className="border p-2 rounded"
             placeholder={
               t.option_1_label
             }
+            className="border rounded p-2"
           />
 
           <input
@@ -427,8 +466,8 @@ export default function VariantEditor({
                 e.target.value
               )
             }
-            className="border p-2 rounded"
             placeholder="Red, Blue"
+            className="border rounded p-2"
           />
 
           <input
@@ -438,10 +477,10 @@ export default function VariantEditor({
                 e.target.value
               )
             }
-            className="border p-2 rounded"
             placeholder={
               t.option_2_label
             }
+            className="border rounded p-2"
           />
 
           <input
@@ -451,8 +490,8 @@ export default function VariantEditor({
                 e.target.value
               )
             }
-            className="border p-2 rounded"
             placeholder="S, M"
+            className="border rounded p-2"
           />
         </div>
 
@@ -461,299 +500,11 @@ export default function VariantEditor({
           onClick={
             generateVariants
           }
-          className="w-full bg-blue-500 text-white py-2 rounded"
+          className="w-full rounded bg-blue-500 py-2 text-white"
         >
           {t.generate_variants}
         </button>
       </div>
-
-      {variants.length > 0 && (
-        <>
-          {/* BULK */}
-          <div className="grid grid-cols-3 gap-2">
-            <input
-              type="number"
-              step="0.00001"
-              min="0.00001"
-              inputMode="decimal"
-              placeholder={
-                t.bulk_price
-              }
-              className="border p-2 rounded"
-              onBlur={(e) => {
-                const parsed =
-                  parseNumberInput(
-                    e.target.value
-                  );
-
-                bulkSet(
-                  "price",
-                  normalizePrice(
-                    parsed
-                  ) as ProductVariant["price"]
-                );
-              }}
-            />
-
-            <input
-              type="number"
-              placeholder={
-                t.bulk_stock
-              }
-              className="border p-2 rounded"
-              onBlur={(e) =>
-                bulkSet(
-                  "stock",
-                  Number(
-                    e.target.value
-                  ) || 0
-                )
-              }
-            />
-
-            <button
-              type="button"
-              className="bg-orange-500 text-white rounded"
-              onClick={() =>
-                bulkSet(
-                  "sale_enabled",
-                  true
-                )
-              }
-            >
-              {t.enable_sale_all}
-            </button>
-          </div>
-
-          {/* TABLE */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2">
-                    {t.variant}
-                  </th>
-
-                  <th className="p-2">
-                    {t.price}
-                  </th>
-
-                  <th className="p-2">
-                    {t.stock}
-                  </th>
-
-                  <th className="p-2">
-                    {t.sale}
-                  </th>
-
-                  <th className="p-2"></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {variants.map(
-                  (v, i) => (
-                    <tr
-                      key={
-                        v.id ?? i
-                      }
-                      className="border-t"
-                    >
-                      {/* VARIANT */}
-                      <td className="p-2">
-                        {v.option1}
-
-                        {v.option2
-                          ? ` - ${v.option2}`
-                          : ""}
-                      </td>
-
-                      {/* PRICE */}
-                      <td className="p-2">
-                        <input
-                          type="number"
-                          step="0.00001"
-                          min="0.00001"
-                          inputMode="decimal"
-                          value={
-                            v.price ??
-                            ""
-                          }
-                          onChange={(
-                            e
-                          ) => {
-                            const parsed =
-                              parseNumberInput(
-                                e.target
-                                  .value
-                              );
-
-                            updateField(
-                              i,
-                              "price",
-                              parsed as ProductVariant["price"]
-                            );
-                          }}
-                          onBlur={() => {
-                            updateField(
-                              i,
-                              "price",
-                              normalizePrice(
-                                Number(
-                                  v.price
-                                )
-                              ) as ProductVariant["price"]
-                            );
-                          }}
-                          className="border p-1 w-24"
-                        />
-                      </td>
-
-                      {/* STOCK */}
-                      <td className="p-2">
-                        <input
-                          type="number"
-                          value={
-                            v.stock ??
-                            0
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            updateField(
-                              i,
-                              "stock",
-                              Number(
-                                e.target
-                                  .value
-                              ) || 0
-                            )
-                          }
-                          className="border p-1 w-20"
-                        />
-                      </td>
-
-                      {/* SALE */}
-                      <td className="p-2 space-y-1">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(
-                              v.sale_enabled
-                            )}
-                            onChange={(
-                              e
-                            ) =>
-                              updateField(
-                                i,
-                                "sale_enabled",
-                                e.target
-                                  .checked
-                              )
-                            }
-                          />
-
-                          {t.sale}
-                        </label>
-
-                        {v.sale_enabled && (
-                          <>
-                            <input
-                              type="number"
-                              step="0.00001"
-                              min="0.00001"
-                              inputMode="decimal"
-                              placeholder={
-                                t.sale_price
-                              }
-                              value={
-                                v.sale_price ??
-                                ""
-                              }
-                              onChange={(
-                                e
-                              ) => {
-                                const parsed =
-                                  parseNumberInput(
-                                    e.target
-                                      .value
-                                  );
-
-                                updateField(
-                                  i,
-                                  "sale_price",
-                                  parsed as ProductVariant["sale_price"]
-                                );
-                              }}
-                              onBlur={() => {
-                                updateField(
-                                  i,
-                                  "sale_price",
-                                  normalizePrice(
-                                    Number(
-                                      v.sale_price
-                                    )
-                                  ) as ProductVariant["sale_price"]
-                                );
-                              }}
-                              className="border p-1 w-24 block"
-                            />
-
-                            <input
-                              type="number"
-                              placeholder={
-                                t.sale_stock
-                              }
-                              value={
-                                v.sale_stock ??
-                                0
-                              }
-                              onChange={(
-                                e
-                              ) => {
-                                const value =
-                                  Number(
-                                    e.target
-                                      .value
-                                  ) || 0;
-
-                                updateField(
-                                  i,
-                                  "sale_stock",
-                                  Math.min(
-                                    value,
-                                    Number(
-                                      v.stock
-                                    )
-                                  )
-                                );
-                              }}
-                              className="border p-1 w-24 block"
-                            />
-                          </>
-                        )}
-                      </td>
-
-                      {/* REMOVE */}
-                      <td className="p-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            remove(i)
-                          }
-                          className="text-red-500"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
     </div>
   );
 }
