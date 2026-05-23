@@ -204,8 +204,8 @@ export async function createProductService(
       body.variants ?? []
     );
 
-  const finalPrice =
-    calcFinalPrice(
+  const final_price =
+    calc_final_price(
       variants,
       Number(body.price ?? 0)
     );
@@ -227,9 +227,9 @@ export async function createProductService(
         body.thumbnail ?? "",
 
       category_id:
-        getCategoryId(body),
+        get_category_id(body),
 
-      price: finalPrice,
+      price: final_price,
 
       stock: variants.length
         ? variants.reduce(
@@ -291,7 +291,7 @@ export async function createProductService(
 
   if (cleanedRates.length) {
     await upsertShippingRates({
-      productId: product.id,
+      product_id: product_id,
       rates: cleanedRates,
     });
   }
@@ -300,7 +300,7 @@ export async function createProductService(
     success: true,
 
     data: {
-      id: product.id,
+      id: product_id,
     },
   };
 }
@@ -322,14 +322,14 @@ export async function updateProductService(
     );
 
   const final_price =
-    calcFinalPrice(
+    calc_final_price(
       variants,
       Number(body.price ?? 0)
     );
 
   const updated =
     await updateProductBySeller(
-      userId,
+      user_id,
       body.id,
       {
         name: body.name,
@@ -347,9 +347,9 @@ export async function updateProductService(
           body.thumbnail,
 
         category_id:
-          getCategory_id(body),
+          get_category_id(body),
 
-        price: finalPrice,
+        price: final_price,
 
         stock: variants.length
           ? variants.reduce(
@@ -418,7 +418,7 @@ export async function updateProductService(
   if (cleanedRates.length) {
     await upsertShippingRates({
       productId: body.id,
-      rates: cleanedRates,
+      rates: cleaned_rates,
     });
   }
 
@@ -427,7 +427,7 @@ export async function updateProductService(
 
     data: {
       id: body.id,
-      price: finalPrice,
+      price: final_price,
     },
   };
 }
@@ -438,7 +438,7 @@ export async function updateProductService(
 
 export async function deleteProductService(
   req: Request,
-  userId: string
+  user_id: string
 ) {
   const { searchParams } =
     new URL(req.url);
@@ -454,7 +454,7 @@ export async function deleteProductService(
 
   const ok =
     await deleteProductBySeller(
-      userId,
+      user_id,
       id
     );
 
