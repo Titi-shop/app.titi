@@ -192,26 +192,26 @@ export async function listProductsService(
    CREATE PRODUCT
 ========================================================= */
 
-export async function createProductService(
+
+        export async function createProductService(
   req: Request,
-  user_id: string
+  userId: string
 ) {
-  const body =
-    await req.json();
+  const body = await req.json();
 
   const variants =
     normalizeVariants(
       body.variants ?? []
     );
 
-  const final_price =
-    calc_final_price(
+  const finalPrice =
+    calcFinalPrice(
       variants,
       Number(body.price ?? 0)
     );
 
   const product =
-    await createProduct(user_d, {
+    await createProduct(userId, {
       name: body.name,
 
       description:
@@ -227,50 +227,65 @@ export async function createProductService(
         body.thumbnail ?? "",
 
       category_id:
-        get_category_id(body),
+        getCategoryId(body),
 
-      price: final_price,
+      price: finalPrice,
 
       stock: variants.length
         ? variants.reduce(
-            (
-              s: number,
-              v: any
-            ) =>
-              s +
-              Number(
-                v.stock || 0
-              ),
+            (s: number, v: any) =>
+              s + Number(v.stock || 0),
             0
           )
-        : Number(
-            body.stock || 0
-          ),
+        : Number(body.stock || 0),
 
       sale_price:
-        body.sale_price ??
-        null,
+        body.sale_price ?? null,
 
       sale_start:
-        body.sale_start ??
-        null,
+        body.sale_start ?? null,
 
       sale_end:
-        body.sale_end ??
-        null,
+        body.sale_end ?? null,
 
-      sale_stock: Number(
-        body.sale_stock ?? 0
-      ),
+      sale_stock:
+        Number(body.sale_stock ?? 0),
 
       sale_enabled:
-        Boolean(
-          body.sale_enabled
-        ),
+        Boolean(body.sale_enabled),
 
       is_active:
         body.is_active !== false,
     });
+
+  if (variants.length) {
+    await replaceVariantsByProductId(
+      product.id,
+      variants
+    );
+  }
+
+  const cleanedRates =
+    normalizeShippingRates(
+      body,
+      body.primary_shipping_country
+    );
+
+  if (cleanedRates.length) {
+    await upsertShippingRates({
+      productId: product.id,
+      rates: cleanedRates,
+    });
+  }
+
+  return {
+    success: true,
+
+    data: {
+      id: product.id,
+    },
+  };
+        }
 
   /* ================= VARIANTS ================= */
 
@@ -311,7 +326,7 @@ export async function createProductService(
 
 export async function updateProductService(
   req: Request,
-  user_id: string
+  userId: string
 ) {
   const body =
     await req.json();
@@ -329,7 +344,7 @@ export async function updateProductService(
 
   const updated =
     await updateProductBySeller(
-      user_id,
+      userId,
       body.id,
       {
         name: body.name,
@@ -438,7 +453,7 @@ export async function updateProductService(
 
 export async function deleteProductService(
   req: Request,
-  user_id: string
+  userId: string
 ) {
   const { searchParams } =
     new URL(req.url);
@@ -454,7 +469,7 @@ export async function deleteProductService(
 
   const ok =
     await deleteProductBySeller(
-      user_id,
+      userId,
       id
     );
 
