@@ -219,7 +219,7 @@ function normalizeStatus(
     : "active";
 }
 
-function calcFinalPrice(
+function calc_final_price(
   data: {
     price?: number;
     sale_price?: number | null;
