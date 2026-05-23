@@ -22,8 +22,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import {
   normalizeVariants,
+  validateProductPayload,
 } from "@/lib/validators/products";
-
 /* =====================================================
    TYPES
 ===================================================== */
