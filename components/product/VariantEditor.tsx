@@ -444,7 +444,8 @@ export default function VariantEditor({
         {t.product_variants}
       </h2>
 
-      <div className="border rounded bg-gray-50 p-3 space-y-2">
+      {/* GENERATOR */}
+      <div className="border p-3 rounded bg-gray-50 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <input
             value={label1}
@@ -453,10 +454,10 @@ export default function VariantEditor({
                 e.target.value
               )
             }
+            className="border p-2 rounded"
             placeholder={
               t.option_1_label
             }
-            className="border rounded p-2"
           />
 
           <input
@@ -466,8 +467,8 @@ export default function VariantEditor({
                 e.target.value
               )
             }
+            className="border p-2 rounded"
             placeholder="Red, Blue"
-            className="border rounded p-2"
           />
 
           <input
@@ -477,10 +478,10 @@ export default function VariantEditor({
                 e.target.value
               )
             }
+            className="border p-2 rounded"
             placeholder={
               t.option_2_label
             }
-            className="border rounded p-2"
           />
 
           <input
@@ -490,8 +491,8 @@ export default function VariantEditor({
                 e.target.value
               )
             }
+            className="border p-2 rounded"
             placeholder="S, M"
-            className="border rounded p-2"
           />
         </div>
 
@@ -500,11 +501,299 @@ export default function VariantEditor({
           onClick={
             generateVariants
           }
-          className="w-full rounded bg-blue-500 py-2 text-white"
+          className="w-full bg-blue-500 text-white py-2 rounded"
         >
           {t.generate_variants}
         </button>
       </div>
+
+      {variants.length > 0 && (
+        <>
+          {/* BULK */}
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="number"
+              step="0.00001"
+              min="0.00001"
+              inputMode="decimal"
+              placeholder={
+                t.bulk_price
+              }
+              className="border p-2 rounded"
+              onBlur={(e) => {
+                const parsed =
+                  parseNumberInput(
+                    e.target.value
+                  );
+
+                bulkSet(
+                  "price",
+                  normalizePrice(
+                    parsed
+                  ) as ProductVariant["price"]
+                );
+              }}
+            />
+
+            <input
+              type="number"
+              placeholder={
+                t.bulk_stock
+              }
+              className="border p-2 rounded"
+              onBlur={(e) =>
+                bulkSet(
+                  "stock",
+                  Number(
+                    e.target.value
+                  ) || 0
+                )
+              }
+            />
+
+            <button
+              type="button"
+              className="bg-orange-500 text-white rounded"
+              onClick={() =>
+                bulkSet(
+                  "sale_enabled",
+                  true
+                )
+              }
+            >
+              {t.enable_sale_all}
+            </button>
+          </div>
+
+          {/* TABLE */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-2">
+                    {t.variant}
+                  </th>
+
+                  <th className="p-2">
+                    {t.price}
+                  </th>
+
+                  <th className="p-2">
+                    {t.stock}
+                  </th>
+
+                  <th className="p-2">
+                    {t.sale}
+                  </th>
+
+                  <th className="p-2"></th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {variants.map(
+                  (v, i) => (
+                    <tr
+                      key={
+                        v.id ?? i
+                      }
+                      className="border-t"
+                    >
+                      {/* VARIANT */}
+                      <td className="p-2">
+                        {v.option1}
+
+                        {v.option2
+                          ? ` - ${v.option2}`
+                          : ""}
+                      </td>
+
+                      {/* PRICE */}
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          step="0.00001"
+                          min="0.00001"
+                          inputMode="decimal"
+                          value={
+                            v.price ??
+                            ""
+                          }
+                          onChange={(
+                            e
+                          ) => {
+                            const parsed =
+                              parseNumberInput(
+                                e.target
+                                  .value
+                              );
+
+                            updateField(
+                              i,
+                              "price",
+                              parsed as ProductVariant["price"]
+                            );
+                          }}
+                          onBlur={() => {
+                            updateField(
+                              i,
+                              "price",
+                              normalizePrice(
+                                Number(
+                                  v.price
+                                )
+                              ) as ProductVariant["price"]
+                            );
+                          }}
+                          className="border p-1 w-24"
+                        />
+                      </td>
+
+                      {/* STOCK */}
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          value={
+                            v.stock ??
+                            0
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            updateField(
+                              i,
+                              "stock",
+                              Number(
+                                e.target
+                                  .value
+                              ) || 0
+                            )
+                          }
+                          className="border p-1 w-20"
+                        />
+                      </td>
+
+                      {/* SALE */}
+                      <td className="p-2 space-y-1">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(
+                              v.sale_enabled
+                            )}
+                            onChange={(
+                              e
+                            ) =>
+                              updateField(
+                                i,
+                                "sale_enabled",
+                                e.target
+                                  .checked
+                              )
+                            }
+                          />
+
+                          {t.sale}
+                        </label>
+
+                        {v.sale_enabled && (
+                          <>
+                            <input
+                              type="number"
+                              step="0.00001"
+                              min="0.00001"
+                              inputMode="decimal"
+                              placeholder={
+                                t.sale_price
+                              }
+                              value={
+                                v.sale_price ??
+                                ""
+                              }
+                              onChange={(
+                                e
+                              ) => {
+                                const parsed =
+                                  parseNumberInput(
+                                    e.target
+                                      .value
+                                  );
+
+                                updateField(
+                                  i,
+                                  "sale_price",
+                                  parsed as ProductVariant["sale_price"]
+                                );
+                              }}
+                              onBlur={() => {
+                                updateField(
+                                  i,
+                                  "sale_price",
+                                  normalizePrice(
+                                    Number(
+                                      v.sale_price
+                                    )
+                                  ) as ProductVariant["sale_price"]
+                                );
+                              }}
+                              className="border p-1 w-24 block"
+                            />
+
+                            <input
+                              type="number"
+                              placeholder={
+                                t.sale_stock
+                              }
+                              value={
+                                v.sale_stock ??
+                                0
+                              }
+                              onChange={(
+                                e
+                              ) => {
+                                const value =
+                                  Number(
+                                    e.target
+                                      .value
+                                  ) || 0;
+
+                                updateField(
+                                  i,
+                                  "sale_stock",
+                                  Math.min(
+                                    value,
+                                    Number(
+                                      v.stock
+                                    )
+                                  )
+                                );
+                              }}
+                              className="border p-1 w-24 block"
+                            />
+                          </>
+                        )}
+                      </td>
+
+                      {/* REMOVE */}
+                      <td className="p-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            remove(i)
+                          }
+                          className="text-red-500"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
