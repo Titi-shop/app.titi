@@ -194,7 +194,7 @@ export async function listProductsService(
 
 export async function createProductService(
   req: Request,
-  user_d: string
+  user_id: string
 ) {
   const body =
     await req.json();
