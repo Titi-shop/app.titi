@@ -50,7 +50,12 @@ export default function ProductForm({
   const form = useProductForm(initialData);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
+  const [errors, setErrors] = useState<{
+  name?: boolean;
+  category?: boolean;
+  images?: boolean;
+  price?: boolean;
+    }>({});
   /* =========================
      HELPERS
   ========================= */
@@ -76,9 +81,7 @@ export default function ProductForm({
   ): Promise<void> =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-
       xhr.open("PUT", url);
-
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const percent = Math.round((e.loaded / e.total) * 100);
@@ -248,15 +251,19 @@ if (
       ========================= */
 
       if (!form.name.trim()) {
-        alert(t.invalid_product_name);
-        setSubmitting(false);
-        return;
-      }
+  setErrors({
+    name: true,
+  });
+  setSubmitting(false);
+  return;
+}
 if (
   !form.category_id ||
   Number(form.category_id) <= 0
 ) {
-  alert(t.category_required);
+  setErrors({
+    category: true,
+  });
   setSubmitting(false);
   return;
 }
@@ -273,12 +280,14 @@ if (
       ========================= */
 
       if (
-        !hasVariants &&
-        Number(form.price) < 0.00001
-      ) {
-        alert(t.price_minimum_error);
-        setSubmitting(false);
-        return;
+  !hasVariants &&
+  Number(form.price) < 0.00001
+) {
+  setErrors({
+    price: true,
+  });
+  setSubmitting(false);
+  return;
       }
 
       /* =========================
