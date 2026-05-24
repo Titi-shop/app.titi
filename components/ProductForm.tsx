@@ -193,7 +193,10 @@ export default function ProductForm({
 
         return `${prev}\n${html}`;
       });
-
+setErrors((prev) => ({
+  ...prev,
+  images: false,
+}));
     } catch (error) {
       console.error("💥 DETAIL IMAGE ERROR:", error);
 
@@ -545,8 +548,9 @@ await onSubmit(payload);
       onSubmit={handleSubmit}
       className="space-y-4"
     >
-      {/* CATEGORY */}
-  <select
+  
+  {/* CATEGORY */}
+<select
   required
   value={form.category_id ?? ""}
   onChange={(e) => {
@@ -567,13 +571,21 @@ await onSubmit(payload);
       : ""
   }`}
 >
+  <option value="">
+    {t.select_category}
+  </option>
+
+  {categories.map((category) => (
+    <option
+      key={category.id}
+      value={category.id}
+    >
       {t[
         category.key as keyof typeof t
       ] || category.key}
     </option>
   ))}
 </select>
-
       {/* NAME */}
       <input
   required
