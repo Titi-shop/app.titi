@@ -297,13 +297,24 @@ export async function createProductService(
   userId: string
 ) {
   const body =
-    (await req.json()) as ProductRequestBody;
+  (await req.json()) as ProductRequestBody;
 
-  const variants =
-    normalizeVariants(
-      body.variants ?? []
-    );
+/* =========================
+   VALIDATE PRODUCT
+========================= */
 
+const error =
+  validateProductPayload(body);
+
+if (error) {
+  return { error };
+}
+
+const variants =
+  normalizeVariants(
+    body.variants ?? []
+  );
+  
   const finalPrice =
     calcFinalPrice(
       variants,
@@ -407,12 +418,23 @@ export async function updateProductService(
   userId: string
 ) {
   const body =
-    (await req.json()) as ProductRequestBody;
+  (await req.json()) as ProductRequestBody;
 
-  const variants =
-    normalizeVariants(
-      body.variants ?? []
-    );
+/* =========================
+   VALIDATE PRODUCT
+========================= */
+
+const error =
+  validateProductPayload(body);
+
+if (error) {
+  return { error };
+}
+
+const variants =
+  normalizeVariants(
+    body.variants ?? []
+  );
 
   const finalPrice =
     calcFinalPrice(
