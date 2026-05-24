@@ -9,19 +9,16 @@ export interface Category {
 }
 
 /* =========================================================
-   PRODUCT STATUS
+   ENUMS
 ========================================================= */
+
+export type CurrencyCode = "PI";
 
 export type ProductStatus =
   | "draft"
   | "active"
-  | "inactive"
-  | "archived"
-  | "banned";
-
-/* =========================================================
-   SHIPPING ZONE
-========================================================= */
+  | "hidden"
+  | "archived";
 
 export type ShippingZone =
   | "domestic"
@@ -32,25 +29,34 @@ export type ShippingZone =
   | "rest_of_world";
 
 /* =========================================================
-   SHIPPING RATE
+   SHIPPING
 ========================================================= */
 
 export interface ShippingRate {
   id?: string;
-  zone: ShippingZone;
-  price: number;
-  currency?: "PI";
+
+  product_id?: string;
+
+  zone_id?: string;
+
+  zone?: ShippingZone;
+
   domestic_country_code?: string | null;
+
+  price: number;
+
+  currency?: CurrencyCode;
+
+  created_at?: string;
+
+  updated_at?: string;
 }
 
-/* =========================================================
-   SHIPPING FORM STATE
-========================================================= */
-
-export type ShippingRatesState = Record<
-  ShippingZone,
-  number | ""
->;
+export type ShippingRatesState =
+  Record<
+    ShippingZone,
+    number | ""
+  >;
 
 /* =========================================================
    PRODUCT VARIANT
@@ -59,13 +65,19 @@ export type ShippingRatesState = Record<
 export interface ProductVariant {
   id?: string;
 
+  product_id?: string;
+
   /* OPTIONS */
   option1: string;
+
   option2?: string | null;
+
   option3?: string | null;
 
   option_label1?: string | null;
+
   option_label2?: string | null;
+
   option_label3?: string | null;
 
   name?: string;
@@ -75,30 +87,142 @@ export interface ProductVariant {
 
   /* PRICE */
   price: number;
+
   sale_price?: number | null;
+
   final_price?: number;
-  currency?: "PI";
+
+  currency?: CurrencyCode;
 
   /* SALE */
   sale_enabled?: boolean;
+
   sale_stock?: number;
+
   sale_sold?: number;
 
   /* STOCK */
   stock: number;
+
   is_unlimited?: boolean;
+
+  sold?: number;
+
   /* MEDIA */
   image?: string;
+
   /* STATUS */
   is_active?: boolean;
+
   sort_order?: number;
 
-  /* ANALYTICS */
-  sold?: number;
+  /* TIME */
+  created_at?: string;
+
+  updated_at?: string;
+
+  deleted_at?: string | null;
 }
 
 /* =========================================================
-   PRODUCT FORM STATE
+   PRODUCT
+========================================================= */
+
+export interface ProductRecord {
+  /* PRIMARY */
+  id: string;
+
+  seller_id: string;
+
+  /* BASIC */
+  name: string;
+
+  slug: string;
+
+  short_description: string;
+
+  description: string;
+
+  detail: string;
+
+  /* MEDIA */
+  thumbnail: string;
+
+  images: string[];
+
+  detail_images: string[];
+
+  video_url: string;
+
+  /* CATEGORY */
+  category_id: number | null;
+
+  /* TYPE */
+  has_variants: boolean;
+
+  is_digital: boolean;
+
+  /* PRICE */
+  price: number;
+
+  sale_price: number | null;
+
+  final_price: number;
+
+  currency: CurrencyCode;
+
+  /* SALE */
+  sale_enabled: boolean;
+
+  sale_stock: number;
+
+  sale_sold: number;
+
+  sale_start: string | null;
+
+  sale_end: string | null;
+
+  /* STOCK */
+  stock: number;
+
+  is_unlimited: boolean;
+
+  sold: number;
+
+  /* ANALYTICS */
+  views: number;
+
+  rating_avg: number;
+
+  rating_count: number;
+
+  /* SEO */
+  meta_title: string;
+
+  meta_description: string;
+
+  /* STATUS */
+  status: ProductStatus;
+
+  is_active: boolean;
+
+  is_featured: boolean;
+
+  /* RELATIONS */
+  variants?: ProductVariant[];
+
+  shipping_rates?: ShippingRate[];
+
+  /* TIME */
+  created_at: string;
+
+  updated_at: string;
+
+  deleted_at?: string | null;
+}
+
+/* =========================================================
+   FORM STATE
 ========================================================= */
 
 export interface ProductFormState {
@@ -110,7 +234,7 @@ export interface ProductFormState {
   short_description: string;
   description: string;
   detail: string;
-  category_id: string | number | null;
+  category_id: number | "" | null;
 
   /* MEDIA */
   thumbnail: string | null;
@@ -118,113 +242,80 @@ export interface ProductFormState {
   detail_images: string[];
   video_url: string;
 
+  /* TYPE */
+  has_variants: boolean;
+  is_digital: boolean;
+
   /* PRICE */
   price: number | "";
   sale_price: number | "" | null;
   final_price?: number;
-  currency: "PI";
+  currency: CurrencyCode;
+
   /* SALE */
   sale_enabled: boolean;
   sale_stock: number | "";
   sale_sold?: number;
   sale_start: string | null;
   sale_end: string | null;
+
   /* STOCK */
   stock: number | "";
   is_unlimited: boolean;
+
   /* VARIANTS */
-  has_variants: boolean;
   variants: ProductVariant[];
+
   /* SHIPPING */
   shipping_rates: ShippingRatesState;
   domestic_country_code: string | null;
+
   /* STATUS */
   status: ProductStatus;
   is_active: boolean;
   is_featured: boolean;
-  is_digital: boolean;
+
   /* SEO */
   meta_title: string;
   meta_description: string;
 }
 
 /* =========================================================
-   PRODUCT PAYLOAD
+   PAYLOAD
 ========================================================= */
 
 export interface ProductPayload {
   id?: string;
   name: string;
+  slug?: string;
   short_description?: string;
   description: string;
   detail: string;
-  category_id?: string | number | null;
+  category_id?: number | null;
   thumbnail?: string | null;
   images: string[];
   detail_images?: string[];
   video_url?: string;
+  has_variants?: boolean;
+  is_digital?: boolean;
   price?: number;
   sale_price?: number | null;
-  currency?: "PI";
+  final_price?: number;
+  currency?: CurrencyCode;
   sale_enabled?: boolean;
   sale_stock?: number;
   sale_start?: string | null;
   sale_end?: string | null;
   stock?: number;
   is_unlimited?: boolean;
-  has_variants?: boolean;
+  sold?: number;
   variants?: ProductVariant[];
   shipping_rates?: ShippingRate[];
   domestic_country_code?: string | null;
   status?: ProductStatus;
   is_active?: boolean;
   is_featured?: boolean;
-  is_digital?: boolean;
   meta_title?: string;
   meta_description?: string;
   idempotency_key?: string;
-}
-/* =========================================================
-   PRODUCT RECORD
-========================================================= */
-
-export interface ProductRecord {
-  id: string;
-  seller_id: string;
-  name: string;
-  slug: string;
-  short_description: string;
-  description: string;
-  detail: string;
-  thumbnail: string | null;
-  images: string[];
-  detail_images: string[];
-  video_url: string;
-  price: number;
-  sale_price: number | null;
-  final_price: number;
-  currency: "PI";
-  stock: number;
-  is_unlimited: boolean;
-  sold: number;
-  views: number;
-  rating_avg: number;
-  rating_count: number;
-  status: ProductStatus;
-  is_active: boolean;
-  is_featured: boolean;
-  is_digital: boolean;
-  category_id: number | null;
-  sale_enabled: boolean;
-  sale_stock: number;
-  sale_sold: number;
-  sale_start: string | null;
-  sale_end: string | null;
-  has_variants: boolean;
-  variants?: ProductVariant[];
-  meta_title: string;
-  meta_description: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string | null;
 }
