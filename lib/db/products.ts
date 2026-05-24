@@ -1,4 +1,5 @@
 import { query, withTransaction } from "@/lib/db";
+
 import type {
   ProductRow,
   ProductRecord,
@@ -14,10 +15,20 @@ import type {
 function log(
   step: string,
   data?: unknown
-) {
+): void {
   console.log(
-    `🧪 [DB][PRODUCTS][V2] ${step}`,
+    `🧪 [DB][PRODUCTS] ${step}`,
     data ?? ""
+  );
+}
+
+function logError(
+  step: string,
+  error: unknown
+): void {
+  console.error(
+    `💥 [DB][PRODUCTS] ${step}`,
+    error
   );
 }
 
@@ -45,13 +56,12 @@ function safeNumber(
     return fallback;
   }
 
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
-  if (Number.isNaN(parsed)) {
-    return fallback;
-  }
-
-  return parsed;
+  return Number.isNaN(parsed)
+    ? fallback
+    : parsed;
 }
 
 function safeNullableNumber(
@@ -65,13 +75,12 @@ function safeNullableNumber(
     return null;
   }
 
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
-  if (Number.isNaN(parsed)) {
-    return null;
-  }
-
-  return parsed;
+  return Number.isNaN(parsed)
+    ? null
+    : parsed;
 }
 
 function normalizeImages(
@@ -82,7 +91,9 @@ function normalizeImages(
   }
 
   return value.filter(
-    (item): item is string =>
+    (
+      item
+    ): item is string =>
       typeof item === "string" &&
       item.trim().length > 0
   );
@@ -95,8 +106,14 @@ function slugify(
     .toLowerCase()
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[^a-z0-9\s-]/g,
+      ""
+    )
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 }
@@ -104,28 +121,47 @@ function slugify(
 async function generateUniqueSlug(
   name: string
 ): Promise<string> {
-  const base_slug = slugify(name);
-  let slug = base_slug;
-  let counter = 1;
-  while (true) {
-    const result = await query(
-      `
-      SELECT id
-      FROM products
-      WHERE slug = $1
-      LIMIT 1
-      `,
-      [slug]
-    );
+  log(
+    "GENERATE_SLUG_START",
+    name
+  );
 
-    if (result.rows.length === 0) {
+  const baseSlug =
+    slugify(name);
+
+  let slug = baseSlug;
+  let counter = 1;
+
+  while (true) {
+    const result =
+      await query<{
+        id: string;
+      }>(
+        `
+        SELECT id
+        FROM products
+        WHERE slug = $1
+        LIMIT 1
+        `,
+        [slug]
+      );
+
+    if (
+      result.rows.length === 0
+    ) {
+      log(
+        "GENERATE_SLUG_SUCCESS",
+        slug
+      );
+
       return slug;
     }
 
-    slug = `${base_slug}-${counter}`;
+    slug = `${baseSlug}-${counter}`;
     counter++;
   }
 }
+
 function normalizeStatus(
   status?: ProductStatus,
   is_active?: boolean
@@ -140,39 +176,42 @@ function normalizeStatus(
 }
 
 function calcFinalPrice(
-  data: {
+  input: {
     price?: number;
     sale_price?: number | null;
     sale_enabled?: boolean;
-    sale_start?: string | null;
-    sale_end?: string | null;
   }
 ): number {
-  const price = safeNumber(
-    data.price
-  );
-
-  const sale_price =
-    safeNullableNumber(
-      data.sale_price
+  const price =
+    safeNumber(
+      input.price
     );
 
-  if (!data.sale_enabled) {
-    return price;
-  }
+  const salePrice =
+    safeNullableNumber(
+      input.sale_price
+    );
 
   if (
-    sale_price === null ||
-    sale_price <= 0
+    !input.sale_enabled
   ) {
     return price;
   }
 
-  if (sale_price >= price) {
+  if (
+    salePrice === null ||
+    salePrice <= 0
+  ) {
     return price;
   }
 
-  return sale_price;
+  if (
+    salePrice >= price
+  ) {
+    return price;
+  }
+
+  return salePrice;
 }
 
 function mapRow(
@@ -181,42 +220,56 @@ function mapRow(
   return {
     ...row,
 
-    price: safeNumber(row.price),
+    price: safeNumber(
+      row.price
+    ),
 
     sale_price:
       safeNullableNumber(
         row.sale_price
       ),
 
-    final_price: safeNumber(
-      row.final_price
+    final_price:
+      safeNumber(
+        row.final_price
+      ),
+
+    stock: safeNumber(
+      row.stock
     ),
 
-    stock: safeNumber(row.stock),
+    sale_stock:
+      safeNumber(
+        row.sale_stock
+      ),
 
-    sale_stock: safeNumber(
-      row.sale_stock
+    sale_sold:
+      safeNumber(
+        row.sale_sold
+      ),
+
+    sold: safeNumber(
+      row.sold
     ),
 
-    sale_sold: safeNumber(
-      row.sale_sold
+    views: safeNumber(
+      row.views
     ),
 
-    sold: safeNumber(row.sold),
+    rating_avg:
+      safeNumber(
+        row.rating_avg
+      ),
 
-    views: safeNumber(row.views),
+    rating_count:
+      safeNumber(
+        row.rating_count
+      ),
 
-    rating_avg: safeNumber(
-      row.rating_avg
-    ),
-
-    rating_count: safeNumber(
-      row.rating_count
-    ),
-
-    images: normalizeImages(
-      row.images
-    ),
+    images:
+      normalizeImages(
+        row.images
+      ),
 
     detail_images:
       normalizeImages(
@@ -224,7 +277,7 @@ function mapRow(
       ),
 
     is_active:
-      row.is_active !== false,
+      row.is_active === true,
 
     is_featured:
       row.is_featured === true,
@@ -243,8 +296,6 @@ function mapRow(
   };
 }
 
-
-
 /* =========================================================
    GET ALL PRODUCTS
 ========================================================= */
@@ -252,25 +303,43 @@ function mapRow(
 export async function getAllProducts(
   limit = 20
 ): Promise<ProductRecord[]> {
-  log("GET_ALL_START", {
-    limit,
-  });
+  log(
+    "GET_ALL_START",
+    { limit }
+  );
 
-  const result =
-    await query<ProductRow>(
-      `
-      SELECT *
-      FROM products
-      WHERE deleted_at IS NULL
-      ORDER BY created_at DESC
-      LIMIT $1
-      `,
-      [limit]
+  try {
+    const result =
+      await query<ProductRow>(
+        `
+        SELECT *
+        FROM products
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT $1
+        `,
+        [limit]
+      );
+
+    log(
+      "GET_ALL_SUCCESS",
+      {
+        count:
+          result.rows.length,
+      }
     );
 
-  return result.rows.map(
-    mapRow
-  );
+    return result.rows.map(
+      mapRow
+    );
+  } catch (error) {
+    logError(
+      "GET_ALL_ERROR",
+      error
+    );
+
+    throw error;
+  }
 }
 
 /* =========================================================
@@ -280,38 +349,129 @@ export async function getAllProducts(
 export async function getProductById(
   product_id: string
 ): Promise<ProductRecord | null> {
-  log("GET_BY_ID_START", {
-    product_id,
-  });
+  log(
+    "GET_BY_ID_START",
+    { product_id }
+  );
 
-  if (!product_id) {
-    return null;
-  }
+  try {
+    if (
+      !product_id ||
+      !isUUID(product_id)
+    ) {
+      log(
+        "GET_BY_ID_INVALID_ID",
+        product_id
+      );
 
-  if (!isUUID(product_id)) {
-    return null;
-  }
+      return null;
+    }
 
-  const result =
-    await query<ProductRow>(
-      `
-      SELECT *
-      FROM products
-      WHERE id = $1
-        AND deleted_at IS NULL
-      LIMIT 1
-      `,
-      [product_id]
+    const result =
+      await query<ProductRow>(
+        `
+        SELECT *
+        FROM products
+        WHERE id = $1
+          AND deleted_at IS NULL
+        LIMIT 1
+        `,
+        [product_id]
+      );
+
+    const row =
+      result.rows[0] ??
+      null;
+
+    if (!row) {
+      log(
+        "GET_BY_ID_NOT_FOUND",
+        product_id
+      );
+
+      return null;
+    }
+
+    log(
+      "GET_BY_ID_SUCCESS",
+      product_id
     );
 
-  const row =
-    result.rows[0] ?? null;
+    return mapRow(row);
+  } catch (error) {
+    logError(
+      "GET_BY_ID_ERROR",
+      error
+    );
 
-  if (!row) {
-    return null;
+    throw error;
   }
+}
 
-  return mapRow(row);
+/* =========================================================
+   GET PRODUCTS BY IDS
+========================================================= */
+
+export async function getProductsByIds(
+  ids: string[]
+): Promise<ProductRecord[]> {
+  log(
+    "GET_BY_IDS_START",
+    ids
+  );
+
+  try {
+    if (
+      !Array.isArray(ids)
+    ) {
+      throw new Error(
+        "INVALID_PRODUCT_IDS"
+      );
+    }
+
+    const validIds =
+      ids.filter(isUUID);
+
+    if (
+      validIds.length === 0
+    ) {
+      log(
+        "GET_BY_IDS_EMPTY"
+      );
+
+      return [];
+    }
+
+    const result =
+      await query<ProductRow>(
+        `
+        SELECT *
+        FROM products
+        WHERE id = ANY($1::uuid[])
+          AND deleted_at IS NULL
+        `,
+        [validIds]
+      );
+
+    log(
+      "GET_BY_IDS_SUCCESS",
+      {
+        count:
+          result.rows.length,
+      }
+    );
+
+    return result.rows.map(
+      mapRow
+    );
+  } catch (error) {
+    logError(
+      "GET_BY_IDS_ERROR",
+      error
+    );
+
+    throw error;
+  }
 }
 
 /* =========================================================
@@ -321,29 +481,49 @@ export async function getProductById(
 export async function getSellerProducts(
   seller_id: string
 ): Promise<ProductRecord[]> {
-  log("GET_SELLER_PRODUCTS", {
-    seller_id,
-  });
+  log(
+    "GET_SELLER_PRODUCTS_START",
+    { seller_id }
+  );
 
-  if (!isUUID(seller_id)) {
-    return [];
-  }
+  try {
+    if (
+      !isUUID(seller_id)
+    ) {
+      return [];
+    }
 
-  const result =
-    await query<ProductRow>(
-      `
-      SELECT *
-      FROM products
-      WHERE seller_id = $1
-        AND deleted_at IS NULL
-      ORDER BY created_at DESC
-      `,
-      [seller_id]
+    const result =
+      await query<ProductRow>(
+        `
+        SELECT *
+        FROM products
+        WHERE seller_id = $1
+          AND deleted_at IS NULL
+        ORDER BY created_at DESC
+        `,
+        [seller_id]
+      );
+
+    log(
+      "GET_SELLER_PRODUCTS_SUCCESS",
+      {
+        count:
+          result.rows.length,
+      }
     );
 
-  return result.rows.map(
-    mapRow
-  );
+    return result.rows.map(
+      mapRow
+    );
+  } catch (error) {
+    logError(
+      "GET_SELLER_PRODUCTS_ERROR",
+      error
+    );
+
+    throw error;
+  }
 }
 
 /* =========================================================
@@ -354,188 +534,237 @@ export async function createProduct(
   seller_id: string,
   input: CreateProductInput
 ): Promise<ProductRecord> {
-  log("CREATE_START", input);
-
-  if (!isUUID(seller_id)) {
-    throw new Error(
-      "INVALID_SELLER_ID"
-    );
-  }
-if (!input.name?.trim()) {
-  throw new Error(
-    "INVALID_PRODUCT_NAME"
-  );
-}
-   if (
-  !Array.isArray(input.images) ||
-  input.images.length === 0
-) {
-  throw new Error(
-    "PRODUCT_IMAGE_REQUIRED"
-  );
-   }
-  const price =
-    safeNumber(
-      input.price
-    );
-   
-if (price < 0) {
-  throw new Error(
-    "INVALID_PRODUCT_PRICE"
-  );
-}
-   
-  const sale_price =
-    safeNullableNumber(
-      input.sale_price
-    );
-   if (
-  sale_price !== null &&
-  sale_price >= price
-) {
-  throw new Error(
-    "INVALID_SALE_PRICE"
-  );
-   }
-
-  const final_price =
-    calcFinalPrice({
-      price,
-      sale_price,
-      sale_enabled:
-        input.sale_enabled,
-    });
-
-  const slug = await generateUniqueSlug(  input.name );
-  const status =    normalizeStatus(  input.status,     input.is_active   );
-  const has_variants =
-  Array.isArray(
-    (input as any).variants
-  ) &&
-  (input as any).variants.length > 0;
-  const result =
-    await query<ProductRow>(
-      `
-      INSERT INTO products (
-        seller_id,
-        name,
-        slug,
-        short_description,
-        description,
-        detail,
-        thumbnail,
-        images,
-        detail_images,
-        video_url,
-        price,
-        sale_price,
-        final_price,
-        currency,
-        stock,
-        is_unlimited,
-        is_featured,
-        is_digital,
-        status,
-        category_id,
-        sale_start,
-        sale_end,
-        sale_enabled,
-        sale_stock,
-        meta_title,
-        meta_description,
-        is_active,
-        has_variants
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,
-        $7,$8,$9,$10,
-        $11,$12,$13,$14,
-        $15,$16,$17,$18,
-        $19,$20,$21,$22,
-        $23,$24,$25,$26,
-        $27,$28
-      )
-      RETURNING *
-      `,
-      [
-        seller_id,
-        input.name.trim(),
-        slug,
-        input.short_description ??
-          "",
-        input.description ??
-          "",
-        input.detail ??   "",
-        input.thumbnail ??
-          "",
-        normalizeImages(
-          input.images
-        ),
-
-        normalizeImages(
-          input.detail_images
-        ),
-
-        input.video_url ??
-          "",
-        price,
-        sale_price,
-        final_price,
-        "PI",
-        safeNumber(
-          input.stock
-        ),
-
-        Boolean(
-          input.is_unlimited
-        ),
-
-        Boolean(
-          input.is_featured
-        ),
-
-        Boolean(
-          input.is_digital
-        ),
-
-        status,
-        input.category_id ??
-          null,
-        input.sale_start ??
-          null,
-        input.sale_end ??
-          null,
-        Boolean(
-          input.sale_enabled
-        ),
-        safeNumber(
-          input.sale_stock
-        ),
-        input.meta_title ??
-          "",
-        input.meta_description ??
-          "",
-        input.is_active !==
-          false,
-        has_variants,
-      ]
-    );
-
-  const row =
-    result.rows[0];
-
-  if (!row) {
-    throw new Error(
-      "FAILED_TO_CREATE_PRODUCT"
-    );
-  }
-
   log(
-    "CREATE_SUCCESS",
-    row.id
+    "CREATE_START",
+    input
   );
 
-  return mapRow(row);
+  try {
+    if (
+      !isUUID(seller_id)
+    ) {
+      throw new Error(
+        "INVALID_SELLER_ID"
+      );
+    }
+
+    if (
+      !input.name?.trim()
+    ) {
+      throw new Error(
+        "INVALID_PRODUCT_NAME"
+      );
+    }
+
+    if (
+      !Array.isArray(
+        input.images
+      ) ||
+      input.images.length === 0
+    ) {
+      throw new Error(
+        "PRODUCT_IMAGE_REQUIRED"
+      );
+    }
+
+    const price =
+      safeNumber(
+        input.price
+      );
+
+    if (price < 0) {
+      throw new Error(
+        "INVALID_PRODUCT_PRICE"
+      );
+    }
+
+    const salePrice =
+      safeNullableNumber(
+        input.sale_price
+      );
+
+    if (
+      salePrice !== null &&
+      salePrice >= price
+    ) {
+      throw new Error(
+        "INVALID_SALE_PRICE"
+      );
+    }
+
+    const finalPrice =
+      calcFinalPrice({
+        price,
+        sale_price:
+          salePrice,
+        sale_enabled:
+          input.sale_enabled,
+      });
+
+    const slug =
+      await generateUniqueSlug(
+        input.name
+      );
+
+    const status =
+      normalizeStatus(
+        input.status,
+        input.is_active
+      );
+
+    const result =
+      await query<ProductRow>(
+        `
+        INSERT INTO products (
+          seller_id,
+          name,
+          slug,
+          short_description,
+          description,
+          detail,
+          thumbnail,
+          images,
+          detail_images,
+          video_url,
+          price,
+          sale_price,
+          final_price,
+          currency,
+          stock,
+          is_unlimited,
+          is_featured,
+          is_digital,
+          status,
+          category_id,
+          sale_start,
+          sale_end,
+          sale_enabled,
+          sale_stock,
+          meta_title,
+          meta_description,
+          is_active,
+          has_variants
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,
+          $7,$8,$9,$10,
+          $11,$12,$13,$14,
+          $15,$16,$17,$18,
+          $19,$20,$21,$22,
+          $23,$24,$25,$26,
+          $27,$28
+        )
+        RETURNING *
+        `,
+        [
+          seller_id,
+          input.name.trim(),
+          slug,
+
+          input.short_description ??
+            "",
+
+          input.description ??
+            "",
+
+          input.detail ??
+            "",
+
+          input.thumbnail ??
+            "",
+
+          normalizeImages(
+            input.images
+          ),
+
+          normalizeImages(
+            input.detail_images
+          ),
+
+          input.video_url ??
+            "",
+
+          price,
+
+          salePrice,
+
+          finalPrice,
+
+          "PI",
+
+          safeNumber(
+            input.stock
+          ),
+
+          Boolean(
+            input.is_unlimited
+          ),
+
+          Boolean(
+            input.is_featured
+          ),
+
+          Boolean(
+            input.is_digital
+          ),
+
+          status,
+
+          input.category_id ??
+            null,
+
+          input.sale_start ??
+            null,
+
+          input.sale_end ??
+            null,
+
+          Boolean(
+            input.sale_enabled
+          ),
+
+          safeNumber(
+            input.sale_stock
+          ),
+
+          input.meta_title ??
+            "",
+
+          input.meta_description ??
+            "",
+
+          input.is_active !==
+            false,
+
+          Boolean(
+            input.has_variants
+          ),
+        ]
+      );
+
+    const row =
+      result.rows[0];
+
+    if (!row) {
+      throw new Error(
+        "FAILED_TO_CREATE_PRODUCT"
+      );
+    }
+
+    log(
+      "CREATE_SUCCESS",
+      row.id
+    );
+
+    return mapRow(row);
+  } catch (error) {
+    logError(
+      "CREATE_ERROR",
+      error
+    );
+
+    throw error;
+  }
 }
 
 /* =========================================================
@@ -547,533 +776,595 @@ export async function updateProductBySeller(
   product_id: string,
   input: UpdateProductInput
 ): Promise<ProductRecord | null> {
-  log("UPDATE_START", {
-    seller_id,
-    product_id,
-    input,
-  });
-
-  if (
-    !isUUID(seller_id) ||
-    !isUUID(product_id)
-  ) {
-    return null;
-  }
-if (
-  input.name !== undefined &&
-  !input.name.trim()
-) {
-  throw new Error(
-    "INVALID_PRODUCT_NAME"
-  );
-}
-
-if (
-  input.images !== undefined &&
-  input.images.length === 0
-) {
-  throw new Error(
-    "PRODUCT_IMAGE_REQUIRED"
-  );
-}
-  const current =
-    await getProductById(
-      product_id
-    );
-
-  if (!current) {
-    return null;
-  }
-
-  const next_price =
-    input.price !== undefined
-      ? safeNumber(input.price)
-      : current.price;
-
-  const next_sale_price =
-    input.sale_price !== undefined
-      ? safeNullableNumber(
-          input.sale_price
-        )
-      : current.sale_price;
-
-  const next_sale_enabled =
-    input.sale_enabled !==
-    undefined
-      ? Boolean(
-          input.sale_enabled
-        )
-      : current.sale_enabled;
-
-  const next_final_price =
-    calcFinalPrice({
-      price: next_price,
-      sale_price:
-        next_sale_price,
-      sale_enabled:
-        next_sale_enabled,
-    });
-
-  const next_status =
-    normalizeStatus(
-      input.status,
-      input.is_active
-    );
-
-  const result =
-    await query<ProductRow>(
-      `
-      UPDATE products
-      SET
-        name = $1,
-        slug = $2,
-        short_description = $3,
-        description = $4,
-        detail = $5,
-        thumbnail = $6,
-        images = $7,
-        detail_images = $8,
-        video_url = $9,
-        price = $10,
-        sale_price = $11,
-        final_price = $12,
-        stock = $13,
-        is_unlimited = $14,
-        is_featured = $15,
-        is_digital = $16,
-        status = $17,
-        category_id = $18,
-        sale_start = $19,
-        sale_end = $20,
-        sale_enabled = $21,
-        sale_stock = $22,
-        meta_title = $23,
-        meta_description = $24,
-        is_active = $25,
-        has_variants = $26,
-        updated_at = NOW()
-      WHERE id = $27
-        AND seller_id = $28
-        AND deleted_at IS NULL
-      RETURNING *
-      `,
-      [
-        input.name?.trim() ??
-          current.name,
-
-        slugify(
-          input.name ??
-            current.name
-        ),
-
-        input.short_description ??
-          current.short_description,
-        input.description ??
-          current.description,
-
-        input.detail ??
-          current.detail,
-
-        input.thumbnail ??
-          current.thumbnail,
-
-        input.images
-          ? normalizeImages(
-              input.images
-            )
-          : current.images,
-
-        input.detail_images
-          ? normalizeImages(
-              input.detail_images
-            )
-          : current.detail_images,
-
-        input.video_url ??
-          current.video_url,
-        next_price,
-        next_sale_price,
-        next_final_price,
-
-        input.stock !==
-        undefined
-          ? safeNumber(
-              input.stock
-            )
-          : current.stock,
-
-        input.is_unlimited !==
-        undefined
-          ? Boolean(
-              input.is_unlimited
-            )
-          : current.is_unlimited,
-
-        input.is_featured !==
-        undefined
-          ? Boolean(
-              input.is_featured
-            )
-          : current.is_featured,
-
-        input.is_digital !==
-        undefined
-          ? Boolean(
-              input.is_digital
-            )
-          : current.is_digital,
-
-        next_status,
-
-        input.category_id !==
-        undefined
-          ? input.category_id
-          : current.category_id,
-
-        input.sale_start !==
-        undefined
-          ? input.sale_start
-          : current.sale_start,
-
-        input.sale_end !==
-        undefined
-          ? input.sale_end
-          : current.sale_end,
-
-        next_sale_enabled,
-
-        input.sale_stock !==
-        undefined
-          ? safeNumber(
-              input.sale_stock
-            )
-          : current.sale_stock,
-
-        input.meta_title ??
-          current.meta_title,
-
-        input.meta_description ??
-          current.meta_description,
-
-        input.is_active !==
-undefined
-  ? input.is_active
-  : current.is_active,
-
-input.has_variants !== undefined
-  ? input.has_variants
-  : current.has_variants,
-
-product_id,
-seller_id,
-      ]
-    );
-
-  const row =
-    result.rows[0] ?? null;
-
-  if (!row) {
-    return null;
-  }
-
-  log("UPDATE_SUCCESS", row.id);
-  return mapRow(row);
-}
-
-/* =========================================================
-   SOFT DELETE
-========================================================= */
-
-export async function deleteProductBySeller(
-  seller_id: string,
-  product_id: string
-): Promise<boolean> {
-  log("DELETE_HARD_START", {
-    seller_id,
-    product_id,
-  });
-
-  if (!isUUID(seller_id) || !isUUID(product_id)) {
-    return false;
-  }
-
-  const result = await query(
-    `
-    DELETE FROM products
-    WHERE id = $1
-      AND seller_id = $2
-    RETURNING id
-    `,
-    [product_id, seller_id]
-  );
-
-  return result.rows.length > 0;
-}
-
-/* =========================================================
-   INCREMENT VIEW
-========================================================= */
-
-export async function incrementProductView(
-  product_id: string
-): Promise<number> {
-  const result =
-    await query<{
-      views: number;
-    }>(
-      `
-      UPDATE products
-      SET
-        views = views + 1,
-        updated_at = NOW()
-      WHERE id = $1
-      RETURNING views
-      `,
-      [product_id]
-    );
-
-  return safeNumber(
-    result.rows[0]?.views
-  );
-}
-/* =====================================================
-   GET PRODUCTS BY IDS
-===================================================== */
-export async function getProductsByIds(
-  ids: string[]
-) {
-  console.log(
-    "\n🚀 [PRODUCTS][GET_BY_IDS] ===== START ====="
+  log(
+    "UPDATE_START",
+    {
+      seller_id,
+      product_id,
+      input,
+    }
   );
 
   try {
-    console.log(
-      "📥 Incoming ids:",
-      ids
-    );
+    if (
+      !isUUID(seller_id) ||
+      !isUUID(product_id)
+    ) {
+      return null;
+    }
 
-    console.log(
-      "📊 Total ids:",
-      ids?.length ?? 0
-    );
-
-    if (!Array.isArray(ids)) {
-      console.error(
-        "❌ ids is not array"
-      );
-
+    if (
+      input.name !==
+        undefined &&
+      !input.name.trim()
+    ) {
       throw new Error(
-        "INVALID_PRODUCT_IDS"
+        "INVALID_PRODUCT_NAME"
       );
     }
 
-    if (!ids.length) {
-      console.warn(
-        "⚠️ Empty ids array"
+    if (
+      input.images !==
+        undefined &&
+      input.images.length === 0
+    ) {
+      throw new Error(
+        "PRODUCT_IMAGE_REQUIRED"
       );
-
-      console.log(
-        "🏁 [PRODUCTS][GET_BY_IDS] RETURN EMPTY ARRAY\n"
-      );
-
-      return [];
     }
 
-    console.log(
-      "🗄️ Executing database query..."
+    const current =
+      await getProductById(
+        product_id
+      );
+
+    if (!current) {
+      return null;
+    }
+
+    const nextPrice =
+      input.price !==
+      undefined
+        ? safeNumber(
+            input.price
+          )
+        : current.price;
+
+    const nextSalePrice =
+      input.sale_price !==
+      undefined
+        ? safeNullableNumber(
+            input.sale_price
+          )
+        : current.sale_price;
+
+    const nextSaleEnabled =
+      input.sale_enabled !==
+      undefined
+        ? Boolean(
+            input.sale_enabled
+          )
+        : current.sale_enabled;
+
+    const nextFinalPrice =
+      calcFinalPrice({
+        price: nextPrice,
+        sale_price:
+          nextSalePrice,
+        sale_enabled:
+          nextSaleEnabled,
+      });
+
+    const nextStatus =
+      normalizeStatus(
+        input.status,
+        input.is_active
+      );
+
+    const result =
+      await query<ProductRow>(
+        `
+        UPDATE products
+        SET
+          name = $1,
+          slug = $2,
+          short_description = $3,
+          description = $4,
+          detail = $5,
+          thumbnail = $6,
+          images = $7,
+          detail_images = $8,
+          video_url = $9,
+          price = $10,
+          sale_price = $11,
+          final_price = $12,
+          stock = $13,
+          is_unlimited = $14,
+          is_featured = $15,
+          is_digital = $16,
+          status = $17,
+          category_id = $18,
+          sale_start = $19,
+          sale_end = $20,
+          sale_enabled = $21,
+          sale_stock = $22,
+          meta_title = $23,
+          meta_description = $24,
+          is_active = $25,
+          has_variants = $26,
+          updated_at = NOW()
+        WHERE id = $27
+          AND seller_id = $28
+          AND deleted_at IS NULL
+        RETURNING *
+        `,
+        [
+          input.name?.trim() ??
+            current.name,
+
+          slugify(
+            input.name ??
+              current.name
+          ),
+
+          input.short_description ??
+            current.short_description,
+
+          input.description ??
+            current.description,
+
+          input.detail ??
+            current.detail,
+
+          input.thumbnail ??
+            current.thumbnail,
+
+          input.images
+            ? normalizeImages(
+                input.images
+              )
+            : current.images,
+
+          input.detail_images
+            ? normalizeImages(
+                input.detail_images
+              )
+            : current.detail_images,
+
+          input.video_url ??
+            current.video_url,
+
+          nextPrice,
+
+          nextSalePrice,
+
+          nextFinalPrice,
+
+          input.stock !==
+            undefined
+            ? safeNumber(
+                input.stock
+              )
+            : current.stock,
+
+          input.is_unlimited !==
+            undefined
+            ? Boolean(
+                input.is_unlimited
+              )
+            : current.is_unlimited,
+
+          input.is_featured !==
+            undefined
+            ? Boolean(
+                input.is_featured
+              )
+            : current.is_featured,
+
+          input.is_digital !==
+            undefined
+            ? Boolean(
+                input.is_digital
+              )
+            : current.is_digital,
+
+          nextStatus,
+
+          input.category_id !==
+            undefined
+            ? input.category_id
+            : current.category_id,
+
+          input.sale_start !==
+            undefined
+            ? input.sale_start
+            : current.sale_start,
+
+          input.sale_end !==
+            undefined
+            ? input.sale_end
+            : current.sale_end,
+
+          nextSaleEnabled,
+
+          input.sale_stock !==
+            undefined
+            ? safeNumber(
+                input.sale_stock
+              )
+            : current.sale_stock,
+
+          input.meta_title ??
+            current.meta_title,
+
+          input.meta_description ??
+            current.meta_description,
+
+          input.is_active !==
+            undefined
+            ? input.is_active
+            : current.is_active,
+
+          input.has_variants !==
+            undefined
+            ? input.has_variants
+            : current.has_variants,
+
+          product_id,
+          seller_id,
+        ]
+      );
+
+    const row =
+      result.rows[0] ??
+      null;
+
+    if (!row) {
+      return null;
+    }
+
+    log(
+      "UPDATE_SUCCESS",
+      row.id
     );
 
-    const sql = `
-      SELECT *
-      FROM products
-      WHERE id = ANY($1::uuid[])
-    `;
-
-    console.log(
-      "📜 SQL:",
-      sql
-    );
-
-    console.log(
-      "📦 SQL PARAMS:",
-      [ids]
-    );
-
-    const { rows } = await query(
-      sql,
-      [ids]
-    );
-
-    console.log(
-      "✅ Query success"
-    );
-
-    console.log(
-      "📊 Rows count:",
-      rows.length
-    );
-
-    console.log(
-      "📦 Rows data:",
-      rows
-    );
-
-    console.log(
-      "🏁 [PRODUCTS][GET_BY_IDS] ===== SUCCESS =====\n"
-    );
-
-    return rows;
+    return mapRow(row);
   } catch (error) {
-    console.error(
-      "💥 [PRODUCTS][GET_BY_IDS] ERROR:",
+    logError(
+      "UPDATE_ERROR",
       error
     );
 
     throw error;
   }
 }
+
+/* =========================================================
+   DELETE PRODUCT
+========================================================= */
+
+export async function deleteProductBySeller(
+  seller_id: string,
+  product_id: string
+): Promise<boolean> {
+  log(
+    "DELETE_START",
+    {
+      seller_id,
+      product_id,
+    }
+  );
+
+  try {
+    if (
+      !isUUID(seller_id) ||
+      !isUUID(product_id)
+    ) {
+      return false;
+    }
+
+    const result =
+      await query<{
+        id: string;
+      }>(
+        `
+        DELETE FROM products
+        WHERE id = $1
+          AND seller_id = $2
+        RETURNING id
+        `,
+        [
+          product_id,
+          seller_id,
+        ]
+      );
+
+    const success =
+      result.rows.length > 0;
+
+    log(
+      "DELETE_SUCCESS",
+      success
+    );
+
+    return success;
+  } catch (error) {
+    logError(
+      "DELETE_ERROR",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   DELETE PRODUCT FULL
+========================================================= */
+
 export async function deleteProductById(
   product_id: string,
   seller_id: string
-) {
-  return withTransaction(async (client) => {
-
-    // variants
-    await client.query(
-      `
-      DELETE FROM product_variants
-      WHERE product_id = $1
-      `,
-      [product_id]
-    );
-
-    // shipping
-    await client.query(
-      `
-      DELETE FROM shipping_rates
-      WHERE product_id = $1
-      `,
-      [product_id]
-    );
-
-    // cart
-    await client.query(
-      `
-      DELETE FROM cart_items
-      WHERE product_id = $1
-      `,
-      [product_id]
-    );
-
-    // wishlist
-    await client.query(
-      `
-      DELETE FROM favorites
-      WHERE product_id = $1
-      `,
-      [product_id]
-    );
-
-    // reviews
-    await client.query(
-      `
-      DELETE FROM product_reviews
-      WHERE product_id = $1
-      `,
-      [product_id]
-    );
-
-    // cuối cùng mới xóa product
-    const result = await client.query(
-      `
-      DELETE FROM products
-      WHERE id = $1
-        AND seller_id = $2
-      RETURNING id
-      `,
-      [product_id, seller_id]
-    );
-
-    return {
-      ok: result.rows.length > 0,
-    };
-  });
-}
-export async function getSoldByProduct(product_id: string) {
-  const { rows } = await query(
-    `
-    SELECT COALESCE(SUM(quantity), 0) as sold
-    FROM order_items
-    WHERE product_id = $1
-    `,
-    [product_id]
+): Promise<{
+  ok: boolean;
+}> {
+  log(
+    "DELETE_FULL_START",
+    {
+      product_id,
+      seller_id,
+    }
   );
 
-  return Number(rows[0]?.sold || 0);
+  return withTransaction(
+    async (client) => {
+      await client.query(
+        `
+        DELETE FROM product_variants
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+      await client.query(
+        `
+        DELETE FROM shipping_rates
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+      await client.query(
+        `
+        DELETE FROM cart_items
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+      await client.query(
+        `
+        DELETE FROM favorites
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+      await client.query(
+        `
+        DELETE FROM product_reviews
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+      const result =
+        await client.query<{
+          id: string;
+        }>(
+          `
+          DELETE FROM products
+          WHERE id = $1
+            AND seller_id = $2
+          RETURNING id
+          `,
+          [
+            product_id,
+            seller_id,
+          ]
+        );
+
+      const ok =
+        result.rows.length > 0;
+
+      log(
+        "DELETE_FULL_SUCCESS",
+        ok
+      );
+
+      return { ok };
+    }
+  );
 }
+
 /* =========================================================
-   RECALCULATE PRODUCT FROM VARIANTS
+   INCREMENT PRODUCT VIEW
+========================================================= */
+
+export async function incrementProductView(
+  product_id: string
+): Promise<number> {
+  log(
+    "INCREMENT_VIEW_START",
+    product_id
+  );
+
+  try {
+    const result =
+      await query<{
+        views: number;
+      }>(
+        `
+        UPDATE products
+        SET
+          views = views + 1,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING views
+        `,
+        [product_id]
+      );
+
+    const views =
+      safeNumber(
+        result.rows[0]?.views
+      );
+
+    log(
+      "INCREMENT_VIEW_SUCCESS",
+      views
+    );
+
+    return views;
+  } catch (error) {
+    logError(
+      "INCREMENT_VIEW_ERROR",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   GET SOLD COUNT
+========================================================= */
+
+export async function getSoldByProduct(
+  product_id: string
+): Promise<number> {
+  log(
+    "GET_SOLD_START",
+    product_id
+  );
+
+  try {
+    const result =
+      await query<{
+        sold: number;
+      }>(
+        `
+        SELECT
+          COALESCE(
+            SUM(quantity),
+            0
+          ) AS sold
+        FROM order_items
+        WHERE product_id = $1
+        `,
+        [product_id]
+      );
+
+    const sold =
+      safeNumber(
+        result.rows[0]?.sold
+      );
+
+    log(
+      "GET_SOLD_SUCCESS",
+      sold
+    );
+
+    return sold;
+  } catch (error) {
+    logError(
+      "GET_SOLD_ERROR",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   SYNC PRODUCT FROM VARIANTS
 ========================================================= */
 
 export async function syncProductFromVariants(
   product_id: string
 ): Promise<void> {
-  await withTransaction(
-    async (client) => {
-      log(
-        "SYNC_FROM_VARIANTS",
-        product_id
-      );
-
-      const result =
-        await client.query<{
-          min_price: number;
-          total_stock: number;
-        }>(
-          `
-          SELECT
-            MIN(final_price) AS min_price,
-
-            SUM(
-              CASE
-                WHEN is_unlimited
-                THEN 0
-                ELSE stock
-              END
-            ) AS total_stock
-
-          FROM product_variants
-
-          WHERE product_id = $1
-            AND deleted_at IS NULL
-            AND is_active = true
-          `,
-          [product_id]
-        );
-
-      const row =
-        result.rows[0];
-
-      await client.query(
-        `
-        UPDATE products
-        SET
-          final_price = $2,
-          stock = $3,
-          has_variants = true,
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [
-          product_id,
-          safeNumber(
-            row?.min_price
-          ),
-          safeNumber(
-            row?.total_stock
-          ),
-        ]
-      );
-    }
+  log(
+    "SYNC_VARIANTS_START",
+    product_id
   );
+
+  try {
+    await withTransaction(
+      async (client) => {
+        const result =
+          await client.query<{
+            min_price: number | null;
+            total_stock: number | null;
+          }>(
+            `
+            SELECT
+              MIN(final_price) AS min_price,
+
+              SUM(
+                CASE
+                  WHEN is_unlimited
+                  THEN 0
+                  ELSE stock
+                END
+              ) AS total_stock
+
+            FROM product_variants
+
+            WHERE product_id = $1
+              AND deleted_at IS NULL
+              AND is_active = true
+            `,
+            [product_id]
+          );
+
+        const row =
+          result.rows[0];
+
+        await client.query(
+          `
+          UPDATE products
+          SET
+            final_price = $2,
+            stock = $3,
+            has_variants = true,
+            updated_at = NOW()
+          WHERE id = $1
+          `,
+          [
+            product_id,
+
+            safeNumber(
+              row?.min_price
+            ),
+
+            safeNumber(
+              row?.total_stock
+            ),
+          ]
+        );
+      }
+    );
+
+    log(
+      "SYNC_VARIANTS_SUCCESS",
+      product_id
+    );
+  } catch (error) {
+    logError(
+      "SYNC_VARIANTS_ERROR",
+      error
+    );
+
+    throw error;
+  }
 }
