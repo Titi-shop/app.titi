@@ -416,12 +416,19 @@ if (!hasSaleTime) {
       ========================= */
 
       const shippingRatesPayload: ShippingRate[] =
-  Object.entries(form.shipping_rates).map(
-    ([zone, price]) => ({
-      zone: zone as ShippingRate["zone"],
-      price: Number(price || 0),
-    })
-  );
+  Object.entries(
+    form.shipping_rates
+  ).map(([zone, price]) => ({
+    zone:
+      zone as ShippingRate["zone"],
+
+    price: Number(price || 0),
+
+    domestic_country_code:
+      zone === "domestic"
+        ? form.domestic_country_code
+        : null,
+  }));
 
       /* =========================
          VARIANTS
