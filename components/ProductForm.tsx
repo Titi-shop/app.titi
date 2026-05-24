@@ -182,7 +182,7 @@ export default function ProductForm({
       });
 
       const urls = await Promise.all(uploads);
-
+     setErrors({});
       form.setDetail((prev: string) => {
         const html = urls
           .map((url) => `<img src="${url}" />`)
@@ -261,9 +261,11 @@ if (
   return;
 }
       if (!form.images.length) {
-        alert(t.product_need_image);
-        setSubmitting(false);
-        return;
+  setErrors({
+    images: true,
+  });
+  setSubmitting(false);
+  return;
       }
 
       /* =========================
@@ -536,6 +538,7 @@ await onSubmit(payload);
     >
       {/* CATEGORY */}
 <select
+  required
   value={form.category_id ?? ""}
   onChange={(e) =>
     form.setCategory_id(  e.target.value   ? Number(e.target.value)   : "")
@@ -559,7 +562,8 @@ await onSubmit(payload);
 
       {/* NAME */}
       <input
-        value={form.name}
+       required
+       value={form.name}
         onChange={(e) =>
           form.setName(e.target.value)
         }
@@ -598,7 +602,13 @@ await onSubmit(payload);
           ))}
         </div>
 
-        <label className="flex flex-col items-center justify-center border-2 border-dashed h-28 rounded-xl cursor-pointer hover:bg-gray-50">
+        <label
+  className={`flex flex-col items-center justify-center border-2 border-dashed h-28 rounded-xl cursor-pointer hover:bg-gray-50 ${
+    errors.images
+      ? "border-red-500"
+      : ""
+  }`}
+>
           {uploading
             ? t.uploading
             : t.upload_image}
@@ -623,6 +633,7 @@ await onSubmit(payload);
       {form.variants.length === 0 && (
         <>
           <input
+            required
             type="number"
             step="0.00001"
             min="0.00001"
