@@ -469,27 +469,31 @@ const payload: ProductPayload = {
     typeof form.id === "string"
       ? form.id
       : undefined,
+
   name: form.name,
- category_id:
-  form.category_id !== "" &&
-  form.category_id !== null &&
-  form.category_id !== undefined
-    ? Number(form.category_id)
-    : undefined,
+
+  category_id:
+    form.category_id !== "" &&
+    form.category_id !== null &&
+    form.category_id !== undefined
+      ? Number(form.category_id)
+      : undefined,
 
   description: form.description,
   detail: form.detail,
+
   images: form.images,
   thumbnail: form.images[0] || null,
+
   is_active: form.is_active,
 
-shipping_rates: shippingRatesPayload,
+  /* ADD THIS */
+  has_variant: hasVariants,
+
+  shipping_rates: shippingRatesPayload,
+
   domestic_country_code:
     form.primaryShippingCountry || null,
-
-  /* =====================================================
-     PRODUCT PRICE / STOCK
-  ===================================================== */
 
   price: hasVariants
     ? undefined
@@ -502,7 +506,7 @@ shipping_rates: shippingRatesPayload,
   sale_enabled:
     hasVariants
       ? hasVariantSale
-      :form.sale_enabled &&
+      : form.sale_enabled &&
         hasSaleTime &&
         hasSalePrice,
 
@@ -529,6 +533,7 @@ shipping_rates: shippingRatesPayload,
       : null,
 
   variants: normalizedVariants,
+
   idempotency_key: generateKey(),
 };
 
