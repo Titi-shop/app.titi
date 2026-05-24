@@ -1293,78 +1293,97 @@ export async function getSoldByProduct(
 export async function syncProductFromVariants(
   product_id: string
 ): Promise<void> {
-  log(
-    "SYNC_VARIANTS_START",
-    product_id
-  );
+  await withTransaction(
+    async (client) => {
+      log(
+        "SYNC_FROM_VARIANTS_START",
+        product_id
+      );
 
-  try {
-    await withTransaction(
-      async (client) => {
-        const result =
-          await client.query<{
-            min_price: number | null;
-            total_stock: number | null;
-          }>(
-            `
-            SELECT
-              MIN(final_price) AS min_price,
+      const result =
+        await client.query<{
+          variant_count: string;
+          min_price: string | null;
+          total_stock: string | null;
+        }>(
+          `
+          SELECT
+            COUNT(*)::text AS variant_count,
 
+            MIN(final_price)::text AS min_price,
+
+            COALESCE(
               SUM(
                 CASE
                   WHEN is_unlimited
                   THEN 0
                   ELSE stock
                 END
-              ) AS total_stock
+              ),
+              0
+            )::text AS total_stock
 
-            FROM product_variants
+          FROM product_variants
 
-            WHERE product_id = $1
-              AND deleted_at IS NULL
-              AND is_active = true
-            `,
-            [product_id]
-          );
-
-        const row =
-          result.rows[0];
-
-        await client.query(
-          `
-          UPDATE products
-          SET
-            final_price = $2,
-            stock = $3,
-            has_variants = true,
-            updated_at = NOW()
-          WHERE id = $1
+          WHERE product_id = $1
+            AND deleted_at IS NULL
+            AND is_active = true
           `,
-          [
-            product_id,
-
-            safeNumber(
-              row?.min_price
-            ),
-
-            safeNumber(
-              row?.total_stock
-            ),
-          ]
+          [product_id]
         );
-      }
-    );
 
-    log(
-      "SYNC_VARIANTS_SUCCESS",
-      product_id
-    );
-  } catch (error) {
-    logError(
-      "SYNC_VARIANTS_ERROR",
-      error
-    );
+      const row = result.rows[0];
 
-    throw error;
-  }
+      const variant_count =
+        safeNumber(
+          row?.variant_count
+        );
+
+      const has_variants =
+        variant_count > 0;
+
+      const min_price =
+        safeNumber(
+          row?.min_price
+        );
+
+      const total_stock =
+        safeNumber(
+          row?.total_stock
+        );
+
+      log(
+        "SYNC_FROM_VARIANTS_RESULT",
+        {
+          variant_count,
+          has_variants,
+          min_price,
+          total_stock,
+        }
+      );
+
+      await client.query(
+        `
+        UPDATE products
+        SET
+          final_price = $2,
+          stock = $3,
+          has_variants = $4,
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [
+          product_id,
+          min_price,
+          total_stock,
+          has_variants,
+        ]
+      );
+
+      log(
+        "SYNC_FROM_VARIANTS_SUCCESS",
+        product_id
+      );
+    }
+  );
 }
