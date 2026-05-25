@@ -64,7 +64,7 @@ export default function Navbar() {
           >
             <div className="relative h-11 w-11 overflow-hidden rounded-2xl bg-black">
               <Image
-                src="/logo.png"
+                src="/banners/3D035BE4-0822-403D-9631-6C4CF674A519.png"
                 alt="Logo"
                 fill
                 className="object-cover"
