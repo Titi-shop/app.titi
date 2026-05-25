@@ -166,28 +166,11 @@ setShop({
     }
   }, [t]);
 
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const profile = data.profile;
-
-      setShop({
-        shop_name: profile?.shop_name ?? null,
-        shop_banner: profile?.shop_banner ?? null,
-        avatar_url: profile?.avatar_url ?? null,
-        shop_description: profile?.shop_description ?? null,
-        rating: profile?.rating ?? 0,
-        total_reviews: profile?.total_reviews ?? 0,
-        total_sales: profile?.total_sales ?? 0,
-      });
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!authLoading) {
-      loadProducts();
-    }
-  }, [authLoading, loadProducts, loadProfile]);
+useEffect(() => {
+  if (!authLoading) {
+    loadProducts();
+  }
+}, [authLoading, loadProducts]);
    /* ================= BANNER ================= */
 const handleBannerUpload = async (
   e: React.ChangeEvent<HTMLInputElement>
