@@ -1,5 +1,5 @@
 "use client";
-import type { Product as DBProduct } from "@/types/Product";
+import type { Product as DBProduct ,SellerProduct} from "@/types/Product";
 import { Plus, Upload } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
@@ -15,21 +15,6 @@ const DEFAULT_AVATAR =
 /* =========================
    TYPES
 ========================= */
-type SellerProduct = {
-  id: string;
-  name: string;
-  price: number;
-  sale_price: number | null;
-  sale_start: string | null;
-  sale_end: string | null;
-  thumbnail: string;
-  stock: number;
-  sold: number;
-  rating_avg: number;
-  is_active: boolean;
-  min_price?: number;
-  min_sale_price?: number | null;
-};
 
 interface Message {
   text: string;
@@ -49,23 +34,36 @@ interface ShopProfile {
 /* =========================
    HELPERS (FIX)
 ========================= */
-function getDisplayPrice(p: SellerProduct) {
-  // ✅ ưu tiên variant price
+function getDisplayPrice(
+  p: SellerProduct
+) {
   const basePrice =
-    typeof p.min_price === "number" && p.min_price > 0
+    typeof p.min_price ===
+      "number" &&
+    p.min_price > 0
       ? p.min_price
       : p.price;
 
   const baseSale =
-    typeof p.min_sale_price === "number" && p.min_sale_price > 0
+    typeof p.min_sale_price ===
+      "number" &&
+    p.min_sale_price > 0
       ? p.min_sale_price
-      : p.salePrice;
+      : p.sale_price;
 
-  const isSale = isNowInRange(p.saleStart, p.saleEnd);
+  const isSale =
+    isNowInRange(
+      p.sale_start,
+      p.sale_end
+    );
 
   return {
     price: basePrice,
-    sale_price: isSale ? baseSale : null,
+
+    sale_price:
+      isSale
+        ? baseSale
+        : null,
   };
 }
 
@@ -184,70 +182,70 @@ const loadProducts = useCallback(async () => {
           >;
 
         return {
-          id: String(
-            p.id ?? ""
-          ),
+  id: String(
+    p.id ?? ""
+  ),
 
-          name: String(
-            p.name ?? "Unnamed"
-          ),
+  name: String(
+    p.name ?? "Unnamed"
+  ),
 
-          price: Number(
-            p.price ?? 0
-          ),
+  price: Number(
+    p.price ?? 0
+  ),
 
-          salePrice:
-            typeof p.sale_price ===
-            "number"
-              ? p.sale_price
-              : null,
+  sale_price:
+    typeof p.sale_price ===
+    "number"
+      ? p.sale_price
+      : null,
 
-          saleStart:
-            typeof p.sale_start ===
-            "string"
-              ? p.sale_start
-              : null,
+  sale_start:
+    typeof p.sale_start ===
+    "string"
+      ? p.sale_start
+      : null,
 
-          saleEnd:
-            typeof p.sale_end ===
-            "string"
-              ? p.sale_end
-              : null,
+  sale_end:
+    typeof p.sale_end ===
+    "string"
+      ? p.sale_end
+      : null,
 
-          min_price:
-            typeof p.min_price ===
-            "number"
-              ? p.min_price
-              : undefined,
+  min_price:
+    typeof p.min_price ===
+    "number"
+      ? p.min_price
+      : undefined,
 
-          min_sale_price:
-            typeof p.min_sale_price ===
-            "number"
-              ? p.min_sale_price
-              : null,
+  min_sale_price:
+    typeof p.min_sale_price ===
+    "number"
+      ? p.min_sale_price
+      : null,
 
-          thumbnail:
-            typeof p.thumbnail ===
-            "string"
-              ? p.thumbnail
-              : "",
+  thumbnail:
+    typeof p.thumbnail ===
+    "string"
+      ? p.thumbnail
+      : "",
 
-          stock: Number(
-            p.stock ?? 0
-          ),
+  stock: Number(
+    p.stock ?? 0
+  ),
 
-          sold: Number(
-            p.sold ?? 0
-          ),
+  sold: Number(
+    p.sold ?? 0
+  ),
 
-          ratingAvg: Number(
-            p.rating_avg ?? 0
-          ),
+  rating_avg: Number(
+    p.rating_avg ?? 0
+  ),
 
-          isActive: Boolean(
-            p.is_active
-          ),
-        };
+  is_active: Boolean(
+    p.is_active
+  ),
+};
       }
     );
 
