@@ -65,7 +65,7 @@ function getDisplayPrice(p: SellerProduct) {
 
   return {
     price: basePrice,
-    salePrice: isSale ? baseSale : null,
+    sale_price: isSale ? baseSale : null,
   };
 }
 
@@ -439,10 +439,10 @@ const handleBannerUpload = async (
     const display = getDisplayPrice(product);
           const now = new Date();
 
-          const start = product.saleStart ? new Date(product.saleStart) : null;
-          const end = product.saleEnd ? new Date(product.saleEnd) : null;
+          const start = product.sale_start ? new Date(product.sale_start) : null;
+          const end = product.sale_end ? new Date(product.sale_end) : null;
 
-          const isSale = isNowInRange(product.saleStart, product.saleEnd);
+          const isSale = isNowInRange(product.sale_start, product.sale_end);
 
           const upcoming =
             product.sale_price !== null &&
@@ -506,13 +506,13 @@ const handleBannerUpload = async (
 
                 {/* PRICE */}
                 <div className="mt-1">
-                 {display.salePrice ? (
+                 {display.sale_price ? (
   <>
     <p className="text-sm text-gray-400 line-through">
       {formatPi(display.price)} π
     </p>
     <p className="text-[#ff6600] font-bold">
-      {formatPi(display.salePrice)} π
+      {formatPi(display.sale_price)} π
     </p>
   </>
 ) : (
@@ -523,17 +523,17 @@ const handleBannerUpload = async (
                 </div>
 
                 {/* SALE TIME (FIX TIMEZONE DISPLAY) */}
-                {product.saleStart && (
+                {product.sale_start && (
                   <p className="text-xs text-gray-500">
                     {t.sale_start}:{" "}
-                    {new Date(product.saleStart).toLocaleString()}
+                    {new Date(product.sale_start).toLocaleString()}
                   </p>
                 )}
 
                 {product.saleEnd && (
                   <p className="text-xs text-gray-500">
                     {t.sale_end}:{" "}
-                    {new Date(product.saleEnd).toLocaleString()}
+                    {new Date(product.sale_end).toLocaleString()}
                   </p>
                 )}
 
