@@ -171,7 +171,7 @@ function normalizeStatus(
   }
 
   return is_active === false
-    ? "inactive"
+    ? "hidden"
     : "active";
 }
 
@@ -487,20 +487,27 @@ export async function getSellerProducts(
   );
 
   try {
-    if (
-      !isUUID(seller_id)
-    ) {
+    if (!isUUID(seller_id)) {
       return [];
     }
 
     const result =
       await query<ProductRow>(
         `
-        SELECT *
-        FROM products
-        WHERE seller_id = $1
-          AND deleted_at IS NULL
-        ORDER BY created_at DESC
+        SELECT p.*
+        FROM products p
+
+        LEFT JOIN user_profiles up
+          ON up.user_id = p.seller_id
+
+        WHERE (
+          p.seller_id = $1
+          OR up.user_id = $1
+        )
+
+        AND p.deleted_at IS NULL
+
+        ORDER BY p.created_at DESC
         `,
         [seller_id]
       );
