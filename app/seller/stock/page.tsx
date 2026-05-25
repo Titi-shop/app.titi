@@ -187,15 +187,15 @@ export default function SellerStockPage() {
 
     /* ================= PRODUCTS ================= */
 
-    const rawProducts =
-      Array.isArray(
-        payload.products
-      )
-        ? payload.products
-        : [];
+    const raw = await res.json();
 
-    const mapped: SellerProduct[] =
-      rawProducts.map((item) => {
+const list = Array.isArray(raw)
+  ? raw
+  : Array.isArray(raw.products)
+    ? raw.products
+    : [];
+
+const mapped: SellerProduct[] = list.map((item: unknown) => {
         const p =
           item as Record<
             string,
