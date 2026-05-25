@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { useEffect, useState } from "react";
 
 export default function BottomNav() {
@@ -21,67 +20,28 @@ export default function BottomNav() {
   const [hidden, setHidden] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
 
-  /* =========================================================
-     AUTO HIDE
-  ========================================================= */
-
   useEffect(() => {
     const onScroll = () => {
       const current = window.scrollY;
 
-      if (current > lastScroll && current > 80) {
-        setHidden(true);
-      } else {
-        setHidden(false);
-      }
-
+      setHidden(current > lastScroll && current > 80);
       setLastScroll(current);
     };
 
     window.addEventListener("scroll", onScroll);
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
+    return () => window.removeEventListener("scroll", onScroll);
   }, [lastScroll]);
 
-  /* =========================================================
-     NAV ITEMS
-  ========================================================= */
-
   const navItems = [
-    {
-      href: "/",
-      label: t.home || "Home",
-      icon: Home,
-    },
-    {
-      href: "/categories",
-      label: t.categories || "Categories",
-      icon: Grid2X2,
-    },
-    {
-      href: "/search",
-      label: t.search || "Search",
-      icon: Search,
-      center: true,
-    },
-    {
-      href: "/notifications",
-      label: t.notifications || "Notifications",
-      icon: Bell,
-      badge: 2,
-    },
-    {
-      href: "/account",
-      label: t.me || "Me",
-      icon: User,
-    },
+    { href: "/", label: t.home || "Home", icon: Home },
+    { href: "/categories", label: t.categories || "Categories", icon: Grid2X2 },
+    { href: "/search", label: t.search || "Search", icon: Search, center: true },
+    { href: "/notifications", label: t.notifications || "Notifications", icon: Bell, badge: 2 },
+    { href: "/account", label: t.me || "Me", icon: User },
   ];
 
   return (
     <>
-      {/* SPACER */}
       <div className="h-[76px]" />
 
       <nav
@@ -91,96 +51,85 @@ export default function BottomNav() {
           ${hidden ? "translate-y-full" : "translate-y-0"}
         `}
         style={{
+          backgroundColor: "var(--nav-bg)",
+          color: "var(--nav-text)",
+          borderTop: "1px solid var(--nav-border)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        <div className="mx-auto max-w-md border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-md">
           <div className="flex h-[64px] items-center justify-around px-2">
-            {navItems.map(
-              ({
-                href,
-                label,
-                icon: Icon,
-                badge,
-                center,
-              }) => {
-                const active =
-                  pathname === href ||
-                  (href !== "/" &&
-                    pathname.startsWith(href));
 
-                /* ================= CENTER SEARCH ================= */
+            {navItems.map(({ href, label, icon: Icon, badge, center }) => {
+              const active =
+                pathname === href ||
+                (href !== "/" && pathname.startsWith(href));
 
-                if (center) {
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      className="relative -mt-7 flex flex-col items-center"
-                    >
-                      <div
-                        className={`
-                          flex h-14 w-14 items-center justify-center
-                          rounded-full border-4 border-white
-                          shadow-lg transition-all
-                          ${
-                            active
-                              ? "bg-orange-500 text-white"
-                              : "bg-black text-white"
-                          }
-                        `}
-                      >
-                        <Icon size={22} />
-                      </div>
-
-                      <span className="mt-1 text-[10px] text-gray-500">
-                        {label}
-                      </span>
-                    </Link>
-                  );
-                }
-
-                /* ================= NORMAL ITEM ================= */
-
+              /* ================= CENTER ================= */
+              if (center) {
                 return (
                   <Link
                     key={href}
                     href={href}
-                    className="relative flex flex-1 flex-col items-center justify-center"
+                    className="relative -mt-7 flex flex-col items-center"
                   >
-                    <div className="relative">
-                      <Icon
-                        size={22}
-                        className={`transition-all ${
-                          active
-                            ? "text-orange-500"
-                            : "text-gray-400"
-                        }`}
-                      />
-
-                      {badge ? (
-                        <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                          {badge}
-                        </span>
-                      ) : null}
+                    <div
+                      style={{
+                        backgroundColor: active
+                          ? "var(--nav-active)"
+                          : "var(--nav-text)",
+                        color: active ? "#fff" : "var(--nav-bg)",
+                      }}
+                      className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-lg"
+                    >
+                      <Icon size={22} />
                     </div>
 
-                    <span
-                      className={`
-                        mt-1 text-[10px]
-                        ${
-                          active
-                            ? "font-semibold text-orange-500"
-                            : "text-gray-400"
-                        }
-                      `}
-                    >
+                    <span style={{ color: "var(--nav-muted)" }} className="mt-1 text-[10px]">
                       {label}
                     </span>
                   </Link>
                 );
               }
-            )}
+
+              /* ================= NORMAL ================= */
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="relative flex flex-1 flex-col items-center justify-center"
+                >
+                  <div className="relative">
+                    <Icon
+                      size={22}
+                      style={{
+                        color: active
+                          ? "var(--nav-active)"
+                          : "var(--nav-muted)",
+                      }}
+                    />
+
+                    {badge ? (
+                      <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                        {badge}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <span
+                    className="mt-1 text-[10px]"
+                    style={{
+                      color: active
+                        ? "var(--nav-active)"
+                        : "var(--nav-muted)",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
+
           </div>
         </div>
       </nav>
