@@ -102,26 +102,29 @@ export default function Navbar() {
 
             {/* DARK MODE */}
             <button
-              onClick={() => toggleDarkMode(getRole())}
-              className={`w-9 h-9 flex items-center justify-center rounded border transition active:scale-95 ${borderStyle}`}
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
+  onClick={() => toggleDarkMode(getRole())}
+  className={`w-9 h-9 flex items-center justify-center rounded border transition active:scale-95 ${borderStyle}`}
+>
+  {dark ? (
+    <Sun size={18} color={iconColor} />
+  ) : (
+    <Moon size={18} color={iconColor} />
+  )}
+</button>
             {/* CART */}
-            <Link href="/cart" className="relative">
-              <div
-                className={`w-9 h-9 flex items-center justify-center rounded border transition active:scale-95 ${borderStyle}`}
-              >
-                <ShoppingCart size={18} />
-              </div>
+           <Link href="/cart" className="relative">
+  <div
+    className={`w-9 h-9 flex items-center justify-center rounded border transition active:scale-95 ${borderStyle}`}
+  >
+    <ShoppingCart size={18} color={iconColor} />
+  </div>
 
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+  {cartCount > 0 && (
+    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+      {cartCount}
+    </span>
+  )}
+</Link>
 
           </div>
         </div>
