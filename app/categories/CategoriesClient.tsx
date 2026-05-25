@@ -224,55 +224,69 @@ export default function CategoriesClient() {
       {/* SEARCH */}
 
       <div className="sticky top-0 z-40 border-b border-white/40 bg-white/80 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4">
-          <div className="flex h-12 flex-1 items-center gap-3 rounded-2xl bg-gray-100 px-4">
-            <Search size={18} className="text-gray-400" />
+  <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4">
 
-<input
-  type="text"
-  placeholder={
-    t.search_products ||
-    "Search products..."
-  }
-  className="w-full bg-transparent text-sm outline-none"
-/>
+    <div className="flex h-12 flex-1 items-center gap-3 rounded-2xl bg-gray-100 px-4">
+      <Search
+        size={18}
+        className="text-gray-400"
+      />
 
-          <button className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white">
-            <ShoppingCart size={18} />
+      <input
+        type="text"
+        placeholder={
+          t.search_products ||
+          "Search products..."
+        }
+        className="w-full bg-transparent text-sm outline-none"
+      />
+    </div>
 
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-              2
-            </span>
-          </button>
-        </div>
+    <button className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white">
+      <ShoppingCart size={18} />
+
+      <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+        2
+      </span>
+    </button>
+
+  </div>
+</div>
+{/* HERO */}
+
+<section className="px-4 pt-4">
+  <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 p-6 text-white shadow-[0_20px_80px_rgba(255,90,31,0.35)]">
+
+    <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+
+    <div className="relative z-10">
+
+      <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur-xl">
+        <Flame size={14} />
+
+        {t.trending_marketplace ||
+          "Trending Marketplace"}
       </div>
 
-// ================= HERO =================
+      <h1 className="mt-5 max-w-xl text-3xl font-black leading-tight">
+        {t.discover_modern_products ||
+          "Discover products from modern commerce experiences"}
+      </h1>
 
-<div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur-xl">
-  <Flame size={14} />
+      <p className="mt-3 max-w-md text-sm text-white/80">
+        {t.smart_shopping_discovery ||
+          "Trending products, curated collections and smart shopping discovery."}
+      </p>
 
-  {t.trending_marketplace || "Trending Marketplace"}
-</div>
+      <button className="mt-6 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-black">
+        {t.explore_now || "Explore Now"}
 
-<h1 className="mt-5 max-w-xl text-3xl font-black leading-tight">
-  {t.discover_modern_products ||
-    "Discover products from modern commerce experiences"}
-</h1>
+        <ChevronRight size={16} />
+      </button>
 
-<p className="mt-3 max-w-md text-sm text-white/80">
-  {t.smart_shopping_discovery ||
-    "Trending products, curated collections and smart shopping discovery."}
-</p>
-
-<button className="mt-6 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-black">
-  {t.explore_now || "Explore Now"}
-
-  <ChevronRight size={16} />
-</button>      
-          </div>
-        </div>
-      </section>
+    </div>
+  </div>
+</section>
 
       {/* CATEGORY CHIPS */}
 
@@ -326,23 +340,25 @@ export default function CategoriesClient() {
 
       {/* TRENDING */}
 
-      <section className="mt-8 px-4">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-    
-<h2 className="text-2xl font-black">
-  {t.trending_now || "Trending Now"}
-</h2>
+<section className="mt-8 px-4">
+  <div className="mb-5 flex items-center justify-between">
 
-<p className="mt-1 text-sm text-gray-500">
-  {t.most_popular_products_today ||
-    "Most popular products today"}
-</p>
+    <div>
+      <h2 className="text-2xl font-black">
+        {t.trending_now || "Trending Now"}
+      </h2>
 
-<button className="text-sm font-semibold text-gray-500">
-  {t.view_all || "View all"}
-</button>
-        </div>
+      <p className="mt-1 text-sm text-gray-500">
+        {t.most_popular_products_today ||
+          "Most popular products today"}
+      </p>
+    </div>
+
+    <button className="text-sm font-semibold text-gray-500">
+      {t.view_all || "View all"}
+    </button>
+
+  </div>
 
         <div className="flex gap-4 overflow-x-auto pb-2">
           {featuredProducts.map((product) => (
