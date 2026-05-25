@@ -346,11 +346,11 @@ if (error) {
       );
 
     await upsertShippingRates({
-      product_id: id,
+  productId: id,
 
-      rates:
-        cleanedRates,
-    });
+  rates:
+    cleanedRates,
+});
 
     return {
       success: true,
