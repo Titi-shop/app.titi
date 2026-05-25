@@ -18,7 +18,79 @@ calcSalePercent,
 
 import "swiper/css";
 import "swiper/css/pagination";
+"use client";
 
+import { useMemo, useState } from "react";
+import type {
+  ProductRecord,
+  ProductVariant,
+} from "@/types/Product";
+
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+
+import { ShoppingCart } from "lucide-react";
+import { formatPi } from "@/lib/pi";
+import { prefetchProduct } from "@/lib/prefetch";
+
+import {
+  formatShortDescription,
+  formatDetail,
+  calcSalePercent,
+} from "./product.helpers";
+
+import "swiper/css";
+import "swiper/css/pagination";
+
+/* =========================================================
+   TYPES
+========================================================= */
+
+export interface ProductViewProps {
+  product: ProductRecord | null;
+  t: any;
+  router: any;
+
+  add: () => void;
+  buy: () => void;
+
+  zoomImage: string | null;
+  setZoomImage: (v: string | null) => void;
+
+  scale: number;
+  setScale: (v: number | ((p: number) => number)) => void;
+
+  position: { x: number; y: number };
+  setPosition: (v: { x: number; y: number }) => void;
+
+  dragging: boolean;
+  setDragging: (v: boolean) => void;
+
+  start: { x: number; y: number };
+  setStart: (v: { x: number; y: number }) => void;
+
+  initialDistance: number;
+  setInitialDistance: (v: number) => void;
+
+  initialScale: number;
+  setInitialScale: (v: number) => void;
+
+  selectedVariant: ProductVariant | null;
+  setSelectedVariant: (v: ProductVariant | null) => void;
+
+  availableVariants: ProductVariant[];
+  canBuy: boolean;
+  selectedStock: number;
+
+  hasVariants: boolean;
+  relatedProducts: any[];
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+              
 export function ProductView(props: ProductViewProps) {
 const [activeImage, setActiveImage] = useState<string | null>(null);
 const {
