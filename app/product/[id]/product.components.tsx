@@ -122,8 +122,8 @@ hasVariants,
 relatedProducts,
 } = props;
 const variantOnSale =
-selectedVariant?.salePrice != null &&
-selectedVariant.salePrice < selectedVariant.price;
+  selectedVariant?.sale_price != null &&
+  selectedVariant.sale_price < selectedVariant.price;
 /* ================= SAFE ================= */
 if (!product) return null;
 
@@ -247,7 +247,7 @@ onTouchEnd={() => {
 setDragging(false);
 }}
 style={{
-transform: translate(${position.x}px, ${position.y}px) scale(${scale}),
+transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
 transformOrigin: "center center",
 willChange: "transform",
 }}
@@ -283,7 +283,7 @@ className="max-w-full max-h-full object-contain"
 ) : (
 <>
 <p className="text-xl font-bold text-primary">
-π {formatPi(product.finalPrice ?? product.price)}
+π {formatPi(product.final_price ?? product.price)}
 </p>
 
 {product.finalPrice < product.price && (  
@@ -480,8 +480,14 @@ if (hasVariants && !selectedVariant) return;
 buy();
 }}
 disabled={hasVariants && !selectedVariant}
-className={  flex-1 h-8 rounded-lg text-xs font-semibold transition   ${   hasVariants && !selectedVariant   ? "bg-gray-300 text-gray-500"   : "bg-primary-dark text-white active:scale-95"   }  }
-
+className={`
+  flex-1 h-8 rounded-lg text-xs font-semibold transition
+  ${
+    hasVariants && !selectedVariant
+      ? "bg-gray-300 text-gray-500"
+      : "bg-primary-dark text-white active:scale-95"
+  }
+`}
 > 
 
 {t.buy_now}  
