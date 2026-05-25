@@ -137,22 +137,26 @@ return (
   modules={[Pagination]}
   pagination={{ clickable: true }}
   touchStartPreventDefault={false}
+  touchMoveStopPropagation={false}
 >
   {gallery.map((img: string, i: number) => (
     <SwiperSlide key={i}>
-      <img
-        src={img}
-        alt={product.name}
-        draggable={false}
-        className="w-full aspect-square object-cover block select-none"
-        style={{ touchAction: "pan-y" }}
-        onClick={() => {
-          setZoomImage(img);
-          setActiveImage(img);
-          setScale(1);
-          setPosition({ x: 0, y: 0 });
-        }}
-      />
+     <img
+  src={img}
+  alt={product.name}
+  draggable={false}
+  className="w-full aspect-square object-cover block select-none"
+  style={{ touchAction: "pan-y" }}
+  onClick={() => {
+    setZoomImage(img);
+    setActiveImage(img);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }}
+  onTouchStart={(e) => {
+    e.stopPropagation();
+  }}
+/>
     </SwiperSlide>
   ))}
 </Swiper>
