@@ -15,7 +15,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { availableLanguages } from "@/app/lib/i18n";
 import { useCart } from "@/app/context/CartContext";
 
-import { toggleDarkMode, getSavedMode } from "@/lib/theme";
+import { toggleDarkMode } from "@/lib/theme";
 
 export default function Navbar() {
   const { lang, setLang } = useTranslation();
@@ -23,15 +23,15 @@ export default function Navbar() {
 
   const [dark, setDark] = useState(false);
 
-  // ===== SYNC THEME STATE =====
+  // ===== SYNC THEME =====
   useEffect(() => {
     const sync = () => {
       setDark(document.documentElement.classList.contains("theme-dark"));
     };
 
     sync();
-
     window.addEventListener("theme-change", sync);
+
     return () => window.removeEventListener("theme-change", sync);
   }, []);
 
@@ -40,7 +40,7 @@ export default function Navbar() {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   }, [cart]);
 
-  // ===== ROLE DETECT (customer/seller) =====
+  // ===== ROLE DETECT =====
   const getRole = () => {
     return window.location.pathname.startsWith("/seller")
       ? "seller"
@@ -55,7 +55,6 @@ export default function Navbar() {
         className="fixed top-0 left-0 right-0 z-50 shadow-md"
         style={{
           backgroundColor: "var(--nav-bg)",
-          color: "var(--nav-text)",
           paddingTop: "env(safe-area-inset-top)",
         }}
       >
@@ -71,7 +70,11 @@ export default function Navbar() {
                 className="object-cover"
               />
             </div>
-            <span className="font-bold text-sm">TITI</span>
+
+            {/* chữ xám */}
+            <span className="font-bold text-sm text-gray-200">
+              TITI
+            </span>
           </Link>
 
           {/* RIGHT */}
@@ -82,7 +85,7 @@ export default function Navbar() {
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value)}
-                className="bg-white text-black text-xs px-2 py-1 pr-6 rounded border"
+                className="bg-white text-gray-600 text-xs px-2 py-1 pr-6 rounded border"
               >
                 {Object.entries(availableLanguages).map(([code, label]) => (
                   <option key={code} value={code}>
@@ -99,13 +102,11 @@ export default function Navbar() {
 
             {/* DARK MODE TOGGLE */}
             <button
-              onClick={() => {
-                toggleDarkMode(getRole());
-              }}
+              onClick={() => toggleDarkMode(getRole())}
               className="w-9 h-9 flex items-center justify-center rounded transition active:scale-95"
               style={{
                 backgroundColor: "var(--nav-button)",
-                color: "var(--nav-text)",
+                color: "#fff", // icon luôn trắng
               }}
             >
               {dark ? <Sun size={18} /> : <Moon size={18} />}
@@ -117,7 +118,7 @@ export default function Navbar() {
                 className="w-9 h-9 flex items-center justify-center rounded active:scale-95"
                 style={{
                   backgroundColor: "var(--nav-button)",
-                  color: "var(--nav-primary)",
+                  color: "#fff", // icon trắng
                 }}
               >
                 <ShoppingCart size={18} />
