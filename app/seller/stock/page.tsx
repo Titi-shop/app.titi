@@ -339,14 +339,17 @@ const handleBannerUpload = async (
 
       {/* BANNER */}
       <div className="relative w-full h-40 rounded-xl overflow-hidden">
-        <Image
-          src={shop.shop_banner || "/banners/default-shop.png"}
-          alt="Shop banner"
-          fill
-          priority
-          unoptimized
-          className="object-cover"
-        />
+       <Image
+  src={
+    shop.shop_banner ||
+    DEFAULT_BANNER
+  }
+  alt="Shop banner"
+  fill
+  priority
+  unoptimized
+  className="object-cover"
+/>
 
         {/* CHANGE BANNER */}
         <label className="absolute top-3 left-3 bg-black/60 hover:bg-black/70 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
@@ -374,11 +377,14 @@ const handleBannerUpload = async (
         <div className="relative w-24 h-24">
           {shop.avatar_url ? (
             <Image
-              src={shop.avatar_url}
-              alt="avatar"
-              fill
-              className="rounded-full border-4 border-white shadow-lg object-cover"
-            />
+  src={
+    shop.avatar_url ||
+    DEFAULT_AVATAR
+  }
+  alt="avatar"
+  fill
+  className="rounded-full border-4 border-white shadow-lg object-cover"
+/>
           ) : (
             <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center text-gray-500">
               ?
