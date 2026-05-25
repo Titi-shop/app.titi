@@ -133,7 +133,11 @@ return (
 </div>
 )}
 
-<Swiper modules={[Pagination]} pagination={{ clickable: true }}>  
+<Swiper
+  modules={[Pagination]}
+  pagination={{ clickable: true }}
+  touchStartPreventDefault={false}
+>  
       {gallery.map((img: string, i: number) => (  
         <SwiperSlide key={i}>  
           <img  
