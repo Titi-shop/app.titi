@@ -27,7 +27,14 @@
   --nav-button: #ffffff;
 }
 
-/* DARK MODE (trắng nền + đen nút như bạn muốn) */
+:root {
+  /* LIGHT MODE NAVBAR */
+  --nav-bg: #f97316;        /* cam */
+  --nav-text: #e5e7eb;      /* xám chữ */
+  --nav-icon: #ffffff;      /* icon trắng */
+  --nav-button: rgba(255,255,255,0.2);
+}
+
 .theme-dark {
   --nav-bg: #ffffff;
   --nav-text: #111111;
