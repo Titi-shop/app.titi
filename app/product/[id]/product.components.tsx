@@ -149,7 +149,7 @@ return (
 <div className="relative bg-white">
 {product.isSale && (
 <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
--{calcSalePercent(product.price, product.finalPrice)}%
+-{calcSalePercent(product.price, product.final_rice)}%
 </div>
 )}
 
@@ -286,7 +286,7 @@ className="max-w-full max-h-full object-contain"
 π {formatPi(product.final_price ?? product.price)}
 </p>
 
-{product.finalPrice < product.price && (  
+{product.final_price < product.price && (  
     <p className="text-sm text-gray-400 line-through">  
       π {formatPi(product.price)}  
     </p>  
@@ -306,7 +306,7 @@ className="max-w-full max-h-full object-contain"
     </span>  
 
     <span className="flex items-center gap-1">  
-      ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}  
+      ⭐ {Number(product.rating_avg?? 0).toFixed(1)}  
       <span className="text-gray-400">  
         ({product.ratingCount ?? 0})  
       </span>  
@@ -432,7 +432,7 @@ className="max-w-full max-h-full object-contain"
             </p>  
 
             <p className="text-sm font-semibold text-primary">  
-              π {formatPi(p.finalPrice)}  
+              π {formatPi(p.final_price)}  
             </p>  
 
             {p.isSale && (  
