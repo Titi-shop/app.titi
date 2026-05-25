@@ -44,13 +44,16 @@ export default function Navbar() {
       <div className="h-[56px]" />
 
       <header
-        className="
-          fixed top-0 left-0 right-0 z-50
-          bg-primary text-white
-          shadow-md
-        "
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
-      >
+    className="
+    fixed top-0 left-0 right-0 z-50
+     shadow-md
+    "
+  style={{
+    backgroundColor: "var(--nav-bg)",
+    color: "var(--nav-text)",
+    paddingTop: "env(safe-area-inset-top)",
+  }}
+  >
         <div className="h-[56px] px-3 flex items-center justify-between">
 
           {/* LOGO */}
@@ -63,7 +66,7 @@ export default function Navbar() {
                 className="object-cover"
               />
             </div>
-            <span className="font-bold text-sm">TITI</span>
+           <span className="font-bold text-sm"> TITI</span>
           </Link>
 
           {/* RIGHT */}
@@ -74,7 +77,7 @@ export default function Navbar() {
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value)}
-                className="bg-white text-black text-xs px-2 py-1 pr-6 rounded appearance-none"
+               className="  bg-white text-black text-xs  px-2 py-1 pr-6 rounded  border"
               >
                 {Object.entries(availableLanguages).map(([code, label]) => (
                   <option key={code} value={code}>
@@ -91,30 +94,42 @@ export default function Navbar() {
 
              {/* DARK MODE TOGGLE */}
             <button
-              onClick={toggleDark}
-              className="w-9 h-9 flex items-center justify-center rounded bg-black/20 active:scale-95"
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+    onClick={toggleDark}
+  className="
+    w-9 h-9 flex items-center justify-center rounded
+    transition active:scale-95
+  "
+  style={{
+    backgroundColor: "var(--nav-button)",
+    color: dark ? "#fff" : "#000",
+  }}
+  >
+    {dark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
 
             {/* CART (FIXED) */}
-            <Link href="/cart" className="relative">
-              <div className="w-9 h-9 flex items-center justify-center rounded bg-white text-primary active:scale-95">
-                <ShoppingCart size={18} />
-              </div>
+           <Link href="/cart" className="relative">
+  <div
+    className="w-9 h-9 flex items-center justify-center rounded active:scale-95"
+    style={{
+      backgroundColor: "var(--nav-button)",
+      color: "var(--nav-primary)",
+    }}
+  >
+    <ShoppingCart size={18} />
+  </div>
 
-              {cartCount > 0 && (
-                <span className="
-                  absolute -top-1 -right-1
-                  bg-red-600 text-white
-                  text-[10px] px-1.5 py-0.5
-                  rounded-full min-w-[16px]
-                  text-center
-                ">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+  {cartCount > 0 && (
+    <span className="
+      absolute -top-1 -right-1
+      bg-red-600 text-white
+      text-[10px] px-1.5 py-0.5
+      rounded-full
+    ">
+      {cartCount}
+    </span>
+  )}
+</Link>
 
           </div>
         </div>
