@@ -10,6 +10,11 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import { isNowInRange } from "@/lib/utils/time"; // ✅ FIX
 
+const DEFAULT_BANNER =
+  "/banners/default-shop.png";
+
+const DEFAULT_AVATAR =
+  "/avatars/default-avatar.png";
 /* =========================
    TYPES
 ========================= */
