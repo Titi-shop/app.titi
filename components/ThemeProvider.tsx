@@ -13,8 +13,30 @@ export default function ThemeProvider({
   useEffect(() => {
     const root = document.documentElement;
 
-    root.classList.remove("theme-seller", "theme-customer");
+    // lấy theme đã lưu
+    const savedTheme =
+      typeof window !== "undefined"
+        ? localStorage.getItem("theme-mode")
+        : null;
 
+    const isDark = savedTheme === "dark";
+
+    // reset class
+    root.classList.remove(
+      "theme-light",
+      "theme-dark",
+      "theme-seller",
+      "theme-customer"
+    );
+
+    // base mode (light/dark)
+    if (isDark) {
+      root.classList.add("theme-dark");
+    } else {
+      root.classList.add("theme-light");
+    }
+
+    // business theme (seller/customer)
     if (pathname.startsWith("/seller")) {
       root.classList.add("theme-seller");
     } else {
