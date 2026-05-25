@@ -97,95 +97,195 @@ export default function SellerStockPage() {
 
   /* ================= LOAD ================= */
   const loadProducts = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch("/api/seller/products", {
+  try {
+    const res = await apiAuthFetch(
+      "/api/seller/products",
+      {
         cache: "no-store",
+      }
+    );
+
+    if (!res.ok) {
+      setMessage({
+        text: t.load_products_error,
+        type: "error",
       });
 
-      if (!res.ok) {
-        setMessage({ text: t.load_products_error, type: "error" });
-        return;
-      }
+      return;
+    }
 
-      const raw: unknown = await res.json();
+    const data: unknown =
+      await res.json();
 
-      if (!Array.isArray(raw)) {
-        setProducts([]);
-        return;
-      }
+    if (
+      !data ||
+      typeof data !== "object"
+    ) {
+      setProducts([]);
+      return;
+    }
 
-      const mapped: SellerProduct[] = raw.map((item) => {
-        const p = item as Record<string, unknown>;
+    const payload =
+      data as {
+        profile?: Record<
+          string,
+          unknown
+        >;
+        products?: unknown[];
+      };
+
+    /* ================= PROFILE ================= */
+
+    const profile =
+      payload.profile;
+
+    if (profile) {
+      setShop({
+        shop_name:
+          typeof profile.shop_name ===
+          "string"
+            ? profile.shop_name
+            : null,
+
+        shop_banner:
+          typeof profile.shop_banner ===
+          "string"
+            ? profile.shop_banner
+            : null,
+
+        avatar_url:
+          typeof profile.avatar_url ===
+          "string"
+            ? profile.avatar_url
+            : null,
+
+        shop_description:
+          typeof profile.shop_description ===
+          "string"
+            ? profile.shop_description
+            : null,
+
+        rating:
+          typeof profile.rating ===
+          "number"
+            ? profile.rating
+            : 0,
+
+        total_reviews:
+          typeof profile.total_reviews ===
+          "number"
+            ? profile.total_reviews
+            : 0,
+
+        total_sales:
+          typeof profile.total_sales ===
+          "number"
+            ? profile.total_sales
+            : 0,
+      });
+    }
+
+    /* ================= PRODUCTS ================= */
+
+    const rawProducts =
+      Array.isArray(
+        payload.products
+      )
+        ? payload.products
+        : [];
+
+    const mapped: SellerProduct[] =
+      rawProducts.map((item) => {
+        const p =
+          item as Record<
+            string,
+            unknown
+          >;
 
         return {
-          id: String(p.id ?? ""),
-          name: String(p.name ?? "Unnamed"),
+          id: String(
+            p.id ?? ""
+          ),
 
-          price: Number(p.price ?? 0),
+          name: String(
+            p.name ??
+              "Unnamed"
+          ),
+
+          price: Number(
+            p.price ?? 0
+          ),
+
           salePrice:
-            typeof p.sale_price === "number" ? p.sale_price : null,
+            typeof p.sale_price ===
+            "number"
+              ? p.sale_price
+              : null,
 
-          // ✅ FIX DATE
           saleStart:
-            typeof p.sale_start === "string" ? p.sale_start : null,
-          saleEnd:
-            typeof p.sale_end === "string" ? p.sale_end : null,
+            typeof p.sale_start ===
+            "string"
+              ? p.sale_start
+              : null,
 
-          // ✅ NEW (variant)
+          saleEnd:
+            typeof p.sale_end ===
+            "string"
+              ? p.sale_end
+              : null,
+
           min_price:
-            typeof p.min_price === "number" ? p.min_price : undefined,
+            typeof p.min_price ===
+            "number"
+              ? p.min_price
+              : undefined,
+
           min_sale_price:
-            typeof p.min_sale_price === "number"
+            typeof p.min_sale_price ===
+            "number"
               ? p.min_sale_price
               : null,
 
           thumbnail:
-            typeof p.thumbnail === "string" ? p.thumbnail : "",
+            typeof p.thumbnail ===
+            "string"
+              ? p.thumbnail
+              : "",
 
-          stock: Number(p.stock ?? 0),
-          sold: Number(p.sold ?? 0),
-          ratingAvg: Number(p.rating_avg ?? 0),
-          isActive: Boolean(p.is_active),
+          stock: Number(
+            p.stock ?? 0
+          ),
+
+          sold: Number(
+            p.sold ?? 0
+          ),
+
+          ratingAvg: Number(
+            p.rating_avg ?? 0
+          ),
+
+          isActive:
+            Boolean(
+              p.is_active
+            ),
         };
       });
 
-      setProducts(mapped);
-    } catch {
-      setMessage({ text: t.load_products_error, type: "error" });
-    } finally {
-      setPageLoading(false);
-    }
-  }, [t]);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch("/api/profile", {
-        cache: "no-store",
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const profile = data.profile;
-
-      setShop({
-        shop_name: profile?.shop_name ?? null,
-        shop_banner: profile?.shop_banner ?? null,
-        avatar_url: profile?.avatar_url ?? null,
-        shop_description: profile?.shop_description ?? null,
-        rating: profile?.rating ?? 0,
-        total_reviews: profile?.total_reviews ?? 0,
-        total_sales: profile?.total_sales ?? 0,
-      });
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!authLoading) {
-      loadProducts();
-      loadProfile();
-    }
-  }, [authLoading, loadProducts, loadProfile]);
+    setProducts(mapped);
+  } catch {
+    setMessage({
+      text: t.load_products_error,
+      type: "error",
+    });
+  } finally {
+    setPageLoading(false);
+  }
+}, [t]);
+useEffect(() => {
+  if (!authLoading) {
+    loadProducts();
+  }
+}, [authLoading, loadProducts]);
    /* ================= BANNER ================= */
 const handleBannerUpload = async (
   e: React.ChangeEvent<HTMLInputElement>
