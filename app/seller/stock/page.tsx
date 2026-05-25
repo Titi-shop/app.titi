@@ -107,12 +107,21 @@ export default function SellerStockPage() {
         return;
       }
 
-      const raw: unknown = await res.json();
+      const data = await res.json();
 
-      if (!Array.isArray(raw)) {
-        setProducts([]);
-        return;
-      }
+const raw = Array.isArray(data.products)
+  ? data.products
+  : [];
+
+setShop({
+  shop_name: data.shop?.shop_name ?? null,
+  shop_banner: data.shop?.shop_banner ?? null,
+  avatar_url: data.shop?.avatar_url ?? null,
+  shop_description: null,
+  rating: null,
+  total_reviews: null,
+  total_sales: null,
+});
 
       const mapped: SellerProduct[] = raw.map((item) => {
         const p = item as Record<string, unknown>;
@@ -157,12 +166,6 @@ export default function SellerStockPage() {
     }
   }, [t]);
 
-  const loadProfile = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch("/api/profile", {
-        cache: "no-store",
-      });
-
       if (!res.ok) return;
 
       const data = await res.json();
@@ -183,7 +186,6 @@ export default function SellerStockPage() {
   useEffect(() => {
     if (!authLoading) {
       loadProducts();
-      loadProfile();
     }
   }, [authLoading, loadProducts, loadProfile]);
    /* ================= BANNER ================= */
