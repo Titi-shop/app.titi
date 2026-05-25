@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
@@ -98,6 +98,9 @@ selectedStock,
 hasVariants,
 relatedProducts,
 } = props;
+const touchStartX = useRef(0);
+const touchStartY = useRef(0);
+const moved = useRef(false);
 const variantOnSale =
   selectedVariant?.sale_price != null &&
   selectedVariant.sale_price < selectedVariant.price;
@@ -185,12 +188,14 @@ setInitialScale(scale);
 }
 
 if (e.touches.length === 1) {
-const touch = e.touches[0];
-setDragging(true);
-setStart({
-x: touch.clientX - position.x,
-y: touch.clientY - position.y,
-});
+  const touch = e.touches[0];
+  touchStartX.current = touch.clientX;
+  touchStartY.current = touch.clientY;
+  moved.current = false;
+  setStart({
+    x: touch.clientX - position.x,
+    y: touch.clientY - position.y,
+  });
 }
 }}
 
@@ -201,7 +206,6 @@ const dx = e.touches[0].clientX - e.touches[1].clientX;
 const dy = e.touches[0].clientY - e.touches[1].clientY;
 
 const distance = Math.sqrt(dx * dx + dy * dy);  
-
 let newScale = initialScale * (distance / initialDistance);  
 newScale = Math.max(1, Math.min(newScale, 6));  
 
@@ -210,18 +214,26 @@ setScale(newScale);
 }
 
 /* DRAG IMAGE */
-if (e.touches.length === 1 && dragging && scale > 1) {
-const touch = e.touches[0];
+if (e.touches.length === 1) {
+  const touch = e.touches[0];
+  const dx = Math.abs(touch.clientX - touchStartX.current);
+  const dy = Math.abs(touch.clientY - touchStartY.current);
+  // 🔥 chỉ coi là drag nếu di chuyển đủ xa
+  if (dx > 8 || dy > 8) {
+    moved.current = true;
+  }
 
-setPosition({  
-  x: touch.clientX - start.x,  
-  y: touch.clientY - start.y,  
-});
-
+  // ❗ chỉ drag khi zoom > 1
+  if (scale > 1 && moved.current) {
+    setPosition({
+      x: touch.clientX - start.x,
+      y: touch.clientY - start.y,
+    });
+  }
 }
-}}
 onTouchEnd={() => {
-setDragging(false);
+  setDragging(false);
+  moved.current = false;
 }}
 style={{
 transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
