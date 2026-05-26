@@ -11,12 +11,15 @@ export default function ThemeProvider({
 }) {
   const pathname = usePathname();
 
- useEffect(() => {
-  const role: ThemeRole = pathname.startsWith("/seller")
-    ? "seller"
-    : "customer";
-  const mode = getSavedMode();
-  applyTheme(role, mode);
-}, [pathname]);
+  useEffect(() => {
+    const role: ThemeRole = pathname.startsWith("/seller")
+      ? "seller"
+      : "customer";
+
+    const mode = getSavedMode();
+
+    applyTheme(role, mode);
+  }, [pathname]);
+
   return <>{children}</>;
 }
