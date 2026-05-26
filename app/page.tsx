@@ -187,11 +187,8 @@ function ProductCard({
 
 export default function HomePage() {
   const router = useRouter();
-
   const { addToCart } = useCart();
-
   const { t } = useTranslation();
-
   const [showSplash, setShowSplash] =
     useState(true);
 
@@ -202,18 +199,7 @@ export default function HomePage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
-const [isDark, setIsDark] = useState(false);
 
-useEffect(() => {
-  const sync = () => {
-    setIsDark(document.documentElement.classList.contains("theme-dark"));
-  };
-
-  sync();
-  window.addEventListener("theme-change", sync);
-
-  return () => window.removeEventListener("theme-change", sync);
-}, []);
   /* =========================================================
      DATA
   ========================================================= */
@@ -462,10 +448,9 @@ useEffect(() => {
               setSelectedCategory("all")
             }
             className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2 ${
-      selectedCategory === "all"
-    ? isDark
-      ? "border-black"
-      : "border-orange-500"
+     selectedCategory === "all"
+    ? "border-orange-500 dark:border-black"
+    : "border-transparent dark:border-black"
     : "border-transparent"
 }`}
           >
@@ -493,7 +478,7 @@ useEffect(() => {
                 }
                 className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2 hover:border-orange-400 ${
         active
-    ? "border-orange-500"
+    ? "border-orange-500 dark:border-black"
     : "border-transparent dark:border-black"
 }`}
               >
