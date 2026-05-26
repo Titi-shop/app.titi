@@ -56,9 +56,7 @@ function getImage(src?: string | null) {
 
 export default function CategoriesClient() {
   const { t } = useTranslation();
-
   const { addToCart } = useCart();
-
   /* =========================================================
      STATE
   ========================================================= */
@@ -68,7 +66,6 @@ export default function CategoriesClient() {
 
   const [selectedCategory, setSelectedCategory] =
     useState<number | "all">("all");
-
   const [sortType, setSortType] =
     useState<
       "popular" | "sale" | "latest"
@@ -248,23 +245,6 @@ export default function CategoriesClient() {
   };
 
   /* =========================================================
-     EFFECT
-  ========================================================= */
-
-  useEffect(() => {
-    const prev =
-      document.body.style.background;
-
-    document.body.style.background =
-      "#f5f7fb";
-
-    return () => {
-      document.body.style.background =
-        prev;
-    };
-  }, []);
-
-  /* =========================================================
      LOADING
   ========================================================= */
 
@@ -301,7 +281,7 @@ export default function CategoriesClient() {
   ========================================================= */
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] pb-28">
+    <main className="min-h-screen pb-28 bg-[var(--background)] text-[var(--foreground)] transition-colors">
       {/* MESSAGE */}
 
       {message && (
@@ -382,8 +362,7 @@ export default function CategoriesClient() {
               </p>
 
               <p className="text-xs text-white/70">
-                {t.products ||
-                  "Products"}
+                {t.products ||  "Products"}
               </p>
             </div>
           </div>
@@ -431,8 +410,8 @@ export default function CategoriesClient() {
                   }
                   className={`flex min-w-[82px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all ${
                     active
-                      ? "bg-black text-white shadow-xl"
-                      : "bg-white text-gray-700"
+  ? "bg-orange-500 text-white"
+  : "bg-[var(--card-bg)] text-[var(--foreground)]"
                   }`}
                 >
                   <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
