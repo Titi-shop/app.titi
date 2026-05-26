@@ -353,13 +353,7 @@ export default function HomePage() {
   ========================================================= */
 
   return (
-    <main
-  className="min-h-screen pb-28 transition-colors duration-300"
-  style={{
-    backgroundColor: "var(--background)",
-    color: "var(--foreground)",
-  }}
->
+    <main className="min-h-screen pb-28 bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
       {/* MESSAGE */}
 
       {message && (
@@ -447,11 +441,13 @@ export default function HomePage() {
             onClick={() =>
               setSelectedCategory("all")
             }
-            className={`flex min-w-[82px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2 ${
+           className={`flex min-w-[82px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2
+${
   selectedCategory === "all"
-    ? "border-orange-500 dark:border-black"
-    : "border-transparent dark:border-black"
-}`}
+    ? "border-[var(--color-primary)]"
+    : "border-transparent"
+}
+`}
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-2xl">
   
