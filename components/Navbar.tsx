@@ -23,52 +23,84 @@ export default function Navbar() {
 
   const [dark, setDark] = useState(false);
 
-  // ================= SYNC THEME =================
+  /* ================= THEME SYNC ================= */
+
   useEffect(() => {
     const sync = () => {
-      setDark(document.documentElement.classList.contains("theme-dark"));
+      setDark(
+        document.documentElement.classList.contains(
+          "theme-dark"
+        )
+      );
     };
 
     sync();
-    window.addEventListener("theme-change", sync);
 
-    return () => window.removeEventListener("theme-change", sync);
+    window.addEventListener(
+      "theme-change",
+      sync
+    );
+
+    return () =>
+      window.removeEventListener(
+        "theme-change",
+        sync
+      );
   }, []);
 
-  // ================= CART COUNT =================
+  /* ================= CART COUNT ================= */
+
   const cartCount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0);
+    return cart.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
   }, [cart]);
 
-  // ================= ROLE =================
+  /* ================= ROLE ================= */
+
   const getRole = () => {
-    if (typeof window === "undefined") return "customer";
-    return window.location.pathname.startsWith("/seller")
+    if (typeof window === "undefined") {
+      return "customer";
+    }
+
+    return window.location.pathname.startsWith(
+      "/seller"
+    )
       ? "seller"
       : "customer";
   };
-
-  // ================= THEME COLORS =================
-  const borderClass = dark ? "border-black" : "border-white";
-  const iconColor = dark ? "#fff" : "#111";
 
   return (
     <>
       <div className="h-[56px]" />
 
       <header
-        className="fixed top-0 left-0 right-0 z-50 shadow-md"
+        className="fixed left-0 right-0 top-0 z-50 shadow-md transition-colors duration-300"
         style={{
           backgroundColor: "var(--nav-bg)",
-          paddingTop: "env(safe-area-inset-top)",
+          color: "var(--nav-text)",
+          borderBottom:
+            "1px solid var(--nav-border)",
+          paddingTop:
+            "env(safe-area-inset-top)",
         }}
       >
-        <div className="h-[56px] px-3 flex items-center justify-between">
+        <div className="flex h-[56px] items-center justify-between px-3">
 
           {/* LOGO */}
-          <Link href="/" className="flex items-center gap-2">
+
+          <Link
+            href="/"
+            className="flex items-center gap-2"
+          >
             <div
-              className={`relative w-8 h-8 bg-white rounded overflow-hidden border ${borderClass}`}
+              className="relative h-8 w-8 overflow-hidden rounded border"
+              style={{
+                borderColor: "var(--nav-border)",
+                backgroundColor:
+                  "var(--nav-button)",
+              }}
             >
               <Image
                 src="/banners/3D035BE4-0822-403D-9631-6C4CF674A519.png"
@@ -78,23 +110,44 @@ export default function Navbar() {
               />
             </div>
 
-            <span className="font-bold text-sm text-gray-200">
+            <span
+              className="text-sm font-bold"
+              style={{
+                color: "var(--nav-text)",
+              }}
+            >
               TITI
             </span>
           </Link>
 
           {/* RIGHT */}
+
           <div className="flex items-center gap-2">
 
             {/* LANGUAGE */}
+
             <div className="relative">
               <select
                 value={lang}
-                onChange={(e) => setLang(e.target.value)}
-                className="bg-white text-gray-600 text-xs px-2 py-1 pr-6 rounded border"
+                onChange={(e) =>
+                  setLang(e.target.value)
+                }
+                className="rounded border px-2 py-1 pr-6 text-xs outline-none transition-colors"
+                style={{
+                  backgroundColor:
+                    "var(--nav-button)",
+                  color: "var(--nav-text)",
+                  borderColor:
+                    "var(--nav-border)",
+                }}
               >
-                {Object.entries(availableLanguages).map(([code, label]) => (
-                  <option key={code} value={code}>
+                {Object.entries(
+                  availableLanguages
+                ).map(([code, label]) => (
+                  <option
+                    key={code}
+                    value={code}
+                  >
                     {label}
                   </option>
                 ))}
@@ -102,32 +155,69 @@ export default function Navbar() {
 
               <ChevronDown
                 size={12}
-                className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2"
+                style={{
+                  color: "var(--nav-muted)",
+                }}
               />
             </div>
 
             {/* DARK MODE */}
+
             <button
-              onClick={() => toggleDarkMode(getRole())}
-              className={`w-9 h-9 flex items-center justify-center rounded border active:scale-95 transition ${borderClass}`}
+              onClick={() =>
+                toggleDarkMode(getRole())
+              }
+              className="flex h-9 w-9 items-center justify-center rounded border transition active:scale-95"
+              style={{
+                borderColor:
+                  "var(--nav-border)",
+                backgroundColor:
+                  "var(--nav-button)",
+              }}
             >
               {dark ? (
-                <Sun size={18} color={iconColor} />
+                <Sun
+                  size={18}
+                  style={{
+                    color: "var(--nav-icon)",
+                  }}
+                />
               ) : (
-                <Moon size={18} color={iconColor} />
+                <Moon
+                  size={18}
+                  style={{
+                    color: "var(--nav-icon)",
+                  }}
+                />
               )}
             </button>
 
             {/* CART */}
-            <Link href="/cart" className="relative">
+
+            <Link
+              href="/cart"
+              className="relative"
+            >
               <div
-                className={`w-9 h-9 flex items-center justify-center rounded border active:scale-95 transition ${borderClass}`}
+                className="flex h-9 w-9 items-center justify-center rounded border transition active:scale-95"
+                style={{
+                  borderColor:
+                    "var(--nav-border)",
+                  backgroundColor:
+                    "var(--nav-button)",
+                }}
               >
-                <ShoppingCart size={18} color={iconColor} />
+                <ShoppingCart
+                  size={18}
+                  style={{
+                    color: "var(--nav-icon)",
+                  }}
+                />
               </div>
 
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                <span className="absolute -right-1 -top-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">
                   {cartCount}
                 </span>
               )}
