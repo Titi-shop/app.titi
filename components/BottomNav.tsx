@@ -66,14 +66,13 @@ return (
             return (  
               <Link key={href} href={href} className="relative -mt-7 flex flex-col items-center">  
                 <div  
-                  style={{  
-                    backgroundColor: active  
-                      ? "var(--nav-active)"  
-                      : "var(--nav-muted)",  
-                    color: "#fff",  
-                  }}  
-                  className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-lg"  
-                >  
+                  style={{
+  backgroundColor: "#ffffff",
+  color: "var(--nav-active)",
+  border: "1px solid var(--nav-border)",
+}}
+                    className="flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
+                    >  
                   <Icon size={22} />  
                 </div>  
 
