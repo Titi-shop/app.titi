@@ -38,11 +38,11 @@ return (
 <div className="h-[76px]" />
 
 <nav  
-    className={`
-  fixed bottom-0 left-0 right-0 z-50
-  transition-transform duration-300
-  ${hidden ? "translate-y-full" : "translate-y-0"}
-`}
+    className={`  
+      fixed bottom-0 left-0 right-0 z-50  
+      transition-transform duration-300  
+      ${hidden ? "translate-y-full" : "translate-y-0"}  
+    `}  
     style={{  
       backgroundColor: "var(--nav-bg)",  
       color: "var(--nav-text)",  
@@ -66,13 +66,14 @@ return (
             return (  
               <Link key={href} href={href} className="relative -mt-7 flex flex-col items-center">  
                 <div  
-                  style={{
-  backgroundColor: "#ffffff",
-  color: "var(--nav-active)",
-  border: "1px solid var(--nav-border)",
-}}
-                    className="flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
-                    >  
+                  style={{  
+                    backgroundColor: active  
+                      ? "var(--nav-active)"  
+                      : "var(--nav-muted)",  
+                    color: "#fff",  
+                  }}  
+                  className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-lg"  
+                >  
                   <Icon size={22} />  
                 </div>  
 
