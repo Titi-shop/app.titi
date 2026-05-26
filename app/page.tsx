@@ -95,8 +95,7 @@ function ProductCard({
     <div
       onClick={() =>
         router.push(`/product/${product.id}`)
-      }
-      className="group overflow-hidden rounded-[30px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+      className="group overflow-hidden rounded-[30px] bg-[var(--card-bg)] text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
     >
       {/* IMAGE */}
 
