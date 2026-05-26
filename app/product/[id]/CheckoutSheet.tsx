@@ -901,4 +901,59 @@ export default function CheckoutSheet({
                   color:
                     "var(--primary)",
                 }}
-              
+              >
+                {formatPi(total)} π
+              </p>
+
+              {(isLoading ||
+                isValidating) && (
+                <p
+                  className="text-xs"
+                  style={{
+                    color:
+                      "var(--text-muted)",
+                  }}
+                >
+                  Đang cập nhật
+                  giá...
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+
+        <div
+          className="border-t p-4"
+          style={{
+            borderColor:
+              "var(--nav-border)",
+          }}
+        >
+          <button
+            onClick={handlePay}
+            disabled={processing}
+            className="
+              w-full py-3
+              rounded-xl
+              text-white
+              font-semibold
+              transition
+            "
+            style={{
+              backgroundColor:
+                processing
+                  ? "#9CA3AF"
+                  : "var(--primary)",
+            }}
+          >
+            {processing
+              ? t.processing
+              : t.pay_now}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
