@@ -45,9 +45,8 @@ type RelatedProduct = {
   name: string;
   thumbnail?: string;
   price: number;
-  salePrice?: number | null;
-  finalPrice: number;
-  isSale: boolean;
+  sale_price?: number | null;
+  final_price: number;
 };
 
 type ProductViewProps = {
@@ -138,9 +137,13 @@ export function ProductView(props: ProductViewProps) {
     <div className="pb-40 bg-gray-50 min-h-screen">
       {/* ===== GALLERY ===== */}
       <div className="relative bg-white">
-        {product.isSale && (
+        {product.sale_price &&
+ product.final_price < product.price && (
           <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
-            -{calcSalePercent(product.price, product.finalPrice)}%
+            -{calcSalePercent(
+            product.price,
+           product.final_price
+           )}%
           </div>
         )}
 
@@ -294,9 +297,9 @@ onTouchMove={(e) => {
         </span>
 
         <span className="flex items-center gap-1">
-          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
+          ⭐ {Number(product.rating_avg ?? 0).toFixed(1)}
           <span className="text-gray-400">
-            ({product.ratingCount ?? 0})
+            ({product.rating_count ?? 0})
           </span>
         </span>
       </div>
@@ -422,10 +425,10 @@ onTouchMove={(e) => {
                 </p>
 
                 <p className="text-sm font-semibold text-primary">
-                  π {formatPi(p.finalPrice)}
+                  π {formatPi(p.final_price ?? p.price)}
                 </p>
 
-                {p.isSale && (
+                {p.sale_price && p.final_price < p.price && (
                   <p className="text-xs text-gray-400 line-through">
                     π {formatPi(p.price)}
                   </p>
