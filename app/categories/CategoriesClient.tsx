@@ -590,13 +590,15 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
                       <div className="mt-4 flex items-end justify-between">
                         <div>
                           <p className="text-lg font-black text-red-500">
-                            {formatPi(
-                              product.final_price
-                            )}{" "}
-                            π
-                          </p>
+                   {formatPi(
+              product.final_price ||
+    product.sale_price ||
+         product.price
+            )} π
+                </p>
 
-                          {product.sale_price && (
+                          {product.sale_price &&
+                        product.sale_price < product.price && (
                             <p className="text-xs text-gray-400 line-through">
                               {formatPi(
                                 product.price
