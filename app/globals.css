@@ -10,6 +10,11 @@
   --background: #ffffff;
   --foreground: #171717;
 
+  --nav-bg: #ffffff;
+  --nav-text: #171717;
+  --nav-icon: #6b7280;
+  --nav-button: rgba(0,0,0,0.05);
+
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
 }
@@ -20,11 +25,11 @@
 
 /* LIGHT MODE (cam chủ đạo) */
 .theme-light {
+  --background: #ffffff;
+  --foreground: #171717;
   --nav-bg: #ffffff;
   --nav-text: #171717;
-  --nav-primary: #f97316;
   --nav-icon: #6b7280;
-  --nav-button: #ffffff;
 }
 
 :root {
@@ -36,11 +41,13 @@
 }
 
 .theme-dark {
-  --nav-bg: #ffffff;
-  --nav-text: #111111;
-  --nav-primary: #000000;
-  --nav-icon: #111111;
-  --nav-button: #000000;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+
+  --nav-bg: #111111;
+  --nav-text: #ffffff;
+  --nav-icon: #ffffff;
+  --nav-button: rgba(255,255,255,0.1);
 }
 
 /* CUSTOMER */
@@ -59,10 +66,9 @@
    4️⃣ TAILWIND BRIDGE
 ================================ */
 @theme {
-  --color-primary: var(--color-primary);
-  --color-primary-dark: var(--color-primary-dark);
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
 }
-
 /* ===============================
    5️⃣ BASE
 ================================ */
