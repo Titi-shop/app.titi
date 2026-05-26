@@ -3,61 +3,14 @@
 import { useCallback } from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
 import type { ShippingInfo, Region } from "./checkout.types";
-
-/* =========================
-   TYPES
-========================= */
-
-type Item = {
-  id: string;
-  name: string;
-  thumbnail?: string;
-  stock: number;
-};
-
-type PreviewPayload = {
-  shipping: ShippingInfo;
-  zone: Region;
-  item: Item;
-  quantity: number;
-  variant_id?: string | null;
-};
-
-type ValidateParams = {
-  user: unknown;
-  piReady: boolean;
-  shipping: ShippingInfo | null;
-  zone: Region | null;
-  item: Item | null;
-  quantity: number;
-  maxStock: number;
-  pilogin?: () => void;
-  showMessage: (text: string) => void;
-  t: Record<string, string>;
-};
-
-type UseCheckoutPayParams = {
-  item: Item | null;
-  quantity: number;
-  total: number;
-  shipping: ShippingInfo | null;
-  unitPrice: number;
-  processing: boolean;
-  setProcessing: (v: boolean) => void;
-  processingRef: { current: boolean };
-  t: Record<string, string>;
-  user: unknown;
-  router: {
-    push: (path: string) => void;
-    replace: (path: string) => void;
-  };
-  onClose: () => void;
-  zone: Region | null;
-  product: { variant_id?: string | null };
-  showMessage: (text: string, type?: "error" | "success") => void;
-  validate: () => boolean;
-  preview: { total: number } | null;
-};
+import type {
+  ShippingInfo,
+  Region,
+  PreviewPayload,
+  CheckoutItem,
+  ValidateParams,
+  UseCheckoutPayParams,
+} from "./checkout.types";
 
 /* =========================
    PREVIEW DIRECT
