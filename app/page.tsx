@@ -478,11 +478,11 @@ export default function HomePage() {
                     Number(category.id)
                   )
                 }
-                className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all ${
-                  active
-  ? "bg-black text-black border border-black"
-  : "bg-[var(--card-bg)] text-[var(--foreground)]"
-                }`}
+                className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2 ${
+     active
+    ? "border-orange-500"
+    : "border-transparent dark:border-black"
+           }`}
               >
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
                   <Image
