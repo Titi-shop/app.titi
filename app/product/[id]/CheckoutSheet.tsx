@@ -7,15 +7,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import useSWR from "swr";
-
+import type {
+  ShippingRate,
+} from "@/types/Product";
 import type {
   Props,
   Region,
   ShippingInfo,
   Message,
-  AddressApiResponse, 
 } from "./checkout.types";
 
 import {
@@ -49,7 +49,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   /* ========================= */
 function detectInitialZone(
   shippingCountry: string,
-  rates: any[]
+  rates: Shipping_rate[]
 ): Region | null {
   if (!shippingCountry || !Array.isArray(rates)) return null;
 
@@ -199,10 +199,10 @@ useEffect(() => {
   const unitPrice = item?.finalPrice ?? 0;
 
   const availableRegions = useMemo(() => {
-  return Array.isArray(product?.shippingRates)
-    ? product.shippingRates
+  return Array.isArray(product?.shipping_rates)
+    ? product.shippingr_rates
     : [];
-}, [product?.shippingRates]);
+}, [product?.shipping_rates]);
 
   const total = preview?.total ?? 0;
 
