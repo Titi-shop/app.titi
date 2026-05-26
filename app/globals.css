@@ -25,53 +25,16 @@
 /* =========================================
    🌞 LIGHT MODE (Cam chủ đạo)
 ========================================= */
-
 .theme-light {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --foreground: #111111;
 
-  /* 🟦 Background chính */
-  --background: #ffffff;        /* ⬜ Trắng */
+  --muted: #6b7280;
+  --border: #e5e7eb;
 
-  /* 🟦 Màu chữ chính */
-  --foreground: #171717;        /* ⬛ Đen đậm */
-
-  /* 🟦 Navbar background */
-  --nav-bg: #ffffff;            /* ⬜ Trắng */
-
-  /* 🟦 Navbar text */
-  --nav-text: #171717;          /* ⬛ Đen */
-
-  /* 🟦 Navbar icon */
-  --nav-icon: #6b7280;          /* 🔘 Xám */
-
-  /* 🟦 Màu chủ đạo app */
-  --color-primary: #f97316;     /* 🟧 Cam */
-
-  /* 🟦 Hover / đậm hơn */
-  --color-primary-dark: #ea580c; /* 🟠 Cam đậm */
-
-  /* 🟦 Border */
-  --border-color: #e5e7eb;      /* ⚪ Xám nhạt */
-
-  /* 🟦 Card */
-  --card-bg: #ffffff;           /* ⬜ Trắng */
-
-  /* 🟦 Text phụ */
-  --text-muted: #9ca3af;        /* 🔘 Xám muted */
-
-  /* 🟦 Nút phụ */
-  --button-secondary: #f3f4f6; /* ⚪ Xám rất nhạt */
-
-  /* 🟦 Shadow */
-  --shadow-color: rgba(0,0,0,0.05); /* ⚫ Shadow nhẹ */
-
-  /* 🟦 Success */
-  --success: #22c55e;           /* 🟢 Xanh lá */
-
-  /* 🟦 Error */
-  --error: #ef4444;             /* 🔴 Đỏ */
-
-  /* 🟦 Warning */
-  --warning: #f59e0b;           /* 🟨 Vàng cam */
+  --primary: #f97316;
+  --primary-soft: #fff7ed;
 }
 
 :root {
@@ -83,13 +46,15 @@
 }
 
 .theme-dark {
-  --background: #0a0a0a;
-  --foreground: #ffffff;
+  --background: #0f0f0f;
+  --surface: #171717;
+  --foreground: #f5f5f5;
 
-  --nav-bg: #111111;
-  --nav-text: #ffffff;
-  --nav-icon: #ffffff;
-  --nav-button: rgba(255,255,255,0.1);
+  --muted: #a3a3a3;
+  --border: #262626;
+
+  --primary: #fb923c;
+  --primary-soft: #1c1917;
 }
 
 /* CUSTOMER */
