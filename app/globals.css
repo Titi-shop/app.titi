@@ -24,37 +24,51 @@
 ================================ */
 .theme-light {
 
-  /* BACKGROUND */
-  --background: #fff7ed;
-  --foreground: #171717;
+  /* ==================================================
+     BACKGROUND
+  ================================================== */
 
-  /* CARD */
-  --card-bg: #ffffff;
-  --card-secondary: #ffedd5;
+  --background: #fff7ed;         /* 🟧 nền chính */
+  --foreground: #171717;         /* ⚫ chữ chính */
 
-  /* TEXT */
-  --text-muted: #6b7280;
+  /* ==================================================
+     CARD
+  ================================================== */
 
-  /* PRIMARY */
-  --color-primary: #f97316;
-  --color-primary-dark: #ea580c;
+  --card-bg: #ffffff;            /* ⚪ nền card */
+  --card-secondary: #ffedd5;     /* 🟠 card phụ */
 
-  /* NAV */
-  --nav-bg: #ffffff;
-  --nav-text: #171717;
-  --nav-icon: #6b7280;
+  /* ==================================================
+     TEXT
+  ================================================== */
 
-  /* HERO */
-  --hero-from: #f97316;
-  --hero-via: #ea580c;
-  --hero-to: #fb923c;
+  --text-muted: #6b7280;         /* ⚫ chữ phụ */
 
- 
---nav-bg: rgba(255,255,255,0.75);
---nav-border: rgba(0,0,0,0.06);
---nav-text: #111111;
---nav-muted: #6b7280;
---nav-active: #f97316;
+  /* ==================================================
+     PRIMARY
+  ================================================== */
+
+  --color-primary: #f97316;      /* 🟧 cam chính */
+  --color-primary-dark: #ea580c; /* 🔶 cam đậm */
+
+  /* ==================================================
+     NAVBAR / BOTTOM NAV
+  ================================================== */
+
+  --nav-bg: rgba(255,255,255,0.92); /* ⚪ nền nav */
+  --nav-border: rgba(0,0,0,0.06);   /* ⚪ viền nav */
+
+  --nav-text: #111111;           /* ⚫ chữ nav */
+  --nav-muted: #6b7280;          /* ⚫ icon thường */
+  --nav-active: #f97316;         /* 🟧 icon active */
+
+  /* ==================================================
+     HERO
+  ================================================== */
+
+  --hero-from: #f97316;          /* 🟧 */
+  --hero-via: #ea580c;           /* 🔶 */
+  --hero-to: #fb923c;            /* 🟠 */
 }
 
 :root {
