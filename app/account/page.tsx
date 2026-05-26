@@ -18,18 +18,16 @@ export default function AccountPage() {
   /* =========================
      LOADING
   ========================= */
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
   /* =========================
      NOT LOGGED IN
   ========================= */
   if (!user) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
+      <main className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-6">
         <div className="w-full max-w-sm text-center">
-          <h1 className="text-xl font-semibold mb-6">
+          <h1 className="text-2xl font-semibold mb-6 text-[var(--foreground)]">
             {t.account}
           </h1>
 
@@ -37,30 +35,31 @@ export default function AccountPage() {
           <button
             onClick={pilogin}
             disabled={!piReady || !agreed}
-            className={`w-full py-3 rounded-full font-semibold text-white shadow transition
+            className={`w-full py-3 rounded-2xl font-semibold text-white shadow transition
               ${
                 piReady && agreed
-                  ? "bg-orange-500 hover:bg-orange-600"
-                  : "bg-gray-300 cursor-not-allowed"
+                  ? "bg-orange-600 hover:bg-orange-700 active:scale-[0.98]"
+                  : "bg-gray-300 cursor-not-allowed text-gray-600"
               }`}
           >
             {t.login}
           </button>
 
-          {/* TERMS CHECKBOX */}
-          <div className="mt-4 flex items-start justify-center space-x-2 text-sm text-gray-600">
+          {/* TERMS */}
+          <div className="mt-5 flex items-start justify-center gap-2 text-sm text-gray-500 leading-relaxed">
             <input
               type="checkbox"
               checked={agreed}
-              onChange={() => setAgreed(v => !v)}
+              onChange={() => setAgreed((v) => !v)}
               className="mt-1 w-4 h-4 accent-orange-500"
             />
+
             <label className="text-left">
               {t.i_agree}{" "}
               <a
                 href="https://www.termsfeed.com/live/32e8bf86-ceaf-4eb6-990e-cd1fa0b0775e"
                 target="_blank"
-                className="text-orange-500 underline"
+                className="text-orange-600 font-medium underline"
               >
                 {t.terms_of_use}
               </a>{" "}
@@ -68,7 +67,7 @@ export default function AccountPage() {
               <a
                 href="https://www.termsfeed.com/live/8e33a9fd-71e7-4536-8033-9c8b329f3f25"
                 target="_blank"
-                className="text-orange-500 underline"
+                className="text-orange-600 font-medium underline"
               >
                 {t.privacy_policy}
               </a>
@@ -80,19 +79,20 @@ export default function AccountPage() {
   }
 
   /* =========================
-     LOGGED IN → DASHBOARD
+     DASHBOARD
   ========================= */
   return (
-    <main className="bg-gray-100 pb-32 space-y-4">
+    <main className="min-h-screen bg-[var(--bg)] pb-28 space-y-4">
       <AccountHeader />
       <OrderSummary />
       <CustomerMenu />
 
-      <section className="mx-4">
+      {/* LOGOUT */}
+      <section className="mx-4 mt-6">
         <button
           onClick={logout}
-          className="w-full py-4 bg-red-500 text-white rounded-2xl
-            flex items-center justify-center gap-3 font-semibold text-lg shadow"
+          className="w-full py-4 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98]
+            text-white flex items-center justify-center gap-3 font-semibold text-lg shadow"
         >
           <LogOut size={22} />
           {t.logout}
