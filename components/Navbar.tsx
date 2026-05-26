@@ -73,8 +73,7 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="h-[56px]" />
-
+    
       <header
         className="fixed left-0 right-0 top-0 z-50 shadow-md transition-colors duration-300"
         style={{
