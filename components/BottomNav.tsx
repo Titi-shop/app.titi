@@ -37,11 +37,12 @@ export default function BottomNav() {
       <div className="h-[76px]" />
 
       <nav
-        className={`
-          fixed bottom-0 left-0 right-0 z-50
-          transition-transform duration-300
-          ${hidden ? "translate-y-full" : "translate-y-0"}
-        `}
+  className={`
+    fixed bottom-0 left-0 right-0 z-50
+    border-t backdrop-blur-2xl
+    transition-transform duration-300
+    ${hidden ? "translate-y-full" : "translate-y-0"}
+  `}
         style={{
           backgroundColor: "var(--nav-bg)",
           color: "var(--nav-text)",
