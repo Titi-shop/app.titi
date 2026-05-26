@@ -382,3 +382,48 @@ export type ProductVariantInput = {
 };
 export type UpdateProductInput =
   Partial<CreateProductInput>;
+/* =========================================================
+   PRODUCT VIEW TYPES
+========================================================= */
+
+export type ProductVariantView = {
+  id: string;
+
+  option1?: string;
+  option2?: string | null;
+  option3?: string | null;
+
+  optionLabel1?: string | null;
+  optionLabel2?: string | null;
+  optionLabel3?: string | null;
+
+  name?: string;
+
+  price: number;
+  sale_price?: number | null;
+  final_price: number;
+
+  sale_enabled: boolean;
+
+  stock: number;
+
+  image?: string;
+
+  is_active?: boolean;
+};
+
+export type RelatedProduct = {
+  id: string;
+
+  categoryId: string;
+
+  name: string;
+
+  thumbnail?: string;
+
+  price: number;
+
+  sale_price?: number | null;
+
+  final_price: number;
+};
