@@ -26,6 +26,8 @@ export function applyTheme(role: ThemeRole, mode: ThemeMode) {
     mode === "dark" ? "theme-dark" : "theme-light",
     role === "seller" ? "theme-seller" : "theme-customer"
   );
+
+  window.dispatchEvent(new Event("theme-change"));
 }
 
 export function toggleDarkMode(role: ThemeRole) {
