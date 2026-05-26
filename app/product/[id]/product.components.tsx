@@ -7,7 +7,11 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { ShoppingCart } from "lucide-react";
 import { prefetchProduct } from "@/lib/prefetch";
-import type { Product as ProductType } from "@/types/Product";
+import type {
+  Product as ProductType,
+  ProductVariantView,
+  RelatedProduct,
+} from "@/types/Product";
 import {
   formatShortDescription,
   formatDetail,
@@ -16,36 +20,7 @@ import {
 
 import "swiper/css";
 import "swiper/css/pagination";
-type Variant = {
-  id: string;
-  option1?: string;
-  option2?: string | null;
-  option3?: string | null;
 
-  optionLabel1?: string | null;
-  optionLabel2?: string | null;
-  optionLabel3?: string | null;
-
-  name?: string;
-
-  price: number;
-  sale_price?: number | null;
-  final_price: number;
-  sale_enabled: boolean;
-  stock: number;
-  image?: string;
-  is_active?: boolean;
-};
-
-type RelatedProduct = {
-  id: string;
-  categoryId: string;
-  name: string;
-  thumbnail?: string;
-  price: number;
-  sale_price?: number | null;
-  final_price: number;
-};
 
 type ProductViewProps = {
   product: ProductType;
@@ -247,13 +222,14 @@ onTouchMove={(e) => {
       )}
 
       {/* ===== INFO ===== */}
-      <div
+
+<div
   className="p-4 flex justify-between items-start"
   style={{
     backgroundColor: "var(--card-bg)",
   }}
 >
-  <h2 className="text-lg font-medium">
+  <h2 className="text-lg font-semibold">
     {product.name}
   </h2>
 
@@ -261,7 +237,7 @@ onTouchMove={(e) => {
     {hasVariants ? (
       selectedVariant ? (
         <>
-          <p className="text-xl font-bold text-primary">
+          <p className="text-xl font-black text-red-500">
             π{" "}
             {formatPi(
               selectedVariant.final_price ??
@@ -270,17 +246,20 @@ onTouchMove={(e) => {
             )}
           </p>
 
-          {variantOnSale && (
-            <p className="text-sm text-gray-400 line-through">
-              π{" "}
-              {formatPi(
-                selectedVariant.price
-              )}
-            </p>
-          )}
+          {(selectedVariant.sale_price ??
+            0) > 0 &&
+            selectedVariant.final_price <
+              selectedVariant.price && (
+              <p className="text-sm text-gray-400 line-through">
+                π{" "}
+                {formatPi(
+                  selectedVariant.price
+                )}
+              </p>
+            )}
         </>
       ) : (
-        <p className="text-xl font-bold text-primary">
+        <p className="text-xl font-black text-red-500">
           π{" "}
           {formatPi(
             product.final_price ??
@@ -292,7 +271,7 @@ onTouchMove={(e) => {
       )
     ) : (
       <>
-        <p className="text-xl font-bold text-primary">
+        <p className="text-xl font-black text-red-500">
           π{" "}
           {formatPi(
             product.final_price ??
@@ -318,10 +297,12 @@ onTouchMove={(e) => {
     )}
   </div>
 </div>
+  
 
       {/* ===== META ===== */}
-      style={{ backgroundColor: "var(--card-bg)" }}
+  
 <div
+  
   className="px-4 pb-4 flex gap-4 text-sm"
   style={{
     backgroundColor: "var(--card-bg)",
@@ -520,13 +501,16 @@ onTouchMove={(e) => {
      <div
   className="
     fixed left-0 right-0 z-50
-    bg-white border-t border-gray-200
+    border-t
     px-2 pt-1
   "
   style={{
-    bottom: "var(--bottom-nav-height, 60px)",
-    paddingBottom: "calc(env(safe-area-inset-bottom) + 4px)",
-  }}
+  backgroundColor: "var(--card-bg)",
+  borderColor: "var(--nav-border)",
+  bottom: "var(--bottom-nav-height, 60px)",
+  paddingBottom:
+    "calc(env(safe-area-inset-bottom) + 4px)",
+}}
 >
   <div className="flex gap-2 max-w-4xl mx-auto">
     <button
