@@ -169,9 +169,11 @@ useEffect(() => {
     setShipping(def);
 
     const autoZone = detectInitialZone(
-      def.country,
-      Array.isArray(product?.shippingRates) ? product.shippingRates : []
-    );
+  def.country,
+  Array.isArray(product?.shipping_rates)
+    ? product.shipping_rates
+    : []
+);
 
     console.log("🌍 [CHECKOUT] AUTO ZONE:", autoZone);
 
@@ -182,7 +184,7 @@ useEffect(() => {
 
   if (!open || !user) return;
   loadAddress();
-}, [open, user, product?.shippingRates]);
+}, [open, user, product?.shipping_rates]);
 
   /* ========================= */
 
@@ -194,7 +196,7 @@ useEffect(() => {
 
   /* ========================= */
 
-  const unitPrice = item?.finalPrice ?? 0;
+  const unitPrice = item?.final_price ?? 0;
 
   const availableRegions = useMemo(() => {
   return Array.isArray(product?.shipping_rates)
