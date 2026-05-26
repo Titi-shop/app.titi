@@ -10,17 +10,28 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  --nav-bg: #ffffff;
-  --nav-text: #171717;
-  --nav-icon: #6b7280;
-  --nav-button: rgba(0,0,0,0.05);
+  --card-bg: #ffffff;
+  --card-secondary: #f3f4f6;
+
+  --text-muted: #6b7280;
 
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
+
+  --nav-bg: #ffffff;
+  --nav-border: rgba(0,0,0,0.06);
+
+  --nav-text: #111111;
+  --nav-muted: #6b7280;
+  --nav-active: #111111;
+
+  --hero-from: #f97316;
+  --hero-via: #ea580c;
+  --hero-to: #fb923c;
 }
 
 /* ===============================
-   3️⃣ THEME MODE
+   3️⃣ LIGHT MODE
 ================================ */
 .theme-light {
 
@@ -28,113 +39,127 @@
      BACKGROUND
   ================================================== */
 
-  --background: #fff7ed;         /* 🟧 nền chính */
-  --foreground: #171717;         /* ⚫ chữ chính */
+  --background: #fff7ed;          /* 🟧 nền chính */
+  --foreground: #171717;          /* ⚫ chữ chính */
 
   /* ==================================================
      CARD
   ================================================== */
 
-  --card-bg: #ffffff;            /* ⚪ nền card */
-  --card-secondary: #ffedd5;     /* 🟠 card phụ */
+  --card-bg: #ffffff;             /* ⚪ nền card */
+  --card-secondary: #ffedd5;      /* 🟠 card phụ */
 
   /* ==================================================
      TEXT
   ================================================== */
 
-  --text-muted: #6b7280;         /* ⚫ chữ phụ */
+  --text-muted: #6b7280;          /* ⚫ chữ phụ */
 
   /* ==================================================
      PRIMARY
   ================================================== */
 
-  --color-primary: #f97316;      /* 🟧 cam chính */
-  --color-primary-dark: #ea580c; /* 🔶 cam đậm */
+  --color-primary: #f97316;       /* 🟧 cam */
+  --color-primary-dark: #ea580c;  /* 🔶 cam đậm */
 
   /* ==================================================
-     NAVBAR / BOTTOM NAV
+     NAVBAR
   ================================================== */
 
-  --nav-bg: rgba(255,255,255,0.92); /* ⚪ nền nav */
-  --nav-border: rgba(0,0,0,0.06);   /* ⚪ viền nav */
+  --nav-bg: #ffffff;              /* ⚪ nền trắng */
+  --nav-border: rgba(0,0,0,0.06);
 
-  --nav-text: #111111;           /* ⚫ chữ nav */
-  --nav-muted: #6b7280;          /* ⚫ icon thường */
-  --nav-active: #f97316;         /* 🟧 icon active */
+  --nav-text: #111111;            /* ⚫ chữ */
+  --nav-muted: #6b7280;           /* ⚫ icon thường */
+  --nav-active: #111111;          /* ⚫ active */
 
   /* ==================================================
      HERO
   ================================================== */
 
-  --hero-from: #f97316;          /* 🟧 */
-  --hero-via: #ea580c;           /* 🔶 */
-  --hero-to: #fb923c;            /* 🟠 */
+  --hero-from: #f97316;
+  --hero-via: #ea580c;
+  --hero-to: #fb923c;
 }
 
-:root {
-  /* LIGHT MODE NAVBAR */
-  --nav-bg: #f97316;        /* cam */
-  --nav-text: #e5e7eb;      /* xám chữ */
-  --nav-icon: #ffffff;      /* icon trắng */
-  --nav-button: rgba(255,255,255,0.2);
-}
-
+/* ===============================
+   4️⃣ DARK MODE
+================================ */
 .theme-dark {
 
-  /* BACKGROUND */
-  --background: #000000;
-  --foreground: #ffffff;
+  /* ==================================================
+     BACKGROUND
+  ================================================== */
 
-  /* CARD */
-  --card-bg: #111111;
+  --background: #000000;          /* ⚫ nền */
+  --foreground: #ffffff;          /* ⚪ chữ */
+
+  /* ==================================================
+     CARD
+  ================================================== */
+
+  --card-bg: #111111;             /* ⚫ card */
   --card-secondary: #1a1a1a;
 
-  /* TEXT */
+  /* ==================================================
+     TEXT
+  ================================================== */
+
   --text-muted: #9ca3af;
 
-  /* PRIMARY */
+  /* ==================================================
+     PRIMARY
+  ================================================== */
+
   --color-primary: #ffffff;
   --color-primary-dark: #d1d5db;
 
-  /* NAV */
-  --nav-bg: #000000;
-  --nav-text: #ffffff;
-  --nav-icon: #ffffff;
+  /* ==================================================
+     NAVBAR
+  ================================================== */
 
-  /* HERO */
+  --nav-bg: rgba(0,0,0,0.92);     /* ⚫ kính đen */
+  --nav-border: rgba(255,255,255,0.08);
+
+  --nav-text: #ffffff;
+  --nav-muted: #9ca3af;
+  --nav-active: #ffffff;
+
+  /* ==================================================
+     HERO
+  ================================================== */
+
   --hero-from: #000000;
   --hero-via: #111111;
   --hero-to: #1f2937;
-
-
---nav-bg: rgba(0,0,0,0.88);
---nav-border: rgba(255,255,255,0.08);
---nav-text: #ffffff;
---nav-muted: #9ca3af;
---nav-active: #ffffff;
 }
 
-/* CUSTOMER */
+/* ===============================
+   5️⃣ CUSTOMER
+================================ */
 .theme-customer {
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
 }
 
-/* SELLER */
+/* ===============================
+   6️⃣ SELLER
+================================ */
 .theme-seller {
   --color-primary: #6b7280;
   --color-primary-dark: #374151;
 }
 
 /* ===============================
-   4️⃣ TAILWIND BRIDGE
+   7️⃣ TAILWIND BRIDGE
 ================================ */
 @theme {
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
 }
+
 /* ===============================
-   5️⃣ BASE
+   8️⃣ BASE
 ================================ */
 html {
   scroll-behavior: smooth;
@@ -144,6 +169,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
+
   font-family: Arial, Helvetica, sans-serif;
 
   padding-top: calc(env(safe-area-inset-top) + 56px);
@@ -153,31 +179,31 @@ body {
 }
 
 /* ===============================
-   6️⃣ IMAGE FIX (QUAN TRỌNG NHẤT)
+   9️⃣ IMAGE FIX
 ================================ */
 img {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-touch-callout: none;
 
-  /* 🔥 FIX SWIPE + SCROLL CONFLICT */
   touch-action: pan-y pinch-zoom;
 }
 
 /* ===============================
-   7️⃣ GLOBAL MOBILE FIX
+   🔟 MOBILE FIX
 ================================ */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
 
 /* ===============================
-   8️⃣ COMPONENTS
+   1️⃣1️⃣ COMPONENTS
 ================================ */
 @layer components {
 
@@ -185,13 +211,29 @@ html, body {
     @apply text-white text-xs font-bold px-2 py-0.5 rounded;
   }
 
-  .badge-sale { @apply bg-red-600; }
-  .badge-upcoming { @apply bg-blue-600; }
-  .badge-ended { @apply bg-gray-500; }
-  .badge-out { @apply bg-gray-600; }
+  .badge-sale {
+    @apply bg-red-600;
+  }
+
+  .badge-upcoming {
+    @apply bg-blue-600;
+  }
+
+  .badge-ended {
+    @apply bg-gray-500;
+  }
+
+  .badge-out {
+    @apply bg-gray-600;
+  }
 
   .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-3 rounded text-sm transition active:scale-95;
+    @apply text-white font-semibold py-2 px-3 rounded text-sm transition active:scale-95;
+    background: var(--color-primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
   }
 
   .btn-gray {
@@ -203,7 +245,9 @@ html, body {
   }
 
   .card {
-    @apply bg-white border rounded-lg p-4 shadow hover:shadow-md transition;
+    background: var(--card-bg);
+
+    @apply border rounded-lg p-4 shadow hover:shadow-md transition;
   }
 
   .img-disabled {
@@ -212,7 +256,7 @@ html, body {
 }
 
 /* ===============================
-   9️⃣ UTILITIES
+   1️⃣2️⃣ UTILITIES
 ================================ */
 @layer utilities {
 
@@ -231,4 +275,12 @@ html, body {
   .border-primary {
     border-color: var(--color-primary);
   }
-}
+
+  .bg-card {
+    background-color: var(--card-bg);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+     }
