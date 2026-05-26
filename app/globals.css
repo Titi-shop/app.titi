@@ -22,14 +22,56 @@
 /* ===============================
    3️⃣ THEME MODE
 ================================ */
+/* =========================================
+   🌞 LIGHT MODE (Cam chủ đạo)
+========================================= */
 
-/* LIGHT MODE (cam chủ đạo) */
 .theme-light {
-  --background: #ffffff;
-  --foreground: #171717;
-  --nav-bg: #ffffff;
-  --nav-text: #171717;
-  --nav-icon: #6b7280;
+
+  /* 🟦 Background chính */
+  --background: #ffffff;        /* ⬜ Trắng */
+
+  /* 🟦 Màu chữ chính */
+  --foreground: #171717;        /* ⬛ Đen đậm */
+
+  /* 🟦 Navbar background */
+  --nav-bg: #ffffff;            /* ⬜ Trắng */
+
+  /* 🟦 Navbar text */
+  --nav-text: #171717;          /* ⬛ Đen */
+
+  /* 🟦 Navbar icon */
+  --nav-icon: #6b7280;          /* 🔘 Xám */
+
+  /* 🟦 Màu chủ đạo app */
+  --color-primary: #f97316;     /* 🟧 Cam */
+
+  /* 🟦 Hover / đậm hơn */
+  --color-primary-dark: #ea580c; /* 🟠 Cam đậm */
+
+  /* 🟦 Border */
+  --border-color: #e5e7eb;      /* ⚪ Xám nhạt */
+
+  /* 🟦 Card */
+  --card-bg: #ffffff;           /* ⬜ Trắng */
+
+  /* 🟦 Text phụ */
+  --text-muted: #9ca3af;        /* 🔘 Xám muted */
+
+  /* 🟦 Nút phụ */
+  --button-secondary: #f3f4f6; /* ⚪ Xám rất nhạt */
+
+  /* 🟦 Shadow */
+  --shadow-color: rgba(0,0,0,0.05); /* ⚫ Shadow nhẹ */
+
+  /* 🟦 Success */
+  --success: #22c55e;           /* 🟢 Xanh lá */
+
+  /* 🟦 Error */
+  --error: #ef4444;             /* 🔴 Đỏ */
+
+  /* 🟦 Warning */
+  --warning: #f59e0b;           /* 🟨 Vàng cam */
 }
 
 :root {
