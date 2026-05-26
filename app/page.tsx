@@ -471,11 +471,13 @@ ${
                     Number(category.id)
                   )
                 }
-                className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2 hover:border-orange-400 ${
-        active
-    ? "border-orange-500 dark:border-black"
-    : "border-transparent dark:border-black"
-}`}
+                className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2
+      ${
+  active
+    ? "border-[var(--color-primary)]"
+    : "border-transparent"
+}
+`}
               >
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
                   <Image
