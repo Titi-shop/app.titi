@@ -142,3 +142,85 @@ export interface Props {
   onClose: () => void;
   product: CheckoutProduct;
 }
+/* =========================
+   CHECKOUT LOGIC
+========================= */
+
+export type CheckoutItem = {
+  id: string;
+  name: string;
+  thumbnail?: string;
+  stock: number;
+};
+
+/* ========================= */
+
+export interface ValidateParams {
+  user: unknown;
+  piReady: boolean;
+  shipping: ShippingInfo | null;
+  zone: Region | null;
+  item: CheckoutItem | null;
+  quantity: number;
+  maxStock: number;
+
+  pilogin?: () => void;
+
+  showMessage: (
+    text: string
+  ) => void;
+
+  t: Record<string, string>;
+}
+
+/* ========================= */
+
+export interface UseCheckoutPayParams {
+  item: CheckoutItem | null;
+
+  quantity: number;
+
+  total: number;
+
+  shipping: ShippingInfo | null;
+
+  unitPrice: number;
+
+  processing: boolean;
+
+  setProcessing: (
+    v: boolean
+  ) => void;
+
+  processingRef: {
+    current: boolean;
+  };
+
+  t: Record<string, string>;
+
+  user: unknown;
+
+  router: {
+    push: (path: string) => void;
+    replace: (path: string) => void;
+  };
+
+  onClose: () => void;
+
+  zone: Region | null;
+
+  product: {
+    variant_id?: string | null;
+  };
+
+  showMessage: (
+    text: string,
+    type?: "error" | "success"
+  ) => void;
+
+  validate: () => boolean;
+
+  preview: {
+    total: number;
+  } | null;
+}
