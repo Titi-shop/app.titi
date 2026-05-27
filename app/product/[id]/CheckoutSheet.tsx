@@ -680,21 +680,20 @@ export default function CheckoutSheet({
                           transition
                         "
                         style={{
-                          backgroundColor:
-                            active
-                              ? "var(--primary)"
-                              : "var(--card-bg)",
+  backgroundColor: active
+    ? "rgba(249, 115, 22, 0.12)"
+    : "var(--card-bg)",
 
-                          color:
-                            active
-                              ? "#fff"
-                              : "var(--foreground)",
+  color: active
+    ? "#f97316"
+    : "var(--foreground)",
 
-                          borderColor:
-                            active
-                              ? "var(--primary)"
-                              : "var(--nav-border)",
-                        }}
+  borderColor: active
+    ? "#f97316"
+    : "#e5e7eb",
+
+  borderWidth: "1.5px",
+}}
                       >
                         <div className="font-medium">
                           {r.zone ===
