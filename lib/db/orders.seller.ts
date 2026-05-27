@@ -399,109 +399,97 @@ export async function cancelOrderBySeller(
 /* =========================================================
    SELLER — CONFIRM ORDER
 ========================================================= */
-
 export async function confirmOrderBySeller(
   orderId: string,
   sellerId: string,
   sellerMessage?: string | null
 ): Promise<boolean> {
   try {
-    return await withTransaction(
-      async (client) => {
-        const { rows } =
-          await client.query<{
-            seller_id: string;
-            fulfillment_status: string;
-          }>(
-            `
-            SELECT
-              seller_id,
-              fulfillment_status
-            FROM orders
-            WHERE id = $1
-            LIMIT 1
-            `,
-            [orderId]
-          );
+    return await withTransaction(async (client) => {
 
-        const order =
-          rows[0];
+      const { rows } = await client.query<{
+        seller_id: string;
+        fulfillment_status: string;
+      }>(
+        `
+        SELECT
+          seller_id,
+          fulfillment_status
+        FROM orders
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [orderId]
+      );
 
-        if (!order) {
-          console.warn(
-            "[ORDER][SELLER][CONFIRM][NOT_FOUND]",
-            { orderId }
-          );
+      const order = rows[0];
 
-          return false;
-        }
-
-        if (
-          order.seller_id !==
-          sellerId
-        ) {
-          console.warn(
-            "[ORDER][SELLER][CONFIRM][FORBIDDEN]",
-            {
-              orderId,
-              sellerId,
-            }
-          );
-
-          return false;
-        }
-
-        if (
-          order.fulfillment_status !==
-          "pending"
-        ) {
-          console.warn(
-            "[ORDER][SELLER][CONFIRM][INVALID_STATUS]",
-            {
-              orderId,
-              status:
-                order.fulfillment_status,
-            }
-          );
-
-          return false;
-        }
-
-        await client.query(
-          `
-          UPDATE order_items
-          SET
-            fulfillment_status = 'processing',
-            confirmed_at = NOW(),
-            seller_message = COALESCE(
-              $3,
-              seller_message
-            ),
-            updated_at = NOW()
-          WHERE order_id = $1
-            AND seller_id = $2
-            AND fulfillment_status = 'pending'
-          `,
-          [
-            orderId,
-            sellerId,
-            sellerMessage ?? "",
-          ]
-        );
-
-        await syncOrderFulfillmentStatus(
-          client,
-          orderId
-        );
-
-        console.log(
-          "[ORDER][SELLER][CONFIRM][SUCCESS]",
+      if (!order) {
+        console.warn(
+          "[ORDER][SELLER][CONFIRM][NOT_FOUND]",
           { orderId }
         );
-
-        return true;
+        return false;
       }
-    );
+
+      if (order.seller_id !== sellerId) {
+        console.warn(
+          "[ORDER][SELLER][CONFIRM][FORBIDDEN]",
+          {
+            orderId,
+            sellerId,
+          }
+        );
+        return false;
+      }
+
+      if (order.fulfillment_status !== "pending") {
+        console.warn(
+          "[ORDER][SELLER][CONFIRM][INVALID_STATUS]",
+          {
+            orderId,
+            status: order.fulfillment_status,
+          }
+        );
+        return false;
+      }
+
+      const res = await client.query(
+        `
+        UPDATE order_items
+        SET
+          fulfillment_status = 'processing',
+          confirmed_at = NOW(),
+          seller_message = COALESCE($3, seller_message),
+          updated_at = NOW()
+        WHERE order_id = $1
+          AND seller_id = $2
+          AND fulfillment_status = 'pending'
+        `,
+        [orderId, sellerId, sellerMessage ?? ""]
+      );
+
+      if (res.rowCount === 0) {
+        console.warn(
+          "[ORDER][SELLER][CONFIRM][NO_ITEMS]",
+          { orderId }
+        );
+        return false;
+      }
+
+      await syncOrderFulfillmentStatus(
+        client,
+        orderId
+      );
+
+      console.log(
+        "[ORDER][SELLER][CONFIRM][SUCCESS]",
+        { orderId }
+      );
+
+      return true;
+    });
+
   } catch (err) {
     console.error(
       "[ORDER][SELLER][CONFIRM][DB_ERROR]",
@@ -513,8 +501,6 @@ export async function confirmOrderBySeller(
       }
     );
 
-    throw new Error(
-      "DB_ERROR"
-    );
+    throw new Error("DB_ERROR");
   }
 }
