@@ -629,7 +629,11 @@
     "Khám phá sản phẩm từ nền tảng thương mại hiện đại",
 
   "smart_shopping_discovery":
-    "Sản phẩm xu hướng, bộ sưu tập nổi bật và trải nghiệm mua sắm thông minh."
-
+  "Sản phẩm xu hướng, bộ sưu tập nổi bật và trải nghiệm mua sắm thông minh.",
+"please_select_variant": "Vui lòng chọn phân loại trước khi thêm vào giỏ hàng",
+"future_marketplace": "Chợ tương lai",
+"shop_by_category": "Mua theo danh mục",
+"best_selling_products": "Sản phẩm bán chạy",
+"limited_offers": "Ưu đãi giới hạn"
 
 }
