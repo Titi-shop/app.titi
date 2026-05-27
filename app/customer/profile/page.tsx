@@ -1,12 +1,9 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
 import { countries } from "@/data/countries";
 import { useEffect, useState } from "react";
-
 import Image from "next/image";
-
 import {
   Upload,
   Edit3,
@@ -15,9 +12,7 @@ import {
 } from "lucide-react";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { useAuth } from "@/context/AuthContext";
-
 import {
   getPiAccessToken,
   clearPiToken,
@@ -30,9 +25,7 @@ interface ProfileData {
   email: string | null;
   phone: string | null;
   bio: string | null;
-
   country: string;
-
   province: string | null;
   district: string | null;
   ward: string | null;
@@ -54,17 +47,14 @@ const defaultProfile: ProfileData = {
   phone: null,
   bio: null,
 
-  country: "VN",
+  country: "",
 
   province: null,
   district: null,
   ward: null,
-
   address_line: null,
   postal_code: null,
-
   avatar_url: null,
-
   shop_name: null,
   shop_slug: null,
   shop_description: null,
