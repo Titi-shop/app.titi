@@ -19,15 +19,10 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
-
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { useAuth } from "@/context/AuthContext";
-
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
 import { formatPi } from "@/lib/pi";
-
 import { isNowInRange } from "@/lib/utils/time";
 
 import type {
@@ -59,11 +54,8 @@ interface Message {
 
 interface ShopProfile {
   shop_name: string | null;
-
   shop_banner: string | null;
-
   avatar_url: string | null;
-
   shop_description:
     | string
     | null;
@@ -167,22 +159,26 @@ export default function SellerStockPage() {
   const [shop, setShop] =
     useState<ShopProfile>({
       shop_name: null,
-
       shop_banner: null,
-
       avatar_url: null,
-
       shop_description:
         null,
-
       rating: null,
-
       total_reviews:
         null,
-
       total_sales: null,
     });
+const [
+  deleteTarget,
+  setDeleteTarget,
+] = useState<SellerProduct | null>(
+  null
+);
 
+const [
+  deleting,
+  setDeleting,
+] = useState(false);
   /* =====================================================
      CACHE AVATAR
   ===================================================== */
@@ -525,62 +521,47 @@ export default function SellerStockPage() {
   /* =====================================================
      DELETE PRODUCT
   ===================================================== */
+const handleDelete =
+  async () => {
+    if (!deleteTarget)
+      return;
 
-  const handleDelete =
-    async (
-      id: string
-    ) => {
-      if (
-        !confirm(
-          t.confirm_delete
-        )
-      ) {
-        return;
-      }
+    try {
+      setDeleting(true);
 
-      try {
-        const res =
-          await apiAuthFetch(
-            `/api/products?id=${encodeURIComponent(
-              id
-            )}`,
-            {
-              method:
-                "DELETE",
-            }
-          );
+      const res =
+        await apiAuthFetch(
+          `/api/products?id=${encodeURIComponent(
+            deleteTarget.id
+          )}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
 
-        if (res.ok) {
-          setProducts(
-            (
-              prev
-            ) =>
-              prev.filter(
-                (
-                  p
-                ) =>
-                  p.id !==
-                  id
-              )
-          );
+      if (res.ok) {
+        setProducts(
+          (prev) =>
+            prev.filter(
+              (p) =>
+                p.id !==
+                deleteTarget.id
+            )
+        );
 
-          setMessage({
-            text:
-              t.delete_success,
+        setMessage({
+          text:
+            t.delete_success,
 
-            type:
-              "success",
-          });
-        } else {
-          setMessage({
-            text:
-              t.delete_failed,
+          type:
+            "success",
+        });
 
-            type:
-              "error",
-          });
-        }
-      } catch {
+        setDeleteTarget(
+          null
+        );
+      } else {
         setMessage({
           text:
             t.delete_failed,
@@ -589,6 +570,17 @@ export default function SellerStockPage() {
             "error",
         });
       }
+    } catch {
+      setMessage({
+        text:
+          t.delete_failed,
+
+        type:
+          "error",
+      });
+    } finally {
+      setDeleting(false);
+    }
     };
 
   /* =====================================================
@@ -1409,9 +1401,8 @@ export default function SellerStockPage() {
 
                     <button
                       onClick={() =>
-                        handleDelete(
-                          product.id
-                        )
+                  setDeleteTarget(product)
+                    }
                       }
                       className="
                         flex
