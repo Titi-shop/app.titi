@@ -542,14 +542,14 @@ export default function CheckoutSheet({
           {/* ADDRESS */}
 
           <div
-            className="
-              border rounded-xl p-3
-              cursor-pointer mb-4
-            "
-            style={{
-              borderColor:
-                "var(--nav-border)",
-            }}
+  className="
+    border rounded-xl p-3 cursor-pointer mb-4
+  "
+  style={{
+    borderColor: "#f97316", // ORANGE BORDER
+    borderWidth: "1.5px",
+  }}
+
             onClick={() =>
               router.push(
                 "/customer/address"
@@ -622,16 +622,15 @@ export default function CheckoutSheet({
 
           {/* SHIPPING REGION */}
 
-          <div
-            className="
-              border rounded-xl
-              p-3 mb-4
-            "
-            style={{
-              borderColor:
-                "var(--nav-border)",
-            }}
-          >
+         <div
+  className="
+    border rounded-xl p-3 mb-4
+  "
+  style={{
+    borderColor: "#f97316",
+    borderWidth: "1.5px",
+  }}
+>
             <p className="text-sm font-medium mb-3">
               🌍{" "}
               {t.select_region ||
