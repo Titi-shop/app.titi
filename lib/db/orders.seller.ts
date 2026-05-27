@@ -29,10 +29,15 @@ GROUP BY fulfillment_status
   };
 
   for (const r of rows) {
-    if (r.status in result) {
-      result[r.status as keyof typeof result] = r.total;
-    }
+  const status =
+    r.fulfillment_status;
+
+  if (status in result) {
+    result[
+      status as keyof typeof result
+    ] = Number(r.total);
   }
+}
 
   return result;
 }
