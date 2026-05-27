@@ -1403,7 +1403,6 @@ const handleDelete =
                       onClick={() =>
                   setDeleteTarget(product)
                     }
-                      }
                       className="
                         flex
                         flex-1
