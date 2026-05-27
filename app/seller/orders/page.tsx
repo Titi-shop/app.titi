@@ -31,6 +31,7 @@ type OrderStatus =
   | "pending"
   | "processing"
   | "shipped"
+  | "delivered"
   | "completed"
   | "returned"
   | "cancelled";
@@ -90,6 +91,7 @@ function normalizeStatus(
     v === "pending" ||
     v === "processing" ||
     v === "shipped" ||
+    v === "delivered" ||
     v === "completed" ||
     v === "returned" ||
     v === "cancelled"
@@ -99,7 +101,6 @@ function normalizeStatus(
 
   return "pending";
 }
-
 function getOrderStatus(
   items: RawOrderItem[]
 ): OrderStatus {
@@ -110,9 +111,19 @@ function getOrderStatus(
   );
 
   if (
-    statuses.includes("shipping")
+    statuses.includes("processing")
   )
-    return "shipping";
+    return "processing";
+
+  if (
+    statuses.includes("shipped")
+  )
+    return "shipped";
+
+  if (
+    statuses.includes("delivered")
+  )
+    return "delivered";
 
   if (
     statuses.includes("completed")
@@ -123,17 +134,10 @@ function getOrderStatus(
     statuses.includes("returned")
   )
     return "returned";
-
-  if (
-    statuses.includes("confirmed")
-  )
-    return "confirmed";
-
   if (
     statuses.includes("cancelled")
   )
     return "cancelled";
-
   return "pending";
 }
 
@@ -626,12 +630,15 @@ function SellerOrdersContent() {
                 pending:
                   t.pending_orders ??
                   "Pending",
-                confirmed:
-                  t.confirmed_orders ??
-                  "processing",
-                shipping:
-                  t.shipping_orders ??
-                  "Shipping",
+                processing:
+            t.processing_orders ??
+          "Processing",
+        shipped:
+      t.shipped_orders ??
+         "Shipped",
+           delivered:
+             t.delivered_orders ??
+              "Delivered",
                 completed:
                   t.completed_orders ??
                   "Completed",
