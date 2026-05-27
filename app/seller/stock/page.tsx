@@ -475,11 +475,12 @@ export default function SellerStockPage() {
         const data =
           await res.json();
 
-        setShop((prev) => ({
-  ...prev,
-  shop_banner: `${data.banner}?t=${Date.now()}`,
-}));
-
+        setShop(
+     (prev) => ({
+    ...prev,
+    shop_banner: data.banner,
+     })
+      );
         setMessage({
           text:
             "Banner updated",
