@@ -14,8 +14,13 @@ type OrderStatus =
   | "cancelled"
   | "returned";
 
-function parseOrderStatus(v: string | null): OrderStatus | undefined {
+function parseOrderStatus(
+  v: string | null
+): OrderStatus | undefined {
   if (!v) return;
+
+  const normalized =
+    v.toLowerCase();
 
   const allowed: OrderStatus[] = [
     "pending",
@@ -27,8 +32,10 @@ function parseOrderStatus(v: string | null): OrderStatus | undefined {
     "returned",
   ];
 
-  return allowed.includes(v as OrderStatus)
-    ? (v as OrderStatus)
+  return allowed.includes(
+    normalized as OrderStatus
+  )
+    ? (normalized as OrderStatus)
     : undefined;
 }
 
