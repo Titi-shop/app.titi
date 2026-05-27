@@ -51,18 +51,42 @@ function SellerOrdersContent() {
     }
   );
 
-  // ✅ 4. stats sau cùng
-  const stats = useMemo(
-    () => ({
-      pending: data?.pending ?? 0,
-      confirmed: data?.confirmed ?? 0,
-      shipping: data?.shipping ?? 0,
-      completed: data?.completed ?? 0,
-      returned: data?.returned ?? 0,
-      cancelled: data?.cancelled ?? 0,
-      total: data?.total ?? 0,
-    }),
-    [data]
+  const stats = useMemo(() => {
+  const pending =
+    Number(data?.pending ?? 0);
+
+  const processing =
+    Number(data?.processing ?? 0);
+
+  const shipped =
+    Number(data?.shipped ?? 0);
+
+  const completed =
+    Number(data?.completed ?? 0);
+
+  const returned =
+    Number(data?.returned ?? 0);
+
+  const cancelled =
+    Number(data?.cancelled ?? 0);
+
+  return {
+    pending,
+    processing,
+    shipped,
+    completed,
+    returned,
+    cancelled,
+
+    total:
+      pending +
+      processing +
+      shipped +
+      completed +
+      returned +
+      cancelled,
+  };
+}, [data]);
   );
   
 
@@ -142,16 +166,16 @@ function SellerOrdersContent() {
 />
 
 <StatusCard
-  href="/seller/orders?tab=confirmed"
+  href="/seller/orders?tab=processing"
   icon={<CheckCircle2 size={16} />}
-  count={stats.confirmed}
+  count={stats.processing}
   label={t.confirmed_orders ?? "Confirmed"}
 />
 
 <StatusCard
-  href="/seller/orders?tab=shipping"
+  href="/seller/orders?tab=shipped"
   icon={<Truck size={16} />}
-  count={stats.shipping}
+  count={stats.shipped}
   label={t.shipping_orders ?? "Shipping"}
 />
 
