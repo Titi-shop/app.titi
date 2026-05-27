@@ -242,7 +242,9 @@ export default function SellerStockPage() {
   };
 
 const list =
-  Array.isArray(payload.products)
+  Array.isArray(
+    payload.products
+  )
     ? payload.products
     : [];
 
