@@ -52,7 +52,6 @@ keepPreviousData: true,
 );
 
 const stats = useMemo(() => {
-const stats = useMemo(() => {
   const pending =
     Number(data?.pending ?? 0);
 
