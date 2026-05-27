@@ -237,65 +237,63 @@ export default function SellerStockPage() {
             await res.json();
 
           const payload =
-            raw as {
-              profile?: Record<
-                string,
-                unknown
-              >;
+  raw as {
+    products?: unknown[];
+  };
 
-              products?: unknown[];
-            };
+const list =
+  Array.isArray(payload.products)
+    ? payload.products
+    : [];
 
-          /* PROFILE */
+/* ================= SHOP ================= */
 
-          const profile =
-            payload.profile;
+const first =
+  list[0] as
+    | Record<string, unknown>
+    | undefined;
 
-          if (profile) {
-            setShop({
-              shop_name:
-                typeof profile.shop_name ===
-                "string"
-                  ? profile.shop_name
-                  : null,
+if (first) {
+  setShop({
+    shop_name:
+      typeof first.shop_name ===
+      "string"
+        ? first.shop_name
+        : null,
 
-              shop_banner:
-                typeof profile.shop_banner ===
-                "string"
-                  ? profile.shop_banner
-                  : null,
+    shop_banner:
+      typeof first.shop_banner ===
+      "string"
+        ? first.shop_banner
+        : null,
 
-              avatar_url:
-                typeof profile.avatar_url ===
-                "string"
-                  ? profile.avatar_url
-                  : null,
+    avatar_url:
+      typeof first.avatar_url ===
+      "string"
+        ? first.avatar_url
+        : null,
 
-              shop_description:
-                typeof profile.shop_description ===
-                "string"
-                  ? profile.shop_description
-                  : null,
+    shop_description:
+      typeof first.shop_description ===
+      "string"
+        ? first.shop_description
+        : null,
 
-              rating:
-                typeof profile.rating ===
-                "number"
-                  ? profile.rating
-                  : 0,
+    rating:
+      typeof first.rating_avg ===
+      "number"
+        ? first.rating_avg
+        : 0,
 
-              total_reviews:
-                typeof profile.total_reviews ===
-                "number"
-                  ? profile.total_reviews
-                  : 0,
+    total_reviews: 0,
 
-              total_sales:
-                typeof profile.total_sales ===
-                "number"
-                  ? profile.total_sales
-                  : 0,
-            });
-          }
+    total_sales:
+      typeof first.total_sales ===
+      "number"
+        ? first.total_sales
+        : 0,
+  });
+}
 
           /* PRODUCTS */
 
