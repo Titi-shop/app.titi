@@ -502,8 +502,8 @@ export async function getSellerProducts(
           up.shop_name,
           up.shop_banner,
           up.avatar_url,
-          up.total_sales
-
+          up.total_sales,
+          up.shop_description
         FROM products p
 
         LEFT JOIN user_profiles up
