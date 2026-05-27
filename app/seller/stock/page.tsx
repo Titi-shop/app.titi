@@ -201,8 +201,10 @@ export default function SellerStockPage() {
     DEFAULT_AVATAR;
 
   const banner =
-    shop.shop_banner ||
-    DEFAULT_BANNER;
+  typeof shop.shop_banner === "string" &&
+  shop.shop_banner.trim() !== ""
+    ? shop.shop_banner
+    : DEFAULT_BANNER;
 
   /* =====================================================
      LOAD PRODUCTS
