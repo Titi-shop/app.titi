@@ -19,7 +19,6 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
-
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -676,8 +675,7 @@ export default function SellerStockPage() {
               className="object-cover"
             />
 
-            <div className="absolute inset-0 bg-black/20" />
-
+            <div className="absolute inset-0 bg-black/5" />
             {/* CHANGE BANNER */}
 
             <label
@@ -757,16 +755,17 @@ export default function SellerStockPage() {
           <div className="px-5 pb-6">
             {/* AVATAR */}
 
-            <div className="flex justify-center -mt-14">
+            <div className="relative z-20 flex justify-center -mt-14">
               <div
-                className="
-                  h-28
-                  w-28
-                  overflow-hidden
-                  rounded-full
-                  border-4
-                  shadow-xl
-                "
+           className="
+    h-28
+    w-28
+    overflow-hidden
+    rounded-full
+    border-4
+    shadow-2xl
+            bg-white
+             "
                 style={{
                   borderColor:
                     "var(--card-bg)",
