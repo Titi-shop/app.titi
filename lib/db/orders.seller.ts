@@ -242,13 +242,13 @@ export async function startShippingBySeller(
       const res = await client.query(
         `
         UPDATE order_items
-        SET
-          status = 'shipped',
-          shipped_at = NOW(),
-          updated_at = NOW()
-        WHERE order_id = $1
-          AND seller_id = $2
-          AND status = 'processing'
+SET
+  fulfillment_status = 'shipped',
+  shipped_at = NOW(),
+  updated_at = NOW()
+WHERE order_id = $1
+  AND seller_id = $2
+  AND fulfillment_status = 'processing'
         `,
         [orderId, sellerId]
       );
@@ -287,14 +287,15 @@ export async function cancelOrderBySeller(
 
       const res = await client.query(
         `
-        UPDATE order_items
-        SET
-          status = 'cancelled',
-          seller_cancel_reason = COALESCE($3, seller_cancel_reason),
-          updated_at = NOW()
-        WHERE order_id = $1
-          AND seller_id = $2
-          AND status IN ('pending','processing')
+      
+          UPDATE order_items
+SET
+  fulfillment_status = 'cancelled',
+  seller_cancel_reason = COALESCE($3, seller_cancel_reason),
+  updated_at = NOW()
+WHERE order_id = $1
+  AND seller_id = $2
+  AND fulfillment_status IN ('pending','processing')
         `,
         [orderId, sellerId, reason]
       );
@@ -368,15 +369,16 @@ export async function confirmOrderBySeller(
 
       await client.query(
         `
-        UPDATE order_items
-        SET
-          status = 'processing',
-          confirmed_at = NOW(),
-          seller_message = COALESCE($3, seller_message),
-          updated_at = NOW()
-        WHERE order_id = $1
-          AND seller_id = $2
-          AND fulfillment_status = 'pending'
+      
+          UPDATE order_items
+SET
+  fulfillment_status = 'processing',
+  confirmed_at = NOW(),
+  seller_message = COALESCE($3, seller_message),
+  updated_at = NOW()
+WHERE order_id = $1
+  AND seller_id = $2
+  AND fulfillment_status = 'pending'
         `,
         [orderId, sellerId, sellerMessage ?? ""]
       );
