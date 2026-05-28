@@ -45,7 +45,7 @@ type Order = {
 };
 
 /* =======================================================
-   STATE MACHINE (V7 - SINGLE SOURCE OF TRUTH)
+   STATE MACHINE
 ======================================================= */
 
 function normalizeStatus(order: Order): OrderStatus {
@@ -53,7 +53,6 @@ function normalizeStatus(order: Order): OrderStatus {
   const p = order.payment_status;
   const legacy = order.status;
 
-  // 🟡 PENDING FLOW
   if (f === ORDER_STATUS.PENDING_FULFILLMENT) {
     return ORDER_STATUS.PENDING;
   }
@@ -62,12 +61,10 @@ function normalizeStatus(order: Order): OrderStatus {
     return ORDER_STATUS.PENDING;
   }
 
-  // 🟠 PROCESSING
   if (f === ORDER_STATUS.PROCESSING) {
     return ORDER_STATUS.PROCESSING;
   }
 
-  // 🚚 SHIPPING FLOW
   if (
     f === ORDER_STATUS.SHIPPED ||
     f === ORDER_STATUS.DELIVERED
@@ -75,12 +72,10 @@ function normalizeStatus(order: Order): OrderStatus {
     return ORDER_STATUS.SHIPPED;
   }
 
-  // ✅ COMPLETED
   if (f === ORDER_STATUS.COMPLETED) {
     return ORDER_STATUS.COMPLETED;
   }
 
-  // ❌ CANCELLED FLOW
   if (
     f === ORDER_STATUS.CANCELLED ||
     f === ORDER_STATUS.REFUNDED ||
@@ -90,10 +85,11 @@ function normalizeStatus(order: Order): OrderStatus {
     return ORDER_STATUS.CANCELLED;
   }
 
-  // fallback legacy safety
   if (
     legacy &&
-    Object.values(ORDER_STATUS).includes(legacy as OrderStatus)
+    Object.values(ORDER_STATUS).includes(
+      legacy as OrderStatus
+    )
   ) {
     return legacy as OrderStatus;
   }
@@ -118,9 +114,15 @@ type Props = {
   reviewedMap?: Record<string, boolean>;
 };
 
-export default function CustomerOrdersList(props: Props) {
+export default function CustomerOrdersList(
+  props: Props
+) {
   return (
-    <Suspense fallback={<div className="p-4 h-12 bg-white animate-pulse rounded-xl" />}>
+    <Suspense
+      fallback={
+        <div className="p-4 h-12 rounded-xl bg-[var(--card-bg)] animate-pulse" />
+      }
+    >
       <Inner {...props} />
     </Suspense>
   );
@@ -143,15 +145,25 @@ function Inner({
   const { t } = useTranslation();
   const searchParams = useSearchParams();
 
-  const urlTab = searchParams.get("tab") as OrderTab | null;
+  const urlTab = searchParams.get(
+    "tab"
+  ) as OrderTab | null;
 
   const safeTab: OrderTab =
     urlTab &&
-    ["all", "pending", "processing", "shipping", "completed", "cancelled"].includes(urlTab)
+    [
+      "all",
+      "pending",
+      "processing",
+      "shipping",
+      "completed",
+      "cancelled",
+    ].includes(urlTab)
       ? urlTab
       : initialTab;
 
-  const [tab, setTab] = useState<OrderTab>(safeTab);
+  const [tab, setTab] =
+    useState<OrderTab>(safeTab);
 
   useEffect(() => {
     setTab(safeTab);
@@ -187,15 +199,19 @@ function Inner({
         case ORDER_STATUS.PENDING:
           map.pending++;
           break;
+
         case ORDER_STATUS.PROCESSING:
           map.processing++;
           break;
+
         case ORDER_STATUS.SHIPPED:
           map.shipping++;
           break;
+
         case ORDER_STATUS.COMPLETED:
           map.completed++;
           break;
+
         case ORDER_STATUS.CANCELLED:
           map.cancelled++;
           break;
@@ -227,57 +243,73 @@ function Inner({
   /* ================= UI ================= */
 
   return (
-  <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
-    <div className="sticky top-0 z-10 bg-[var(--card-bg)] border-b border-[var(--border)]">
-  <div
-    className="
-      flex
-      w-full
-      gap-2
-      overflow-x-auto
-      whitespace-nowrap
-      px-2
-      scrollbar-hide
-      touch-pan-x
-      [-webkit-overflow-scrolling:touch]
-    "
-  >
-        {tabs.map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`px-4 py-3 text-sm border-b-2 ${
-              tab === key
-                ? "border-orange-500 text-orange-500 dark:text-orange-400 font-semibold"
-                : "border-transparent text-gray-600 dark:text-gray-400"
-            }`}
-          >
-            {label} ({counts[key]})
-          </button>
-        ))}
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
+
+      {/* TABS */}
+      <div className="sticky top-0 z-10 bg-[var(--card-bg)] border-b border-[var(--border)]">
+
+        <div
+          className="
+            flex
+            gap-2
+            overflow-x-auto
+            whitespace-nowrap
+            px-2
+            scrollbar-hide
+            touch-pan-x
+            [-webkit-overflow-scrolling:touch]
+          "
+        >
+          {tabs.map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`shrink-0 px-4 py-3 text-sm border-b-2 transition ${
+                tab === key
+                  ? "border-orange-500 text-orange-500 font-semibold"
+                  : "border-transparent text-[var(--text-muted)]"
+              }`}
+            >
+              {label} ({counts[key]})
+            </button>
+          ))}
+        </div>
       </div>
 
-    {/* LIST */}
-    <div className="p-4 space-y-4 bg-[var(--background)]">
-      {filtered.length === 0 ? (
-        <div className="text-center text-sm text-[var(--text-muted)] bg-[var(--card-bg)] p-8 rounded-xl">
-          {t.no_orders ?? "No orders"}
-        </div>
-      ) : (
-        filtered.map((order) => (
-          <CustomerOrderCard
-            key={order.id}
-            order={order}
-            reviewed={reviewedMap?.[order.id] ?? false}
-            onDetail={() => onDetail(order.id)}
-            onCancel={() => onCancel?.(order.id)}
-            onReceived={() => onReceived?.(order.id)}
-            onBuyAgain={() => onBuyAgain?.(order.id)}
-            onReview={() => onReview?.(order.id)}
-          />
-        ))
-      )}
+      {/* LIST */}
+      <div className="p-4 space-y-4 bg-[var(--background)]">
+
+        {filtered.length === 0 ? (
+          <div className="rounded-xl bg-[var(--card-bg)] p-8 text-center text-sm text-[var(--text-muted)] border border-[var(--border)]">
+            {t.no_orders ?? "No orders"}
+          </div>
+        ) : (
+          filtered.map((order) => (
+            <CustomerOrderCard
+              key={order.id}
+              order={order}
+              reviewed={
+                reviewedMap?.[order.id] ?? false
+              }
+              onDetail={() =>
+                onDetail(order.id)
+              }
+              onCancel={() =>
+                onCancel?.(order.id)
+              }
+              onReceived={() =>
+                onReceived?.(order.id)
+              }
+              onBuyAgain={() =>
+                onBuyAgain?.(order.id)
+              }
+              onReview={() =>
+                onReview?.(order.id)
+              }
+            />
+          ))
+        )}
+      </div>
     </div>
-</div>
-);
-}
+  );
+  }
