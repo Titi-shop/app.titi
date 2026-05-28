@@ -238,8 +238,7 @@ function Inner({
   /* ================= UI ================= */
 
   return (
-    <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white transition-colors duration-300">
-      
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
       {/* TABS */}
       <div
         className="
