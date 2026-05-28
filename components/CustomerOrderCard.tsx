@@ -82,21 +82,44 @@ export default function CustomerOrderCard({
   const status = normalizeStatus(order.status);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black shadow-sm transition-colors">
+    <div
+  className="
+    overflow-hidden
+    rounded-2xl
+    border border-orange-500/20
+    bg-[var(--card-bg)]
+    shadow-sm
+    transition-colors duration-300
+  "
+>
       
       {/* HEADER */}
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm">
-        <span className="truncate font-semibold text-gray-800 dark:text-gray-200">
+      <div
+  className="
+    flex items-center justify-between gap-3
+    border-b border-orange-500/10
+    bg-[var(--card-secondary)]
+    px-4 py-3 text-sm
+  "
+>
+        className="truncate font-semibold text-[var(--foreground)]"
           #{order.order_number ?? order.id.slice(0, 8)}
         </span>
 
-        <span className="shrink-0 rounded-full bg-orange-50 dark:bg-orange-950 px-2.5 py-1 text-xs font-semibold text-orange-600 dark:text-orange-300">
+        <span className="
+  shrink-0 rounded-full
+  border border-orange-500/30
+  bg-orange-500/10
+  px-2.5 py-1
+  text-xs font-semibold
+  text-orange-500
+">
           {t[`order_${status}`] ?? status}
         </span>
       </div>
 
       {/* ITEMS */}
-      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+      <div className="divide-y divide-orange-500/10">
         {items.map((item, index) => {
           const image =
             item.thumbnail || item.images?.[0] || "/placeholder.png";
@@ -111,26 +134,36 @@ export default function CustomerOrderCard({
                 src={image}
                 alt={item.product_name ?? "Product"}
                 loading="lazy"
-                className="h-16 w-16 shrink-0 rounded-xl bg-gray-100 object-cover"
+               className="
+  h-16 w-16 shrink-0 rounded-xl
+  border border-orange-500/10
+  bg-[var(--card-secondary)]
+  object-cover
+"
               />
 
               {/* INFO */}
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-sm font-medium text-gray-800 dark:text-gray-200">
+                <p className="
+  line-clamp-2
+  text-sm font-medium
+  text-[var(--foreground)]
+"
+                   
                   {item.product_name ?? "Product"}
                 </p>
 
                 {/* PRICE */}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   x{item.quantity ?? 0} ·{" "}
-                  <span className="text-red-500 dark:text-red-400 font-semibold">
+                  <span className="font-semibold text-orange-500">
                     π{formatPi(Number(item.unit_price ?? 0))}
                   </span>
                 </p>
 
                 {/* SELLER MESSAGE */}
                 {item.seller_message && (
-                  <p className="mt-1 line-clamp-2 text-xs text-green-600 dark:text-green-400">
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
                     💌 {item.seller_message}
                   </p>
                 )}
@@ -150,13 +183,27 @@ export default function CustomerOrderCard({
 
       {/* FOOTER */}
       <div
-        className="flex flex-col gap-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        className="
+  flex flex-col gap-3
+  border-t border-orange-500/10
+  bg-[var(--card-secondary)]
+  px-4 py-3
+  sm:flex-row sm:items-center sm:justify-between
+"
         onClick={(e) => e.stopPropagation()}
       >
         {/* TOTAL */}
-        <span className="text-sm text-gray-700 dark:text-gray-300">
+        <span className="text-sm text-[var(--foreground)]">
           {t.total ?? "Total"}:{" "}
-          <span className="inline-flex items-center rounded-full bg-red-50 dark:bg-red-950 px-2 py-1 text-red-600 dark:text-red-300 font-bold">
+          <span className="
+  inline-flex items-center
+  rounded-full
+  border border-orange-500/30
+  bg-orange-500/10
+  px-2 py-1
+  font-bold
+  text-orange-500
+" >
             π{formatPi(Number(order.total ?? 0))}
           </span>
         </span>
