@@ -228,46 +228,45 @@ function Inner({
 
   return (
   <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
-      <div className="sticky top-0 z-10 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 overflow-x-auto whitespace-nowrap">
-        <div className="flex min-w-max px-2">
-          {tabs.map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-4 py-3 text-sm border-b-2 ${
-                tab === key
-                  ? "border-orange-500 text-orange-500 dark:text-orange-400 font-semibold"
-                  : "border-transparent text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              {label} ({counts[key]})
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* LIST */}
-     <div className="p-4 space-y-4 bg-gray-50 dark:bg-black">
-        {filtered.length === 0 ? (
-          <div className="text-center text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 p-8 rounded-xl">
-            {t.no_orders ?? "No orders"}
-          </div>
-        ) : (
-          filtered.map((order) => (
-            <CustomerOrderCard
-              key={order.id}
-              order={order}
-              reviewed={reviewedMap?.[order.id] ?? false}
-              onDetail={() => onDetail(order.id)}
-              onCancel={() => onCancel?.(order.id)}
-              onReceived={() => onReceived?.(order.id)}
-              onBuyAgain={() => onBuyAgain?.(order.id)}
-              onReview={() => onReview?.(order.id)}
-            />
-          ))
-        )}
+    <div className="sticky top-0 z-10 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 overflow-x-auto whitespace-nowrap">
+      <div className="flex min-w-max px-2">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-3 text-sm border-b-2 ${
+              tab === key
+                ? "border-orange-500 text-orange-500 dark:text-orange-400 font-semibold"
+                : "border-transparent text-gray-600 dark:text-gray-400"
+            }`}
+          >
+            {label} ({counts[key]})
+          </button>
+        ))}
       </div>
     </div>
-)
-  );
+
+    {/* LIST */}
+    <div className="p-4 space-y-4 bg-gray-50 dark:bg-black">
+      {filtered.length === 0 ? (
+        <div className="text-center text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 p-8 rounded-xl">
+          {t.no_orders ?? "No orders"}
+        </div>
+      ) : (
+        filtered.map((order) => (
+          <CustomerOrderCard
+            key={order.id}
+            order={order}
+            reviewed={reviewedMap?.[order.id] ?? false}
+            onDetail={() => onDetail(order.id)}
+            onCancel={() => onCancel?.(order.id)}
+            onReceived={() => onReceived?.(order.id)}
+            onBuyAgain={() => onBuyAgain?.(order.id)}
+            onReview={() => onReview?.(order.id)}
+          />
+        ))
+      )}
+    </div>
+  </div>
+);
 }
