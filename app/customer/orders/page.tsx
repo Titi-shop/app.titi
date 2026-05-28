@@ -305,15 +305,22 @@ export default function CustomerOrdersPage() {
 
   /* ================= LOADING ================= */
 
-  if (loading || isLoading) {
-    return (
-      <main className="min-h-screen bg-gray-100 p-4 space-y-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-28 bg-white rounded-xl animate-pulse" />
-        ))}
-      </main>
-    );
-  }
+if (loading || isLoading) {
+  return (
+    <main className="min-h-screen bg-[var(--background)] p-4 space-y-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="
+            h-28 rounded-2xl animate-pulse
+            border border-orange-500/20
+            bg-[var(--card-bg)]
+          "
+        />
+      ))}
+    </main>
+  );
+}
 
   /* ================= UI ================= */
 
@@ -321,19 +328,42 @@ export default function CustomerOrdersPage() {
   <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-32 transition-colors duration-300">
 
     {toast && (
-      <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-black text-white px-4 py-2 rounded-full text-sm">
-        {toast}
-      </div>
-    )}
+  <div
+    className="
+      fixed top-16 left-1/2 z-50
+      -translate-x-1/2
+      rounded-full
+      border border-orange-500
+      bg-[var(--card-bg)]
+      px-4 py-2
+      text-sm font-medium
+      text-[var(--foreground)]
+      shadow-lg
+    "
+  >
+    {toast}
+  </div>
+)}
 
     <header className="px-4 py-4">
-      <div className="rounded-xl bg-[var(--card-bg)] p-4 shadow-sm border border-[var(--border)]">
-        <p className="text-sm">{t.orders ?? "Orders"}</p>
-        <p className="text-xs mt-1 text-[var(--text-muted)]">
-          {mergedOrders.length} · π{formatPi(totalPi)}
-        </p>
-      </div>
-    </header>
+  <div
+    className="
+      rounded-2xl
+      border border-orange-500/30
+      bg-[var(--card-bg)]
+      p-4
+      shadow-sm
+    "
+  >
+    <p className="text-sm font-semibold text-[var(--foreground)]">
+      {t.orders ?? "Orders"}
+    </p>
+
+    <p className="mt-1 text-xs text-[var(--text-muted)]">
+      {mergedOrders.length} · π{formatPi(totalPi)}
+    </p>
+  </div>
+</header>
 
     <Suspense fallback={
       <div className="p-4 text-sm text-center text-[var(--text-muted)]">
