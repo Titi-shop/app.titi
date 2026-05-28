@@ -1,108 +1,220 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs"; // ✅ rule 25
-export const revalidate = 15;    // ✅ cache server 15s
+export const runtime = "nodejs";
+export const revalidate = 10;
 
-interface OkxTickerData {
-  last: string;
-  sodUtc8?: string;
+/* =========================================================
+   TYPES
+========================================================= */
+
+interface OkxTicker {
+  last?: string;
+  open24h?: string;
+  vol24h?: string;
+  high24h?: string;
+  low24h?: string;
+  ts?: string;
 }
 
 interface OkxResponse {
-  data?: OkxTickerData[];
+  code?: string;
+  data?: OkxTicker[];
 }
 
-// 🔥 cache in-memory (≤60s đúng rule 28)
-let cache: {
+interface CachedPrice {
   price: number;
-  change: number | null;
+  change24h: number;
+  high24h: number;
+  low24h: number;
+  volume24h: number;
+  updatedAt: string;
+  source: string;
   ts: number;
-} | null = null;
+}
+
+/* =========================================================
+   MEMORY CACHE
+========================================================= */
+
+let cache: CachedPrice | null = null;
+
+const CACHE_TTL = 8000;
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function safeNumber(value: unknown): number {
+  const n = Number(value);
+
+  return Number.isFinite(n) ? n : 0;
+}
+
+function buildResponse(data: CachedPrice) {
+  return NextResponse.json(
+    {
+      symbol: "PI/USDT",
+
+      price_usd: data.price,
+
+      change_24h: data.change24h,
+
+      high_24h: data.high24h,
+
+      low_24h: data.low24h,
+
+      volume_24h: data.volume24h,
+
+      updated_at: data.updatedAt,
+
+      source: data.source,
+    },
+    {
+      headers: {
+        "Cache-Control":
+          "public, s-maxage=8, stale-while-revalidate=20",
+      },
+    }
+  );
+}
+
+/* =========================================================
+   ROUTE
+========================================================= */
 
 export async function GET() {
   const now = Date.now();
 
-  // ✅ dùng cache nếu < 10s
-  if (cache && now - cache.ts < 10000) {
-    return NextResponse.json({
-      symbol: "PI/USDT",
-      price_usd: cache.price,
-      change_24h: cache.change,
+  /* =====================================================
+     HOT CACHE
+  ===================================================== */
+
+  if (cache && now - cache.ts < CACHE_TTL) {
+    return buildResponse({
+      ...cache,
       source: "CACHE",
-      updated_at: new Date(cache.ts).toISOString(),
     });
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // nhanh hơn
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 4500);
 
   try {
+    /* =====================================================
+       OKX API
+    ===================================================== */
+
     const res = await fetch(
       "https://www.okx.com/api/v5/market/ticker?instId=PI-USDT",
       {
-        next: { revalidate: 15 }, // ✅ Next cache
+        method: "GET",
+
         signal: controller.signal,
+
+        next: {
+          revalidate: 10,
+        },
+
+        headers: {
+          Accept: "application/json",
+        },
       }
     );
 
     clearTimeout(timeout);
 
     if (!res.ok) {
-      throw new Error(`OKX_${res.status}`);
+      throw new Error(`OKX_HTTP_${res.status}`);
     }
 
     const json: OkxResponse = await res.json();
 
-    if (!json.data || json.data.length === 0) {
-      throw new Error("INVALID_OKX_RESPONSE");
+    if (!json.data?.length) {
+      throw new Error("EMPTY_OKX_DATA");
     }
 
     const ticker = json.data[0];
 
-    const price = Number(ticker.last);
-    const sod = ticker.sodUtc8 ? Number(ticker.sodUtc8) : null;
+    const price = safeNumber(ticker.last);
 
-    if (!Number.isFinite(price)) {
+    const open24h = safeNumber(ticker.open24h);
+
+    const high24h = safeNumber(ticker.high24h);
+
+    const low24h = safeNumber(ticker.low24h);
+
+    const volume24h = safeNumber(ticker.vol24h);
+
+    if (!price || price <= 0) {
       throw new Error("INVALID_PRICE");
     }
 
-    let change: number | null = null;
+    /* =====================================================
+       CHANGE %
+    ===================================================== */
 
-    if (sod !== null && sod !== 0) {
-      change = ((price - sod) / sod) * 100;
+    let change24h = 0;
+
+    if (open24h > 0) {
+      change24h =
+        ((price - open24h) / open24h) * 100;
     }
 
-    // ✅ update cache
-    cache = {
+    /* =====================================================
+       CACHE UPDATE
+    ===================================================== */
+
+    const payload: CachedPrice = {
       price,
-      change,
+
+      change24h,
+
+      high24h,
+
+      low24h,
+
+      volume24h,
+
+      updatedAt: new Date().toISOString(),
+
+      source: "OKX",
+
       ts: now,
     };
 
-    return NextResponse.json({
-      symbol: "PI/USDT",
-      price_usd: price,
-      change_24h: change,
-      source: "OKX",
-      updated_at: new Date().toISOString(),
-    });
-  } catch (err) {
+    cache = payload;
+
+    return buildResponse(payload);
+  } catch (error) {
     clearTimeout(timeout);
 
-    // 🔥 fallback cache nếu OKX lỗi
+    console.error("PI_PRICE_API_ERROR", error);
+
+    /* =====================================================
+       FALLBACK CACHE
+    ===================================================== */
+
     if (cache) {
-      return NextResponse.json({
-        symbol: "PI/USDT",
-        price_usd: cache.price,
-        change_24h: cache.change,
-        source: "FALLBACK",
-        updated_at: new Date(cache.ts).toISOString(),
+      return buildResponse({
+        ...cache,
+        source: "FALLBACK_CACHE",
       });
     }
 
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
     return NextResponse.json(
-      { error: "PI_PRICE_UNAVAILABLE" }, // ✅ chuẩn rule 32
-      { status: 500 }
+      {
+        error: "PI_PRICE_UNAVAILABLE",
+      },
+      {
+        status: 503,
+      }
     );
   }
 }
