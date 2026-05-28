@@ -250,7 +250,8 @@ function Inner({
   className="
     sticky top-0 z-20
     border-b border-orange-500/40
-    bg-white dark:bg-black
+    bg-white text-black
+    dark:bg-black dark:text-white
     overflow-x-auto
     scrollbar-hide
   "
@@ -265,11 +266,12 @@ function Inner({
           type="button"
           onClick={() => setTab(key)}
           className={`
-            shrink-0 rounded-xl border px-4 py-2 text-sm font-medium transition-all
+            shrink-0 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200
+
             ${
               active
-                ? "border-orange-500 bg-orange-500 text-white"
-                : "border-orange-500/40 bg-white text-orange-600 dark:bg-black dark:text-orange-400"
+                ? "border-orange-500 text-orange-500 dark:text-orange-400"
+                : "border-transparent text-black dark:text-white"
             }
           `}
         >
