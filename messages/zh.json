@@ -651,7 +651,8 @@
   "new_arrivals": "新品上架",
   
   "processing_orders": "处理中订单",
-  "returns_orders": "退货订单"
+  "returns_orders": "退货订单",
+  "order_processing": "处理中"
 
 
 
