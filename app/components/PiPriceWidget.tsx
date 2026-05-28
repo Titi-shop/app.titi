@@ -2,9 +2,8 @@
 
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
-  RefreshCw,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -21,29 +20,8 @@ import {
 interface PiPriceResponse {
   symbol: string;
   price_usd: number;
-  change_24h: number;
-  high_24h?: number;
-  low_24h?: number;
-  volume_24h?: number;
+  change_24h: number | null;
   updated_at?: string;
-  source?: string;
-}
-
-type FlashState = "up" | "down" | null;
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function formatPrice(value: number): string {
-  return Number(value || 0).toFixed(6);
-}
-
-function compactNumber(value: number): string {
-  return Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 2,
-  }).format(value || 0);
 }
 
 /* =========================================================
@@ -51,53 +29,36 @@ function compactNumber(value: number): string {
 ========================================================= */
 
 export default function PiPriceWidget() {
-  const [loading, setLoading] =
-    useState<boolean>(true);
+  const [price, setPrice] = useState<number>(0);
 
-  const [price, setPrice] =
-    useState<number>(0);
+  const [change, setChange] = useState<number>(0);
 
-  const [change, setChange] =
-    useState<number>(0);
+  const [history, setHistory] = useState<number[]>([]);
 
-  const [high24h, setHigh24h] =
-    useState<number>(0);
+  const [flash, setFlash] = useState<
+    "up" | "down" | null
+  >(null);
 
-  const [low24h, setLow24h] =
-    useState<number>(0);
-
-  const [volume24h, setVolume24h] =
-    useState<number>(0);
-
-  const [updatedAt, setUpdatedAt] =
-    useState<string>("");
-
-  const [history, setHistory] = useState<
-    number[]
-  >([]);
-
-  const [flash, setFlash] =
-    useState<FlashState>(null);
+  const [connected, setConnected] =
+    useState<boolean>(false);
 
   const prevPriceRef = useRef<number>(0);
 
-  /* =====================================================
+  /* =========================================================
      FETCH
-  ===================================================== */
+  ========================================================= */
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadPrice() {
+    async function fetchPrice() {
       try {
-        const res = await fetch(
-          "/api/pi-price",
-          {
-            cache: "no-store",
-          }
-        );
+        const res = await fetch("/api/pi-price", {
+          cache: "no-store",
+        });
 
         if (!res.ok) {
+          setConnected(false);
           return;
         }
 
@@ -107,13 +68,15 @@ export default function PiPriceWidget() {
         if (!mounted) return;
 
         const nextPrice = Number(
-          data.price_usd || 0
+          data.price_usd ?? 0
+        );
+
+        const nextChange = Number(
+          data.change_24h ?? 0
         );
 
         const oldPrice =
           prevPriceRef.current;
-
-        /* ================= FLASH ================= */
 
         if (oldPrice > 0) {
           if (nextPrice > oldPrice) {
@@ -124,92 +87,71 @@ export default function PiPriceWidget() {
             setFlash("down");
           }
 
-          window.setTimeout(() => {
+          setTimeout(() => {
             setFlash(null);
-          }, 500);
+          }, 450);
         }
 
         prevPriceRef.current = nextPrice;
 
-        /* ================= UPDATE ================= */
-
         setPrice(nextPrice);
 
-        setChange(
-          Number(data.change_24h || 0)
-        );
+        setChange(nextChange);
 
-        setHigh24h(
-          Number(data.high_24h || 0)
-        );
-
-        setLow24h(
-          Number(data.low_24h || 0)
-        );
-
-        setVolume24h(
-          Number(data.volume_24h || 0)
-        );
-
-        setUpdatedAt(
-          data.updated_at || ""
-        );
+        setConnected(true);
 
         setHistory((prev) => {
           const next = [...prev, nextPrice];
 
-          return next.slice(-60);
+          return next.slice(-80);
         });
       } catch (err) {
         console.error(
-          "PI_WIDGET_FETCH_ERROR",
+          "PI_PRICE_WIDGET_ERROR",
           err
         );
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+
+        setConnected(false);
       }
     }
 
-    loadPrice();
+    fetchPrice();
 
-    const interval = window.setInterval(
-      loadPrice,
-      3000
+    const interval = setInterval(
+      fetchPrice,
+      2500
     );
 
     return () => {
       mounted = false;
-
       clearInterval(interval);
     };
   }, []);
 
-  /* =====================================================
+  /* =========================================================
      STATES
-  ===================================================== */
+  ========================================================= */
 
-  const isPositive = change >= 0;
+  const isUp = change >= 0;
 
-  const priceColor = isPositive
-    ? "text-emerald-400"
-    : "text-red-400";
-
-  const chartColor = isPositive
+  const graphColor = isUp
     ? "#34d399"
     : "#f87171";
 
-  /* =====================================================
-     SVG PATH
-  ===================================================== */
+  const textColor = isUp
+    ? "text-emerald-400"
+    : "text-red-400";
+
+  /* =========================================================
+     CHART
+  ========================================================= */
 
   const chartPath = useMemo(() => {
     if (history.length < 2) return "";
 
     const width = 600;
 
-    const height = 160;
+    const height = 140;
 
     const max = Math.max(...history);
 
@@ -235,26 +177,45 @@ export default function PiPriceWidget() {
       .join(" ");
   }, [history]);
 
-  /* =====================================================
+  /* =========================================================
      UI
-  ===================================================== */
+  ========================================================= */
 
   return (
-  <div
-    className={`
-      relative overflow-hidden
-      rounded-[34px]
-      border border-white/10
-      bg-[#0b1120]
-      shadow-[0_25px_80px_rgba(0,0,0,0.45)]
-      backdrop-blur-xl
-    `}
-  >
+    <div
+      className={`
+        relative overflow-hidden
+        rounded-[34px]
+        border border-white/10
+        bg-[#0b1120]
+        shadow-[0_25px_80px_rgba(0,0,0,0.45)]
+        backdrop-blur-xl
+      `}
+    >
       {/* BG */}
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.15),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.15),transparent_35%)]" />
+      <div
+        className={`
+          absolute inset-0
+          bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),
+          linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)]
+          bg-[size:22px_22px]
+        `}
+      />
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px]" />
+      {/* GLOW */}
+
+      <div
+        className={`
+          absolute -right-20 -top-20
+          h-64 w-64 rounded-full blur-3xl
+          ${
+            isUp
+              ? "bg-emerald-500/20"
+              : "bg-red-500/20"
+          }
+        `}
+      />
 
       {/* CONTENT */}
 
@@ -262,139 +223,143 @@ export default function PiPriceWidget() {
         {/* HEADER */}
 
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className="
-                flex h-14 w-14 items-center justify-center
-                rounded-2xl
-                border border-white/10
-                bg-white/5
-                backdrop-blur-xl
-              "
-            >
-              <Activity
-                size={24}
-                className="text-orange-400"
-              />
+          <div>
+            <div className="flex items-center gap-3">
+              <div
+                className={`
+                  flex h-12 w-12 items-center justify-center
+                  rounded-2xl
+                  border border-white/10
+                  bg-white/10
+                  backdrop-blur-xl
+                `}
+              >
+                <Activity
+                  size={22}
+                  className="text-orange-400"
+                />
+              </div>
+
+              <div>
+                <p
+                  className={`
+                    text-[10px]
+                    font-bold uppercase
+                    tracking-[0.28em]
+                    text-white/40
+                  `}
+                >
+                  Live Market
+                </p>
+
+                <h2 className="text-2xl font-black text-white">
+                  PI / USDT
+                </h2>
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/40">
-                Live Market
-              </p>
+            {/* PRICE */}
 
-              <h2 className="mt-1 text-2xl font-black text-white">
-                PI / USDT
-              </h2>
+            <div className="mt-6 flex items-end gap-3">
+              <div
+                className={`
+                  text-4xl font-black tracking-tight
+                  transition-all duration-300
+                  ${textColor}
+                  ${
+                    flash === "up"
+                      ? "scale-105"
+                      : ""
+                  }
+                  ${
+                    flash === "down"
+                      ? "scale-95"
+                      : ""
+                  }
+                `}
+              >
+                $
+                {price.toLocaleString(
+                  undefined,
+                  {
+                    minimumFractionDigits: 4,
+                    maximumFractionDigits: 4,
+                  }
+                )}
+              </div>
+
+              <span className="mb-1 text-sm text-white/40">
+                USD
+              </span>
             </div>
           </div>
+
+          {/* CHANGE */}
 
           <div
             className={`
               flex items-center gap-2
-              rounded-2xl px-4 py-2
+              rounded-2xl
+              px-4 py-2
               text-sm font-bold
               ${
-                isPositive
+                isUp
                   ? "bg-emerald-500/15 text-emerald-400"
                   : "bg-red-500/15 text-red-400"
               }
             `}
           >
-            {isPositive ? (
-              <ArrowUpRight size={16} />
+            {isUp ? (
+              <TrendingUp size={16} />
             ) : (
-              <ArrowDownRight size={16} />
+              <TrendingDown size={16} />
             )}
 
             {change.toFixed(2)}%
           </div>
         </div>
 
-        {/* PRICE */}
+        {/* STATUS */}
 
-        <div className="mt-7 flex items-end gap-3">
-          <div
+        <div className="mt-4 flex items-center gap-2">
+          <span
             className={`
-              text-5xl font-black tracking-tight
-              transition-all duration-300
-              ${priceColor}
+              h-2 w-2 rounded-full
               ${
-                flash === "up"
-                  ? "scale-105"
-                  : ""
-              }
-              ${
-                flash === "down"
-                  ? "scale-95"
-                  : ""
+                connected
+                  ? "bg-emerald-400 animate-pulse"
+                  : "bg-red-400"
               }
             `}
-          >
-            {loading
-              ? "--.--"
-              : formatPrice(price)}
-          </div>
+          />
 
-          <span className="mb-1 text-base text-white/40">
-            USD
+          <span className="text-xs text-white/50">
+            {connected
+              ? "Realtime Connected"
+              : "Disconnected"}
           </span>
-        </div>
-
-        {/* MINI STATS */}
-
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 backdrop-blur-xl">
-            <p className="text-[11px] uppercase tracking-wider text-white/40">
-              24H High
-            </p>
-
-            <p className="mt-2 text-sm font-bold text-emerald-400">
-              {formatPrice(high24h)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 backdrop-blur-xl">
-            <p className="text-[11px] uppercase tracking-wider text-white/40">
-              24H Low
-            </p>
-
-            <p className="mt-2 text-sm font-bold text-red-400">
-              {formatPrice(low24h)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 backdrop-blur-xl">
-            <p className="text-[11px] uppercase tracking-wider text-white/40">
-              Volume
-            </p>
-
-            <p className="mt-2 text-sm font-bold text-orange-300">
-              {compactNumber(volume24h)}
-            </p>
-          </div>
         </div>
 
         {/* CHART */}
 
         <div
-          className="
-            mt-6 overflow-hidden
+          className={`
+            relative mt-6 overflow-hidden
             rounded-3xl
             border border-white/5
             bg-black/20
             p-3
             backdrop-blur-xl
-          "
+          `}
         >
           <svg
-            viewBox="0 0 600 160"
+            viewBox="0 0 600 140"
             preserveAspectRatio="none"
-            className="h-[160px] w-full"
+            className="h-[140px] w-full"
           >
             <defs>
               <linearGradient
-                id="piChartFill"
+                id="priceGradient"
                 x1="0"
                 y1="0"
                 x2="0"
@@ -402,13 +367,13 @@ export default function PiPriceWidget() {
               >
                 <stop
                   offset="0%"
-                  stopColor={chartColor}
-                  stopOpacity="0.4"
+                  stopColor={graphColor}
+                  stopOpacity="0.35"
                 />
 
                 <stop
                   offset="100%"
-                  stopColor={chartColor}
+                  stopColor={graphColor}
                   stopOpacity="0"
                 />
               </linearGradient>
@@ -417,8 +382,8 @@ export default function PiPriceWidget() {
             {/* AREA */}
 
             <path
-              d={`${chartPath} L 600 160 L 0 160 Z`}
-              fill="url(#piChartFill)"
+              d={`${chartPath} L 600 140 L 0 140 Z`}
+              fill="url(#priceGradient)"
             />
 
             {/* LINE */}
@@ -426,82 +391,57 @@ export default function PiPriceWidget() {
             <path
               d={chartPath}
               fill="none"
-              stroke={chartColor}
+              stroke={graphColor}
               strokeWidth="4"
               strokeLinecap="round"
-              className="
-                drop-shadow-[0_0_14px_rgba(255,255,255,0.35)]
-              "
+              className="drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]"
             />
           </svg>
-        </div>
-
-        {/* FOOTER */}
-
-        <div
-          className="
-            mt-5 flex items-center justify-between
-            rounded-2xl
-            border border-white/5
-            bg-white/[0.04]
-            px-4 py-3
-            text-sm
-            backdrop-blur-xl
-          "
-        >
-          <div className="flex items-center gap-2 text-white/50">
-            <RefreshCw size={14} />
-
-            <span>
-              Real-time market update
-            </span>
-          </div>
-
-          <span className="text-xs text-white/40">
-            {updatedAt
-              ? new Date(
-                  updatedAt
-                ).toLocaleTimeString()
-              : "--:--:--"}
-          </span>
         </div>
 
         {/* TICKER */}
 
         <div
-          className="
+          className={`
             mt-5 overflow-hidden
             rounded-2xl
             border border-white/5
-            bg-white/[0.03]
+            bg-white/5
             py-3
-          "
+          `}
         >
           <div
-            className="
+            className={`
               whitespace-nowrap
-              text-sm font-semibold text-white/70
+              text-sm font-semibold
+              text-white/70
               animate-[ticker_18s_linear_infinite]
-            "
+            `}
           >
             <span className="mx-6">
               PI NETWORK LIVE MARKET
             </span>
 
+            <span className="mx-6 text-orange-300">
+              REALTIME PRICE
+            </span>
+
             <span className="mx-6 text-emerald-400">
-              ▲ {formatPrice(price)} USD
+              ▲ ${price.toFixed(4)}
             </span>
 
             <span className="mx-6">
-              REALTIME DATA STREAM
+              24H CHANGE
             </span>
 
-            <span className="mx-6 text-orange-300">
-              HIGH {formatPrice(high24h)}
-            </span>
-
-            <span className="mx-6 text-red-400">
-              LOW {formatPrice(low24h)}
+            <span
+              className={`mx-6 ${
+                isUp
+                  ? "text-emerald-400"
+                  : "text-red-400"
+              }`}
+            >
+              {change.toFixed(2)}%
             </span>
 
             <span className="mx-6">
@@ -526,4 +466,4 @@ export default function PiPriceWidget() {
       `}</style>
     </div>
   );
-              }
+}
