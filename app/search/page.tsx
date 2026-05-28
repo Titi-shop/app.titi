@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search, Trash2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
+
+/* =======================================================
+   TYPES
+======================================================= */
 
 interface Product {
-  id: number;
+  id: number | string;
   name: string;
   price: number;
   images?: string[];
@@ -14,64 +20,153 @@ interface Product {
   seller?: string;
 }
 
+/* =======================================================
+   PAGE
+======================================================= */
+
 export default function SearchPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
+  /* ================= STATE ================= */
+
   const [query, setQuery] = useState("");
+
   const [results, setResults] = useState<Product[]>([]);
-  const [recent, setRecent] = useState<string[]>([]);
   const [savedProducts, setSavedProducts] = useState<Product[]>([]);
+  const [recent, setRecent] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(false);
 
-  // 🧠 Load lịch sử tìm kiếm & sản phẩm đã lưu
-  useEffect(() => {
-    const storedRecent = localStorage.getItem("recentSearch");
-    const storedProducts = localStorage.getItem("savedProducts");
+  /* =======================================================
+     STORAGE
+  ======================================================= */
 
-    if (storedRecent) setRecent(JSON.parse(storedRecent));
-    if (storedProducts) setSavedProducts(JSON.parse(storedProducts));
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const recentRaw = localStorage.getItem("recentSearch");
+      const savedRaw = localStorage.getItem("savedProducts");
+
+      if (recentRaw) {
+        setRecent(JSON.parse(recentRaw));
+      }
+
+      if (savedRaw) {
+        setSavedProducts(JSON.parse(savedRaw));
+      }
+    } catch {
+      //
+    }
   }, []);
 
-  // 💾 Lưu lịch sử tìm kiếm
-  const saveRecent = (q: string) => {
+  /* =======================================================
+     HELPERS
+  ======================================================= */
+
+  const saveRecent = (value: string) => {
+    const q = value.trim();
+
     if (!q) return;
-    const updated = [q, ...recent.filter((i) => i !== q)].slice(0, 5);
+
+    const updated = [
+      q,
+      ...recent.filter((item) => item !== q),
+    ].slice(0, 8);
+
     setRecent(updated);
-    localStorage.setItem("recentSearch", JSON.stringify(updated));
+
+    localStorage.setItem(
+      "recentSearch",
+      JSON.stringify(updated)
+    );
   };
 
-  // 💾 Lưu danh sách sản phẩm đã tìm
-  const saveProducts = (list: Product[]) => {
-    const newList = [...savedProducts, ...list].reduce((acc: Product[], p) => {
-      if (!acc.some((item) => item.id === p.id)) acc.push(p);
-      return acc;
-    }, []);
-    setSavedProducts(newList);
-    localStorage.setItem("savedProducts", JSON.stringify(newList));
+  const saveProducts = (products: Product[]) => {
+    const merged = [...products, ...savedProducts].reduce<Product[]>(
+      (acc, item) => {
+        const exists = acc.some((p) => p.id === item.id);
+
+        if (!exists) {
+          acc.push(item);
+        }
+
+        return acc;
+      },
+      []
+    );
+
+    setSavedProducts(merged);
+
+    localStorage.setItem(
+      "savedProducts",
+      JSON.stringify(merged)
+    );
   };
 
-  // 🔍 Tìm kiếm
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) return;
+  const removeSavedProduct = (id: Product["id"]) => {
+    const updated = savedProducts.filter(
+      (p) => p.id !== id
+    );
 
-    saveRecent(query);
+    setSavedProducts(updated);
+
+    localStorage.setItem(
+      "savedProducts",
+      JSON.stringify(updated)
+    );
+  };
+
+  const clearRecent = () => {
+    setRecent([]);
+    localStorage.removeItem("recentSearch");
+  };
+
+  const openProduct = (id: Product["id"]) => {
+    router.push(`/product/${id}`);
+  };
+
+  /* =======================================================
+     SEARCH
+  ======================================================= */
+
+  const handleSearch = async (
+    e?: React.FormEvent
+  ) => {
+    e?.preventDefault();
+
+    const q = query.trim();
+
+    if (!q) return;
+
+    saveRecent(q);
+
     setLoading(true);
 
     try {
-      const res = await fetch("/api/products");
+      const res = await fetch("/api/products", {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("FETCH_FAILED");
+      }
+
       const data: Product[] = await res.json();
 
-      const text = query.toLowerCase();
-      const filtered = data.filter(
-        (p) =>
+      const text = q.toLowerCase();
+
+      const filtered = data.filter((p) => {
+        return (
           p.name?.toLowerCase().includes(text) ||
           p.description?.toLowerCase().includes(text) ||
           p.seller?.toLowerCase().includes(text)
-      );
+        );
+      });
 
       setResults(filtered);
+
       saveProducts(filtered);
     } catch {
       setResults([]);
@@ -80,152 +175,370 @@ export default function SearchPage() {
     }
   };
 
-  // 🗑 Xóa toàn bộ lịch sử
-  const clearRecent = () => {
-    setRecent([]);
-    localStorage.removeItem("recentSearch");
-  };
+  /* =======================================================
+     DISPLAY TITLE
+  ======================================================= */
 
-  // ❌ Xóa 1 sản phẩm đã lưu
-  const removeSavedProduct = (id: number) => {
-    const updated = savedProducts.filter((p) => p.id !== id);
-    setSavedProducts(updated);
-    localStorage.setItem("savedProducts", JSON.stringify(updated));
-  };
+  const title = useMemo(() => {
+    if (loading) {
+      return t.searching ?? "Searching...";
+    }
 
-  // 🧭 Điều hướng tới trang sản phẩm
-  const openProduct = (id: number) => {
-    router.push(`/product/${id}`);
-  };
+    if (results.length > 0) {
+      return t.search_results ?? "Search results";
+    }
+
+    if (savedProducts.length > 0) {
+      return t.saved_products ?? "Saved products";
+    }
+
+    return t.no_results ?? "No results";
+  }, [
+    loading,
+    results.length,
+    savedProducts.length,
+    t,
+  ]);
+
+  /* =======================================================
+     UI
+  ======================================================= */
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* 🔶 Thanh tìm kiếm cố định */}
-      <div className="fixed top-0 left-0 right-0 bg-orange-500 z-50 px-3 py-3 flex items-center gap-2 shadow-md">
-        <button
-          onClick={() => router.back()}
-          className="text-white hover:text-yellow-200"
-        >
-          <ArrowLeft size={24} />
-        </button>
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
+      {/* =======================================================
+          HEADER
+      ======================================================= */}
 
-        <form
-          onSubmit={handleSearch}
-          className="flex-1 flex items-center bg-white rounded-md px-3"
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.search_placeholder}
-            className="flex-1 text-gray-800 py-2 outline-none text-sm"
-          />
-          <button type="submit" className="text-orange-600">
-            <Search size={22} />
+      <header
+        className="
+          fixed inset-x-0 top-0 z-50
+          border-b border-orange-500/20
+          bg-[var(--nav-bg)]
+          backdrop-blur
+        "
+      >
+        <div className="flex items-center gap-3 px-3 py-3">
+          {/* BACK */}
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="
+              flex h-10 w-10 items-center justify-center
+              rounded-xl
+              border border-orange-500/20
+              bg-[var(--card-bg)]
+              text-[var(--foreground)]
+            "
+          >
+            <ArrowLeft size={20} />
           </button>
-        </form>
-      </div>
 
-      {/* 🔸 Nội dung chính */}
-      <div className="pt-20 px-3 pb-10">
-        {/* Lịch sử tìm kiếm */}
-        {recent.length > 0 && (
-          <div className="mb-5">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold text-gray-700">
-                {t.recent_searches}
-              </h2>
+          {/* SEARCH */}
+          <form
+            onSubmit={handleSearch}
+            className="
+              flex flex-1 items-center gap-2
+              rounded-2xl
+              border border-orange-500/20
+              bg-[var(--card-bg)]
+              px-3
+            "
+          >
+            <Search
+              size={18}
+              className="text-orange-500"
+            />
+
+            <input
+              type="text"
+              value={query}
+              onChange={(e) =>
+                setQuery(e.target.value)
+              }
+              placeholder={
+                t.search_placeholder ??
+                "Search products..."
+              }
+              className="
+                h-11 flex-1 bg-transparent
+                text-sm outline-none
+                placeholder:text-[var(--text-muted)]
+              "
+            />
+
+            {query && (
               <button
-                onClick={clearRecent}
-                className="text-red-500 text-sm flex items-center"
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-[var(--text-muted)]"
               >
-                <Trash2 size={14} className="mr-1" /> {t.clear_all}
+                <XCircle size={18} />
+              </button>
+            )}
+          </form>
+        </div>
+      </header>
+
+      {/* =======================================================
+          BODY
+      ======================================================= */}
+
+      <div className="px-4 pb-32 pt-24">
+        {/* =======================================================
+            RECENT
+        ======================================================= */}
+
+        {recent.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold">
+                {t.recent_searches ??
+                  "Recent searches"}
+              </h2>
+
+              <button
+                type="button"
+                onClick={clearRecent}
+                className="
+                  flex items-center gap-1
+                  text-xs text-red-500
+                "
+              >
+                <Trash2 size={14} />
+
+                {t.clear_all ?? "Clear"}
               </button>
             </div>
+
             <div className="flex flex-wrap gap-2">
               {recent.map((item) => (
                 <button
                   key={item}
+                  type="button"
                   onClick={() => {
                     setQuery(item);
-                    handleSearch();
+
+                    setTimeout(() => {
+                      void handleSearch();
+                    }, 0);
                   }}
-                  className="bg-gray-100 px-3 py-1 rounded-full text-sm hover:bg-gray-200"
+                  className="
+                    rounded-full
+                    border border-orange-500/20
+                    bg-[var(--card-bg)]
+                    px-3 py-1.5
+                    text-xs
+                    text-[var(--foreground)]
+                  "
                 >
                   {item}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* 🔎 Tiêu đề tìm kiếm */}
-        <h2 className="text-lg font-semibold mb-3 text-gray-800">
-          {loading
-            ? t.searching
-            : results.length > 0
-            ? t.search_results
-            : savedProducts.length > 0
-            ? t.saved_products
-            : t.no_results}
-        </h2>
+        {/* =======================================================
+            TITLE
+        ======================================================= */}
 
-        {/* Nội dung tìm kiếm */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">
+            {title}
+          </h2>
+        </div>
+
+        {/* =======================================================
+            LOADING
+        ======================================================= */}
+
         {loading ? (
-          <p className="text-center text-gray-400 mt-5">{t.loading_data}</p>
-        ) : results.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {results.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => openProduct(p.id)}
-                className="cursor-pointer bg-white border rounded-lg p-2 shadow-sm flex flex-col items-center text-center hover:shadow-md transition"
-              >
-                <img
-                  src={p.images?.[0] || "/no-image.png"}
-                  alt={p.name}
-                  className="w-full h-28 object-contain rounded-md mb-2"
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map(
+              (_, i) => (
+                <div
+                  key={i}
+                  className="
+                    h-56 animate-pulse rounded-2xl
+                    border border-orange-500/10
+                    bg-[var(--card-bg)]
+                  "
                 />
-                <p className="text-sm font-semibold line-clamp-2">{p.name}</p>
-                <p className="text-orange-600 text-sm">{p.price} Pi</p>
-              </div>
+              )
+            )}
+          </div>
+        ) : results.length > 0 ? (
+          /* =======================================================
+              RESULTS
+          ======================================================= */
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {results.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() =>
+                  openProduct(product.id)
+                }
+                className="
+                  overflow-hidden rounded-2xl
+                  border border-orange-500/15
+                  bg-[var(--card-bg)]
+                  text-left
+                  shadow-sm
+                  transition-all duration-200
+                  hover:-translate-y-1
+                "
+              >
+                <div
+                  className="
+                    aspect-square overflow-hidden
+                    bg-[var(--card-secondary)]
+                  "
+                >
+                  <img
+                    src={
+                      product.images?.[0] ??
+                      "/placeholder.png"
+                    }
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+
+                <div className="space-y-2 p-3">
+                  <p
+                    className="
+                      line-clamp-2 min-h-[40px]
+                      text-sm font-medium
+                    "
+                  >
+                    {product.name}
+                  </p>
+
+                  <p
+                    className="
+                      text-sm font-bold
+                      text-orange-500
+                    "
+                  >
+                    π
+                    {formatPi(
+                      Number(product.price ?? 0)
+                    )}
+                  </p>
+                </div>
+              </button>
             ))}
           </div>
         ) : savedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {savedProducts.map((p) => (
+          /* =======================================================
+              SAVED PRODUCTS
+          ======================================================= */
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {savedProducts.map((product) => (
               <div
-                key={p.id}
-                className="relative bg-white border rounded-lg p-2 shadow-sm flex flex-col items-center text-center hover:shadow-md transition"
+                key={product.id}
+                className="
+                  relative overflow-hidden rounded-2xl
+                  border border-orange-500/15
+                  bg-[var(--card-bg)]
+                  shadow-sm
+                "
               >
+                {/* REMOVE */}
                 <button
-                  onClick={() => removeSavedProduct(p.id)}
-                  className="absolute top-1 right-1 text-red-500 hover:text-red-700"
-                  title={t.remove_product}
+                  type="button"
+                  onClick={() =>
+                    removeSavedProduct(product.id)
+                  }
+                  className="
+                    absolute right-2 top-2 z-10
+                    rounded-full
+                    bg-black/60 p-1
+                    text-white
+                  "
                 >
-                  <XCircle size={18} />
+                  <XCircle size={16} />
                 </button>
-                <div
-                  onClick={() => openProduct(p.id)}
-                  className="cursor-pointer w-full flex flex-col items-center"
+
+                {/* CARD */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openProduct(product.id)
+                  }
+                  className="w-full text-left"
                 >
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    alt={p.name}
-                    className="w-full h-28 object-contain rounded-md mb-2"
-                  />
-                  <p className="text-sm font-semibold line-clamp-2">
-                    {p.name}
-                  </p>
-                  <p className="text-orange-600 text-sm">{p.price} Pi</p>
-                </div>
+                  <div
+                    className="
+                      aspect-square overflow-hidden
+                      bg-[var(--card-secondary)]
+                    "
+                  >
+                    <img
+                      src={
+                        product.images?.[0] ??
+                        "/placeholder.png"
+                      }
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+
+                  <div className="space-y-2 p-3">
+                    <p
+                      className="
+                        line-clamp-2 min-h-[40px]
+                        text-sm font-medium
+                        text-[var(--foreground)]
+                      "
+                    >
+                      {product.name}
+                    </p>
+
+                    <p
+                      className="
+                        text-sm font-bold
+                        text-orange-500
+                      "
+                    >
+                      π
+                      {formatPi(
+                        Number(product.price ?? 0)
+                      )}
+                    </p>
+                  </div>
+                </button>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-center text-gray-400 mt-10">{t.type_to_search}</p>
+          /* =======================================================
+              EMPTY
+          ======================================================= */
+          <div
+            className="
+              flex flex-col items-center justify-center
+              rounded-3xl
+              border border-dashed border-orange-500/20
+              bg-[var(--card-bg)]
+              px-6 py-16
+              text-center
+            "
+          >
+            <Search
+              size={48}
+              className="mb-4 text-orange-500/60"
+            />
+
+            <p className="text-sm text-[var(--text-muted)]">
+              {t.type_to_search ??
+                "Type something to search"}
+            </p>
+          </div>
         )}
       </div>
-    </div>
+    </main>
   );
-}
+                }
