@@ -249,7 +249,7 @@ function Inner({
     {/* LIST */}
     <div className="p-4 space-y-4 bg-[var(--background)]">
       {filtered.length === 0 ? (
-        <div className="text-center text-sm text-[var(--text-muted)] bg-white dark:bg-gray-900 p-8 rounded-xl">
+        <div className="text-center text-sm text-[var(--text-muted)] bg-[var(--card-bg)] p-8 rounded-xl">
           {t.no_orders ?? "No orders"}
         </div>
       ) : (
