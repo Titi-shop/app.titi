@@ -498,14 +498,28 @@ if (loading || isLoading) {
             value={comment}
             onChange={e => setComment(e.target.value)}
             placeholder={t.default_review_comment ?? "Write review..."}
-            className="mt-4 w-full rounded-xl border border-[var(--border)] p-3 bg-transparent"
+            className="
+  mt-3 w-full rounded-2xl
+  border border-orange-500/20
+  bg-[var(--card-secondary)]
+  p-3
+  text-[var(--foreground)]
+  placeholder:text-[var(--text-muted)]
+  outline-none
+"
           />
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={resetReview}
-              className="rounded-xl border border-[var(--border)] py-3"
+              className="
+  rounded-2xl
+  border border-orange-500/30
+  bg-[var(--card-secondary)]
+  py-3
+  text-[var(--foreground)]
+"
             >
               {t.close ?? "Close"}
             </button>
@@ -520,7 +534,14 @@ if (loading || isLoading) {
 
                 if (order) void handleReview(order);
               }}
-              className="rounded-xl bg-[var(--color-primary)] py-3 text-white"
+              className="
+  rounded-2xl
+  border border-orange-500
+  bg-orange-500
+  py-3
+  font-semibold
+  text-white
+"
             >
               {t.submit_review ?? "Submit"}
             </button>
