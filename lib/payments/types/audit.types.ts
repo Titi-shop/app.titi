@@ -42,6 +42,14 @@ export type AuditActorType =
   | "rpc"
   | "ledger";
 
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
 /* =========================================================
    WRITE PARAMS (CORE CONTRACT)
 ========================================================= */
