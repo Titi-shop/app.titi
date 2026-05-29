@@ -699,14 +699,11 @@
 
 "add_product": "Thêm sản phẩm",
 "edit_product": "Chỉnh sửa sản phẩm",
-
 "confirm_delete_product": "Bạn có chắc muốn xóa sản phẩm này?",
 "deleting": "Đang xóa...",
 
 "no_products": "Chưa có sản phẩm nào",
-
 "shop_description_default": "Quản lý sản phẩm và doanh số",
-
 "uploading": "Đang tải ảnh...",
 "save": "Lưu",
 "saved": "Đã lưu",
@@ -714,12 +711,16 @@
 "total_products": "Tổng sản phẩm",
 "total_sales": "Tổng doanh số",
 "total_reviews": "Tổng đánh giá",
-
 "view_shop": "Xem cửa hàng",
 "create_product": "Tạo sản phẩm",
-
 "inactive": "Ngừng bán",
-"active": "Đang hoạt động"
+"active": "Đang hoạt động",
+  "track_orders": "Theo dõi đơn hàng","manage_account": "Quản lý tài khoản","shop_banner": "Ảnh bìa cửa hàng","region": "Khu vực",
+"rating": "Đánh giá","products": "Sản phẩm","sales": "Doanh số","sold": "Đã bán","stock": "Kho",
+"cancel": "Hủy",
+"delete_product": "Xóa sản phẩm",
+"confirm_delete_product": "Bạn có chắc muốn xóa sản phẩm này không?",
+"delete": "Xóa"
 
 
   
