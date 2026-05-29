@@ -5,6 +5,11 @@ const PI_RPC_URL =
 import type {
   ParsedRpcTransaction,
 } from "@/lib/payments/types/rpc.types";
+
+import type {
+  RpcEnvelope,
+  JsonObj,
+} from "@/lib/rpc/rpc.internal.types";
 /* =========================================================
    LOG
 ========================================================= */
@@ -456,38 +461,24 @@ export async function getRpcTransaction(
 
     log("PARSE_RESULT", {
       txid: clean,
-
       amount,
-
       sender,
-
       receiver,
-
       ledger,
-
       confirmed,
-
       memo,
-
       parseLayer,
     });
 
     return {
       hash:
         str(result.txHash) ?? clean,
-
       ledger,
-
       amount,
-
       sender,
-
       receiver,
-
       memo,
-
       createdAt,
-
       txStatus:
         status ??
         (confirmed
@@ -495,23 +486,16 @@ export async function getRpcTransaction(
           : "UNKNOWN"),
 
       confirmed,
-
       rpcReachable: true,
-
       raw: result,
-
       debug: {
         amountFound:
           amount !== null,
-
         senderFound:
           !!sender,
-
         receiverFound:
           !!receiver,
-
         parseLayer,
-
         hasMeta:
           !!result.resultMetaJson ||
           !!result.resultMetaXdr,
@@ -525,38 +509,22 @@ export async function getRpcTransaction(
 
     return {
       hash: clean,
-
       ledger: null,
-
       amount: null,
-
       sender: null,
-
       receiver: null,
-
       memo: null,
-
       createdAt: null,
-
       txStatus: null,
-
       confirmed: false,
-
       rpcReachable: false,
-
       raw: {},
-
       debug: {
         amountFound: false,
-
         senderFound: false,
-
         receiverFound: false,
-
         parseLayer: "FAIL",
-
         hasMeta: false,
-
         hasEvents: false,
       },
     };
