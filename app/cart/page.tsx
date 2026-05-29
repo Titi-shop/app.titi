@@ -392,7 +392,7 @@ export default function CartPage() {
             thumbnail: checkoutItem.thumbnail,
             stock,
             shipping_rates: null,
-            variant_id: selectedVariant?.id ?? null,
+            variant_id: checkoutItem.variant_id,
         
           }}
         />
