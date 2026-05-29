@@ -1315,10 +1315,10 @@ const handleDelete =
                               "var(--foreground)",
                           }}
                         >
-                          t.stock:
+                          {t.stock}:
                           {" "}
                           {
-                            stock
+                            Stock
                           }
                         </span>
 
@@ -1338,10 +1338,10 @@ const handleDelete =
                               "var(--foreground)",
                           }}
                         >
-                          t.sold:
+                          {t.sold:}
                           {" "}
                           {
-                            t.sold
+                            Sold
                           }
                         </span>
                       </div>
