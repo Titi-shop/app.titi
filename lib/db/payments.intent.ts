@@ -8,6 +8,11 @@ import type {
 import type {
   PricingResult,
 } from "@/lib/payments/pricing.engine";
+import type {
+  CreatePiPaymentIntentParams,
+  CreateIntentResult,
+  ShippingInput,
+} from "@/lib/payments/types";
 
 /* =========================================================
    GLOBAL WALLET
@@ -16,43 +21,6 @@ import type {
 const APP_MERCHANT_WALLET = (
   process.env.PI_MERCHANT_WALLET || ""
 ).trim();
-
-/* =========================================================
-   TYPES
-========================================================= */
-
-type ShippingInput = {
-  name: string;
-  phone: string;
-  address_line: string;
-  ward?: string | null;
-  district?: string | null;
-  region?: string | null;
-  postal_code?: string | null;
-};
-
-type CreatePiPaymentIntentInput = {
-  userId: string;
-  productId: string;
-  variantId: string | null;
-  quantity: number;
-  country: string;
-  zone: string;
-  shipping: ShippingInput;
-  pricing: PricingResult;
-};
-
-type CreateIntentResult = {
-  ok: boolean;
-  payment_intent_id: string;
-  amount: number;
-  currency: "PI";
-  merchant_wallet: string;
-  memo: string;
-  metadata: {
-    payment_intent_id: string;
-  };
-};
 
 /* =========================================================
    HELPERS
