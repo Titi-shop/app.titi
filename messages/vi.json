@@ -644,9 +644,45 @@
   
   "processing_orders": "Đơn đang xử lý",
   "returns_orders": "Đơn trả hàng",
-  "order_processing": "Đang xử lý"
+  "order_processing": "Đang xử lý",
 
 
 
+
+  "please_login": "Vui lòng đăng nhập",
+  "pi_not_ready": "Pi Network chưa sẵn sàng",
+  "please_add_shipping_address": "Vui lòng thêm địa chỉ giao hàng",
+  "invalid_shipping_country": "Quốc gia giao hàng không hợp lệ",
+  "invalid_shipping_region": "Khu vực giao hàng không hợp lệ",
+  "shipping_required": "Vui lòng chọn khu vực giao hàng",
+  "invalid_product": "Sản phẩm không hợp lệ",
+  "invalid_quantity": "Số lượng không hợp lệ",
+  "out_of_stock": "Sản phẩm đã hết hàng",
+
+  "unsupported_country": "Quốc gia hiện chưa được hỗ trợ",
+  "order_preview_failed": "Không thể xem trước đơn hàng",
+  "invalid_region": "Khu vực không hợp lệ",
+  "shipping_not_available": "Không hỗ trợ giao hàng đến khu vực này",
+
+  "error_out_of_stock": "Sản phẩm đã hết hàng",
+  "error_invalid_quantity": "Số lượng mua không hợp lệ",
+
+  "payment_approve_failed": "Xác nhận thanh toán thất bại",
+  "payment_complete_failed": "Hoàn tất thanh toán thất bại",
+  "payment_invalid_txid": "Mã giao dịch không hợp lệ",
+  "payment_intent_failed": "Không thể khởi tạo thanh toán",
+  "payment_submit_failed": "Gửi thanh toán thất bại",
+  "payment_failed": "Thanh toán thất bại",
+
+  "reconcile_failed": "Đồng bộ giao dịch thất bại",
+
+  "payment_memo_order": "Thanh toán đơn hàng",
+
+  "payment_success": "Thanh toán thành công",
+  "payment_cancelled": "Bạn đã huỷ thanh toán",
+
+  "transaction_failed": "Giao dịch thất bại",
+
+  "unknown_error": "Đã xảy ra lỗi không xác định"
 
 }
