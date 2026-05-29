@@ -660,7 +660,12 @@
   "wallet_ref_order": "Thanh toán đơn hàng",
   "wallet_ref_refund": "Hoàn tiền",
   "wallet_ref_withdraw": "Rút tiền",
-  "wallet_ref_deposit": "Nạp tiền"
+  "wallet_ref_deposit": "Nạp tiền",
+  
+  "select_country": "Chọn quốc gia",
+  "district": "Quận / Huyện",
+  "ward": "Phường / Xã"
+
 
 
 
