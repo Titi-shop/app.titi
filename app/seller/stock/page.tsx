@@ -1315,7 +1315,7 @@ const handleDelete =
                               "var(--foreground)",
                           }}
                         >
-                          stock:
+                          t.stock:
                           {" "}
                           {
                             t.stock
@@ -1338,7 +1338,7 @@ const handleDelete =
                               "var(--foreground)",
                           }}
                         >
-                          sold:
+                          t.sold:
                           {" "}
                           {
                             t.sold
