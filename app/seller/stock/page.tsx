@@ -1289,62 +1289,57 @@ const handleDelete =
                         )}
                       </div>
 
-                      {/* INFO */}
+                
+{/* INFO */}
 
-                      <div
-                        className="
-                          mt-3
-                          flex
-                          flex-wrap
-                          gap-2
-                        "
-                      >
-                        <span
-                          className="
-                            rounded-full
-                            px-3
-                            py-1
-                            text-[11px]
-                            font-medium
-                          "
-                          style={{
-                            backgroundColor:
-                              "var(--soft-bg)",
+<div
+  className="
+    mt-3
+    flex
+    flex-wrap
+    gap-2
+  "
+>
+  <span
+    className="
+      rounded-full
+      px-3
+      py-1
+      text-[11px]
+      font-medium
+    "
+    style={{
+      backgroundColor:
+        "var(--soft-bg)",
 
-                            color:
-                              "var(--foreground)",
-                          }}
-                        >
-                          {t.stock}:
-                          {" "}
-                          {
-                            Stock
-                          }
-                        </span>
+      color:
+        "var(--foreground)",
+    }}
+  >
+    {t.stock}:{" "}
+    {product.stock}
+  </span>
 
-                        <span
-                          className="
-                            rounded-full
-                            px-3
-                            py-1
-                            text-[11px]
-                            font-medium
-                          "
-                          style={{
-                            backgroundColor:
-                              "var(--soft-bg)",
+  <span
+    className="
+      rounded-full
+      px-3
+      py-1
+      text-[11px]
+      font-medium
+    "
+    style={{
+      backgroundColor:
+        "var(--soft-bg)",
 
-                            color:
-                              "var(--foreground)",
-                          }}
-                        >
-                          {t.sold:}
-                          {" "}
-                          {
-                            Sold
-                          }
-                        </span>
-                      </div>
+      color:
+        "var(--foreground)",
+    }}
+  >
+    {t.sold}:{" "}
+    {product.sold}
+  </span>
+</div>
                     </div>
                   </div>
 
