@@ -720,7 +720,10 @@
 "cancel": "Hủy",
 "delete_product": "Xóa sản phẩm",
 "confirm_delete_product": "Bạn có chắc muốn xóa sản phẩm này không?",
-"delete": "Xóa"
+"delete": "Xóa",
+  "manage_products_sales": "Quản lý sản phẩm và doanh số"
+
+
 
 
   
