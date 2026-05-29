@@ -16,27 +16,6 @@ import {
 import type {
   PaymentIntentStatus,
 } from "@/lib/payments/types";
-
-/* =========================================================
-   TYPES
-========================================================= */
-
-type AuthorizeBody = {
-  paymentIntentId?: string;
-  payment_intent_id?: string;
-
-  piPaymentId?: string;
-  pi_payment_id?: string;
-};
-
-type Input = {
-  userId: string;
-
-  authorizationHeader: string;
-
-  body: AuthorizeBody;
-};
-
 /* =========================================================
    HELPERS
 ========================================================= */
