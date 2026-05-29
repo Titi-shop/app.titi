@@ -5,102 +5,12 @@ import {
   auditManualReview,
   writePaymentAudit,
 } from "@/lib/db/payments.audit";
-/* =========================================================
-   TYPES
-========================================================= */
 
-type FinalizePaidOrderParams = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-  verifiedAmount: number;
-  receiverWallet: string;
-  piPayload: PiPayload;
-rpcPayload: RpcPayload;
-};
-
-type PaymentIntentRow = {
-  id: string;
-
-  buyer_id: string;
-  seller_id: string;
-
-  product_id: string;
-  variant_id: string | null;
-  quantity: number;
-
-  unit_price: string;
-  subtotal: string;
-  discount: string;
-  shipping_fee: string;
-  total_amount: string;
-  currency: string;
-  shipping_snapshot: any;
-  country: string;
-  zone: string;
-  merchant_wallet: string;
-  status: string;
-  settlement_state: string;
-};
-
-export type FinalizePaidOrderResult = {
-  ok: boolean;
-  already: boolean;
-  orderId: string | null;
-  buyerId: string;
-  sellerId: string;
-  amount: number;
-};
-type RpcPayload = {
-  ok: boolean;
-
-  amount?: number | null;
-  ledger?: number | null;
-  chainReference?: string | null;
-  stage?: string | null;
-  sender?: string | null;
-  receiver?: string | null;
-  reason?: string | null;
-  confirmed?: boolean;
-  txStatus?: string | null;
-  memo?: string | null;
-
-  createdAt?: string | null;
-
-  payload?: unknown;
-};
-
-type PiPayload = {
-  user_uid?: string | null;
-  from_address?: string | null;
-  to_address?: string | null;
-  amount?: number | string | null;
-  identifier?: string | null;
-  memo?: string | null;
-  network?: string | null;
-  created_at?: string | null;
-  transaction?: {
-    txid?: string | null;
-    verified?: boolean;
-  };
-  status?: {
-    developer_approved?: boolean;
-    developer_completed?: boolean;
-    transaction_verified?: boolean;
-    cancelled?: boolean;
-    user_cancelled?: boolean;
-  };
-};
-   type ShippingSnapshot = {
-  name?: string | null;
-  phone?: string | null;
-  address_line?: string | null;
-  ward?: string | null;
-  district?: string | null;
-  region?: string | null;
-  country?: string | null;
-  postal_code?: string | null;
-};
+import type {
+  FinalizePaidOrderParams,
+  FinalizePaidOrderResult,
+  PaymentIntentRow,
+} from "@/lib/payments/types";
 
 /* =========================================================
    HELPERS
