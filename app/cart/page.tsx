@@ -391,7 +391,7 @@ export default function CartPage() {
             finalPrice: checkoutItem.final_price,
             thumbnail: checkoutItem.thumbnail,
             stock,
-            shipping_rates: product.shipping_rates,
+            shipping_rates: null
             variant_id: selectedVariant?.id ?? null,
         
           }}
