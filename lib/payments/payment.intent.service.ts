@@ -6,11 +6,8 @@ import {
   type PricingResult,
 } from "@/lib/payments/pricing.engine";
 import type {
-  RawInput,
   ShippingInput,
-  NormalizedIntentInput,
-  CreateIntentServiceResult,
-} from "@/lib/payments/payment.types";
+} from "@/lib/payments/types";
 /* =========================================================
    HELPERS
 ========================================================= */
