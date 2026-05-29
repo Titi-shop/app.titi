@@ -644,7 +644,24 @@
   
   "processing_orders": "Đơn đang xử lý",
   "returns_orders": "Đơn trả hàng",
-  "order_processing": "Đang xử lý"
+  "order_processing": "Đang xử lý",
+  
+  "wallet_balance": "Số dư ví",
+  "wallet_deposit": "Nạp tiền",
+  "wallet_withdraw": "Rút tiền",
+  "wallet_pay": "Thanh toán",
+
+  "wallet_total_in": "Tổng tiền vào",
+  "wallet_total_out": "Tổng tiền ra",
+
+  "wallet_transactions": "Giao dịch",
+  "wallet_no_transactions": "Chưa có giao dịch nào",
+
+  "wallet_ref_order": "Thanh toán đơn hàng",
+  "wallet_ref_refund": "Hoàn tiền",
+  "wallet_ref_withdraw": "Rút tiền",
+  "wallet_ref_deposit": "Nạp tiền"
+
 
 
 
