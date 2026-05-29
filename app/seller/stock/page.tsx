@@ -1538,7 +1538,7 @@ const handleDelete =
                     "var(--foreground)",
                 }}
               >
-                Cancel
+                {t.cancel}
               </button>
 
               {/* DELETE */}
