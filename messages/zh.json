@@ -727,8 +727,19 @@
 "create_product": "创建商品",
 
 "inactive": "已停售",
-"active": "正常营业"
+"active": "正常营业",
+  
+"track_orders": "订单跟踪","manage_account": "账户管理","shop_banner": "店铺横幅","region": "地区",
 
+"rating": "评分","products": "商品","sales": "销量","sold": "已售","stock": "库存",
+
+"cancel": "取消",
+
+"delete_product": "删除商品",
+
+"confirm_delete_product": "确定要删除此商品吗？",
+
+"delete": "删除"
 
 
 
