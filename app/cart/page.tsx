@@ -390,8 +390,9 @@ export default function CartPage() {
             salePrice: checkoutItem.sale_price,
             finalPrice: checkoutItem.final_price,
             thumbnail: checkoutItem.thumbnail,
+            stock,
             shipping_rates: product.shipping_rates,
-          variant_id: selectedVariant?.id ?? null,
+            variant_id: selectedVariant?.id ?? null,
         
           }}
         />
