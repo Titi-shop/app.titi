@@ -591,7 +591,8 @@
   "returns": "退货",
   "smart_marketplace": "智能商城",
   "loading_experience": "正在加载体验...",
-  "account": "账户"
+  "account": "账户",
+  "order_created_success": "支付成功。订单已创建，请前往待处理订单查看。"
 
 
 
