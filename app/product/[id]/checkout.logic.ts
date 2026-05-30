@@ -318,15 +318,10 @@ onReadyForServerCompletion: async (paymentId, txid, callback) => {
   completionLocked = true;
 
   try {
-    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
-      paymentId,
-      txid,
-      paymentIntentId,
-    });
-
     const token = await getPiAccessToken();
 
-    const submitRes = await fetch("/api/payments/pi/submit", {
+    // 1. FIRE submit (không chặn UX)
+    fetch("/api/payments/pi/submit", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -337,37 +332,26 @@ onReadyForServerCompletion: async (paymentId, txid, callback) => {
         pi_payment_id: paymentId,
         txid,
       }),
+    }).catch((e) => {
+      console.error("[CHECKOUT] SUBMIT_FAIL", e);
     });
 
-    const submitData = await submitRes.json().catch(() => null);
+    // 2. 👉 CHUYỂN PENDING NGAY LẬP TỨC
+    onClose();
 
-    console.log("[CHECKOUT] SUBMIT_RESPONSE", {
-      status: submitRes.status,
-      data: submitData,
-    });
+    router.replace(
+      "/customer/orders?tab=pending&ts=" + Date.now()
+    );
 
-    if (!submitRes.ok || !submitData?.success) {
-      throw new Error(submitData?.error || "SUBMIT_FAILED");
-    }
+    showMessage(t.payment_success ?? "success", "success");
 
-    // PI callback
+    // 3. gọi callback sau (không quan trọng UX nữa)
     try {
       callback();
     } catch {}
 
-    // QUAN TRỌNG: đóng UI trước
-    onClose();
-
-    // QUAN TRỌNG: delay để Pi release UI thread
-    setTimeout(() => {
-      router.replace(
-        "/customer/orders?tab=pending&ts=" + Date.now()
-      );
-    }, 100);
-
-    showMessage(t.payment_success ?? "success", "success");
   } catch (err) {
-    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
+    console.error("🔥 COMPLETION_FAIL", err);
     showMessage(t.transaction_failed ?? "transaction_failed");
   } finally {
     processingRef.current = false;
