@@ -614,12 +614,15 @@ if (!intentRow) {
   /* =====================================================
      7. LEDGER
   ===================================================== */
+console.log("[PAYMENT][SETTLEMENT] LEDGER_START", {
+  paymentIntentId,
+});
 
-  console.log("[PAYMENT][SETTLEMENT] LEDGER_START", {
-    paymentIntentId,
-  });
-
-  await safeLedger(
+/**
+ * FIRE-AND-FORGET LEDGER PIPELINE
+ * không block response để tránh delay redirect UI
+ */
+void safeLedger(
   paid,
   paymentIntentId,
   piPaymentId,
@@ -628,13 +631,13 @@ if (!intentRow) {
 ).catch((e) => {
   console.error("[LEDGER_ASYNC_FAIL]", e);
 });
-  console.log("[PAYMENT][SETTLEMENT] SUCCESS", {
-    paymentIntentId,
-    orderId: paid.orderId,
-    amount: paid.amount,
-    rpcAudited: rpcVerified.confirmed ?? false
-  });
 
+console.log("[PAYMENT][SETTLEMENT] SUCCESS", {
+  paymentIntentId,
+  orderId: paid.orderId,
+  amount: paid.amount,
+  rpcAudited: rpcVerified.confirmed ?? false,
+});
 
 return successResult(
   paid.orderId,
