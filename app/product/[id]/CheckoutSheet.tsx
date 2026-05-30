@@ -261,56 +261,34 @@ const showMessage = (
   ========================================================= */
 
   const previewKey = useMemo(() => {
-    if (
-      !open ||
-      !shipping ||
-      !zone ||
-      !item
-    ) {
-      return null;
-    }
+  if (!open || !shipping || !zone || !item) {
+    return null;
+  }
 
-    return [
-      "/api/orders/preview",
-      {
-        country:
-          shipping.country.toUpperCase(),
-
-        zone,
-
-        shipping: {
-          region:
-            shipping.region,
-
-          district:
-            shipping.district,
-
-          ward: shipping.ward,
+  return [
+    "/api/orders/preview",
+    {
+      address_id: shipping.id, // ✅ FIX CHÍNH
+      country: shipping.country.toUpperCase(),
+      zone,
+      items: [
+        {
+          product_id: item.id,
+          variant_id:
+            product?.selectedVariant?.id ?? null,
+          quantity,
         },
-
-        items: [
-          {
-            product_id:
-              item.id,
-
-            variant_id:
-              product
-                ?.selectedVariant
-                ?.id ?? null,
-
-            quantity,
-          },
-        ],
-      },
-    ];
-  }, [
-    open,
-    shipping,
-    zone,
-    item,
-    quantity,
-    product?.selectedVariant?.id,
-  ]);
+      ],
+    },
+  ];
+}, [
+  open,
+  shipping,
+  zone,
+  item,
+  quantity,
+  product?.selectedVariant?.id,
+]);
 
   /* =========================================================
      PREVIEW
