@@ -656,8 +656,8 @@
   "returns": "Trả hàng", 
   "smart_marketplace": "Sàn thương mại thông minh",
   "loading_experience": "Đang tải trải nghiệm...",
-  "account": "Tài khoản"
-
+  "account": "Tài khoản",
+  "order_created_success": "Thanh toán thành công. Đơn hàng đã được tạo, vui lòng kiểm tra trong đơn hàng đang chờ xử lý."
 
 
 
