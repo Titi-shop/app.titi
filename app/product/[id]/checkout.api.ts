@@ -66,9 +66,7 @@ export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
   try {
     const res = await apiAuthFetch("/api/address");
 
-    if (!res.ok) {
-      return null;
-    }
+    if (!res.ok) return null;
 
     const data: AddressApiResponse = await res.json();
 
@@ -76,6 +74,7 @@ export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
     if (!def) return null;
 
     return {
+      id: def.id, 
       name: def.full_name,
       phone: def.phone,
       address_line: def.address_line,
