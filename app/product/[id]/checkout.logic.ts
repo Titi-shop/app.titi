@@ -32,7 +32,7 @@ async function previewOrderDirect({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-  address_id: shipping.address_id
+  address_id: shipping.address_id,
   items: [
     {
       product_id: item.id,
