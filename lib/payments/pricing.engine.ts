@@ -239,7 +239,29 @@ async function calculateShippingFee(params: {
     "SHIPPING_NOT_AVAILABLE"
   );
 }
+/* =========================================================
+   SHIPPING VALIDATION
+========================================================= */
 
+function validateSelectedZone(
+  buyerCountry: string,
+  actualZone: string,
+  selectedZone: string | null
+) {
+  if (!selectedZone) {
+    return;
+  }
+
+  if (selectedZone === "domestic") {
+    return;
+  }
+
+  if (selectedZone !== actualZone) {
+    throw new Error(
+      "INVALID_SHIPPING_ZONE"
+    );
+  }
+}
 /* =========================================================
    VALIDATE PRODUCT
 ========================================================= */
@@ -415,14 +437,13 @@ export async function calculatePricing(
       .trim()
       .toUpperCase();
 
-  const buyerZone =
-    input.zone ??
-    (
-      await getZoneByCountry(
-        buyerCountry
-      )
-    ) ??
-    "rest_of_world";
+  const actualZone =
+  (await getZoneByCountry(
+    buyerCountry
+  )) ?? "rest_of_world";
+
+const selectedZone =
+  input.zone?.trim().toLowerCase() ?? null;
   let subtotal = 0;
   let shippingFee = 0;
   const items: PricingItemResult[] =
