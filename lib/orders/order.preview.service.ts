@@ -17,8 +17,7 @@ type PreviewItem = {
 
 type PreviewNormalizedInput = {
   userId: string;
-  country: string;
-  zone: string;
+  address_id: string;
   items: PreviewItem[];
 };
 
@@ -52,26 +51,14 @@ function normalizePreviewInput({
   }
 
   const body = raw as Record<string, unknown>;
+const address_id =
+  typeof body.address_id === "string"
+    ? body.address_id.trim()
+    : "";
 
-  const country =
-    typeof body.country === "string"
-      ? body.country.trim().toUpperCase()
-      : "";
-
-  const zone =
-    typeof body.zone === "string"
-      ? body.zone.trim().toLowerCase()
-      : "";
-
-  const rawItems = Array.isArray(body.items) ? body.items : [];
-
-  if (!country) {
-    throw new Error("INVALID_COUNTRY");
-  }
-
-  if (!zone) {
-    throw new Error("INVALID_ZONE");
-  }
+if (!isUUID(address_id)) {
+  throw new Error("INVALID_ADDRESS_ID");
+}
 
   if (!rawItems.length) {
     throw new Error("INVALID_ITEMS");
@@ -118,11 +105,10 @@ function normalizePreviewInput({
   }
 
   return {
-    userId,
-    country,
-    zone,
-    items,
-  };
+  userId,
+  address_id,
+  items,
+};
 }
 
 /* =========================================================
@@ -133,11 +119,10 @@ export async function previewOrderFromRequest(input: RawInput) {
   const normalized = normalizePreviewInput(input);
 
   console.log("[ORDER][PREVIEW][START]", {
-    userId: normalized.userId,
-    country: normalized.country,
-    zone: normalized.zone,
-    items: normalized.items.length,
-  });
+  userId: normalized.userId,
+  address_id: normalized.address_id,
+  items: normalized.items.length,
+});
 
   const result = await previewOrder(normalized);
 
