@@ -314,13 +314,14 @@ t.payment_approve_failed ?? "payment_approve_failed"
 },
 
 onReadyForServerCompletion: async (paymentId, txid, callback) => {
+onReadyForServerCompletion: async (paymentId, txid, callback) => {
   if (completionLocked) return;
   completionLocked = true;
 
   try {
     const token = await getPiAccessToken();
 
-    // 1. FIRE submit (không chặn UX)
+    // 1. fire submit (background)
     fetch("/api/payments/pi/submit", {
       method: "POST",
       headers: {
@@ -336,16 +337,20 @@ onReadyForServerCompletion: async (paymentId, txid, callback) => {
       console.error("[CHECKOUT] SUBMIT_FAIL", e);
     });
 
-    // 2. 👉 CHUYỂN PENDING NGAY LẬP TỨC
+    // 2. đóng checkout UI ngay
     onClose();
 
+    // 3. chuyển sang processing page (KHÔNG dùng pending list)
     router.replace(
-      "/customer/orders?tab=pending&ts=" + Date.now()
+      "/customer/orders/processing?paymentIntentId=" +
+        paymentIntentId +
+        "&ts=" +
+        Date.now()
     );
 
     showMessage(t.payment_success ?? "success", "success");
 
-    // 3. gọi callback sau (không quan trọng UX nữa)
+    // 4. Pi callback (không quan trọng UX nữa)
     try {
       callback();
     } catch {}
