@@ -333,7 +333,7 @@ onReadyForServerCompletion: async (
 
     console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
 
-    const submitRes = fetch("/api/payments/pi/submit", {
+    const submitRes = await fetch("/api/payments/pi/submit", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${token}`,
