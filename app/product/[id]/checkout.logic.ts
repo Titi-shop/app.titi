@@ -28,7 +28,7 @@ const token = await getPiAccessToken();
 const res = await fetch("/api/orders/preview", {
 method: "POST",
 headers: {
-Authorization: Bearer ${token},
+Authorization: `Bearer ${token}`,
 "Content-Type": "application/json",
 },
 body: JSON.stringify({
@@ -197,7 +197,7 @@ const token = await getPiAccessToken();
 const intentRes = await fetch("/api/payments/pi/create-intent", {
 method: "POST",
 headers: {
-Authorization: Bearer ${token},
+Authorization: `Bearer ${token}`,
 "Content-Type": "application/json",
 },
 body: JSON.stringify({
@@ -273,7 +273,7 @@ const token = await getPiAccessToken();
 const res = await fetch("/api/payments/pi/authorize", {
 method: "POST",
 headers: {
-Authorization: Bearer ${token},
+Authorization: `Bearer ${token}`,
 "Content-Type": "application/json",
 },
 body: JSON.stringify({
@@ -313,16 +313,8 @@ t.payment_approve_failed ?? "payment_approve_failed"
 }
 },
 
-onReadyForServerCompletion: async (
-  paymentId,
-  txid,
-  callback
-) => {
-  if (completionLocked) {
-    console.warn("🟠 [CHECKOUT] COMPLETION_LOCKED");
-    return;
-  }
-
+onReadyForServerCompletion: async (paymentId, txid, callback) => {
+  if (completionLocked) return;
   completionLocked = true;
 
   try {
@@ -334,13 +326,10 @@ onReadyForServerCompletion: async (
 
     const token = await getPiAccessToken();
 
-    console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
-
-    // ✅ FIX: phải await hoặc bắt lỗi riêng
     const submitRes = await fetch("/api/payments/pi/submit", {
       method: "POST",
       headers: {
-        Authorization: Bearer ${token},
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -361,47 +350,30 @@ onReadyForServerCompletion: async (
       throw new Error(submitData?.error || "SUBMIT_FAILED");
     }
 
-    console.log("🟢 [CHECKOUT] SUBMIT_OK", {
-      orderId: submitData?.order_id,
-      amount: submitData?.amount,
-      piCompleted: submitData?.pi_completed,
-    });
-
-    /* =========================
-       PI CALLBACK
-    ========================= */
+    // PI callback
     try {
       callback();
-    } catch (sdkErr) {
-      console.warn("[CHECKOUT] PI_CALLBACK_WARN", sdkErr);
-    }
+    } catch {}
 
-    /* =========================
-       NAVIGATION FIX (QUAN TRỌNG)
-    ========================= */
-
+    // QUAN TRỌNG: đóng UI trước
     onClose();
 
-    // ⚡ delay 0 đảm bảo Pi SDK release UI trước
+    // QUAN TRỌNG: delay để Pi release UI thread
     setTimeout(() => {
       router.replace(
         "/customer/orders?tab=pending&ts=" + Date.now()
       );
-    }, 0);
+    }, 100);
 
     showMessage(t.payment_success ?? "success", "success");
-
   } catch (err) {
     console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
-
-    const key = getErrorKey((err as Error).message);
-
-    showMessage(t[key] ?? key);
+    showMessage(t.transaction_failed ?? "transaction_failed");
   } finally {
     processingRef.current = false;
     setProcessing(false);
   }
-   },
+},
 
 onCancel: () => {
 console.warn("🟡 [CHECKOUT] USER_CANCELLED");
