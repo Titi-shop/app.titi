@@ -310,28 +310,12 @@ export function useCheckoutPay({
   }
 },
 
-onReadyForServerCompletion: async (
-  paymentId,
-  txid,
-  callback
-) => {
-  if (completionLocked) {
-    console.warn("🟠 [CHECKOUT] COMPLETION_LOCKED");
-    return;
-  }
-
+onReadyForServerCompletion: async (paymentId, txid, callback) => {
+  if (completionLocked) return;
   completionLocked = true;
 
   try {
-    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
-      paymentId,
-      txid,
-      paymentIntentId,
-    });
-
     const token = await getPiAccessToken();
-
-    console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
 
     const submitRes = await fetch("/api/payments/pi/submit", {
       method: "POST",
@@ -346,64 +330,29 @@ onReadyForServerCompletion: async (
       }),
     });
 
-    const submitData = await submitRes
-      .json()
-      .catch(() => null);
+    const submitData = await submitRes.json().catch(() => null);
 
-    console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
-      status: submitRes.status,
-      data: submitData,
-    });
-
-    if (!submitRes.ok || !submitData?.success) {
-      throw new Error(
-        submitData?.error || "SUBMIT_FAILED"
-      );
+    if (!submitRes.ok || !submitData?.order_id) {
+      throw new Error(submitData?.error || "SUBMIT_FAILED");
     }
-
-    console.log("🟢 [CHECKOUT] SUBMIT_OK", {
-      orderId: submitData?.order_id,
-      amount: submitData?.amount,
-      piCompleted: submitData?.pi_completed,
-    });
-
-    /* =====================================================
-       PI SDK CALLBACK
-    ===================================================== */
-
-    try {
-      callback();
-
-      console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
-    } catch (sdkErr) {
-      console.warn(
-        "🟠 [CHECKOUT] PI_CALLBACK_WARN",
-        sdkErr
-      );
-    }
-
-    /* =====================================================
-       SUCCESS UI
-    ===================================================== */
 
     onClose();
-    router.replace("/customer/orders?tab=pending&ts=" + Date.now());
 
     showMessage(
-      t.payment_success ?? "success",
-      "success"
+      t.order_created_success ??
+        "Order created successfully. Please check Pending orders."
     );
+
+    // optional Pi callback
+    try {
+      callback();
+    } catch {}
+
   } catch (err) {
-    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
-
-    const key = getErrorKey(
-      (err as Error).message
-    );
-
-    showMessage(t[key] ?? key);
+    console.error("🔥 COMPLETION_FAIL", err);
+    showMessage(t.transaction_failed ?? "transaction_failed");
   } finally {
     processingRef.current = false;
-
     setProcessing(false);
   }
 },
