@@ -49,6 +49,7 @@ export type Region =
 ========================= */
 
 export interface ShippingInfo {
+   id: string;
   name: string;
   phone: string;
   address_line: string;
@@ -99,14 +100,9 @@ export interface PreviewItem {
 }
 
 export interface PreviewPayload {
-  country: string;
-  zone: Region;
-
-  shipping: {
-    region: string;
-    district?: string;
-    ward?: string;
-  };
+  address_id: string;
+  items: PreviewItem[];
+}
 
   items: PreviewItem[];
 }
@@ -163,9 +159,7 @@ export interface ValidateParams {
   item: CheckoutItem | null;
   quantity: number;
   maxStock: number;
-
   pilogin?: () => void;
-
   showMessage: (
     text: string
   ) => void;
@@ -177,17 +171,11 @@ export interface ValidateParams {
 
 export interface UseCheckoutPayParams {
   item: CheckoutItem | null;
-
   quantity: number;
-
   total: number;
-
   shipping: ShippingInfo | null;
-
   unitPrice: number;
-
   processing: boolean;
-
   setProcessing: (
     v: boolean
   ) => void;
@@ -197,18 +185,14 @@ export interface UseCheckoutPayParams {
   };
 
   t: Record<string, string>;
-
   user: unknown;
-
   router: {
     push: (path: string) => void;
     replace: (path: string) => void;
   };
 
   onClose: () => void;
-
   zone: Region | null;
-
   product: {
     variant_id?: string | null;
   };
