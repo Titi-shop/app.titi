@@ -310,12 +310,28 @@ export function useCheckoutPay({
   }
 },
 
-onReadyForServerCompletion: async (paymentId, txid, callback) => {
-  if (completionLocked) return;
+onReadyForServerCompletion: async (
+  paymentId,
+  txid,
+  callback
+) => {
+  if (completionLocked) {
+    console.warn("🟠 [CHECKOUT] COMPLETION_LOCKED");
+    return;
+  }
+
   completionLocked = true;
 
   try {
+    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
+      paymentId,
+      txid,
+      paymentIntentId,
+    });
+
     const token = await getPiAccessToken();
+
+    console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
 
     const submitRes = await fetch("/api/payments/pi/submit", {
       method: "POST",
@@ -330,29 +346,70 @@ onReadyForServerCompletion: async (paymentId, txid, callback) => {
       }),
     });
 
-    const submitData = await submitRes.json().catch(() => null);
+    const submitData = await submitRes
+      .json()
+      .catch(() => null);
 
-    if (!submitRes.ok || !submitData?.order_id) {
-      throw new Error(submitData?.error || "SUBMIT_FAILED");
+    console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+      status: submitRes.status,
+      data: submitData,
+    });
+
+    if (!submitRes.ok || !submitData?.success) {
+      throw new Error(
+        submitData?.error || "SUBMIT_FAILED"
+      );
     }
 
-    onClose();
-localStorage.setItem("open_orders_tab", "pending");
-showMessage(
-  t.order_created_success ??
-    " Purchase successful! Your order has been created and is being processed. You can track it in Pending Orders."
-);
+    console.log("🟢 [CHECKOUT] SUBMIT_OK", {
+      orderId: submitData?.order_id,
+      amount: submitData?.amount,
+      piCompleted: submitData?.pi_completed,
+    });
 
-    // optional Pi callback
+    /* =====================================================
+       PI SDK CALLBACK
+    ===================================================== */
+
     try {
       callback();
-    } catch {}
 
+      console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
+    } catch (sdkErr) {
+      console.warn(
+        "🟠 [CHECKOUT] PI_CALLBACK_WARN",
+        sdkErr
+      );
+    }
+    
+    /* =====================================================
+   SUCCESS UI
+===================================================== */
+
+onClose();
+
+// tab Pending sẽ được active
+localStorage.setItem(
+  "open_orders_tab",
+  "pending"
+);
+
+showMessage(
+  t.order_created_success ??
+    "Purchase successful! Your order has been created and is now being processed. You can check its status in Pending Orders.",
+  "success"
+);
   } catch (err) {
-    console.error("🔥 COMPLETION_FAIL", err);
-    showMessage(t.transaction_failed ?? "transaction_failed");
+    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
+
+    const key = getErrorKey(
+      (err as Error).message
+    );
+
+    showMessage(t[key] ?? key);
   } finally {
     processingRef.current = false;
+
     setProcessing(false);
   }
 },
