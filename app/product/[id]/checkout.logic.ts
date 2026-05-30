@@ -333,23 +333,20 @@ onReadyForServerCompletion: async (
 
     console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
 
-    const submitRes = await fetch("/api/payments/pi/submit", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: paymentId,
-        txid,
-      }),
-    });
-
-    const submitData = await submitRes
-      .json()
-      .catch(() => null);
-
+    const submitRes = fetch("/api/payments/pi/submit", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    payment_intent_id: paymentIntentId,
+    pi_payment_id: paymentId,
+    txid,
+  }),
+}).catch((e) => {
+  console.error("[CHECKOUT] SUBMIT_FAIL", e);
+});
     console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
       status: submitRes.status,
       data: submitData,
@@ -367,32 +364,33 @@ onReadyForServerCompletion: async (
       piCompleted: submitData?.pi_completed,
     });
 
-    /* =====================================================
-       PI SDK CALLBACK
+  /* =====================================================
+       PI SDK CALLBACK (NON-BLOCKING)
     ===================================================== */
 
     try {
       callback();
-
-      console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
     } catch (sdkErr) {
-      console.warn(
-        "🟠 [CHECKOUT] PI_CALLBACK_WARN",
-        sdkErr
-      );
+      console.warn("[CHECKOUT] PI_CALLBACK_WARN", sdkErr);
     }
 
     /* =====================================================
-       SUCCESS UI
+       INSTANT NAVIGATION (NO DELAY)
     ===================================================== */
 
-    onClose();
-    router.replace("/customer/orders?tab=pending&ts=" + Date.now());
+    const goPending = () => {
+      router.replace("/customer/orders?tab=pending&ts=" + Date.now());
+    };
 
-    showMessage(
-      t.payment_success ?? "success",
-      "success"
-    );
+    showMessage(t.payment_success ?? "success", "success");
+
+    // ⚡ đóng UI trước
+    onClose();
+
+    // ⚡ ép chuyển route ngay frame tiếp theo (tránh Pi SDK delay)
+    requestAnimationFrame(() => {
+      goPending();
+    });
   } catch (err) {
     console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
 
