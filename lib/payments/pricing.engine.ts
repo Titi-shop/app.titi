@@ -134,51 +134,59 @@ async function loadVariant(variantId: string, productId: string) {
   const buyerCountry =
     country.toUpperCase();
 
-  /* ======================
-     DOMESTIC
-  ====================== */
-
-  const domestic = rates.find(
-    (r) =>
-      r.zone === "domestic" &&
-      r.domestic_country_code?.toUpperCase() ===
-        buyerCountry
+  const domesticRate = rates.find(
+    (r) => r.zone === "domestic"
   );
 
-  if (domestic) {
-    return safeNumber(domestic.price);
+  /* ==========================
+     DOMESTIC COUNTRY CHECK
+  ========================== */
+
+  if (
+    domesticRate?.domestic_country_code &&
+    domesticRate.domestic_country_code.toUpperCase() !==
+      buyerCountry
+  ) {
+    throw new Error(
+      "COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC"
+    );
   }
 
-  /* ======================
-     BUYER ZONE
-  ====================== */
+  if (
+    domesticRate &&
+    domesticRate.domestic_country_code?.toUpperCase() ===
+      buyerCountry
+  ) {
+    return safeNumber(
+      domesticRate.price
+    );
+  }
 
-  const zoneRate = rates.find(
+  const regional = rates.find(
     (r) => r.zone === zone
   );
 
-  if (zoneRate) {
-    return safeNumber(zoneRate.price);
+  if (regional) {
+    return safeNumber(
+      regional.price
+    );
   }
 
-  /* ======================
-     GLOBAL
-  ====================== */
-
-  const globalRate = rates.find(
+  const global = rates.find(
     (r) =>
       r.zone === "rest_of_world"
   );
 
-  if (globalRate) {
-    return safeNumber(globalRate.price);
+  if (global) {
+    return safeNumber(
+      global.price
+    );
   }
 
   throw new Error(
     "SHIPPING_NOT_AVAILABLE"
   );
-    }
-    
+}
 /* =========================================================
    MAIN ENGINE
 ========================================================= */
