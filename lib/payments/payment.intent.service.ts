@@ -164,18 +164,7 @@ if (!isUUID(addressId)) {
     );
   }
 
-  if (!country) {
-    throw new Error(
-      "INVALID_COUNTRY"
-    );
-  }
-
-  if (!zone) {
-    throw new Error(
-      "INVALID_ZONE"
-    );
-  }
-
+ 
   if (!shippingRaw) {
     throw new Error(
       "INVALID_SHIPPING"
@@ -310,10 +299,6 @@ export async function createPiIntentFromRequest({
   productId: normalized.productId,
   variantId: normalized.variantId,
   quantity: normalized.quantity,
-
-  country: pricing.buyer_country,
-  zone: pricing.buyer_zone,
-
   shipping: normalized.shipping,
   pricing,
 });
