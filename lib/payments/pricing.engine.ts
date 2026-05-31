@@ -186,7 +186,7 @@ async function loadVariant(variantId: string, productId: string) {
     "SHIPPING_NOT_AVAILABLE"
   );
     }
-    }
+    
 /* =========================================================
    MAIN ENGINE
 ========================================================= */
