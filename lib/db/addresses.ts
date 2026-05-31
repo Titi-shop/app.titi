@@ -173,7 +173,7 @@ export async function updateAddress(
 
   return res.rows[0] ?? null;
 }
-export async function getAddressById(
+async function getAddressById(
   userId: string,
   addressId: string
 ) {
@@ -190,3 +190,5 @@ export async function getAddressById(
 
   return res.rows[0] ?? null;
 }
+
+export { getAddressById };
