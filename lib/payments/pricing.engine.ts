@@ -424,21 +424,14 @@ if (!address) {
     "ADDRESS_NOT_FOUND"
   );
 }
+
 const buyerCountry =
   String(address.country)
     .trim()
     .toUpperCase();
-
-// 🔥 ADD HERE
-const sellerCountry = ""; // nếu bạn có seller_country thì lấy từ product/seller
-
-if (!buyerCountry) {
-  throw new Error("INVALID_COUNTRY");
-         }
-const buyerCountry =
-  String(address.country)
-    .trim()
-    .toUpperCase();
+  if (buyerCountry !== input.country?.toUpperCase?.()) {
+  throw new Error("COUNTRY_MISMATCH");
+}
 
 const actualZone =
   (await getZoneByCountry(buyerCountry)) ?? "rest_of_world";
