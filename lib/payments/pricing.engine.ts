@@ -117,7 +117,7 @@ async function loadVariant(variantId: string, productId: string) {
 ========================================================= */
     async function getShipping(
   productId: string,
-  buyerCountry: string
+  buyerCountry: string,
 ) {
   const rates =
     await getShippingRatesByProduct(
@@ -130,55 +130,62 @@ async function loadVariant(variantId: string, productId: string) {
     );
   }
 
-  const country =
+  const buyer =
     buyerCountry.toUpperCase();
 
-  // Domestic exact match
-  const domestic =
-    rates.find(
-      (r) =>
-        r.zone === "domestic" &&
-        r.domestic_country_code?.toUpperCase() ===
-          country
-    );
+  /* =====================
+     DOMESTIC MATCH
+  ===================== */
+
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domestic_country_code?.toUpperCase() ===
+        buyer
+  );
 
   if (domestic) {
     return domestic.price;
   }
 
-  // Zone lookup
+  /* =====================
+     BUYER ZONE
+  ===================== */
+
   const buyerZone =
-    await getZoneByCountry(
-      country
+    await getZoneByCountry(buyer);
+
+  if (!buyerZone) {
+    throw new Error(
+      "SHIPPING_NOT_AVAILABLE"
     );
-
-  if (buyerZone) {
-    const zoneRate =
-      rates.find(
-        (r) =>
-          r.zone === buyerZone
-      );
-
-    if (zoneRate) {
-      return zoneRate.price;
-    }
   }
 
-  // Global fallback
-  const global =
-    rates.find(
-      (r) =>
-        r.zone ===
-        "rest_of_world"
-    );
+  const zoneRate = rates.find(
+    (r) => r.zone === buyerZone
+  );
 
-  if (global) {
-    return global.price;
+  if (zoneRate) {
+    return zoneRate.price;
+  }
+
+  /* =====================
+     GLOBAL
+  ===================== */
+
+  const globalRate = rates.find(
+    (r) =>
+      r.zone === "rest_of_world"
+  );
+
+  if (globalRate) {
+    return globalRate.price;
   }
 
   throw new Error(
     "SHIPPING_NOT_AVAILABLE"
   );
+    }
     }
 /* =========================================================
    MAIN ENGINE
