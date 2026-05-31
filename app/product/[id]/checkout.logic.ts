@@ -31,8 +31,9 @@ async function previewOrderDirect({
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-  address_id: shipping.address_id,
+    
+  body: JSON.stringify({
+  address_id: shipping.id,
   items: [
     {
       product_id: item.id,
