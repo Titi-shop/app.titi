@@ -40,12 +40,9 @@ export type CreatePiPaymentIntentParams = {
   productId: string;
   variantId: string | null;
   quantity: number;
-  country: string;
-  zone: string;
   shipping: ShippingInput;
   pricing: PricingResult;
 };
-
 /* =========================================================
    CREATE INTENT RESULT
 ========================================================= */
@@ -73,11 +70,10 @@ export type RawInput = {
 
 export type CreateIntentNormalizedInput = {
   userId: string;
+  addressId: string;
   productId: string;
   variantId: string | null;
   quantity: number;
-  country: string;
-  zone: string;
   shipping: ShippingInput;
 };
 
