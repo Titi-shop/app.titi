@@ -1,19 +1,7 @@
-import {
-  getProductById,
-} from "@/lib/db/products";
-
-import {
-  getVariantById,
-} from "@/lib/db/variants";
-
-import {
-  getShippingRatesByProduct,
-  getZoneByCountry,
-} from "@/lib/db/shipping";
-
-import {
-  getAddressById,
-} from "@/lib/db/addresses";
+import { getProductById } from "@/lib/db/products";
+import { getVariantById } from "@/lib/db/variants";
+import { getShippingRatesByProduct, getZoneByCountry } from "@/lib/db/shipping";
+import { getAddressById } from "@/lib/db/addresses";
 
 /* =========================================================
    TYPES
@@ -31,611 +19,215 @@ export type PricingInput = {
   items: PricingItemInput[];
 };
 
-export type PricingItemResult = {
-  product_id: string;
-  variant_id: string | null;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  subtotal: number;
-};
-
 export type PricingResult = {
-  items: PricingItemResult[];
+  items: any[];
   subtotal: number;
   shipping_fee: number;
   total: number;
   buyer_country: string;
   buyer_zone: string;
-  snapshots: {
-    products: Record<string, unknown>[];
-    variants: Record<string, unknown>[];
-  };
-};
-
-/* =========================================================
-   INTERNAL TYPES
-========================================================= */
-
-type ProductRow = {
-  id: string;
-  name: string;
-  price: number;
-  sale_price: number | null;
-  sale_start: string | null;
-  sale_end: string | null;
-  stock?: number | null;
-  is_active?: boolean | null;
-  deleted_at?: string | null;
-  is_unlimited?: boolean | null;
-  is_digital?: boolean | null;
-  seller_id?: string | null;
-  sale_enabled?: boolean | null;
-  domestic_country_code?: string | null;
-
-};
-
-type VariantRow = {
-  id: string;
-  product_id: string;
-  price: number;
-  sale_price: number | null;
-  stock?: number | null;
-  is_active?: boolean | null;
-  is_unlimited?: boolean | null;
 };
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function vlog(step: string, data?: unknown) {
-  console.log(`[PRICING_ENGINE_V7][${step}]`, data ?? "");
+function isUUID(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
-function isUUID(v: unknown): v is string {
-  return (
-    typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      v
-    )
-  );
+function safeQty(n: unknown) {
+  const q = Number(n);
+  if (!Number.isInteger(q) || q <= 0) return 1;
+  return Math.min(q, 100);
 }
 
-function safeNumber(v: unknown, fallback = 0): number {
-  const n = Number(v);
-
-  if (!Number.isFinite(n)) {
-    return fallback;
-  }
-
-  return n;
+function safeNumber(n: any) {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : 0;
 }
 
-function safeQty(v: unknown): number {
-  const n = Number(v);
-
-  if (!Number.isInteger(n) || n <= 0) {
-    return 1;
-  }
-
-  return Math.min(n, 100);
-}
-
-function isSaleWindow(
-  start: string | null,
-  end: string | null
-): boolean {
-  if (!start || !end) {
-    return false;
-  }
-
+function isSaleActive(start: string | null, end: string | null) {
+  if (!start || !end) return false;
   const now = Date.now();
-  const s = new Date(start).getTime();
-  const e = new Date(end).getTime();
-  return now >= s && now <= e;
+  return now >= new Date(start).getTime() && now <= new Date(end).getTime();
 }
 
-function resolveProductPrice(
-  product: ProductRow
-): number {
-  const base = safeNumber(product.price);
+/* =========================================================
+   LOAD ADDRESS (FIXED ROOT BUG)
+========================================================= */
 
-  const sale = safeNumber(
-    product.sale_price,
-    0
-  );
+async function loadAddress(userId: string, addressId: string) {
+  const address = await getAddressById(userId, addressId);
 
-  const active =
-    Boolean(product.sale_enabled) &&
-    isSaleWindow(
-      product.sale_start,
-      product.sale_end
-    );
+  if (!address) throw new Error("ADDRESS_NOT_FOUND");
 
-  if (
-    active &&
-    sale > 0 &&
-    sale < base
-  ) {
-    return sale;
-  }
-
-  return base;
+  return {
+    country: String(address.country).trim().toUpperCase(),
+  };
 }
 
-function resolveVariantPrice(
-  product: ProductRow,
-  variant: VariantRow
-): number {
-  const base = safeNumber(variant.price);
+/* =========================================================
+   PRODUCT
+========================================================= */
 
-  const sale = safeNumber(
-    variant.sale_price,
-    0
-  );
+async function loadProduct(productId: string) {
+  const p = await getProductById(productId);
 
-  const active =
-    isSaleWindow(
-      product.sale_start,
-      product.sale_end
-    );
+  if (!p) throw new Error("PRODUCT_NOT_FOUND");
 
-  if (
-    active &&
-    sale > 0 &&
-    sale < base
-  ) {
-    return sale;
-  }
+  if (p.deleted_at) throw new Error("PRODUCT_DELETED");
+  if (p.is_active === false) throw new Error("PRODUCT_INACTIVE");
 
-  return base;
+  return {
+    id: String(p.id),
+    name: p.name,
+    price: safeNumber(p.price),
+    sale_price: p.sale_price ? safeNumber(p.sale_price) : null,
+    sale_start: p.sale_start ?? null,
+    sale_end: p.sale_end ?? null,
+    stock: p.stock ?? null,
+    is_unlimited: !!p.is_unlimited,
+    is_digital: !!p.is_digital,
+    seller_country: p.domestic_country_code ?? null,
+  };
+}
+
+/* =========================================================
+   VARIANT
+========================================================= */
+
+async function loadVariant(variantId: string, productId: string) {
+  const v = await getVariantById(variantId);
+
+  if (!v) throw new Error("VARIANT_NOT_FOUND");
+  if (v.product_id !== productId) throw new Error("VARIANT_PRODUCT_MISMATCH");
+
+  return {
+    id: String(v.id),
+    price: safeNumber(v.price),
+    sale_price: v.sale_price ? safeNumber(v.sale_price) : null,
+    stock: v.stock ?? null,
+    is_unlimited: !!v.is_unlimited,
+  };
 }
 
 /* =========================================================
    SHIPPING
 ========================================================= */
 
-async function calculateShippingFee(params: {
-  productId: string;
-  buyerCountry: string;
-  buyerZone: string;
-}): Promise<number> {
-  const {
-    productId,
-    buyerCountry,
-    buyerZone,
-  } = params;
+async function getShipping(productId: string, country: string, zone: string) {
+  const rates = await getShippingRatesByProduct(productId);
 
-  const rates =
-    await getShippingRatesByProduct(
-      productId
-    );
+  if (!rates.length) return 0;
 
   const domestic = rates.find(
     (r) =>
       r.zone === "domestic" &&
-      (
-        r.domestic_country_code ?? ""
-      ).toUpperCase() === buyerCountry
+      (r.domestic_country_code ?? "").toUpperCase() === country
   );
 
-  if (domestic) {
-    return safeNumber(domestic.price);
-  }
+  if (domestic) return safeNumber(domestic.price);
 
-  const regional = rates.find(
-    (r) => r.zone === buyerZone
-  );
+  const regional = rates.find((r) => r.zone === zone);
+  if (regional) return safeNumber(regional.price);
 
-  if (regional) {
-    return safeNumber(regional.price);
-  }
-
-  const global = rates.find(
-    (r) =>
-      r.zone === "rest_of_world"
-  );
-
-  if (global) {
-    return safeNumber(global.price);
-  }
-
-  throw new Error(
-    "SHIPPING_NOT_AVAILABLE"
-  );
-}
-/* =========================================================
-   VALIDATE PRODUCT
-========================================================= */
-
-async function loadProduct(
-  productId: string
-): Promise<ProductRow> {
-  const product =
-    await getProductById(productId);
-
-  if (!product) {
-    throw new Error(
-      "PRODUCT_NOT_FOUND"
-    );
-  }
-
-  const normalized: ProductRow = {
-    id: String(product.id),
-    name: String(product.name),
-    price: safeNumber(product.price),
-    sale_price:
-      product.sale_price !== null
-        ? safeNumber(
-            product.sale_price
-          )
-        : null,
-
-    domestic_country_code:
-  product.domestic_country_code ?? null,
-    
-    sale_start:
-      product.sale_start !== null
-        ? String(product.sale_start)
-        : null,
-
-    sale_end:
-      product.sale_end !== null
-        ? String(product.sale_end)
-        : null,
-
-    stock:
-      typeof product.stock ===
-      "number"
-        ? product.stock
-        : null,
-
-    is_active:
-      product.is_active !== false,
-
-    deleted_at:
-      product.deleted_at ?? null,
-
-    is_unlimited:
-      Boolean(
-        product.is_unlimited
-      ),
-
-    is_digital:
-      Boolean(product.is_digital),
-
-    seller_id:
-      product.seller_id ?? null,
-
-    sale_enabled:
-      Boolean(
-        product.sale_enabled
-      ),
-  };
-
-  if (
-    normalized.is_active === false
-  ) {
-    throw new Error(
-      "PRODUCT_INACTIVE"
-    );
-  }
-
-  if (normalized.deleted_at) {
-    throw new Error(
-      "PRODUCT_DELETED"
-    );
-  }
-
-  return normalized;
-}
-
-/* =========================================================
-   VALIDATE VARIANT
-========================================================= */
-
-async function loadVariant(
-  variantId: string,
-  productId: string
-): Promise<VariantRow> {
-  const variant =
-    await getVariantById(variantId);
-
-  if (!variant) {
-    throw new Error(
-      "VARIANT_NOT_FOUND"
-    );
-  }
-
-  const normalized: VariantRow = {
-    id: String(variant.id),
-    product_id: String(
-      variant.product_id
-    ),
-
-    price: safeNumber(
-      variant.price
-    ),
-
-    sale_price:
-      variant.sale_price !== null
-        ? safeNumber(
-            variant.sale_price
-          )
-        : null,
-
-    stock:
-      typeof variant.stock ===
-      "number"
-        ? variant.stock
-        : null,
-
-    is_active:
-      variant.is_active !== false,
-
-    is_unlimited:
-      Boolean(
-        variant.is_unlimited
-      ),
-  };
-
-  if (
-    normalized.product_id !==
-    productId
-  ) {
-    throw new Error(
-      "VARIANT_PRODUCT_MISMATCH"
-    );
-  }
-
-  if (
-    normalized.is_active === false
-  ) {
-    throw new Error(
-      "VARIANT_INACTIVE"
-    );
-  }
-
-  return normalized;
+  const global = rates.find((r) => r.zone === "rest_of_world");
+  return global ? safeNumber(global.price) : 0;
 }
 
 /* =========================================================
    MAIN ENGINE
 ========================================================= */
 
-export async function calculatePricing(
-  input: PricingInput
-): Promise<PricingResult> {
-  vlog("START", input);
+export async function calculatePricing(input: PricingInput): Promise<PricingResult> {
+  if (!input.items?.length) throw new Error("INVALID_ITEMS");
 
-  if (
-    !Array.isArray(input.items) ||
-    !input.items.length
-  ) {
-    throw new Error(
-      "INVALID_ITEMS"
-    );
-  }
+  /* ===== ADDRESS ===== */
+  const address = await loadAddress(input.user_id, input.address_id);
+  const buyerCountry = address.country;
 
-  const address =
-  await getAddressById(
-    input.user_id,
-    input.address_id
-  );
+  const buyerZone = (await getZoneByCountry(buyerCountry)) ?? "rest_of_world";
 
-if (!address) {
-  throw new Error(
-    "ADDRESS_NOT_FOUND"
-  );
-}
-
-const buyerCountry =
-  String(address.country)
-    .trim()
-    .toUpperCase();
-const productCache = new Map<string, ProductRow>();
-  
-const actualZone =
-  (await getZoneByCountry(buyerCountry)) ?? "rest_of_world";
-
-const selectedZone = actualZone;
   let subtotal = 0;
-  let shippingFee = 0;
-  const items: PricingItemResult[] =
-    [];
+  let shipping = 0;
 
-  const productSnapshots:
-    Record<string, unknown>[] =
-    [];
+  const items = [];
 
-  const variantSnapshots:
-    Record<string, unknown>[] =
-    [];
-  for (const raw of input.items) {
-    if (
-      !isUUID(raw.product_id)
-    ) {
-      throw new Error(
-        "INVALID_PRODUCT_ID"
-      );
+  for (const item of input.items) {
+    if (!isUUID(item.product_id)) throw new Error("INVALID_PRODUCT_ID");
+
+    const qty = safeQty(item.quantity);
+
+    /* ===== PRODUCT ===== */
+    const product = await loadProduct(item.product_id);
+
+    /* ===== COUNTRY RULE (FIXED POSITION) ===== */
+    if (product.seller_country) {
+      const sellerCountry = product.seller_country.toUpperCase();
+      if (sellerCountry !== buyerCountry) {
+        throw new Error("COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC");
+      }
     }
 
-    if (
-      raw.variant_id &&
-      !isUUID(raw.variant_id)
-    ) {
-      throw new Error(
-        "INVALID_VARIANT_ID"
-      );
-    }
-    const quantity = safeQty(
-      raw.quantity
-    );
+    let price = product.price;
 
-    const product =
-      await loadProduct(
-        raw.product_id
-      );
-if (product.domestic_country_code) {
-  const sellerCountry =
-    product.domestic_country_code.toUpperCase();
-
-  if (sellerCountry !== buyerCountry) {
-    throw new Error("COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC");
-  }
-}
-    let unitPrice =
-      resolveProductPrice(
-        product
-      );
-
-    if (
-      !product.is_unlimited &&
-      product.stock !== null &&
-      product.stock !== undefined &&
-      product.stock < quantity
-    ) {
-      throw new Error(
-        "OUT_OF_STOCK"
-      );
+    const saleActive = isSaleActive(product.sale_start, product.sale_end);
+    if (saleActive && product.sale_price && product.sale_price < price) {
+      price = product.sale_price;
     }
 
-    let variantSnapshot:
-      Record<string, unknown> | null =
-      null;
+    /* ===== STOCK CHECK ===== */
+    if (!product.is_unlimited && product.stock !== null && product.stock < qty) {
+      throw new Error("OUT_OF_STOCK");
+    }
 
-    if (raw.variant_id) {
-      const variant =
-        await loadVariant(
-          raw.variant_id,
-          product.id
-        );
+    /* ===== VARIANT ===== */
+    if (item.variant_id) {
+      const variant = await loadVariant(item.variant_id, product.id);
 
-      if (
-        !variant.is_unlimited &&
-        variant.stock !== null &&
-        variant.stock !==
-          undefined &&
-        variant.stock < quantity
-      ) {
-        throw new Error(
-          "VARIANT_OUT_OF_STOCK"
-        );
+      let vPrice = variant.price;
+
+      if (saleActive && variant.sale_price && variant.sale_price < vPrice) {
+        vPrice = variant.sale_price;
       }
 
-      unitPrice =
-        resolveVariantPrice(
-          product,
-          variant
-        );
+      if (!variant.is_unlimited && variant.stock !== null && variant.stock < qty) {
+        throw new Error("VARIANT_OUT_OF_STOCK");
+      }
 
-      variantSnapshot = {
-        variant_id:
-          variant.id,
-
-        product_id:
-          variant.product_id,
-
-        locked_price:
-          unitPrice,
-
-        stock_snapshot:
-          variant.stock,
-
-        is_unlimited:
-          variant.is_unlimited,
-      };
-
-      variantSnapshots.push(
-        variantSnapshot
-      );
+      price = vPrice;
     }
 
-    const lineSubtotal =
-      unitPrice * quantity;
+    const line = price * qty;
+    subtotal += line;
 
-    subtotal += lineSubtotal;
-
-    if (
-      !product.is_digital
-    ) {
-      shippingFee += await calculateShippingFee({
-  productId: product.id,
-  buyerCountry,
-  buyerZone: selectedZone ?? actualZone,
-});
+    if (!product.is_digital) {
+      shipping += await getShipping(product.id, buyerCountry, buyerZone);
     }
 
     items.push({
-      product_id:
-        product.id,
-      variant_id:
-        raw.variant_id ??
-        null,
+      product_id: product.id,
+      variant_id: item.variant_id ?? null,
       name: product.name,
-      quantity,
-      unit_price:
-        unitPrice,
-
-      subtotal:
-        lineSubtotal,
-    });
-
-    productSnapshots.push({
-      product_id:
-        product.id,
-
-      seller_id:
-        product.seller_id,
-
-      locked_price:
-        unitPrice,
-
-      stock_snapshot:
-        product.stock,
-
-      is_unlimited:
-        product.is_unlimited,
-
-      is_digital:
-        product.is_digital,
+      quantity: qty,
+      unit_price: price,
+      subtotal: line,
     });
   }
 
-  const total =
-    subtotal + shippingFee;
-
-  const result: PricingResult = {
+  return {
     items,
     subtotal,
-    shipping_fee:
-      shippingFee,
-    total,
-    buyer_country:
-      buyerCountry,
-
-    buyer_zone: actualZone,
-    snapshots: {
-      products:
-        productSnapshots,
-
-      variants:
-        variantSnapshots,
-    },
+    shipping_fee: shipping,
+    total: subtotal + shipping,
+    buyer_country: buyerCountry,
+    buyer_zone: buyerZone,
   };
-
-  vlog("SUCCESS", result);
-
-  return result;
 }
 
 /* =========================================================
-   SNAPSHOT BUILDER
+   EXPORT
 ========================================================= */
 
-export async function buildPricingSnapshot(
-  input: PricingInput
-): Promise<PricingResult> {
-  return calculatePricing(input);
-}
+export const buildPricingSnapshot = calculatePricing;
