@@ -40,7 +40,6 @@ export type CreatePiPaymentIntentParams = {
   productId: string;
   variantId: string | null;
   quantity: number;
-  shipping: ShippingInput;
   pricing: PricingResult;
 };
 /* =========================================================
@@ -74,7 +73,6 @@ export type CreateIntentNormalizedInput = {
   productId: string;
   variantId: string | null;
   quantity: number;
-  shipping: ShippingInput;
 };
 
 /* =========================================================
