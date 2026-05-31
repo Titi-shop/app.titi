@@ -260,36 +260,53 @@ const showMessage = (
      PREVIEW KEY
   ========================================================= */
 
-  const previewKey = useMemo(() => {
+const previewKey = useMemo(() => {
   if (!open || !shipping || !zone || !item) {
+    console.log("[PREVIEW] SKIP KEY - missing data", {
+      open,
+      shipping,
+      zone,
+      item,
+    });
     return null;
   }
 
-  return [
-    "/api/orders/preview",
-    {
-      address_id: shipping.id, // ✅ FIX CHÍNH
-      country: shipping.country.toUpperCase(),
+  const key = {
+    url: "/api/orders/preview",
+    payload: {
+      address_id: shipping.id,
+      country: shipping.country?.toUpperCase(),
       zone,
+      shipping: {
+        region: shipping.region,
+        district: shipping.district ?? "",
+        ward: shipping.ward ?? "",
+      },
       items: [
         {
           product_id: item.id,
-          variant_id:
-            product?.selectedVariant?.id ?? null,
+          variant_id: product?.selectedVariant?.id ?? null,
           quantity,
         },
       ],
     },
-  ];
+  };
+
+  console.log("[PREVIEW KEY CREATED]", key);
+
+  return key;
 }, [
   open,
-  shipping,
+  shipping?.id,
+  shipping?.country,
+  shipping?.region,
+  shipping?.district,
+  shipping?.ward,
   zone,
-  item,
+  item?.id,
   quantity,
   product?.selectedVariant?.id,
 ]);
-
   /* =========================================================
      PREVIEW
   ========================================================= */
