@@ -424,19 +424,27 @@ if (!address) {
     "ADDRESS_NOT_FOUND"
   );
 }
+const buyerCountry =
+  String(address.country)
+    .trim()
+    .toUpperCase();
 
+// 🔥 ADD HERE
+const sellerCountry = ""; // nếu bạn có seller_country thì lấy từ product/seller
+
+if (!buyerCountry) {
+  throw new Error("INVALID_COUNTRY");
+         }
 const buyerCountry =
   String(address.country)
     .trim()
     .toUpperCase();
 
 const actualZone =
-  (await getZoneByCountry(
-    buyerCountry
-  )) ?? "rest_of_world";
+  (await getZoneByCountry(buyerCountry)) ?? "rest_of_world";
 
 const selectedZone =
-  input.zone?.trim().toLowerCase() ?? null;
+  input.zone?.trim().toLowerCase() ?? actualZone;
   let subtotal = 0;
   let shippingFee = 0;
   const items: PricingItemResult[] =
@@ -550,12 +558,11 @@ const selectedZone =
     if (
       !product.is_digital
     ) {
-      shippingFee +=
-  await calculateShippingFee({
-    productId: product.id,
-    buyerCountry,
-    buyerZone: actualZone,
-  });
+      shippingFee += await calculateShippingFee({
+  productId: product.id,
+  buyerCountry,
+  buyerZone: selectedZone ?? actualZone,
+});
     }
 
     items.push({
