@@ -115,6 +115,7 @@ async function loadVariant(variantId: string, productId: string) {
 /* =========================================================
    SHIPPING
 ========================================================= */
+    
     async function getShipping(
   productId: string,
   country: string,
@@ -134,59 +135,50 @@ async function loadVariant(variantId: string, productId: string) {
   const buyerCountry =
     country.toUpperCase();
 
-  const domesticRate = rates.find(
-    (r) => r.zone === "domestic"
+  /* ======================
+     DOMESTIC
+  ====================== */
+
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domestic_country_code?.toUpperCase() ===
+        buyerCountry
   );
 
-  /* ==========================
-     DOMESTIC COUNTRY CHECK
-  ========================== */
-
-  if (
-    domesticRate?.domestic_country_code &&
-    domesticRate.domestic_country_code.toUpperCase() !==
-      buyerCountry
-  ) {
-    throw new Error(
-      "COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC"
-    );
+  if (domestic) {
+    return safeNumber(domestic.price);
   }
 
-  if (
-    domesticRate &&
-    domesticRate.domestic_country_code?.toUpperCase() ===
-      buyerCountry
-  ) {
-    return safeNumber(
-      domesticRate.price
-    );
-  }
+  /* ======================
+     BUYER ZONE
+  ====================== */
 
-  const regional = rates.find(
+  const zoneRate = rates.find(
     (r) => r.zone === zone
   );
 
-  if (regional) {
-    return safeNumber(
-      regional.price
-    );
+  if (zoneRate) {
+    return safeNumber(zoneRate.price);
   }
 
-  const global = rates.find(
+  /* ======================
+     GLOBAL
+  ====================== */
+
+  const globalRate = rates.find(
     (r) =>
       r.zone === "rest_of_world"
   );
 
-  if (global) {
-    return safeNumber(
-      global.price
-    );
+  if (globalRate) {
+    return safeNumber(globalRate.price);
   }
 
   throw new Error(
     "SHIPPING_NOT_AVAILABLE"
   );
-}
+    }
 /* =========================================================
    MAIN ENGINE
 ========================================================= */
