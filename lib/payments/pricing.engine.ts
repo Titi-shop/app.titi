@@ -314,16 +314,6 @@ async function loadProduct(
       ),
   };
 
-  const product = await loadProduct(raw.product_id);
-
-if (product.domestic_country_code) {
-  const sellerCountry =
-    product.domestic_country_code.toUpperCase();
-
-  if (sellerCountry !== buyerCountry) {
-    throw new Error("COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC");
-  }
-}
   if (
     normalized.is_active === false
   ) {
@@ -444,7 +434,8 @@ const buyerCountry =
   String(address.country)
     .trim()
     .toUpperCase();
-
+const productCache = new Map<string, ProductRow>();
+  
 const actualZone =
   (await getZoneByCountry(buyerCountry)) ?? "rest_of_world";
 
@@ -486,7 +477,14 @@ const selectedZone = actualZone;
       await loadProduct(
         raw.product_id
       );
+if (product.domestic_country_code) {
+  const sellerCountry =
+    product.domestic_country_code.toUpperCase();
 
+  if (sellerCountry !== buyerCountry) {
+    throw new Error("COUNTRY_NOT_SUPPORTED_FOR_DOMESTIC");
+  }
+}
     let unitPrice =
       resolveProductPrice(
         product
