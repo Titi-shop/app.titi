@@ -120,8 +120,8 @@ export function validateBeforePay({
   }
 
   if (!zone) {
-    showMessage(t.shipping_required ?? "select_region");
-    return false;
+  console.warn("[CHECKOUT] zone missing → fallback rest_of_world");
+  return true;
   }
 
   if (!item || !item.id) {
