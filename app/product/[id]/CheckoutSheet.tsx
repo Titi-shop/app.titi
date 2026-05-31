@@ -312,14 +312,20 @@ const previewKey = useMemo(() => {
   ========================================================= */
 
   const {
-    data: preview,
-    error: previewError,
-    isLoading,
-    isValidating,
-  } = useSWR(
-    previewKey,
-    previewFetcher
-  );
+  data: preview,
+  error: previewError,
+  isLoading,
+  isValidating,
+} = useSWR(previewKey, previewFetcher, {
+  revalidateOnFocus: false,
+  dedupingInterval: 2000,
+  onSuccess: (data) => {
+    console.log("[PREVIEW SUCCESS]", data);
+  },
+  onError: (err) => {
+    console.error("[PREVIEW ERROR]", err);
+  },
+});
 
   /* =========================================================
      LOAD ADDRESS
