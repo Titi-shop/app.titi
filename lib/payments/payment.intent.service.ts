@@ -142,11 +142,11 @@ const addressId =
 if (!isUUID(addressId)) {
   throw new Error("INVALID_ADDRESS_ID");
 }
-  
-const shipping = await getShippingByAddressId(
-  userId,
-  addressId
-);
+const shipping: ShippingInput = {
+  name: "",
+  phone: "",
+  address_line: "",
+};
 
   return {
   userId,
