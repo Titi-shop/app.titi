@@ -446,7 +446,7 @@ export async function getZoneByCountry(
     price: zoneRate.price,
   };
 }
-  }
+  
 
   /* ===== GLOBAL FALLBACK ===== */
   const globalRate = rates.find(
