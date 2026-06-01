@@ -211,8 +211,6 @@ export async function listProductsService(
   }
 );
 
-const hasVariants =
-  product.has_variants === true;
     const hasVariants = product.has_variants === true;
 
     // =========================
