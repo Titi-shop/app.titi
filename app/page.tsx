@@ -565,61 +565,49 @@ className="h-full w-full object-cover"
       ))}  
     </div>  
   </section>  
+  
+<section className="mt-10 px-4">
+  <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-red-500 to-orange-500 p-5 text-white">
 
-  {/* FLASH SALE */}  
+    {/* HEADER */}
+    <div className="mb-5 flex items-center justify-between">
+      <div>
+        <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-xl">
+          <Flame size={14} />
+          Flash Sale
+        </div>
 
-<div className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2">
-  {products
-    .filter((p) => p.sale_price)
-    .slice(0, 10)
-    .map((product) => {
-      const discount =
-        product.price > product.sale_price
-          ? Math.round(
-              ((product.price - product.sale_price) /
-                product.price) *
-                100
-            )
-          : 0;
+        <h2 className="mt-3 text-2xl font-black">
+          Limited offers
+        </h2>
+      </div>
+    </div>
 
-      return (
-        <div
-          key={product.id}
-          onClick={() => router.push(`/product/${product.id}`)}
-          className="relative min-w-[170px] flex-shrink-0 snap-start overflow-hidden rounded-2xl bg-white text-black shadow-md transition-transform duration-300 active:scale-95 hover:shadow-xl"
-        >
-          {/* IMAGE */}
-          <div className="relative">
+    {/* PRODUCTS */}
+    <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+      {products
+        .filter((p) => p.sale_price)
+        .slice(0, 10)
+        .map((product) => (
+          <div
+            key={product.id}
+            onClick={() => router.push(`/product/${product.id}`)}
+            className="min-w-[160px] flex-shrink-0 overflow-hidden rounded-2xl bg-white text-black"
+          >
             <Image
               src={getMainImage(product)}
               alt={product.name}
               width={300}
               height={300}
-              className="h-40 w-full object-cover"
+              className="h-36 w-full object-cover"
             />
 
-            {/* DISCOUNT BADGE */}
-            {discount > 0 && (
-              <div className="absolute left-2 top-2 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white shadow">
-                -{discount}%
-              </div>
-            )}
+            <div className="p-3">
+              <p className="line-clamp-2 text-xs font-medium">
+                {product.name}
+              </p>
 
-            {/* FLASH ICON */}
-            <div className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-1 text-[10px] text-white backdrop-blur">
-              🔥 Sale
-            </div>
-          </div>
-
-          {/* CONTENT */}
-          <div className="p-3">
-            <p className="line-clamp-2 text-xs font-semibold leading-snug">
-              {product.name}
-            </p>
-
-            {/* PRICE */}
-            <div className="mt-2">
-              <p className="text-sm font-extrabold text-red-500">
+              <p className="mt-2 text-sm font-black text-red-500">
                 {formatPi(product.final_price || product.price)} π
               </p>
 
@@ -627,32 +615,12 @@ className="h-full w-full object-cover"
                 {formatPi(product.price)} π
               </p>
             </div>
-
-            {/* SOLD PROGRESS (LIKE SHOPEE) */}
-            <div className="mt-2">
-              <div className="h-1.5 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      (product.sold || 0) % 100
-                    )}%`,
-                  }}
-                />
-              </div>
-
-              <p className="mt-1 text-[10px] text-gray-500">
-                {product.sold || 0} sold
-              </p>
-            </div>
           </div>
-        </div>
-      );
-    })}
-</div>
-  </section>  
+        ))}
+    </div>
 
+  </div>
+</section>
   {/* PRODUCTS */}  
 
   <section className="mt-10 px-4">  
