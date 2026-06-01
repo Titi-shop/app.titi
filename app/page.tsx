@@ -593,7 +593,8 @@ className="h-full w-full object-cover"
     .map((product) => (
       <div
         key={product.id}
-        onClick={() => router.push(`/product/${product.id}`) }
+        onClick={() => router.push(`/product/${product.id}`)
+        }
         className="min-w-[160px] flex-shrink-0 overflow-hidden rounded-2xl bg-white text-black"
       >
         <Image
