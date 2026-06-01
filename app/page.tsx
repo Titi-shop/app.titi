@@ -577,7 +577,8 @@ ${
       shadow-2xl
     "
   >
-    {/* HEADER */}<div className="mb-5 flex items-center justify-between">
+    {/* HEADER */}
+    <div className="mb-5 flex items-center justify-between">
   <div>
     <div
       className="
@@ -746,9 +747,6 @@ ${
       );
     })}
 </div>
-
-  </div>
-</section>
         </div>
       </section>
 
