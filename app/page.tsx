@@ -537,80 +537,87 @@ className="h-full w-full object-cover"
   {/* FLASH SALE */}
 
 <section className="mt-10 px-4">  
-  <div className="mb-4 flex items-center justify-between">  
-    <div>  
-      <div className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-600">  
-        <Flame size={14} />  
-        {t.flashSale || "Flash Sale"}  
-      </div>  <h2 className="mt-2 text-2xl font-black">  
-    {t.flashSale_subtitle || "Limited time deals"}  
-  </h2>  
-</div>  
+<section className="mt-10 -mx-4 px-4 py-6 bg-gradient-to-r from-red-600 via-orange-500 to-red-500 text-white relative overflow-hidden">
 
-<button  
-  onClick={() => router.push("/flash-sale")}  
-  className="text-sm font-semibold text-gray-500"  
->  
-  {t.flashSale_viewAll || "View all"}  
-</button>
+  {/* glow background */}
+  <div className="absolute -top-10 -left-10 h-40 w-40 bg-white/10 rounded-full blur-3xl" />
+  <div className="absolute bottom-0 right-0 h-40 w-40 bg-black/10 rounded-full blur-3xl" />
 
-  </div>    
-  <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">  
-    {products  
-      .filter((p) => p.sale_price)  
-      .slice(0, 10)  
-      .map((product) => {  
-        const discount = getDiscount(product);  return (  
-      <div  
-        key={product.id}  
-        onClick={() => router.push(`/product/${product.id}`)}  
-        className="relative min-w-[170px] flex-shrink-0 overflow-hidden rounded-2xl bg-white shadow-md transition hover:scale-[1.02]"  
-      >  
-        {/* image */}  
-        <div className="relative">  
-          <Image  
-            src={getMainImage(product)}  
-            alt={product.name}  
-            width={300}  
-            height={300}  
-            className="h-36 w-full object-cover"  
-          />  
+  {/* HEADER */}
+  <div className="flex items-center justify-between mb-4">
+    <div>
+      <div className="inline-flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur">
+        <Flame size={14} />
+        {t.flash_sale || "Flash Sale"}
+      </div>
 
-          {/* discount badge */}  
-          <div className="absolute left-2 top-2 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">  
-            -{discount}%  
-          </div>  
+      <h2 className="mt-2 text-lg font-black">
+        {t.flashSale_subtitle || "Limited time deals"}
+      </h2>
+    </div>
 
-          {/* gradient bottom */}  
-          <div className="absolute bottom-0 left-0 h-12 w-full bg-gradient-to-t from-black/40 to-transparent" />  
-        </div>  
+    <button
+      onClick={() => router.push("/flash-sale")}
+      className="text-xs font-semibold bg-white/20 px-3 py-2 rounded-xl active:scale-95"
+    >
+      {t.flashSale_viewAll || "View all"}
+    </button>
+  </div>
 
-        {/* content */}  
-        <div className="p-3">  
-          <p className="line-clamp-2 text-xs font-semibold">  
-            {product.name}  
-          </p>  
+  {/* GRID DEALS */}
+  <div className="grid grid-cols-2 gap-[6px]">
+    {products
+      .filter((p) => p.sale_price)
+      .slice(0, 6)
+      .map((product) => {
+        const discount = getDiscount(product);
 
-          <div className="mt-2 flex items-center justify-between">  
-            <p className="text-sm font-black text-red-500">  
-              {formatPi(product.final_price || product.price)} π  
-            </p>  
+        return (
+          <div
+            key={product.id}
+            onClick={() => router.push(`/product/${product.id}`)}
+            className="bg-white text-black rounded-xl overflow-hidden shadow-md active:scale-[0.98] transition"
+          >
+            {/* IMAGE */}
+            <div className="relative">
+              <Image
+                src={getMainImage(product)}
+                alt={product.name}
+                width={300}
+                height={300}
+                className="h-32 w-full object-cover"
+              />
 
-            <span className="text-[10px] text-gray-500">  
-              {product.sold} {t.sold || "sold"}  
-            </span>  
-          </div>  
+              <div className="absolute left-2 top-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded">
+                -{discount}%
+              </div>
+            </div>
 
-          <p className="text-[11px] text-gray-400 line-through">  
-            {formatPi(product.price)} π  
-          </p>  
-        </div>  
-      </div>  
-    );  
-  })}
+            {/* CONTENT */}
+            <div className="p-2">
+              <p className="text-[11px] font-semibold line-clamp-2 min-h-[32px]">
+                {product.name}
+              </p>
 
-  </div>  
-</section>  
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-sm font-black text-red-600">
+                  {formatPi(product.final_price || product.price)} π
+                </p>
+
+                <span className="text-[10px] text-gray-500">
+                  {product.sold || 0} sold
+                </span>
+              </div>
+
+              <p className="text-[10px] text-gray-400 line-through">
+                {formatPi(product.price)} π
+              </p>
+            </div>
+          </div>
+        );
+      })}
+  </div>
+</section>
   {/* PRODUCTS */}  
 
   <section className="mt-10 px-1">
