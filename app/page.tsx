@@ -535,6 +535,7 @@ className="h-full w-full object-cover"
     </div>  
   </section>  
 {/* FLASH SALE */}
+  {/* FLASH SALE */}
 <section className="mt-10 -mx-4 px-4 py-6 bg-gradient-to-r from-red-600 via-orange-500 to-red-500 text-white relative overflow-hidden">
 
   {/* glow */}
@@ -562,61 +563,11 @@ className="h-full w-full object-cover"
     </button>
   </div>
 
-  {/* FEATURED PRODUCT (1 ITEM VERTICAL) */}
-  {products
-    .filter((p) => p.sale_price)
-    .slice(0, 1)
-    .map((product) => {
-      const discount = getDiscount(product);
-
-      return (
-        <div
-          key={product.id}
-          onClick={() => router.push(`/product/${product.id}`)}
-          className="bg-white text-black rounded-2xl overflow-hidden shadow-lg mb-4 active:scale-[0.98] transition"
-        >
-          <div className="relative">
-            <Image
-              src={getMainImage(product)}
-              alt={product.name}
-              width={600}
-              height={600}
-              className="h-56 w-full object-cover"
-            />
-
-            <div className="absolute left-3 top-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
-              -{discount}%
-            </div>
-          </div>
-
-          <div className="p-3">
-            <p className="text-sm font-semibold line-clamp-2">
-              {product.name}
-            </p>
-
-            <div className="mt-2 flex items-center justify-between">
-              <p className="text-lg font-black text-red-600">
-                {formatPi(product.final_price || product.price)} π
-              </p>
-
-              <span className="text-xs text-gray-500">
-                {product.sold || 0} sold
-              </span>
-            </div>
-
-            <p className="text-xs text-gray-400 line-through">
-              {formatPi(product.price)} π
-            </p>
-          </div>
-        </div>
-      );
-    })}
-
-  {/* HORIZONTAL LIST (REST PRODUCTS) */}
-  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+  {/* HORIZONTAL SCROLL PRODUCTS */}
+  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
     {products
       .filter((p) => p.sale_price)
-      .slice(1, 8)
+      .slice(0, 10)
       .map((product) => {
         const discount = getDiscount(product);
 
@@ -624,15 +575,16 @@ className="h-full w-full object-cover"
           <div
             key={product.id}
             onClick={() => router.push(`/product/${product.id}`)}
-            className="min-w-[140px] bg-white text-black rounded-xl overflow-hidden shadow-md active:scale-[0.98] transition"
+            className="min-w-[150px] bg-white text-black rounded-xl overflow-hidden shadow-md active:scale-[0.98] transition"
           >
+            {/* IMAGE */}
             <div className="relative">
               <Image
                 src={getMainImage(product)}
                 alt={product.name}
                 width={300}
                 height={300}
-                className="h-24 w-full object-cover"
+                className="h-28 w-full object-cover"
               />
 
               <div className="absolute left-2 top-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded">
@@ -640,6 +592,7 @@ className="h-full w-full object-cover"
               </div>
             </div>
 
+            {/* CONTENT */}
             <div className="p-2">
               <p className="text-[11px] font-semibold line-clamp-2 min-h-[30px]">
                 {product.name}
@@ -647,6 +600,10 @@ className="h-full w-full object-cover"
 
               <p className="text-sm font-black text-red-600 mt-1">
                 {formatPi(product.final_price || product.price)} π
+              </p>
+
+              <p className="text-[10px] text-gray-400 line-through">
+                {formatPi(product.price)} π
               </p>
             </div>
           </div>
