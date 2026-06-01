@@ -586,53 +586,40 @@ className="h-full w-full object-cover"
         </div>  
       </div>  
 
-      <div className="grid grid-cols-2 gap-4">  
-        {products  
-          .filter(  
-            (p) => p.sale_price  
-          )  
-          .slice(0, 4)  
-          .map((product) => (  
-            <div  
-              key={product.id}  
-              onClick={() =>  
-                router.push(  
-                  `/product/${product.id}`  
-                )  
-              }  
-              className="overflow-hidden rounded-2xl bg-white text-black"  
-            >  
-              <Image  
-                src={getMainImage(product)}  
-                alt={product.name}  
-                width={300}  
-                height={300}  
-                className="h-36 w-full object-cover"  
-              />  
+      <div className="flex gap-4 overflow-x-auto scrollbar-hide">
+  {products
+    .filter((p) => p.sale_price)
+    .slice(0, 10)
+    .map((product) => (
+      <div
+        key={product.id}
+        onClick={() => router.push(`/product/${product.id}`)}
+        className="min-w-[160px] flex-shrink-0 overflow-hidden rounded-2xl bg-white text-black"
+      >
+        <Image
+          src={getMainImage(product)}
+          alt={product.name}
+          width={300}
+          height={300}
+          className="h-36 w-full object-cover"
+        />
 
-              <div className="p-3">  
-                <p className="line-clamp-2 text-xs font-medium">  
-                  {product.name}  
-                </p>  
+        <div className="p-3">
+          <p className="line-clamp-2 text-xs font-medium">
+            {product.name}
+          </p>
 
-                <p className="mt-2 text-sm font-black text-red-500">  
-                  {formatPi(  
-                    product.final_price ||  
-                      product.price  
-                  )}{" "}  
-                  π  
-                </p>  
+          <p className="mt-2 text-sm font-black text-red-500">
+            {formatPi(product.final_price || product.price)} π
+          </p>
 
-                <p className="text-[11px] text-gray-400 line-through">  
-                  {formatPi(  
-                    product.price  
-                  )}{" "}  
-                  π  
-                </p>  
-              </div>  
-            </div>  
-          ))}  
-      </div>  
+          <p className="text-[11px] text-gray-400 line-through">
+            {formatPi(product.price)} π
+          </p>
+        </div>
+      </div>
+    ))}
+</div>
     </div>  
   </section>  
 
