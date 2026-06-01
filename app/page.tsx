@@ -126,6 +126,30 @@ function ProductCard({ product, onAddToCart, t }: any) {
     </div>
   );
 }
+
+function ProductSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-lg bg-white border border-gray-100">
+      {/* IMAGE SKELETON */}
+      <div className="h-44 w-full bg-gray-200 animate-pulse relative overflow-hidden">
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+      </div>
+
+      {/* TEXT */}
+      <div className="p-2 space-y-2">
+        <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+
+        <div className="flex items-center gap-2 mt-2">
+          <div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+        </div>
+
+        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mt-2" />
+      </div>
+    </div>
+  );
+}
 /* =========================================================
 PAGE
 ========================================================= */
@@ -602,8 +626,24 @@ className="h-full w-full object-cover"
       </p>  
     </div>  
 
-    {loading ? (  
-      <div className="grid grid-cols-2 gap-[6px] px-0">  
+    {loading ? (
+  <div className="grid grid-cols-2 gap-[6px] px-1">
+    {Array.from({ length: 8 }).map((_, i) => (
+      <ProductSkeleton key={i} />
+    ))}
+  </div>
+) : (
+  <div className="grid grid-cols-2 gap-[6px] px-1">
+    {filteredProducts.map((product) => (
+      <ProductCard
+        key={product.id}
+        product={product}
+        onAddToCart={handleAddToCart}
+        t={t}
+      />
+    ))}
+  </div>
+)}
         {[...Array(6)].map((_, i) => (  
           <div  
             key={i}  
