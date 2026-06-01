@@ -560,196 +560,197 @@ ${
           ))}
         </div>
       </section>
-
-{/* FLASH SALE */}
+      {/* FLASH SALE */}
 
 <section className="mt-10 px-4">
   <div
     className="
       overflow-hidden
-      rounded-[32px]
+      rounded-[28px]
       bg-gradient-to-r
       from-red-500
       via-orange-500
       to-red-600
-      p-5
+      p-4
       text-white
-      shadow-2xl
+      shadow-xl
     "
   >
     {/* HEADER */}
-    <div className="mb-5 flex items-center justify-between">
-  <div>
-    <div
-      className="
-        inline-flex
-        items-center
-        gap-2
-        rounded-full
-        bg-white/20
-        px-3
-        py-1
-        text-xs
-        font-bold
-        backdrop-blur-xl
-      "
-    >
-      <Flame size={14} />
-      {t.flash_sale || "Flash Sale"}
-    </div>
 
-    <h2 className="mt-3 text-2xl font-black">
-      {t.limited_offers || "Limited offers"}
-    </h2>
-
-    <p className="mt-1 text-sm text-white/80">
-      Best discounts available now
-    </p>
-  </div>
-
-  <div
-    className="
-      rounded-full
-      bg-white/20
-      px-4
-      py-2
-      text-xs
-      font-bold
-      backdrop-blur-xl
-    "
-  >
-    HOT
-  </div>
-</div>
-
-{/* PRODUCTS */}
-
-<div className="flex gap-4 overflow-x-auto pb-2">
-  {products
-    .filter(
-      (p) =>
-        p.sale_price &&
-        p.sale_price > 0
-    )
-    .slice(0, 10)
-    .map((product) => {
-      const discount =
-        product.sale_price &&
-        product.price > product.sale_price
-          ? Math.round(
-              ((product.price -
-                product.sale_price) /
-                product.price) *
-                100
-            )
-          : 0;
-
-      const salePrice =
-        product.final_price ??
-        product.sale_price ??
-        product.price;
-
-      return (
+    <div className="mb-4 flex items-center justify-between">
+      <div>
         <div
-          key={product.id}
-          onClick={() =>
-            router.push(
-              `/product/${product.id}`
-            )
-          }
           className="
-            min-w-[220px]
-            overflow-hidden
-            rounded-3xl
-            bg-white
-            text-black
-            shadow-xl
-            transition-all
-            duration-300
-            hover:-translate-y-1
-            hover:shadow-2xl
-            cursor-pointer
+            inline-flex
+            items-center
+            gap-2
+            rounded-full
+            bg-white/20
+            px-3
+            py-1
+            text-[11px]
+            font-bold
+            backdrop-blur-xl
           "
         >
-          {/* IMAGE */}
+          <Flame size={13} />
 
-          <div className="relative">
-            <Image
-              src={getMainImage(product)}
-              alt={product.name}
-              width={300}
-              height={300}
+          {t.flash_sale || "Flash Sale"}
+        </div>
+
+        <h2 className="mt-2 text-xl font-black">
+          {t.limited_offers || "Limited offers"}
+        </h2>
+
+        <p className="mt-1 text-xs text-white/80">
+          Best discounts available now
+        </p>
+      </div>
+
+      <div
+        className="
+          rounded-full
+          bg-white/20
+          px-3
+          py-1.5
+          text-[11px]
+          font-bold
+          backdrop-blur-xl
+        "
+      >
+        HOT
+      </div>
+    </div>
+
+    {/* PRODUCTS */}
+
+    <div className="flex gap-3 overflow-x-auto pb-2">
+      {products
+        .filter(
+          (p) =>
+            p.sale_price &&
+            p.sale_price > 0
+        )
+        .slice(0, 10)
+        .map((product) => {
+          const discount =
+            product.sale_price &&
+            product.price > product.sale_price
+              ? Math.round(
+                  ((product.price -
+                    product.sale_price) /
+                    product.price) *
+                    100
+                )
+              : 0;
+
+          const salePrice =
+            product.final_price ??
+            product.sale_price ??
+            product.price;
+
+          return (
+            <div
+              key={product.id}
+              onClick={() =>
+                router.push(
+                  `/product/${product.id}`
+                )
+              }
               className="
-                h-40
-                w-full
-                object-cover
+                min-w-[170px]
+                max-w-[170px]
+                overflow-hidden
+                rounded-2xl
+                bg-white
+                text-black
+                shadow-lg
+                transition-all
+                duration-300
+                hover:-translate-y-1
+                cursor-pointer
               "
-            />
+            >
+              {/* IMAGE */}
 
-            {discount > 0 && (
-              <div
-                className="
-                  absolute
-                  left-3
-                  top-3
-                  rounded-full
-                  bg-red-500
-                  px-3
-                  py-1
-                  text-xs
-                  font-bold
-                  text-white
-                  shadow-lg
-                "
-              >
-                -{discount}%
-              </div>
-            )}
-          </div>
-
-          {/* CONTENT */}
-
-          <div className="p-4">
-            <p className="line-clamp-2 min-h-[40px] text-sm font-semibold">
-              {product.name}
-            </p>
-
-            <div className="mt-3">
-              <p className="text-lg font-black text-red-500">
-                {formatPi(salePrice)} π
-              </p>
-
-              <p className="text-xs text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-            </div>
-
-            <div className="mt-3">
-              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full rounded-full bg-red-500"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      product.sold ?? 0
-                    )}%`,
-                  }}
+              <div className="relative">
+                <Image
+                  src={getMainImage(product)}
+                  alt={product.name}
+                  width={300}
+                  height={300}
+                  className="
+                    h-28
+                    w-full
+                    object-cover
+                  "
                 />
+
+                {discount > 0 && (
+                  <div
+                    className="
+                      absolute
+                      left-2
+                      top-2
+                      rounded-full
+                      bg-red-500
+                      px-2
+                      py-1
+                      text-[10px]
+                      font-bold
+                      text-white
+                      shadow-md
+                    "
+                  >
+                    -{discount}%
+                  </div>
+                )}
               </div>
 
-              <p className="mt-1 text-[11px] text-gray-500">
-                {product.sold ?? 0}{" "}
-                {t.sold || "sold"}
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    })}
-</div>
-        </div>
-      </section>
+              {/* CONTENT */}
 
+              <div className="p-3">
+                <p className="line-clamp-2 min-h-[34px] text-xs font-semibold">
+                  {product.name}
+                </p>
+
+                <div className="mt-2">
+                  <p className="text-base font-black text-red-500">
+                    {formatPi(salePrice)} π
+                  </p>
+
+                  <p className="text-[11px] text-gray-400 line-through">
+                    {formatPi(product.price)} π
+                  </p>
+                </div>
+
+                <div className="mt-2">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-red-500"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          product.sold ?? 0
+                        )}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {product.sold ?? 0}{" "}
+                    {t.sold || "sold"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+</section>
+                
       {/* PRODUCTS */}
 
       <section className="mt-10 px-4">
