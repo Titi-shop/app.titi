@@ -604,8 +604,8 @@ ${
         </h2>
 
         <p className="mt-1 text-xs text-white/80">
-          Best discounts available now
-        </p>
+  {t.best_discounts_available_now ||  "Best discounts available now"}
+</p>
       </div>
 
       <div
@@ -619,7 +619,7 @@ ${
           backdrop-blur-xl
         "
       >
-        HOT
+        {t.hot || "HOT"}
       </div>
     </div>
 
