@@ -285,6 +285,12 @@ body {
     color: var(--text-muted);
   }
      }
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 /* ==================================
    HORIZONTAL SCROLL SMOOTH
 ================================== */
