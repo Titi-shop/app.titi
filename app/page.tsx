@@ -566,61 +566,44 @@ className="h-full w-full object-cover"
     </div>  
   </section>  
   
-<section className="mt-10 px-4">
-  <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-red-500 to-orange-500 p-5 text-white">
+{/* FLASH SALE */}
 
-    {/* HEADER */}
-    <div className="mb-5 flex items-center justify-between">
-      <div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-xl">
-          <Flame size={14} />
-          Flash Sale
+<div className="flex gap-4 overflow-x-auto scrollbar-hide">
+  {products
+    .filter((p) => p.sale_price)
+    .slice(0, 10)
+    .map((product) => (
+      <div
+        key={product.id}
+        onClick={() => router.push(`/product/${product.id}`)}
+        className="min-w-[160px] flex-shrink-0 overflow-hidden rounded-2xl bg-white text-black"
+      >
+        <Image
+          src={getMainImage(product)}
+          alt={product.name}
+          width={300}
+          height={300}
+          className="h-36 w-full object-cover"
+        />
+
+        <div className="p-3">
+          <p className="line-clamp-2 text-xs font-medium">
+            {product.name}
+          </p>
+
+          <p className="mt-2 text-sm font-black text-red-500">
+            {formatPi(product.final_price || product.price)} π
+          </p>
+
+          <p className="text-[11px] text-gray-400 line-through">
+            {formatPi(product.price)} π
+          </p>
         </div>
-
-        <h2 className="mt-3 text-2xl font-black">
-          Limited offers
-        </h2>
       </div>
-    </div>
+    ))}
+</div>
 
-    {/* PRODUCTS */}
-    <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
-      {products
-        .filter((p) => p.sale_price)
-        .slice(0, 10)
-        .map((product) => (
-          <div
-            key={product.id}
-            onClick={() => router.push(`/product/${product.id}`)}
-            className="min-w-[160px] flex-shrink-0 overflow-hidden rounded-2xl bg-white text-black"
-          >
-            <Image
-              src={getMainImage(product)}
-              alt={product.name}
-              width={300}
-              height={300}
-              className="h-36 w-full object-cover"
-            />
-
-            <div className="p-3">
-              <p className="line-clamp-2 text-xs font-medium">
-                {product.name}
-              </p>
-
-              <p className="mt-2 text-sm font-black text-red-500">
-                {formatPi(product.final_price || product.price)} π
-              </p>
-
-              <p className="text-[11px] text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-            </div>
-          </div>
-        ))}
-    </div>
-
-  </div>
-</section>
+  </section>  
   {/* PRODUCTS */}  
 
   <section className="mt-10 px-4">  
