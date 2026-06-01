@@ -74,13 +74,23 @@ return 0;
 PRODUCT CARD
 ========================================================= */
 
-function ProductCard({ product, onAddToCart, t }: any) {
+function ProductCard({ product, onAddToCart }: any) {
   const router = useRouter();
 
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
-      className="overflow-hidden rounded-lg bg-white shadow-sm active:scale-[0.98] transition border border-gray-100"
+      className="
+        flex flex-col
+        overflow-hidden
+        rounded-xl
+        bg-[var(--card-bg)]
+        border border-black/5
+        shadow-sm
+        active:scale-[0.98]
+        transition-transform
+        duration-150
+      "
     >
       {/* IMAGE */}
       <div className="relative">
@@ -89,11 +99,11 @@ function ProductCard({ product, onAddToCart, t }: any) {
           alt={product.name}
           width={500}
           height={500}
-          className="h-44 w-full object-cover"
+          className="h-36 w-full object-cover"
         />
 
         {product.sale_price && (
-          <div className="absolute left-2 top-2 rounded bg-red-600 px-2 py-1 text-[10px] font-bold text-white">
+          <div className="absolute left-2 top-2 rounded-md bg-red-600 px-2 py-[2px] text-[10px] font-bold text-white">
             -{getDiscount(product)}%
           </div>
         )}
@@ -101,24 +111,24 @@ function ProductCard({ product, onAddToCart, t }: any) {
 
       {/* CONTENT */}
       <div className="p-2">
-        <p className="line-clamp-2 text-[12px] font-medium text-gray-900">
+        <p className="text-[12px] font-medium line-clamp-2 text-[var(--foreground)]">
           {product.name}
         </p>
 
-        <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
+        <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
           <Star size={12} className="fill-yellow-400 text-yellow-400" />
           {product.rating_avg || 5}
-          <span>• {product.sold || 0} sold</span>
+          <span>• {product.sold || 0}</span>
         </div>
 
-        <div className="mt-2">
-          <p className="text-sm font-bold text-red-600">
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-sm font-bold text-red-500">
             {formatPi(product.final_price || product.price)} π
           </p>
 
           {product.sale_price && (
-            <p className="text-[11px] text-gray-400 line-through">
-              {formatPi(product.price)} π
+            <p className="text-[10px] text-[var(--text-muted)] line-through">
+              {formatPi(product.price)}
             </p>
           )}
         </div>
@@ -535,86 +545,78 @@ className="h-full w-full object-cover"
     </div>  
   </section>  
 {/* FLASH SALE */}
-<section className="mt-8 px-4">
-  <div className="rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-red-500 text-white p-4 relative overflow-hidden">
-
-    {/* background glow nhẹ */}
-    <div className="absolute -top-6 -left-6 h-24 w-24 bg-white/10 rounded-full blur-2xl" />
-    <div className="absolute bottom-0 right-0 h-24 w-24 bg-black/10 rounded-full blur-2xl" />
+<section className="mt-6 px-4">
+  <div className="rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-red-500 text-white p-3 overflow-hidden">
 
     {/* HEADER */}
     <div className="flex items-center justify-between mb-3">
       <div>
-        <div className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-[11px] font-bold">
-          <Flame size={13} />
-          {t.flash_sale || "Flash Sale"}
+        <div className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-[11px]">
+          <Flame size={12} />
+          Flash Sale
         </div>
 
-        <h2 className="mt-1 text-base font-black">
-          {t.flashSale_subtitle || "Limited time deals"}
+        <h2 className="mt-1 text-sm font-bold">
+          Limited time deals
         </h2>
       </div>
 
       <button
         onClick={() => router.push("/flash-sale")}
-        className="text-[11px] font-semibold bg-white/20 px-3 py-1.5 rounded-lg active:scale-95"
+        className="text-[11px] bg-white/20 px-3 py-1 rounded-lg"
       >
-        {t.flashSale_viewAll || "View"}
+        View
       </button>
     </div>
 
-    {/* SCROLL PRODUCTS */}
+    {/* SCROLL */}
     <div
-      className="flex gap-2 overflow-x-auto pb-1"
-      style={{
-        WebkitOverflowScrolling: "touch",
-        scrollSnapType: "x mandatory",
-      }}
+      className="
+        flex gap-3
+        overflow-x-auto
+        pb-1
+        scroll-x
+      "
     >
       {products
         .filter((p) => p.sale_price)
-        .slice(0, 12)
-        .map((product) => {
-          const discount = getDiscount(product);
+        .slice(0, 10)
+        .map((product) => (
+          <div
+            key={product.id}
+            onClick={() => router.push(`/product/${product.id}`)}
+            className="
+              min-w-[130px]
+              flex-shrink-0
+              rounded-xl
+              bg-white
+              text-black
+              overflow-hidden
+              shadow-sm
+              snap-start
+              active:scale-[0.97]
+              transition
+            "
+          >
+            <Image
+              src={getMainImage(product)}
+              alt={product.name}
+              width={300}
+              height={300}
+              className="h-24 w-full object-cover"
+            />
 
-          return (
-            <div
-              key={product.id}
-              onClick={() => router.push(`/product/${product.id}`)}
-              className="min-w-[140px] flex-shrink-0 snap-start bg-white text-black rounded-xl overflow-hidden shadow-sm active:scale-[0.97] transition"
-            >
-              {/* IMAGE */}
-              <div className="relative">
-                <Image
-                  src={getMainImage(product)}
-                  alt={product.name}
-                  width={300}
-                  height={300}
-                  className="h-24 w-full object-cover"
-                />
+            <div className="p-2">
+              <p className="text-[11px] line-clamp-2">
+                {product.name}
+              </p>
 
-                <div className="absolute left-2 top-2 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded">
-                  -{discount}%
-                </div>
-              </div>
-
-              {/* CONTENT */}
-              <div className="p-2">
-                <p className="text-[11px] font-semibold line-clamp-2 min-h-[28px]">
-                  {product.name}
-                </p>
-
-                <p className="mt-1 text-sm font-black text-red-600">
-                  {formatPi(product.final_price || product.price)} π
-                </p>
-
-                <p className="text-[10px] text-gray-400 line-through">
-                  {formatPi(product.price)} π
-                </p>
-              </div>
+              <p className="text-sm font-bold text-red-500 mt-1">
+                {formatPi(product.final_price || product.price)} π
+              </p>
             </div>
-          );
-        })}
+          </div>
+        ))}
     </div>
   </div>
 </section>
