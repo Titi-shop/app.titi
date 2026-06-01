@@ -9,12 +9,9 @@ import {
 
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import { formatPi } from "@/lib/pi";
-
 import type {
   ShippingRate,
 } from "@/types/Product";
@@ -118,14 +115,11 @@ export default function CheckoutSheet({
   ========================================================= */
 
   useEffect(() => {
-    if (
-      process.env.NODE_ENV ===
-      "development"
-    ) {
-      console.log(
-        "[CHECKOUT PRODUCT]",
-        product
-      );
+  console.log(
+    "[CHECKOUT PRODUCT]",
+    product
+  );
+}, [product]);
 
       console.log(
         "[CHECKOUT SHIPPING RATES]",
@@ -206,19 +200,23 @@ const showMessage = (
         ? product.sale_price
         : product.price;
 
+    console.log(
+  "[CHECKOUT PRICE DEBUG]",
+  {
+    price: product.price,
+    sale_price: product.sale_price,
+    sale_enabled: product.sale_enabled,
+    final_price: product.final_price,
+  }
+);
     return {
       id: product.id,
-
       name: product.name,
-
       price,
-
       final_price: price,
-
       thumbnail:
         product.thumbnail ||
         "/placeholder.png",
-
       stock:
         product.stock ?? 0,
     };
