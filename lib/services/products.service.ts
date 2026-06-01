@@ -255,34 +255,72 @@ export async function listProductsService(
               )
           );
 
+        const minVariantPrice =
+  enrichedVariants.length > 0
+    ? Math.min(
+        ...enrichedVariants.map(v =>
+          Number(v.price)
+        )
+      )
+    : Number(product.price);
+
+const saleVariants =
+  enrichedVariants.filter(
+    v =>
+      v.sale_price !== null &&
+      Number(v.sale_price) > 0
+  );
+
+const minVariantSalePrice =
+  saleVariants.length > 0
+    ? Math.min(
+        ...saleVariants.map(v =>
+          Number(v.sale_price)
+        )
+      )
+    : null;
+
+const minVariantFinalPrice =
+  prices.length > 0
+    ? Math.min(...prices)
+    : Number(product.final_price);
+
         return {
-          ...product,
+  ...product,
 
-          has_variants:
-            variants.length > 0,
+  price:
+    variants.length > 0
+      ? minVariantPrice
+      : product.price,
 
-          min_price:
-            prices.length > 0
-              ? Math.min(
-                  ...prices
-                )
-              : null,
+  sale_price:
+    variants.length > 0
+      ? minVariantSalePrice
+      : product.sale_price,
 
-          max_price:
-            prices.length > 0
-              ? Math.max(
-                  ...prices
-                )
-              : null,
+  final_price:
+    variants.length > 0
+      ? minVariantFinalPrice
+      : product.final_price,
 
-          variants:
-            enrichedVariants,
+  has_variants:
+    variants.length > 0,
 
-          shipping_rates:
-            shippingMap.get(
-              product.id
-            ) ?? [],
-        };
+  min_price:
+    prices.length > 0
+      ? Math.min(...prices)
+      : null,
+
+  max_price:
+    prices.length > 0
+      ? Math.max(...prices)
+      : null,
+
+  variants: enrichedVariants,
+
+  shipping_rates:
+    shippingMap.get(product.id) ?? [],
+};
       }
     )
   );
