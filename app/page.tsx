@@ -7,932 +7,225 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
-import {
-  ShoppingCart,
-  Flame,
-  ChevronRight,
-  Star,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { ShoppingCart, Flame, TrendingUp } from "lucide-react";
 
-import SplashScreen from "./components/SplashScreen";
 import BannerCarousel from "./components/BannerCarousel";
 import PiPriceWidget from "./components/PiPriceWidget";
 
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-import type { Product } from "@/types/product";
-import type { Category } from "@/types/category";
 
-/* =========================================================
-   FETCHER
-========================================================= */
+/* ================= FETCH ================= */
 
-const fetcher = async <T,>(url: string): Promise<T> => {
+const fetcher = async (url: string) => {
   const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error("FETCH_FAILED");
-  }
-
-  return res.json() as Promise<T>;
+  if (!res.ok) throw new Error("FETCH_FAILED");
+  return res.json();
 };
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/* ================= HELPERS ================= */
 
-function getMainImage(product: Product) {
-  if (
-    product.thumbnail &&
-    product.thumbnail.trim().length > 0
-  ) {
-    return product.thumbnail;
-  }
-
-  return "/placeholder.png";
+function getImage(p: any) {
+  return p.thumbnail || p.images?.[0] || "/placeholder.png";
 }
 
-function getDiscount(product: Product) {
-  if (
-    product.sale_price &&
-    product.price > product.sale_price
-  ) {
-    return Math.round(
-      ((product.price - product.sale_price) /
-        product.price) *
-        100
-    );
+function getDiscount(p: any) {
+  if (p.sale_price && p.price > p.sale_price) {
+    return Math.round(((p.price - p.sale_price) / p.price) * 100);
   }
-
   return 0;
 }
 
-/* =========================================================
-   PRODUCT CARD
-========================================================= */
+/* ================= CARD ================= */
 
-function ProductCard({
-  product,
-  onAddToCart,
-  t,
-}: {
-  product: Product;
-  onAddToCart: (product: Product) => void;
-  t: Record<string, string>;
-}) {
+function ProductCard({ product, onAddToCart }: any) {
   const router = useRouter();
   const discount = getDiscount(product);
-  const isOut =
-    !product.is_unlimited &&
-    (product.stock ?? 0) <= 0;
 
   return (
     <div
-  onClick={() =>
-    router.push(`/product/${product.id}`)
-  }
-  className="group overflow-hidden rounded-[30px] bg-[var(--card-bg)] text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
->
+      onClick={() => router.push(`/product/${product.id}`)}
+      className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer active:scale-[0.98]"
+    >
       {/* IMAGE */}
-
-      <div className="relative overflow-hidden">
+      <div className="relative">
         <Image
-          src={getMainImage(product)}
+          src={getImage(product)}
           alt={product.name}
-          width={500}
-          height={500}
-          className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          width={300}
+          height={300}
+          className="w-full h-40 object-cover"
         />
 
-        {/* BADGES */}
-
         {discount > 0 && (
-          <div className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-red-500 to-orange-500 px-3 py-1 text-xs font-bold text-white shadow-lg">
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] px-2 py-1 rounded">
             -{discount}%
           </div>
         )}
 
-        {isOut && (
-          <div className="absolute bottom-3 left-3 rounded-full bg-black/80 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xl">
-            {t.out_of_stock || "Out of stock"}
-          </div>
-        )}
-
-        {/* CART */}
-
         <button
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
-
             onAddToCart(product);
           }}
-          className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-black shadow-xl backdrop-blur-xl transition-all active:scale-95"
+          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow"
         >
-          <ShoppingCart size={18} />
+          <ShoppingCart size={14} />
         </button>
       </div>
 
-      {/* CONTENT */}
-
-      <div className="p-4">
-        <h3 className="line-clamp-2 min-h-[42px] text-sm font-semibold">
+      {/* INFO */}
+      <div className="p-3">
+        <p className="text-sm line-clamp-2 min-h-[38px]">
           {product.name}
-        </h3>
+        </p>
 
-        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-          <Star
-            size={14}
-            className="fill-yellow-400 text-yellow-400"
+        <p className="text-red-500 font-bold mt-1">
+          {formatPi(product.sale_price ?? product.price)} π
+        </p>
+
+        {product.sale_price && (
+          <p className="text-xs text-gray-400 line-through">
+            {formatPi(product.price)} π
+          </p>
+        )}
+
+        <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-red-500"
+            style={{ width: `${Math.min(product.sold ?? 0, 100)}%` }}
           />
-
-          {product.rating_avg || 5}
-
-          <span>
-            • {product.sold}{" "}
-            {t.sold || "sold"}
-          </span>
         </div>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="text-lg font-black text-red-500">
-              {formatPi(
-                product.final_price ||
-                  product.price
-              )}{" "}
-              π
-            </p>
-
-            {product.sale_price && (
-              <p className="text-xs text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-            )}
-          </div>
-        </div>
+        <p className="text-[10px] text-gray-500 mt-1">
+          {product.sold ?? 0} sold
+        </p>
       </div>
     </div>
   );
 }
 
-/* =========================================================
-   PAGE
-========================================================= */
+/* ================= PAGE ================= */
 
 export default function HomePage() {
-  const router = useRouter();
   const { addToCart } = useCart();
   const { t } = useTranslation();
-  const [showSplash, setShowSplash] = useState(false);
 
-  const [selectedCategory, setSelectedCategory] =
-    useState<number | "all">("all");
-const [timeLeft, setTimeLeft] = useState("--:--:--");
-  const [message, setMessage] = useState<{
-    text: string;
-    type: "error" | "success";
-  } | null>(null);
+  const [timeLeft, setTimeLeft] = useState("--:--:--");
 
-  /* =========================================================
-     DATA
-  ========================================================= */
+  const { data: products = [] } = useSWR("/api/products", fetcher);
 
-  const {
-    data: productsData,
-    isLoading: loadingProducts,
-  } = useSWR<Product[]>(
-    "/api/products",
-    fetcher,
-    {
-      refreshInterval: 5000,
-      revalidateOnFocus: true,
-    }
-  );
-
-  const {
-    data: categoriesData,
-    isLoading: loadingCategories,
-  } = useSWR<Category[]>(
-    "/api/categories",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  );
-
-  const products = useMemo(() => {
-    return productsData || [];
-  }, [productsData]);
-
-  const categories = useMemo(() => {
-    return categoriesData || [];
-  }, [categoriesData]);
-
-  const loading =
-    loadingProducts || loadingCategories;
-
-  /* =========================================================
-     EFFECTS
-  ========================================================= */
+  /* ================= COUNTDOWN (GLOBAL ONLY) ================= */
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 1200);
+    const end = Date.now() + 2 * 60 * 60 * 1000;
 
-    return () => clearTimeout(timer);
+    const timer = setInterval(() => {
+      const diff = end - Date.now();
+
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        clearInterval(timer);
+        return;
+      }
+
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+
+      setTimeLeft(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(
+          2,
+          "0"
+        )}:${String(s).padStart(2, "0")}`
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
-  
-useEffect(() => {
-  const hasSeenSplash = sessionStorage.getItem("splash_seen");
 
-  if (!hasSeenSplash) {
-    setShowSplash(true);
-
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      sessionStorage.setItem("splash_seen", "1");
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }
-}, []);
-  useEffect(() => {
-const endTime =
-Date.now() + 2 * 60 * 60 * 1000; // 2 giờ
-
-const interval = setInterval(() => {
-const diff = endTime - Date.now();
-
-if (diff <= 0) {
-  setTimeLeft("00:00:00");
-  clearInterval(interval);
-  return;
-}
-
-const hours = Math.floor(
-  diff / (1000 * 60 * 60)
-);
-
-const minutes = Math.floor(
-  (diff % (1000 * 60 * 60)) /
-    (1000 * 60)
-);
-
-const seconds = Math.floor(
-  (diff % (1000 * 60)) / 1000
-);
-
-setTimeLeft(
-  `${String(hours).padStart(2, "0")}:${String(
-    minutes
-  ).padStart(2, "0")}:${String(
-    seconds
-  ).padStart(2, "0")}`
-);
-
-}, 1000);
-
-return () => clearInterval(interval);
-}, []);
-  /* =========================================================
-     MESSAGE
-  ========================================================= */
-
-  const showMessage = (
-    text: string,
-    type: "error" | "success" = "error"
-  ) => {
-    setMessage({ text, type });
-
-    setTimeout(() => {
-      setMessage(null);
-    }, 2500);
-  };
-
-  /* =========================================================
-     FILTER
-  ========================================================= */
-
-  const filteredProducts = useMemo(() => {
-    if (selectedCategory === "all") {
-      return products;
-    }
-
-    return products.filter(
-      (p) =>
-        Number(p.category_id) ===
-        Number(selectedCategory)
-    );
-  }, [products, selectedCategory]);
-
-  /* =========================================================
-     TRENDING
-  ========================================================= */
-
-  const trendingProducts = useMemo(() => {
-    return [...products]
-      .sort((a, b) => b.sold - a.sold)
-      .slice(0, 8);
-  }, [products]);
-
-  /* =========================================================
-     CART
-  ========================================================= */
-
-  const handleAddToCart = (product: Product) => {
-  if (!product.is_active) {
-    showMessage(
-      t.product_unavailable || "Product unavailable"
-    );
-    return;
-  }
-
-  const isOutOfStock =
-    !product.is_unlimited &&
-    (product.stock ?? 0) <= 0;
-
-  if (isOutOfStock) {
-    showMessage(
-      t.out_of_stock || "Out of stock"
-    );
-    return;
-  }
-
-  // 🔥 TYPE SAFE VARIANT CHECK (NO ANY)
-  const hasVariant =
-    Boolean(product.has_variants) ||
-    (product.variants?.length ?? 0) > 0 ||
-    (product.options?.size?.length ?? 0) > 0;
-
-  if (hasVariant) {
-    showMessage(
-      t.please_select_variant ||
-        "Please select variant before adding to cart"
-    );
-
-    return;
-  }
-
-  addToCart({
-    id: String(product.id),
-    product_id: product.id,
-    name: product.name,
-    price: product.price,
-    sale_price:
-      product.final_price || product.sale_price,
-    quantity: 1,
-    thumbnail: product.thumbnail,
-  });
-
-  showMessage(
-    t.added_to_cart || "Added to cart",
-    "success"
+  const flashSaleProducts = useMemo(
+    () => products.filter((p: any) => p.sale_price),
+    [products]
   );
-};
-
-  /* =========================================================
-     LOADING
-  ========================================================= */
-
-  if (
-    showSplash ||
-    (loading && products.length === 0)
-  ) {
-    return <SplashScreen />;
-  }
-
-  /* =========================================================
-     UI
-  ========================================================= */
 
   return (
-    <main className="min-h-screen pb-28 bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
-      {/* MESSAGE */}
-
-      {message && (
-        <div
-          className={`fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-2xl px-5 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl ${
-            message.type === "error"
-              ? "bg-red-500 text-white"
-              : "bg-green-500 text-white"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
+    <main className="bg-gray-50 min-h-screen pb-20">
       {/* HERO */}
-<section className="relative w-full overflow-hidden border-b-4 border-orange-500 bg-gradient-to-br from-black via-gray-900 to-orange-600 px-5 pb-10 pt-6 text-white">
-  {/* glow effects */}
-  <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-orange-500/20 blur-3xl" />
-  <div className="absolute bottom-0 left-0 h-44 w-44 rounded-full bg-red-500/20 blur-3xl" />
+      <BannerCarousel />
 
-  {/* subtle edge highlight */}
-  <div className="pointer-events-none absolute inset-0 ring-1 ring-orange-400/30" />
-
-  <div className="relative z-10">
-    <BannerCarousel />
-
-    <div className="mt-5 flex justify-center">
-      <PiPriceWidget />
-    </div>
-
-    <div className="mt-8">
-      <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur-xl">
-        <Sparkles size={14} />
-        {t.future_marketplace || "Future Marketplace"}
+      <div className="px-3 mt-3">
+        <PiPriceWidget />
       </div>
 
-      <h1 className="mt-5 max-w-xl text-4xl font-black leading-tight">
-        {t.discover_modern_products ||
-          "Discover modern commerce experiences"}
-      </h1>
-
-      <p className="mt-4 max-w-md text-sm text-white/80">
-        {t.smart_shopping_discovery ||
-          "Trending products, curated collections and next generation shopping."}
-      </p>
-
-      <button
-        onClick={() => router.push("/categories")}
-        className="mt-6 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-black shadow-lg active:scale-95 transition"
-      >
-        {t.explore_now || "Explore Now"}
-        <ChevronRight size={16} />
-      </button>
-    </div>
-  </div>
-</section>
-      {/* CATEGORIES */}
-
-      <section className="mt-6 px-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black">
-              {t.categories ||
-                "Categories"}
-            </h2>
-
-            <p className="mt-1 text-sm"
-          style={{ color: "var(--text-muted, #9ca3af)" }}>
-              {t.shop_by_category ||
-                "Shop by category"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          <button
-            onClick={() =>
-              setSelectedCategory("all")
-            }
-           className={`flex min-w-[82px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2
-${
-  selectedCategory === "all"
-    ? "border-[var(--color-primary)]"
-    : "border-transparent"
-}
-`}
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-2xl">
-  
+      {/* FLASH SALE (STANDARD MARKETPLACE STYLE) */}
+      <section className="px-3 mt-5">
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl p-3">
+          
+          {/* HEADER */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Flame size={16} />
+              <p className="font-bold text-sm">Flash Sale</p>
             </div>
 
-            <span className="text-xs font-semibold">
-              {t.all || "All"}
-            </span>
-          </button>
+            <div className="bg-white text-red-600 font-bold px-3 py-1 rounded text-sm">
+              {timeLeft}
+            </div>
+          </div>
 
-          {categories.map((category) => {
-            const active =
-              Number(selectedCategory) ===
-              Number(category.id);
-
-            return (
-              <button
-                key={category.id}
-                onClick={() =>
-                  setSelectedCategory(
-                    Number(category.id)
-                  )
-                }
-                className={`flex min-w-[90px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2
-      ${
-  active
-    ? "border-[var(--color-primary)]"
-    : "border-transparent"
-}
-`}
+          {/* PRODUCTS */}
+          <div className="flex gap-3 overflow-x-auto mt-3">
+            {flashSaleProducts.slice(0, 10).map((p: any) => (
+              <div
+                key={p.id}
+                className="min-w-[140px] bg-white text-black rounded-lg overflow-hidden"
               >
-                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
-                  <Image
-                    src={
-                      category.icon ||
-                      "/placeholder.png"
-                    }
-                    alt={category.key}
-                    width={80}
-                    height={80}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                <Image
+                  src={getImage(p)}
+                  alt={p.name}
+                  width={200}
+                  height={200}
+                  className="h-24 w-full object-cover"
+                />
 
-                <span className="line-clamp-2 text-center text-[11px] font-semibold">
-                  {t[category.key] ||
-                    category.key}
-                </span>
-              </button>
-            );
-          })}
+                <div className="p-2">
+                  <p className="text-xs line-clamp-2 min-h-[32px]">
+                    {p.name}
+                  </p>
+
+                  <p className="text-red-500 font-bold text-sm">
+                    {formatPi(p.sale_price ?? p.price)} π
+                  </p>
+
+                  <p className="text-[10px] text-gray-400 line-through">
+                    {formatPi(p.price)} π
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* TRENDING */}
-
-      <section className="mt-10 px-4">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-600">
-              <TrendingUp size={14} />
-
-              {t.trending_now ||
-                "Trending Now"}
-            </div>
-
-            <h2 className="text-2xl font-black">
-              {t.best_selling_products ||
-                "Best selling products"}
-            </h2>
-          </div>
-
-          <button
-            onClick={() =>
-              router.push("/categories")
-            }
-            className="text-sm font-semibold text-gray-500"
-          >
-            {t.view_all || "View all"}
-          </button>
+      <section className="px-3 mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={16} />
+          <p className="font-bold">Trending</p>
         </div>
 
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {trendingProducts.map((product) => (
-            <div
-              key={product.id}
-              className="min-w-[240px]"
-            >
-              <ProductCard
-                product={product}
-                onAddToCart={
-                  handleAddToCart
-                }
-                t={t}
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          {products.slice(0, 10).map((p: any) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              onAddToCart={addToCart}
+            />
           ))}
         </div>
       </section>
-
-{/* FLASH SALE */}
-
-<section className="mt-10 px-4">
-  <div
-    className="
-      relative
-      overflow-hidden
-      rounded-[28px]
-      bg-gradient-to-r
-      from-red-600
-      via-orange-500
-      to-pink-600
-      p-4
-      text-white
-      shadow-xl
-    "
-  >
-    {/* GLOW EFFECT */}<div
-  className="
-    absolute
-    -right-10
-    -top-10
-    h-40
-    w-40
-    rounded-full
-    bg-white/10
-    blur-3xl
-  "
-/>
-
-{/* HEADER */}
-
-<div className="relative z-10 mb-4 flex items-center justify-between">
-  <div>
-    <div
-      className="
-        inline-flex
-        items-center
-        gap-2
-        rounded-full
-        bg-white/20
-        px-3
-        py-1
-        text-[11px]
-        font-bold
-        backdrop-blur-xl
-      "
-    >
-      <Flame size={13} />
-      {t.flash_sale || "Flash Sale"}
-    </div>
-
-    <h2 className="mt-2 text-xl font-black">
-      {t.limited_offers || "Limited offers"}
-    </h2>
-
-    <p className="mt-1 text-xs text-white/80">
-      {t.best_discounts_available_now ||
-        "Best discounts available now"}
-    </p>
-  </div>
-
-  <div className="flex flex-col items-end">
-    <div
-      className="
-        rounded-full
-        bg-white/20
-        px-3
-        py-1
-        text-[10px]
-        font-bold
-        backdrop-blur-xl
-      "
-    >
-      🔥 {t.hot || "HOT"}
-    </div>
-
-    <div
-      className="
-        mt-2
-        rounded-xl
-        bg-white
-        px-3
-        py-1.5
-        text-sm
-        font-black
-        text-red-600
-        shadow-lg
-      "
-    >
-      {timeLeft}
-    </div>
-  </div>
-</div>
-
-{/* PRODUCTS */}
-
-<div className="relative z-10 flex gap-3 overflow-x-auto pb-2">
-  {products
-    .filter(
-      (p) =>
-        p.sale_price &&
-        p.sale_price > 0
-    )
-    .slice(0, 10)
-    .map((product) => {
-      const discount =
-        product.sale_price &&
-        product.price > product.sale_price
-          ? Math.round(
-              ((product.price -
-                product.sale_price) /
-                product.price) *
-                100
-            )
-          : 0;
-
-      const salePrice =
-        product.final_price ??
-        product.sale_price ??
-        product.price;
-
-      return (
-        <div
-          key={product.id}
-          onClick={() =>
-            router.push(
-              `/product/${product.id}`
-            )
-          }
-          className="
-            min-w-[170px]
-            max-w-[170px]
-            overflow-hidden
-            rounded-2xl
-            bg-white
-            text-black
-            shadow-lg
-            transition-all
-            duration-300
-            hover:-translate-y-2
-            hover:shadow-2xl
-            active:scale-[0.98]
-            cursor-pointer
-          "
-        >
-          {/* IMAGE */}
-
-          <div className="relative">
-            <Image
-              src={getMainImage(product)}
-              alt={product.name}
-              width={300}
-              height={300}
-              className="
-                h-28
-                w-full
-                object-cover
-              "
-            />
-
-            {discount > 0 && (
-              <div
-                className="
-                  absolute
-                  left-2
-                  top-2
-                  rounded-full
-                  bg-red-500
-                  px-2
-                  py-1
-                  text-[10px]
-                  font-bold
-                  text-white
-                  shadow-md
-                "
-              >
-                -{discount}%
-              </div>
-            )}
-
-            {(product.sold ?? 0) > 70 && (
-              <div
-                className="
-                  absolute
-                  right-2
-                  top-2
-                  rounded-full
-                  bg-orange-500
-                  px-2
-                  py-1
-                  text-[9px]
-                  font-bold
-                  text-white
-                  shadow-md
-                "
-              >
-                Almost Gone
-              </div>
-            )}
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-
-                addToCart({
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  sale_price: salePrice,
-                  quantity: 1,
-                  image: getMainImage(product),
-                });
-              }}
-              className="
-                absolute
-                right-2
-                bottom-2
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-full
-                bg-white
-                text-red-500
-                shadow-lg
-                transition
-                active:scale-90
-              "
-            >
-              <ShoppingCart size={16} />
-            </button>
-          </div>
-
-          {/* CONTENT */}
-
-          <div className="p-3">
-            <p className="line-clamp-2 min-h-[34px] text-xs font-semibold">
-              {product.name}
-            </p>
-
-            <div className="mt-2">
-              <p className="text-base font-black text-red-500">
-                {formatPi(salePrice)} π
-              </p>
-
-              <p className="text-[11px] text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-            </div>
-
-            <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                <span>
-                  {product.sold ?? 0}{" "}
-                  {t.sold || "sold"}
-                </span>
-
-                {discount > 0 && (
-                  <span className="font-bold text-red-500">
-                    Save {discount}%
-                  </span>
-                )}
-              </div>
-
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="
-                    h-full
-                    rounded-full
-                    bg-gradient-to-r
-                    from-red-500
-                    to-orange-500
-                  "
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      product.sold ?? 0
-                    )}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })}
-</div>
-
-  </div>
-</section>
-                
-      {/* PRODUCTS */}
-
-      <section className="mt-10 px-4">
-        <div className="mb-5">
-          <h2 className="text-2xl font-black">
-            {t.discover_products ||
-              "Discover Products"}
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            {t.curated_products_for_you ||
-              "Curated products for you"}
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="h-72 animate-pulse rounded-[28px] bg-white"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {filteredProducts.map(
-              (product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={
-                    handleAddToCart
-                  }
-                  t={t}
-                />
-              )
-            )}
-          </div>
-        )}
-      </section>
     </main>
   );
-                                   }
+}
