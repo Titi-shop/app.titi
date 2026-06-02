@@ -34,11 +34,8 @@ export default function PiPriceWidget() {
   const { t } = useTranslation();
 
   const [price, setPrice] = useState<number>(0);
-
   const [change, setChange] = useState<number>(0);
-
   const [history, setHistory] = useState<number[]>([]);
-
   const [flash, setFlash] = useState<
     "up" | "down" | null
   >(null);
@@ -151,7 +148,7 @@ export default function PiPriceWidget() {
 
     const width = 600;
 
-    const height = 140;
+    const height = 70;
 
     const max = Math.max(...history);
 
@@ -234,8 +231,7 @@ export default function PiPriceWidget() {
                   backdrop-blur-xl
                 `}
               >
-                <Activity
-                  size={22}
+                 <Activity size={18} />
                   className="text-orange-400"
                 />
               </div>
@@ -261,10 +257,10 @@ export default function PiPriceWidget() {
 
             {/* PRICE */}
 
-            <div className="mt-6 flex items-end gap-3">
+            <div className="mt-3 flex items-end gap-3">
               <div
                 className={`
-                  text-4xl font-black tracking-tight
+                  text-2xl font-black tracking-tight
                   transition-all duration-300
                   ${textColor}
                   ${
@@ -289,7 +285,7 @@ export default function PiPriceWidget() {
                 )}
               </div>
 
-              <span className="mb-1 text-sm text-white/40">
+              <span className="mb-1 text-xs text-white/40">
                 USD
               </span>
             </div>
@@ -301,8 +297,8 @@ export default function PiPriceWidget() {
             className={`
               flex items-center gap-2
               rounded-2xl
-              px-4 py-2
-              text-sm font-bold
+              px-2.5 py-1.5
+              text-xs font-bold
               ${
                 isUp
                   ? "bg-emerald-500/15 text-emerald-400"
@@ -322,7 +318,7 @@ export default function PiPriceWidget() {
 
         {/* STATUS */}
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-1.5">
           <span
             className={`
               h-2 w-2 rounded-full
@@ -336,10 +332,7 @@ export default function PiPriceWidget() {
 
           <span className="text-xs text-white/50">
             {connected
-              ? t.realtime_connected ??
-                "Realtime Connected"
-              : t.disconnected ??
-                "Disconnected"}
+              ? t.realtime_connected ??    "Realtime Connected"    : t.disconnected ?? "Disconnected"}
           </span>
         </div>
 
@@ -347,18 +340,18 @@ export default function PiPriceWidget() {
 
         <div
           className={`
-            relative mt-6 overflow-hidden
-            rounded-3xl
+            relative mt-3 overflow-hidden
+            rounded-xl
             border border-white/5
             bg-black/20
-            p-3
+            p-2
             backdrop-blur-xl
           `}
         >
           <svg
-            viewBox="0 0 600 140"
+            viewBox="0 0 600 70"
             preserveAspectRatio="none"
-            className="h-[140px] w-full"
+            className="h-[70px] w-full"
           >
             <defs>
               <linearGradient
@@ -385,7 +378,7 @@ export default function PiPriceWidget() {
             {/* AREA */}
 
             <path
-              d={`${chartPath} L 600 140 L 0 140 Z`}
+              d={`${chartPath} L 600 70 L 0 140 Z`}
               fill="url(#priceGradient)"
             />
 
@@ -406,17 +399,17 @@ export default function PiPriceWidget() {
 
         <div
           className={`
-            mt-5 overflow-hidden
+            mt-2 overflow-hidden
             rounded-2xl
             border border-white/5
             bg-white/5
-            py-3
+            py-1.5
           `}
         >
           <div
             className={`
               whitespace-nowrap
-              text-sm font-semibold
+              text-[11px] font-semibold
               text-white/70
               animate-[ticker_18s_linear_infinite]
             `}
