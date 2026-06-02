@@ -516,7 +516,7 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
 
       {/* PRODUCT GRID */}
 
-      <section className="mt-2 px-1">
+      <section className="mt-2 px-0">
         {filteredProducts.length === 0 ? (
           <div className="flex h-60 flex-col items-center justify-center rounded-[32px] bg-white text-center">
             <p className="text-lg font-bold">
