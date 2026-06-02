@@ -213,7 +213,7 @@ export default function PiPriceWidget() {
 
       {/* CONTENT */}
 
-      <div className="relative z-10 p-0">
+      <div className="relative z-10 p-3">
         {/* HEADER */}
 
         <div className="flex items-start justify-between gap-4">
@@ -392,110 +392,90 @@ export default function PiPriceWidget() {
           </svg>
         </div>
 
-        {/* TICKER */}
+{/* TICKER */}
 
-        <div className="ticker-track whitespace-nowrap text-[11px] font-semibold text-white/70">
-  {/* LOOP 1 */}
+<div
+  className="
+    mt-3
+    overflow-hidden
+    border-t border-white/5
+    py-2
+  "
+>
+  <div className="ticker-track text-[11px] font-semibold text-white/70">
+    {/* LOOP 1 */}
 
-  <span className="mx-6">
-    {t.pi_network_live_market ??
-      "PI NETWORK LIVE MARKET"}
-  </span>
+    <span className="mx-4">
+      {t.pi_network_live_market ??
+        "PI NETWORK LIVE MARKET"}
+    </span>
 
-  <span className="mx-6 text-orange-300">
-    {t.realtime_price ??
-      "REALTIME PRICE"}
-  </span>
+    <span className="mx-4 text-orange-300">
+      {t.realtime_price ??
+        "REALTIME PRICE"}
+    </span>
 
-  <span className="mx-6 text-emerald-400">
-    ▲ ${price.toFixed(4)}
-  </span>
+    <span className="mx-4 text-emerald-400">
+      ▲ ${price.toFixed(4)}
+    </span>
 
-  <span className="mx-6">
-    {t.change_24h ??
-      "24H CHANGE"}
-  </span>
+    <span className="mx-4">
+      {t.change_24h ??
+        "24H CHANGE"}
+    </span>
 
-  <span
-    className={`mx-6 ${
-      isUp
-        ? "text-emerald-400"
-        : "text-red-400"
-    }`}
-  >
-    {change.toFixed(2)}%
-  </span>
+    <span
+      className={`mx-4 ${
+        isUp
+          ? "text-emerald-400"
+          : "text-red-400"
+      }`}
+    >
+      {change.toFixed(2)}%
+    </span>
 
-  {/* LOOP 2 */}
+    {/* LOOP 2 */}
 
-  <span className="mx-6">
-    {t.pi_network_live_market ??
-      "PI NETWORK LIVE MARKET"}
-  </span>
+    <span className="mx-4">
+      {t.pi_network_live_market ??
+        "PI NETWORK LIVE MARKET"}
+    </span>
 
-  <span className="mx-6 text-orange-300">
-    {t.realtime_price ??
-      "REALTIME PRICE"}
-  </span>
+    <span className="mx-4 text-orange-300">
+      {t.realtime_price ??
+        "REALTIME PRICE"}
+    </span>
 
-  <span className="mx-6 text-emerald-400">
-    ▲ ${price.toFixed(4)}
-  </span>
+    <span className="mx-4 text-emerald-400">
+      ▲ ${price.toFixed(4)}
+    </span>
 
-  <span className="mx-6">
-    {t.change_24h ??
-      "24H CHANGE"}
-  </span>
+    <span className="mx-4">
+      {t.change_24h ??
+        "24H CHANGE"}
+    </span>
 
-  <span
-    className={`mx-6 ${
-      isUp
-        ? "text-emerald-400"
-        : "text-red-400"
-    }`}
-  >
-    {change.toFixed(2)}%
-  </span>
+    <span
+      className={`mx-4 ${
+        isUp
+          ? "text-emerald-400"
+          : "text-red-400"
+      }`}
+    >
+      {change.toFixed(2)}%
+    </span>
+  </div>
+</div>
 
-            <span className="mx-6 text-orange-300">
-              {t.realtime_price ??
-                "REALTIME PRICE"}
-            </span>
+{/* STYLE */}
 
-            <span className="mx-6 text-emerald-400">
-              ▲ ${price.toFixed(4)}
-            </span>
-
-            <span className="mx-6">
-              {t.change_24h ??
-                "24H CHANGE"}
-            </span>
-
-            <span
-              className={`mx-6 ${
-                isUp
-                  ? "text-emerald-400"
-                  : "text-red-400"
-              }`}
-            >
-              {change.toFixed(2)}%
-            </span>
-
-            <span className="mx-6">
-              {t.pi_network_live_market ??
-                "PI NETWORK LIVE MARKET"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* STYLE */}
-
-      <style jsx>{`
+<style jsx>{`
   .ticker-track {
-    display: flex;
+    display: inline-flex;
     width: max-content;
-    animation: ticker 20s linear infinite;
+    white-space: nowrap;
+    animation: ticker 18s linear infinite;
+    will-change: transform;
   }
 
   @keyframes ticker {
