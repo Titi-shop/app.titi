@@ -315,3 +315,29 @@ body {
 .scroll-x > * {
   scroll-snap-align: start;
 }
+
+/* ===============================
+   PI PRICE WIDGET
+================================ */
+
+.ticker-track {
+  display: inline-flex;
+  width: max-content;
+  white-space: nowrap;
+  animation: ticker 18s linear infinite;
+  will-change: transform;
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.pi-widget {
+  will-change: transform;
+}
