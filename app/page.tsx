@@ -388,7 +388,7 @@ useEffect(() => {
   {/* subtle edge highlight */}
   <div className="pointer-events-none absolute inset-0 ring-1 ring-orange-400/30" />
 
-  <div className="relative z-20">
+  <div className="relative z-10">
     <BannerCarousel />
 
     <div className="mt-3 flex justify-center">
