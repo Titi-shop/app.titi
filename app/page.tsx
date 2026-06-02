@@ -537,13 +537,11 @@ useEffect(() => {
       className="
         flex gap-3
         overflow-x-auto
-        overflow-y-hidden
-        pb-2
-        -mx-1 px-1
-
-        snap-x snap-mandatory
-        touch-pan-x
-        scroll-smooth
+    overflow-y-hidden
+    pb-2
+    -mx-1 px-1
+    snap-x snap-mandatory
+    scroll-smooth
       "
       style={{
         WebkitOverflowScrolling: "touch",
