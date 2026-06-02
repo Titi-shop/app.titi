@@ -94,17 +94,17 @@ function ProductCard({
         shadow-sm
         active:scale-[0.98]
         transition-transform duration-150
-        ${compact ? "h-[250px]" : "h-[290px]"}
+        ${compact ? "h-[260px]" : "h-[300px]"}
       `}
     >
-      {/* IMAGE */}
-      <div className={compact ? "h-[140px]" : "h-[170px]"}>
+      {/* IMAGE - FIX PROPORTION */}
+      <div className="relative w-full h-[180px]">
         <Image
           src={getMainImage(product)}
           alt={product.name}
-          width={500}
-          height={500}
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 50vw, 25vw"
         />
 
         {product.sale_price && (
