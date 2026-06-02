@@ -514,12 +514,18 @@ useEffect(() => {
   </div>
 
   <div className="flex gap-1 overflow-x-auto pb-1">
-    {trendingProducts.map((product) => (
-      <div key={product.id} 
-        <div className="min-w-[170px] max-w-[170px]">
-        <ProductCard product={product} compact />
-      </div>
-    ))}
+  {trendingProducts.map((product) => (
+    <div
+      key={product.id}
+      className="min-w-[170px] max-w-[170px]"
+    >
+      <ProductCard
+        product={product}
+        compact
+      />
+    </div>
+  ))}
+</div>
   </div>
 </section>
 
