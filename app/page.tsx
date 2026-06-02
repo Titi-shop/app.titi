@@ -1,7 +1,5 @@
 "use client";
-
 export const dynamic = "force-dynamic";
-
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -74,110 +72,68 @@ function getDiscount(product: Product) {
    PRODUCT CARD
 ========================================================= */
 
-function ProductCard({
-  product,
-  onAddToCart,
-  t,
-}: {
-  product: Product;
-  onAddToCart: (product: Product) => void;
-  t: Record<string, string>;
-}) {
+ function ProductCard({ product, onAddToCart }: any) {
   const router = useRouter();
-  const discount = getDiscount(product);
-  const isOut =
-    !product.is_unlimited &&
-    (product.stock ?? 0) <= 0;
 
   return (
     <div
-  onClick={() =>
-    router.push(`/product/${product.id}`)
-  }
-  className="group overflow-hidden rounded-[30px] bg-[var(--card-bg)] text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
->
+      onClick={() => router.push(`/product/${product.id}`)}
+      className="
+        flex flex-col
+        overflow-hidden
+        rounded-xl
+        bg-[var(--card-bg)]
+        border border-black/5
+        shadow-sm
+        active:scale-[0.98]
+        transition-transform
+        duration-150
+      "
+    >
       {/* IMAGE */}
-
-      <div className="relative overflow-hidden">
+      <div className="relative">
         <Image
           src={getMainImage(product)}
           alt={product.name}
           width={500}
           height={500}
-          className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-36 w-full object-cover"
         />
 
-        {/* BADGES */}
-
-        {discount > 0 && (
-          <div className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-red-500 to-orange-500 px-3 py-1 text-xs font-bold text-white shadow-lg">
-            -{discount}%
+        {product.sale_price && (
+          <div className="absolute left-2 top-2 rounded-md bg-red-600 px-2 py-[2px] text-[10px] font-bold text-white">
+            -{getDiscount(product)}%
           </div>
         )}
-
-        {isOut && (
-          <div className="absolute bottom-3 left-3 rounded-full bg-black/80 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xl">
-            {t.out_of_stock || "Out of stock"}
-          </div>
-        )}
-
-        {/* CART */}
-
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            onAddToCart(product);
-          }}
-          className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-black shadow-xl backdrop-blur-xl transition-all active:scale-95"
-        >
-          <ShoppingCart size={18} />
-        </button>
       </div>
 
       {/* CONTENT */}
-
-      <div className="p-4">
-        <h3 className="line-clamp-2 min-h-[42px] text-sm font-semibold">
+      <div className="p-2">
+        <p className="text-[12px] font-medium line-clamp-2 text-[var(--foreground)]">
           {product.name}
-        </h3>
+        </p>
 
-        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-          <Star
-            size={14}
-            className="fill-yellow-400 text-yellow-400"
-          />
-
+        <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+          <Star size={12} className="fill-yellow-400 text-yellow-400" />
           {product.rating_avg || 5}
-
-          <span>
-            • {product.sold}{" "}
-            {t.sold || "sold"}
-          </span>
+          <span>• {product.sold || 0}</span>
         </div>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="text-lg font-black text-red-500">
-              {formatPi(
-                product.final_price ||
-                  product.price
-              )}{" "}
-              π
-            </p>
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-sm font-bold text-red-500">
+            {formatPi(product.final_price || product.price)} π
+          </p>
 
-            {product.sale_price && (
-              <p className="text-xs text-gray-400 line-through">
-                {formatPi(product.price)} π
-              </p>
-            )}
-          </div>
+          {product.sale_price && (
+            <p className="text-[10px] text-[var(--text-muted)] line-through">
+              {formatPi(product.price)}
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
-}
+ }
 
 /* =========================================================
    PAGE
