@@ -72,14 +72,11 @@ function getDiscount(product: Product) {
    PRODUCT CARD
 ========================================================= */
 function ProductCard({
+function ProductCard({
   product,
-  onAddToCart,
-  t,
   compact = false,
 }: {
   product: Product;
-  onAddToCart?: (p: Product) => void;
-  t: Record<string, string>;
   compact?: boolean;
 }) {
   const router = useRouter();
@@ -88,15 +85,16 @@ function ProductCard({
     <div
       onClick={() => router.push(`/product/${product.id}`)}
       className={`
-        flex flex-col overflow-hidden rounded-xl
-        bg-[var(--card-bg)] border border-black/5
+        flex flex-col overflow-hidden rounded-lg
+        bg-[var(--card-bg)]
+        border border-black/5
         shadow-sm active:scale-[0.98]
-        transition-transform duration-150
-        ${compact ? "h-[230px]" : "h-[270px]"}
+        transition
+        ${compact ? "h-[210px]" : "h-[250px]"}
       `}
     >
       {/* IMAGE */}
-      <div className={compact ? "relative h-[120px]" : "relative h-[160px]"}>
+      <div className={compact ? "h-[110px]" : "h-[140px]"}>
         <Image
           src={getMainImage(product)}
           alt={product.name}
@@ -104,33 +102,26 @@ function ProductCard({
           height={500}
           className="h-full w-full object-cover"
         />
-
-        {product.sale_price && (
-          <div className="absolute left-2 top-2 rounded bg-red-600 px-2 py-[2px] text-[9px] font-bold text-white">
-            -{getDiscount(product)}%
-          </div>
-        )}
       </div>
 
       {/* CONTENT */}
-      <div className="p-2 flex flex-col justify-between flex-1">
-        <p className="text-[11px] font-medium line-clamp-2 leading-tight">
+      <div className="p-2 flex flex-col flex-1 justify-between">
+        <p className="text-[10px] leading-tight line-clamp-2">
           {product.name}
         </p>
 
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-          <Star size={11} className="fill-yellow-400 text-yellow-400" />
-          {product.rating_avg || 5}
-          <span>• {product.sold || 0}</span>
+        <div className="text-[9px] text-gray-500 flex items-center gap-1">
+          <Star size={10} />
+          {product.rating_avg || 5} • {product.sold || 0}
         </div>
 
-        <div className="mt-auto flex items-end justify-between">
-          <p className="text-sm font-bold text-red-500">
+        <div className="mt-auto flex justify-between items-end">
+          <p className="text-xs font-bold text-red-500">
             {formatPi(product.final_price || product.price)} π
           </p>
 
           {product.sale_price && (
-            <p className="text-[10px] text-[var(--text-muted)] line-through">
+            <p className="text-[9px] line-through text-gray-400">
               {formatPi(product.price)}
             </p>
           )}
@@ -139,7 +130,6 @@ function ProductCard({
     </div>
   );
 }
- 
 
 function ProductSkeleton() {
   return (
@@ -417,37 +407,31 @@ useEffect(() => {
   </div>
 </section>
       {/* CATEGORIES */}
-<section className="mt-4 px-3">
+<section className="mt-3 px-3">
   <div className="mb-2 flex items-center justify-between">
     <div>
-      <h2 className="text-lg font-bold leading-tight">
+      <h2 className="text-base font-bold leading-tight">
         {t.categories || "Categories"}
       </h2>
-
-      <p className="text-[11px] text-[var(--text-muted)]">
+      <p className="text-[10px] text-[var(--text-muted)]">
         {t.shop_by_category || "Shop by category"}
       </p>
     </div>
   </div>
 
-  <div className="flex gap-2 overflow-x-auto pb-1 scroll-x">
-    {/* ALL */}
+  <div className="flex gap-2 overflow-x-auto pb-1">
     <button
       onClick={() => setSelectedCategory("all")}
-      className={`flex min-w-[70px] flex-col items-center gap-1 rounded-xl px-2 py-2 transition border ${
+      className={`flex min-w-[68px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
         selectedCategory === "all"
           ? "border-[var(--color-primary)]"
           : "border-transparent"
       }`}
     >
-      <div className="h-10 w-10 rounded-lg bg-gray-100" />
-
-      <span className="text-[10px] font-medium">
-        {t.all || "All"}
-      </span>
+      <div className="h-9 w-9 rounded-md bg-gray-100" />
+      <span className="text-[9px]">{t.all || "All"}</span>
     </button>
 
-    {/* ITEMS */}
     {categories.map((category) => {
       const active =
         Number(selectedCategory) === Number(category.id);
@@ -456,13 +440,13 @@ useEffect(() => {
         <button
           key={category.id}
           onClick={() => setSelectedCategory(Number(category.id))}
-          className={`flex min-w-[72px] flex-col items-center gap-1 rounded-xl px-2 py-2 transition border ${
+          className={`flex min-w-[70px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
             active
               ? "border-[var(--color-primary)]"
               : "border-transparent"
           }`}
         >
-          <div className="h-10 w-10 overflow-hidden rounded-lg bg-gray-100">
+          <div className="h-9 w-9 overflow-hidden rounded-md bg-gray-100">
             <Image
               src={category.icon || "/placeholder.png"}
               alt={category.key}
@@ -472,7 +456,7 @@ useEffect(() => {
             />
           </div>
 
-          <span className="text-[10px] font-medium line-clamp-1">
+          <span className="text-[9px] line-clamp-1">
             {t[category.key] || category.key}
           </span>
         </button>
@@ -480,43 +464,30 @@ useEffect(() => {
     })}
   </div>
 </section>
-  
-
-      {/* TRENDING */}
-<section className="mt-6 px-3">
-  <div className="mb-3 flex items-center justify-between">
+      
+{/* TRENDING */}
+<section className="mt-4 px-3">
+  <div className="mb-2 flex items-center justify-between">
     <div>
-      <div className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-[2px] text-[10px] font-semibold text-orange-600">
-        <TrendingUp size={12} />
+      <div className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-[2px] text-[9px] font-semibold text-orange-600">
+        <TrendingUp size={11} />
         {t.trending_now || "Trending"}
       </div>
 
-      <h2 className="mt-1 text-base font-bold leading-tight">
+      <h2 className="mt-1 text-sm font-bold">
         {t.best_selling_products || "Best selling"}
       </h2>
     </div>
 
-    <button
-      onClick={() => router.push("/categories")}
-      className="text-[11px] text-gray-500"
-    >
+    <button className="text-[10px] text-gray-500">
       {t.view_all || "View"}
     </button>
   </div>
 
-  {/* SCROLL LIST - GAP TIGHT */}
-  <div className="flex gap-2 overflow-x-auto pb-1 scroll-x">
+  <div className="flex gap-1 overflow-x-auto pb-1">
     {trendingProducts.map((product) => (
-      <div
-        key={product.id}
-        className="min-w-[160px] flex-shrink-0"
-      >
-        <ProductCard
-          product={product}
-          onAddToCart={handleAddToCart}
-          t={t}
-          compact
-        />
+      <div key={product.id} className="min-w-[150px]">
+        <ProductCard product={product} compact />
       </div>
     ))}
   </div>
