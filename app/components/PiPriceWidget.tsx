@@ -189,7 +189,7 @@ export default function PiPriceWidget() {
     <div
       className={`
         relative overflow-hidden
-        rounded-[34px]
+        rounded-2xl
         border border-white/10
         bg-[#0b1120]
         shadow-[0_25px_80px_rgba(0,0,0,0.45)]
@@ -223,7 +223,7 @@ export default function PiPriceWidget() {
 
       {/* CONTENT */}
 
-      <div className="relative z-10 p-5">
+      <div className="relative z-10 p-3">
         {/* HEADER */}
 
         <div className="flex items-start justify-between gap-4">
@@ -231,7 +231,7 @@ export default function PiPriceWidget() {
             <div className="flex items-center gap-3">
               <div
                 className={`
-                  flex h-12 w-12 items-center justify-center
+                  flex h-9 w-9 items-center justify-center
                   rounded-2xl
                   border border-white/10
                   bg-white/10
