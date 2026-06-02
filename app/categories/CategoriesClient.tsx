@@ -431,10 +431,6 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
 <span className="text-[11px] font-medium">
   {t.all || "All"}
 </span>
-
-            <span className="text-[11px] font-medium">
-              {t.all || "All"}
-            </span>
           </button>
 
           {categories.map(
@@ -459,23 +455,20 @@ ${
 }
 bg-[var(--card-bg)] text-[var(--foreground)]`}
                 >
-                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg"
-style={{
-  background: "var(--card-secondary)",
-}}
-                  >
-                    <Image
-                      src={getImage(
-                        category.icon
-                      )}
-                      alt={
-                        category.key
-                      }
-                      width={40}
-                      height={40}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
+                  <div
+  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg"
+  style={{
+    background: "var(--card-secondary)",
+  }}
+>
+  <Image
+    src={getImage(category.icon)}
+    alt={category.key}
+    width={40}
+    height={40}
+    className="h-full w-full object-cover"
+  />
+</div>
                   <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight">
                     {t[
                       category.key
