@@ -587,6 +587,8 @@ useEffect(() => {
               active:scale-[0.97]
               transition
             "
+            >
+  
 <Image
   src={getMainImage(product)}
   alt={product.name}
