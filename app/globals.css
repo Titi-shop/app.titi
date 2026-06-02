@@ -348,10 +348,4 @@ body {
   backface-visibility: hidden;
   will-change: transform;
 }
-className="
-  product-image
-  object-cover
-  transition-transform
-  duration-500
-  group-hover:scale-105
-"
+
