@@ -450,54 +450,50 @@ useEffect(() => {
   </div>
 
   <div className="flex gap-2 overflow-x-auto pb-1">
-    <button
-      onClick={() => setSelectedCategory("all")}
-      className={`flex min-w-[68px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
-        selectedCategory === "all"
-          ? "border-[var(--color-primary)]"
-          : "border-transparent"
-      }`}
-    >
-      <div className="h-9 w-9 rounded-md bg-gray-100" />
-      <span className="text-[9px]">{t.all || "All"}</span>
-    </button>
+  <button
+    onClick={() => setSelectedCategory("all")}
+    className={`flex min-w-[68px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
+      selectedCategory === "all"
+        ? "border-[var(--color-primary)]"
+        : "border-transparent"
+    }`}
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-2xl">
+      🛍️
+    </div>
 
-    {categories.map((category) => {
-      const active =
-        Number(selectedCategory) === Number(category.id);
+    <span className="text-[9px]">
+      {t.all || "All"}
+    </span>
+  </button>
 
-      return (
-        <button
-          key={category.id}
-          onClick={() => setSelectedCategory(Number(category.id))}
-          className={`flex min-w-[70px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
-            active
-              ? "border-[var(--color-primary)]"
-              : "border-transparent"
-          }`}
-        >
-          <div className="h-9 w-9 overflow-hidden rounded-md bg-gray-100">
-            <div
-  className="
-    flex h-12 w-12
-    items-center justify-center
-    rounded-2xl
-    text-2xl
-  "
-  style={{
-    background: "var(--card-secondary)",
-  }}
->
-  {category.icon}
+  {categories.map((category) => {
+    const active =
+      Number(selectedCategory) === Number(category.id);
+
+    return (
+      <button
+        key={category.id}
+        onClick={() =>
+          setSelectedCategory(Number(category.id))
+        }
+        className={`flex min-w-[70px] flex-col items-center gap-1 rounded-lg px-2 py-2 border ${
+          active
+            ? "border-[var(--color-primary)]"
+            : "border-transparent"
+        }`}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-2xl">
+          {category.icon}
+        </div>
+
+        <span className="text-[9px] line-clamp-1">
+          {t[category.key] || category.key}
+        </span>
+      </button>
+    );
+  })}
 </div>
-
-          <span className="text-[9px] line-clamp-1">
-            {t[category.key] || category.key}
-          </span>
-        </button>
-      );
-    })}
-  </div>
 </section>
 {/* TRENDING */}
 <section className="mt-3 px-0">
