@@ -477,14 +477,19 @@ useEffect(() => {
           }`}
         >
           <div className="h-9 w-9 overflow-hidden rounded-md bg-gray-100">
-            <Image
-              src={category.icon || "/placeholder.png"}
-              alt={category.key}
-              width={60}
-              height={60}
-              className="h-full w-full object-cover"
-            />
-          </div>
+            <div
+  className="
+    flex h-12 w-12
+    items-center justify-center
+    rounded-2xl
+    text-2xl
+  "
+  style={{
+    background: "var(--card-secondary)",
+  }}
+>
+  {category.icon}
+</div>
 
           <span className="text-[9px] line-clamp-1">
             {t[category.key] || category.key}
