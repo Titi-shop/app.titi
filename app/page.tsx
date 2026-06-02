@@ -587,15 +587,13 @@ useEffect(() => {
               active:scale-[0.97]
               transition
             "
-          >
-<div className="relative aspect-square w-full">
-  <Image
-    src={getMainImage(product)}
-    alt={product.name}
-    fill
-    className="object-cover"
-  />
-</div>
+<Image
+  src={getMainImage(product)}
+  alt={product.name}
+  width={300}
+  height={300}
+  className="h-24 w-full object-cover"
+/>
 
             <div className="p-2">
               <p className="text-[11px] line-clamp-2">
