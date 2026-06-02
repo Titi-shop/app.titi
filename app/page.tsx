@@ -70,8 +70,7 @@ function getDiscount(product: Product) {
 
 /* =========================================================
    PRODUCT CARD
-========================================================= */
-function ProductCard({
+=========================================================*/
 function ProductCard({
   product,
   compact = false,
