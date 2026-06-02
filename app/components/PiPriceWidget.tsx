@@ -5,7 +5,6 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-
 import {
   useEffect,
   useMemo,
@@ -15,10 +14,6 @@ import {
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-/* =========================================================
-   TYPES
-========================================================= */
-
 interface PiPriceResponse {
   symbol: string;
   price_usd: number;
@@ -26,33 +21,23 @@ interface PiPriceResponse {
   updated_at?: string;
 }
 
-/* =========================================================
-   COMPONENT
-========================================================= */
-
 export default function PiPriceWidget() {
   const { t } = useTranslation();
 
-  const [price, setPrice] = useState<number>(0);
-  const [change, setChange] = useState<number>(0);
+  const [price, setPrice] = useState(0);
+  const [change, setChange] = useState(0);
   const [history, setHistory] = useState<number[]>([]);
-  const [flash, setFlash] = useState<"up" | "down" | null>(
-    null
-  );
+  const [connected, setConnected] = useState(false);
+  const [flash, setFlash] = useState<
+    "up" | "down" | null
+  >(null);
 
-  const [connected, setConnected] =
-    useState<boolean>(false);
-
-  const prevPriceRef = useRef<number>(0);
-
-  /* =========================================================
-     FETCH
-  ========================================================= */
+  const prevPriceRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
 
-    async function fetchPrice() {
+    const fetchPrice = async () => {
       try {
         const res = await fetch("/api/pi-price", {
           cache: "no-store",
@@ -82,40 +67,36 @@ export default function PiPriceWidget() {
         if (oldPrice > 0) {
           if (nextPrice > oldPrice) {
             setFlash("up");
-          }
-
-          if (nextPrice < oldPrice) {
+          } else if (
+            nextPrice < oldPrice
+          ) {
             setFlash("down");
           }
 
-          setTimeout(() => {
-            setFlash(null);
-          }, 450);
+          setTimeout(
+            () => setFlash(null),
+            450
+          );
         }
 
-        prevPriceRef.current = nextPrice;
+        prevPriceRef.current =
+          nextPrice;
 
         setPrice(nextPrice);
         setChange(nextChange);
         setConnected(true);
 
-        setHistory((prev) => {
-          const next = [
-            ...prev,
-            nextPrice,
-          ];
-
-          return next.slice(-80);
-        });
-      } catch (err) {
+        setHistory((prev) =>
+          [...prev, nextPrice].slice(-80)
+        );
+      } catch (error) {
         console.error(
           "PI_PRICE_WIDGET_ERROR",
-          err
+          error
         );
-
         setConnected(false);
       }
-    }
+    };
 
     fetchPrice();
 
@@ -130,10 +111,6 @@ export default function PiPriceWidget() {
     };
   }, []);
 
-  /* =========================================================
-     STATES
-  ========================================================= */
-
   const isUp = change >= 0;
 
   const graphColor = isUp
@@ -143,10 +120,6 @@ export default function PiPriceWidget() {
   const textColor = isUp
     ? "text-emerald-400"
     : "text-red-400";
-
-  /* =========================================================
-     CHART
-  ========================================================= */
 
   const chartPath = useMemo(() => {
     if (history.length < 2) return "";
@@ -177,62 +150,23 @@ export default function PiPriceWidget() {
       .join(" ");
   }, [history]);
 
-  /* =========================================================
-     UI
-  ========================================================= */
-
   return (
-    <div
-      className="
-        relative overflow-hidden
-        rounded-2xl
-        border border-white/10
-        bg-[#0b1120]
-        shadow-[0_25px_80px_rgba(0,0,0,0.45)]
-        backdrop-blur-xl
-      "
-    >
-      {/* BG */}
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b1120] shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:22px_22px]" />
 
       <div
-        className="
-          absolute inset-0
-          bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)]
-          bg-[size:22px_22px]
-        "
+        className={`absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl ${
+          isUp
+            ? "bg-emerald-500/20"
+            : "bg-red-500/20"
+        }`}
       />
-
-      {/* GLOW */}
-
-      <div
-        className={`
-          absolute -right-20 -top-20
-          h-64 w-64 rounded-full blur-3xl
-          ${
-            isUp
-              ? "bg-emerald-500/20"
-              : "bg-red-500/20"
-          }
-        `}
-      />
-
-      {/* CONTENT */}
 
       <div className="relative z-10 p-3">
-        {/* HEADER */}
-
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div
-                className="
-                  flex h-9 w-9 items-center justify-center
-                  rounded-2xl
-                  border border-white/10
-                  bg-white/10
-                  backdrop-blur-xl
-                "
-              >
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl">
                 <Activity
                   size={18}
                   className="text-orange-400"
@@ -240,14 +174,7 @@ export default function PiPriceWidget() {
               </div>
 
               <div>
-                <p
-                  className="
-                    text-[10px]
-                    font-bold uppercase
-                    tracking-[0.28em]
-                    text-white/40
-                  "
-                >
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40">
                   {t.live_market ??
                     "Live Market"}
                 </p>
@@ -258,25 +185,17 @@ export default function PiPriceWidget() {
               </div>
             </div>
 
-            {/* PRICE */}
-
             <div className="mt-3 flex items-end gap-3">
               <div
-                className={`
-                  text-2xl font-black tracking-tight
-                  transition-all duration-300
-                  ${textColor}
-                  ${
-                    flash === "up"
-                      ? "scale-105"
-                      : ""
-                  }
-                  ${
-                    flash === "down"
-                      ? "scale-95"
-                      : ""
-                  }
-                `}
+                className={`text-2xl font-black tracking-tight transition-all duration-300 ${textColor} ${
+                  flash === "up"
+                    ? "scale-105"
+                    : ""
+                } ${
+                  flash === "down"
+                    ? "scale-95"
+                    : ""
+                }`}
               >
                 $
                 {price.toLocaleString(
@@ -294,20 +213,12 @@ export default function PiPriceWidget() {
             </div>
           </div>
 
-          {/* CHANGE */}
-
           <div
-            className={`
-              flex items-center gap-2
-              rounded-2xl
-              px-2.5 py-1.5
-              text-xs font-bold
-              ${
-                isUp
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : "bg-red-500/15 text-red-400"
-              }
-            `}
+            className={`flex items-center gap-2 rounded-2xl px-2.5 py-1.5 text-xs font-bold ${
+              isUp
+                ? "bg-emerald-500/15 text-emerald-400"
+                : "bg-red-500/15 text-red-400"
+            }`}
           >
             {isUp ? (
               <TrendingUp size={16} />
@@ -319,18 +230,13 @@ export default function PiPriceWidget() {
           </div>
         </div>
 
-        {/* STATUS */}
-
         <div className="mt-2 flex items-center gap-1.5">
           <span
-            className={`
-              h-2 w-2 rounded-full
-              ${
-                connected
-                  ? "bg-emerald-400 animate-pulse"
-                  : "bg-red-400"
-              }
-            `}
+            className={`h-2 w-2 rounded-full ${
+              connected
+                ? "animate-pulse bg-emerald-400"
+                : "bg-red-400"
+            }`}
           />
 
           <span className="text-xs text-white/50">
@@ -342,18 +248,7 @@ export default function PiPriceWidget() {
           </span>
         </div>
 
-        {/* CHART */}
-
-        <div
-          className="
-            relative mt-3 overflow-hidden
-            rounded-xl
-            border border-white/5
-            bg-black/20
-            p-2
-            backdrop-blur-xl
-          "
-        >
+        <div className="relative mt-3 overflow-hidden rounded-xl border border-white/5 bg-black/20 p-2 backdrop-blur-xl">
           <svg
             viewBox="0 0 600 70"
             preserveAspectRatio="none"
@@ -372,7 +267,6 @@ export default function PiPriceWidget() {
                   stopColor={graphColor}
                   stopOpacity="0.35"
                 />
-
                 <stop
                   offset="100%"
                   stopColor={graphColor}
@@ -381,14 +275,10 @@ export default function PiPriceWidget() {
               </linearGradient>
             </defs>
 
-            {/* AREA */}
-
             <path
               d={`${chartPath} L 600 70 L 0 140 Z`}
               fill="url(#priceGradient)"
             />
-
-            {/* LINE */}
 
             <path
               d={chartPath}
@@ -396,108 +286,43 @@ export default function PiPriceWidget() {
               stroke={graphColor}
               strokeWidth="4"
               strokeLinecap="round"
-              className="drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]"
             />
           </svg>
         </div>
 
-        {/* TICKER */}
-
-        <div
-          className="
-            mt-3
-            overflow-hidden
-            border-t border-white/5
-            py-2
-          "
-        >
-          <div className="ticker-track text-[11px] font-semibold text-white/70">
-            {/* LOOP 1 */}
-
-            <span className="mx-4">
+        <div className="mt-3 border-t border-white/5 py-2">
+          <div className="flex gap-4 overflow-hidden whitespace-nowrap text-[11px] font-semibold text-white/70">
+            <span>
               {t.pi_network_live_market ??
                 "PI NETWORK LIVE MARKET"}
             </span>
 
-            <span className="mx-4 text-orange-300">
+            <span className="text-orange-300">
               {t.realtime_price ??
                 "REALTIME PRICE"}
             </span>
 
-            <span className="mx-4 text-emerald-400">
+            <span className="text-emerald-400">
               ▲ ${price.toFixed(4)}
             </span>
 
-            <span className="mx-4">
+            <span>
               {t.change_24h ??
                 "24H CHANGE"}
             </span>
 
             <span
-              className={`mx-4 ${
+              className={
                 isUp
                   ? "text-emerald-400"
                   : "text-red-400"
-              }`}
-            >
-              {change.toFixed(2)}%
-            </span>
-
-            {/* LOOP 2 */}
-
-            <span className="mx-4">
-              {t.pi_network_live_market ??
-                "PI NETWORK LIVE MARKET"}
-            </span>
-
-            <span className="mx-4 text-orange-300">
-              {t.realtime_price ??
-                "REALTIME PRICE"}
-            </span>
-
-            <span className="mx-4 text-emerald-400">
-              ▲ ${price.toFixed(4)}
-            </span>
-
-            <span className="mx-4">
-              {t.change_24h ??
-                "24H CHANGE"}
-            </span>
-
-            <span
-              className={`mx-4 ${
-                isUp
-                  ? "text-emerald-400"
-                  : "text-red-400"
-              }`}
+              }
             >
               {change.toFixed(2)}%
             </span>
           </div>
         </div>
-
-        {/* STYLE */}
-
-        <style jsx>{`
-          .ticker-track {
-            display: inline-flex;
-            width: max-content;
-            white-space: nowrap;
-            animation: ticker 18s linear infinite;
-            will-change: transform;
-          }
-
-          @keyframes ticker {
-            from {
-              transform: translateX(0);
-            }
-
-            to {
-              transform: translateX(-50%);
-            }
-          }
-        `}</style>
       </div>
     </div>
   );
-}
+                            }
