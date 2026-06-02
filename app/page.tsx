@@ -563,73 +563,81 @@ ${
 
       {/* FLASH SALE */}
 
-      <section className="mt-10 px-4">
-        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-red-500 to-orange-500 p-5 text-white">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-xl">
-                <Flame size={14} />
+<section className="mt-6 px-4">
+  <div className="rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-red-500 text-white p-3 overflow-hidden">
 
-                {t.flash_sale ||
-                  "Flash Sale"}
-              </div>
+    {/* HEADER */}
+    <div className="flex items-center justify-between mb-3">
+      <div>
+        <div className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-[11px]">
+          <Flame size={12} />
+          Flash Sale
+        </div>
 
-              <h2 className="mt-3 text-2xl font-black">
-                {t.limited_offers ||
-                  "Limited offers"}
-              </h2>
+        <h2 className="mt-1 text-sm font-bold">
+          Limited time deals
+        </h2>
+      </div>
+
+      <button
+        onClick={() => router.push("/flash-sale")}
+        className="text-[11px] bg-white/20 px-3 py-1 rounded-lg"
+      >
+        View
+      </button>
+    </div>
+
+    {/* SCROLL */}
+    <div
+      className="
+        flex gap-3
+        overflow-x-auto
+        pb-1
+        scroll-x
+      "
+    >
+      {products
+        .filter((p) => p.sale_price)
+        .slice(0, 10)
+        .map((product) => (
+          <div
+            key={product.id}
+            onClick={() => router.push(`/product/${product.id}`)}
+            className="
+              min-w-[130px]
+              flex-shrink-0
+              rounded-xl
+              bg-white
+              text-black
+              overflow-hidden
+              shadow-sm
+              snap-start
+              active:scale-[0.97]
+              transition
+            "
+          >
+            <Image
+              src={getMainImage(product)}
+              alt={product.name}
+              width={300}
+              height={300}
+              className="h-24 w-full object-cover"
+            />
+
+            <div className="p-2">
+              <p className="text-[11px] line-clamp-2">
+                {product.name}
+              </p>
+
+              <p className="text-sm font-bold text-red-500 mt-1">
+                {formatPi(product.final_price || product.price)} π
+              </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {products
-              .filter(
-                (p) => p.sale_price
-              )
-              .slice(0, 4)
-              .map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() =>
-                    router.push(
-                      `/product/${product.id}`
-                    )
-                  }
-                  className="overflow-hidden rounded-2xl bg-white text-black"
-                >
-                  <Image
-                    src={getMainImage(product)}
-                    alt={product.name}
-                    width={300}
-                    height={300}
-                    className="h-36 w-full object-cover"
-                  />
-
-                  <div className="p-3">
-                    <p className="line-clamp-2 text-xs font-medium">
-                      {product.name}
-                    </p>
-
-                    <p className="mt-2 text-sm font-black text-red-500">
-                      {formatPi(
-                        product.final_price ||
-                          product.price
-                      )}{" "}
-                      π
-                    </p>
-
-                    <p className="text-[11px] text-gray-400 line-through">
-                      {formatPi(
-                        product.price
-                      )}{" "}
-                      π
-                    </p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      </section>
+        ))}
+    </div>
+  </div>
+</section>
 
       {/* PRODUCTS */}
 
