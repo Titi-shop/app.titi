@@ -659,7 +659,32 @@
   "account": "Tài khoản",
   "order_created_success": "Thanh toán thành công. Đơn hàng đã được tạo, vui lòng kiểm tra trong đơn hàng đang chờ xử lý.",
   "best_discounts_available_now": "Ưu đãi giảm giá tốt nhất hiện có",
-  "hot": "HOT"
+  "hot": "HOT",
+  "electronics": "Điện tử",
+  "mens_fashion": "Thời trang nam",
+  "womens_fashion": "Thời trang nữ",
+  "shoes_bags": "Giày dép & Túi xách",
+  "beauty_perfume": "Làm đẹp & Nước hoa",
+  "food_beverages": "Thực phẩm & Đồ uống",
+  "groceries": "Hàng tiêu dùng",
+  "mother_baby": "Mẹ & Bé",
+  "home_kitchen": "Nhà cửa & Nhà bếp",
+  "health_wellness": "Sức khỏe & Chăm sóc cá nhân",
+  "sports_outdoors": "Thể thao & Dã ngoại",
+  "automotive": "Ô tô & Xe máy",
+  "pet_supplies": "Đồ dùng thú cưng",
+  "appliances": "Thiết bị gia dụng",
+  "books_stationery": "Sách & Văn phòng phẩm",
+  "watches_jewelry": "Đồng hồ & Trang sức",
+  "gaming": "Trò chơi điện tử",
+  "cameras": "Máy ảnh & Camera",
+  "toys_hobbies": "Đồ chơi & Sở thích",
+  "furniture": "Nội thất",
+  "office_supplies": "Văn phòng phẩm",
+  "luxury": "Hàng cao cấp",
+  "digital_products": "Sản phẩm kỹ thuật số",
+  "travel_accessories": "Phụ kiện du lịch"
+
 
 
 
