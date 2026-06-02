@@ -231,7 +231,7 @@ export default function PiPriceWidget() {
                   backdrop-blur-xl
                 `}
               >
-                 <Activity size={18} />
+                 <Activity size={18} 
                   className="text-orange-400"
                 />
               </div>
