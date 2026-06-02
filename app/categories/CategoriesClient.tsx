@@ -343,7 +343,7 @@ export default function CategoriesClient() {
 
       {/* HERO */}
 
-      <section className="px-4 pt-5">
+      <section className="px-2 pt-1">
         <div
   className="overflow-hidden rounded-[24px] p-5 text-white"
   style={{
