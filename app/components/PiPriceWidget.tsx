@@ -397,27 +397,69 @@ export default function PiPriceWidget() {
 
         {/* TICKER */}
 
-        <div
-          className={`
-            mt-2 overflow-hidden
-            rounded-2xl
-            border border-white/5
-            bg-white/5
-            py-1.5
-          `}
-        >
-          <div
-            className={`
-              whitespace-nowrap
-              text-[11px] font-semibold
-              text-white/70
-              animate-[ticker_18s_linear_infinite]
-            `}
-          >
-            <span className="mx-6">
-              {t.pi_network_live_market ??
-                "PI NETWORK LIVE MARKET"}
-            </span>
+        <div className="ticker-track whitespace-nowrap text-[11px] font-semibold text-white/70">
+  {/* LOOP 1 */}
+
+  <span className="mx-6">
+    {t.pi_network_live_market ??
+      "PI NETWORK LIVE MARKET"}
+  </span>
+
+  <span className="mx-6 text-orange-300">
+    {t.realtime_price ??
+      "REALTIME PRICE"}
+  </span>
+
+  <span className="mx-6 text-emerald-400">
+    ▲ ${price.toFixed(4)}
+  </span>
+
+  <span className="mx-6">
+    {t.change_24h ??
+      "24H CHANGE"}
+  </span>
+
+  <span
+    className={`mx-6 ${
+      isUp
+        ? "text-emerald-400"
+        : "text-red-400"
+    }`}
+  >
+    {change.toFixed(2)}%
+  </span>
+
+  {/* LOOP 2 */}
+
+  <span className="mx-6">
+    {t.pi_network_live_market ??
+      "PI NETWORK LIVE MARKET"}
+  </span>
+
+  <span className="mx-6 text-orange-300">
+    {t.realtime_price ??
+      "REALTIME PRICE"}
+  </span>
+
+  <span className="mx-6 text-emerald-400">
+    ▲ ${price.toFixed(4)}
+  </span>
+
+  <span className="mx-6">
+    {t.change_24h ??
+      "24H CHANGE"}
+  </span>
+
+  <span
+    className={`mx-6 ${
+      isUp
+        ? "text-emerald-400"
+        : "text-red-400"
+    }`}
+  >
+    {change.toFixed(2)}%
+  </span>
+</div>
 
             <span className="mx-6 text-orange-300">
               {t.realtime_price ??
@@ -454,16 +496,22 @@ export default function PiPriceWidget() {
       {/* STYLE */}
 
       <style jsx>{`
-        @keyframes ticker {
-          0% {
-            transform: translateX(0%);
-          }
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    animation: ticker 20s linear infinite;
+  }
 
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-      `}</style>
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+
+    to {
+      transform: translateX(-50%);
+    }
+  }
+`}</style>
     </div>
   );
     }
