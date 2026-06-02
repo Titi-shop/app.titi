@@ -134,7 +134,29 @@ function getDiscount(product: Product) {
     </div>
   );
  }
+function ProductSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-lg bg-white border border-gray-100">
+      {/* IMAGE SKELETON */}
+      <div className="h-44 w-full bg-gray-200 animate-pulse relative overflow-hidden">
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+      </div>
 
+      {/* TEXT */}
+      <div className="p-2 space-y-2">
+        <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+
+        <div className="flex items-center gap-2 mt-2">
+          <div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+        </div>
+
+        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mt-2" />
+      </div>
+    </div>
+  );
+}
 /* =========================================================
    PAGE
 ========================================================= */
@@ -597,45 +619,35 @@ ${
 
       {/* PRODUCTS */}
 
-      <section className="mt-10 px-1">
-        <div className="mb-5">
-          <h2 className="text-2xl font-black">
-            {t.discover_products ||
-              "Discover Products"}
-          </h2>
+      <section className="mt-10 px-0">
+  <div className="px-4 mb-5">
+    <h2 className="text-2xl font-black">
+      {t.discover_products || "Discover Products"}
+    </h2>
+    <p className="mt-1 text-sm text-gray-500">
+      {t.curated_products_for_you || "Curated products for you"}
+    </p>
+  </div>
 
-          <p className="mt-1 text-sm text-gray-500">
-            {t.curated_products_for_you ||
-              "Curated products for you"}
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-2 gap-[6px] px-0">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="h-72 animate-pulse rounded-[28px] bg-white"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {filteredProducts.map(
-              (product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={
-                    handleAddToCart
-                  }
-                  t={t}
-                />
-              )
-            )}
-          </div>
-        )}
-      </section>
+  {loading ? (
+    <div className="grid grid-cols-2 gap-[6px] px-1">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <ProductSkeleton key={i} />
+      ))}
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 gap-[6px] px-1">
+      {filteredProducts.map((product) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          onAddToCart={handleAddToCart}
+          t={t}
+        />
+      ))}
+    </div>
+  )}
+</section>
     </main>
   );
                   }
