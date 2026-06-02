@@ -470,7 +470,7 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
       className="h-full w-full object-cover"
     />
   ) : (
-    <span className="text-xl">
+    <span className="text-2xl">
       {category.icon}
     </span>
   )}
