@@ -488,6 +488,7 @@ export default function PiPriceWidget() {
     }
   }
 `}</style>
+      </div>
     </div>
   );
-    }
+}
