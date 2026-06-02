@@ -345,7 +345,7 @@ export default function CategoriesClient() {
 
       <section className="px-4 pt-5">
         <div
-  className="overflow-hidden rounded-[32px] p-6 text-white"
+  className="overflow-hidden rounded-[24px] p-5 text-white"
   style={{
     background: `linear-gradient(
       135deg,
@@ -364,7 +364,7 @@ export default function CategoriesClient() {
                   "Smart Catalog"}
               </div>
 
-              <h1 className="mt-5 text-3xl font-black leading-tight">
+              <h1 className="mt-3 text-2xl font-black leading-tight">
                 {t.explore_categories ||
                   "Explore Categories"}
               </h1>
@@ -375,17 +375,15 @@ export default function CategoriesClient() {
               </p>
             </div>
 
-            <div className="rounded-3xl bg-white/10 px-4 py-3 text-center backdrop-blur-xl">
-              <p className="text-2xl font-black">
-                {
-                  filteredProducts.length
-                }
-              </p>
+            <div className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-center backdrop-blur-md">
+  <p className="text-lg font-black leading-none">
+    {filteredProducts.length}
+  </p>
 
-              <p className="text-xs text-white/70">
-                {t.products ||  "Products"}
-              </p>
-            </div>
+  <p className="mt-1 text-[10px] uppercase tracking-wide text-white/70">
+    {t.products || "Products"}
+  </p>
+</div>
           </div>
         </div>
       </section>
