@@ -516,7 +516,7 @@ useEffect(() => {
       <div>
         <div className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-[11px]">
           <Flame size={12} />
-          {t.Flash_sale}
+          {t.flash_sale}
         </div>
 
         <h2 className="mt-1 text-sm font-bold">
