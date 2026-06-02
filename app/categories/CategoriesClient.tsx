@@ -390,8 +390,8 @@ export default function CategoriesClient() {
 
       {/* CATEGORY LIST */}
 
-      <section className="mt-6 overflow-x-auto px-4">
-        <div className="flex gap-3 pb-2">
+<section className="-mt-1 overflow-x-auto px-4">       
+  <div className="flex gap-2 pb-1">
           <button
             onClick={() =>
               setSelectedCategory(
@@ -406,7 +406,7 @@ ${
 }
 bg-[var(--card-bg)] text-[var(--foreground)]`}
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-base">
               🛍️
             </div>
 
@@ -429,7 +429,7 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
                       category.id
                     )
                   }
-                  className={`flex min-w-[82px] flex-col items-center gap-2 rounded-[24px] px-4 py-4 transition-all border-2
+                  className={`flex min-w-[68px] flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all border
 ${
   active
     ? "border-[var(--color-primary)]"
@@ -437,7 +437,7 @@ ${
 }
 bg-[var(--card-bg)] text-[var(--foreground)]`}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
                     <Image
                       src={getImage(
                         category.icon
@@ -445,13 +445,12 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
                       alt={
                         category.key
                       }
-                      width={50}
-                      height={50}
+                      width={40}
+                      height={40}
                       className="h-full w-full object-cover"
                     />
                   </div>
-
-                  <span className="line-clamp-2 text-center text-[11px] font-medium">
+                  <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight">
                     {t[
                       category.key
                     ] ||
