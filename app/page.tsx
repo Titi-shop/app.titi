@@ -391,7 +391,7 @@ useEffect(() => {
   <div className="relative z-10">
     <BannerCarousel />
 
-    <div className="mt-5 flex justify-center">
+    <div className="mt-3 flex justify-center">
       <PiPriceWidget />
     </div>
 
