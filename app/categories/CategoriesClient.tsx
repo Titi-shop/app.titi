@@ -450,8 +450,8 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
                   className={`flex min-w-[68px] flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all border
 ${
   active
-    ? "border-[var(--color-primary)]"
-    : "border-transparent"
+  ? "border-orange-500 bg-orange-50"
+  : "border-transparent"
 }
 bg-[var(--card-bg)] text-[var(--foreground)]`}
                 >
@@ -470,9 +470,9 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
       className="h-full w-full object-cover"
     />
   ) : (
-    <span className="text-2xl">
-      {category.icon}
-    </span>
+    <span className="text-[28px]">
+  {category.icon}
+</span>
   )}
 </div>
                   <span className="line-clamp-1 text-center text-[10px] font-medium leading-tight">
