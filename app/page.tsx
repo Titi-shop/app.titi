@@ -75,28 +75,30 @@ function ProductCard({
   product,
   onAddToCart,
   t,
+  compact = false,
 }: {
   product: Product;
   onAddToCart?: (p: Product) => void;
   t: Record<string, string>;
+  compact?: boolean;
 }) {
   const router = useRouter();
 
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
-      className="
+      className={`
         flex flex-col overflow-hidden rounded-xl
         bg-[var(--card-bg)]
         border border-black/5
         shadow-sm
         active:scale-[0.98]
-        transition
-        h-[285px]
-      "
+        transition-transform duration-150
+        ${compact ? "h-[250px]" : "h-[290px]"}
+      `}
     >
-      {/* IMAGE (CAO HƠN) */}
-      <div className="relative h-[170px]">
+      {/* IMAGE */}
+      <div className={compact ? "h-[140px]" : "h-[170px]"}>
         <Image
           src={getMainImage(product)}
           alt={product.name}
@@ -112,37 +114,38 @@ function ProductCard({
         )}
       </div>
 
-      {/* CONTENT (RÕ + THOÁNG + DỄ ĐỌC) */}
-      <div className="p-2 flex flex-col flex-1">
-        <p className="text-[12px] font-semibold line-clamp-2 leading-snug text-[var(--foreground)]">
+      {/* CONTENT */}
+      <div className="flex flex-col flex-1 p-2">
+        {/* NAME */}
+        <p className="text-[12.5px] font-medium leading-snug line-clamp-2">
           {product.name}
         </p>
 
-        <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-          <Star size={12} className="fill-yellow-400 text-yellow-400" />
-          <span className="font-medium">
-            {product.rating_avg || 5}
-          </span>
-          <span>• {product.sold || 0} sold</span>
+        {/* META */}
+        <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+          <Star size={11} className="fill-yellow-400 text-yellow-400" />
+          {product.rating_avg || 5}
+          <span>• {product.sold || 0}</span>
         </div>
 
-        {/* PRICE AREA (TÁCH RÕ RÀNG) */}
-        <div className="mt-auto pt-2 flex items-end justify-between">
-          <p className="text-sm font-bold text-red-500">
-            {formatPi(product.final_price || product.price)} π
-          </p>
-
-          {product.sale_price && (
-            <p className="text-[10px] text-[var(--text-muted)] line-through">
-              {formatPi(product.price)}
+        {/* PRICE */}
+        <div className="mt-auto flex items-end justify-between">
+          <div className="flex flex-col">
+            <p className="text-sm font-bold text-red-500">
+              {formatPi(product.final_price || product.price)} π
             </p>
-          )}
+
+            {product.sale_price && (
+              <p className="text-[10px] text-gray-400 line-through">
+                {formatPi(product.price)} π
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
 function ProductSkeleton() {
   return (
     <div className="overflow-hidden rounded-lg bg-white border border-gray-100">
@@ -595,7 +598,7 @@ useEffect(() => {
   </div>
 
   {loading ? (
-    <div className="grid grid-cols-2 gap-[6px] px-1">
+    <div className="grid grid-cols-2 gap-[4px] px-1">
       {Array.from({ length: 8 }).map((_, i) => (
         <ProductSkeleton key={i} />
       ))}
