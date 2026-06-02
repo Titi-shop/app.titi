@@ -77,7 +77,7 @@ const router = useRouter();
 
 return (
 <div
-onClick={() => router.push(/product/${product.id})}
+onClick={() => router.push(`/product/${product.id}`)}
 className="
         flex flex-col
         overflow-hidden
