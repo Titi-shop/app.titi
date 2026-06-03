@@ -450,8 +450,8 @@ bg-[var(--card-bg)] text-[var(--foreground)]`}
                   className={`flex min-w-[68px] flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all border
 ${
   active
-  ? "border-orange-500 bg-orange-50"
-  : "border-transparent"
+    ? "border-[var(--color-primary)]"
+    : "border-transparent"
 }
 bg-[var(--card-bg)] text-[var(--foreground)]`}
                 >
