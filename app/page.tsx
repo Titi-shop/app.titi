@@ -606,7 +606,7 @@ useEffect(() => {
         </div>
 
         <h2 className="mt-1 text-sm font-bold">
-          Limited time deals
+          {t.Limited_time_deals}
         </h2>
       </div>
 
