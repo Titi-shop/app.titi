@@ -53,6 +53,7 @@ type ProductRequestBody = {
   sale_end?: string | null;
   sale_stock?: number;
   sale_enabled?: boolean;
+  has_variants?: boolean;
   is_active?: boolean;
   primary_shipping_country?: string;
   domestic_country_code?: string;
@@ -119,9 +120,7 @@ function normalizeShippingRates(
 
   return rates.map((rate) => ({
     zone: rate.zone,
-
     price: Number(rate.price ?? 0),
-
     domestic_country_code:
       rate.zone === "domestic"
         ? (
@@ -355,19 +354,16 @@ console.log(
         2
       )
     );
+const hasVariants =
+  body.has_variants === true &&
+  variants.length > 0;
+    const finalPrice = hasVariants
+  ? 0
+  : Number(body.price ?? 0);
 
-    const finalPrice =
-      calcFinalPrice(
-        variants,
-        Number(body.price ?? 0)
-      );
-
-    const stock =
-      calcStock(
-        variants,
-        Number(body.stock ?? 0)
-      );
-
+const stock = hasVariants
+  ? 0
+  : Number(body.stock ?? 0);
     console.log(
       "🚀 CREATE_PRODUCT_DB",
       {
@@ -544,16 +540,13 @@ const variants =
     body.variants ?? []
   );
 
-  const finalPrice =
-    calcFinalPrice(
-      variants,
-      Number(body.price ?? 0)
-    );
+ const finalPrice = hasVariants
+  ? 0
+  : Number(body.price ?? 0);
 
-  const stock = calcStock(
-    variants,
-    Number(body.stock ?? 0)
-  );
+const stock = hasVariants
+  ? 0
+  : Number(body.stock ?? 0);
 
   const updated =
     await updateProductBySeller(
