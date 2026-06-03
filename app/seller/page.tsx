@@ -261,7 +261,10 @@ return (
   }}
 >
       {icon}  
-    </div>  <span className="text-[12px] font-medium text-gray-700 text-center leading-tight">  
+    </div>  <span
+  className="text-[12px] font-medium"
+  style={{ color: "var(--foreground)" }}
+>  
   {label}  
 </span>
 
@@ -284,13 +287,31 @@ label: string;
 }) {
 return (
 <Link href={href} className="block">
-<div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm h-[110px] flex flex-col justify-between hover:shadow-md transition">
+<div
+  className="rounded-xl p-4 text-center shadow-sm h-[110px] flex flex-col justify-between hover:shadow-md transition border"
+  style={{
+    background: "var(--card-bg)",
+    borderColor: "var(--nav-border)",
+  }}
+>
 
-  <div className="w-8 h-8 mx-auto rounded-full bg-gray-100 flex items-center justify-center text-gray-700">  
+  <div
+  className="w-8 h-8 mx-auto rounded-full flex items-center justify-center"
+  style={{
+    background: "var(--card-secondary)",
+    color: "var(--foreground)",
+  }}
+>
     {icon}  
-  </div>    <span className="text-[11px] text-gray-600 leading-tight px-1">  
+  </div>    <span
+  className="text-[11px]"
+  style={{ color: "var(--text-muted)" }}
+>  
     {label}  
-  </span>    <span className="text-sm font-semibold text-gray-800">  
+  </span>   <span
+  className="text-sm font-semibold"
+  style={{ color: "var(--foreground)" }}
+>  
     {count}  
   </span>  
 </div>  
@@ -301,11 +322,14 @@ export default function SellerOrdersPage() {
   return (  
     <Suspense  
       fallback={  
-        <main className="min-h-screen bg-gray-100 p-4 space-y-4">  
+        <main
+  className="min-h-screen p-4 space-y-4"
+  style={{ background: "var(--background)" }}
+>
           {Array.from({ length: 4 }).map((_, i) => (  
             <div  
               key={i}  
-              className="h-28 rounded-xl bg-white animate-pulse"  
+              className="h-28 rounded-xl bg-card animate-pulse"  
             />  
           ))}  
         </main>  
