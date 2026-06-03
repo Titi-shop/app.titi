@@ -23,18 +23,13 @@ export type CartItem = {
 
   product_id: string;
   variant_id: string | null;
-
   name: string;
   slug: string;
-
   price: string;
   sale_price: string;
-
   quantity: number;
-
   thumbnail: string;
   images: string[];
-
   is_price_changed: boolean;
   is_out_of_stock: boolean;
 };
@@ -43,19 +38,19 @@ type AddCartPayload = {
   product_id: string;
   variant_id?: string | null;
   quantity?: number;
+  name?: string;
+  price?: string;
+  sale_price?: string;
+  thumbnail?: string;
 };
 
 type CartContextType = {
   cart: CartItem[];
-
   total: number;
-
   loading: boolean;
-
   addToCart: (
     payload: AddCartPayload
   ) => Promise<void>;
-
   removeFromCart: (
     id: string
   ) => Promise<void>;
@@ -585,22 +580,16 @@ export function CartProvider({
 
                 quantity:
                   normalized.quantity,
-
                 thumbnail: "",
                 images: [],
-
                 is_price_changed:
                   false,
-
                 is_out_of_stock:
                   false,
               });
             }
-
             saveGuestCart(local);
-
             setCart([...local]);
-
             return;
           }
 
@@ -681,9 +670,7 @@ export function CartProvider({
               );
 
             saveGuestCart(next);
-
             setCart(next);
-
             return;
           }
 
@@ -894,19 +881,12 @@ export function CartProvider({
     <CartContext.Provider
       value={{
         cart,
-
         total,
-
         loading,
-
         addToCart,
-
         removeFromCart,
-
         updateQty,
-
         clearCart,
-
         refreshCart,
       }}
     >
