@@ -1440,10 +1440,11 @@ const handleDelete =
         >
           <div
             className="
-              w-full
-              rounded-t-3xl
-              p-5
-            "
+  w-full
+  rounded-t-3xl
+  p-5
+  mb-20
+"
             style={{
               backgroundColor:
                 "var(--card-bg)",
