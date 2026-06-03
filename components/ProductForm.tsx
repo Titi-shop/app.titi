@@ -503,9 +503,7 @@ const payload: ProductPayload = {
     typeof form.id === "string"
       ? form.id
       : undefined,
-
   name: form.name,
-
   category_id:
     form.category_id !== "" &&
     form.category_id !== null &&
@@ -531,11 +529,10 @@ const payload: ProductPayload = {
     : Number(form.stock || 0),
 
   sale_enabled:
-    hasVariants
-      ? hasVariantSale
-      : form.sale_enabled &&
-        hasSaleTime &&
-        hasSalePrice,
+  !hasVariants &&
+  form.sale_enabled &&
+  hasSaleTime &&
+  hasSalePrice,
 
   sale_price:
     hasVariants
