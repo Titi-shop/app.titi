@@ -876,9 +876,7 @@ style={{
     }
   />
 </div>
-      )}
-    </>
-)}
+  
       {/* SHIPPING */}
       <ShippingRates
   shipping_rates={form.shipping_rates}
