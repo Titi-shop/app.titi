@@ -101,36 +101,25 @@ const hydrateVariant = (
 
   return {
     id: v.id,
-
     option1: v.option1 ?? "",
-
     option2:
       v.option2 ?? null,
-
     option3:
       v.option3 ?? null,
-
     option_label1:
       v.option_label1 ?? "Color",
-
     option_label2:
       v.option_label2 ?? null,
-
     option_label3:
       v.option_label3 ?? null,
-
     name:
       v.name ??
       buildName(
         v as ProductVariant
       ),
-
     sku: v.sku ?? null,
-
     price,
-
     sale_enabled,
-
    sale_price:
   sale_enabled
     ? sale_price
@@ -167,23 +156,12 @@ export default function VariantEditor({
   variants,
   setVariants,
 }: Props) {
-  const { t } =
-    useTranslation();
-
-  const hydrated =
-    useRef(false);
-
-  const [label1, setLabel1] =
-    useState("Color");
-
-  const [values1, setValues1] =
-    useState("");
-
-  const [label2, setLabel2] =
-    useState("Size");
-
-  const [values2, setValues2] =
-    useState("");
+  const { t } = useTranslation();
+  const hydrated =  useRef(false);
+  const [label1, setLabel1] =  useState("Color");
+  const [values1, setValues1] =   useState("");
+  const [label2, setLabel2] =  useState("Size");
+  const [values2, setValues2] =  useState("");
 
   /* =========================================================
      HYDRATE
@@ -196,21 +174,17 @@ export default function VariantEditor({
     ) {
       return;
     }
-
     hydrated.current = true;
-
     setLabel1(
       variants[0]
         ?.option_label1 ||
         "Color"
     );
-
     setLabel2(
       variants[0]
         ?.option_label2 ||
         "Size"
     );
-
     const uniq1 = [
       ...new Set(
         variants
@@ -301,21 +275,15 @@ export default function VariantEditor({
         next.push(
           hydrateVariant({
             ...found,
-
             option1: a,
-
             option2: null,
-
             option_label1:
               label1,
-
             option_label2:
               null,
-
             price:
               found?.price ??
               0,
-
             stock:
               found?.stock ??
               0,
@@ -604,25 +572,24 @@ export default function VariantEditor({
                       {/* STOCK */}
                       <td className="p-2">
                         <input
-                          type="number"
-                          value={
-                            v.stock ??
-                            0
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            updateField(
-                              i,
-                              "stock",
-                              Number(
-                                e.target
-                                  .value
-                              ) || 0
-                            )
-                          }
-                          className="border p-1 w-20"
-                        />
+                 type="number"
+              min="0"
+             step="1"
+           value={v.stock ?? 0}
+          onChange={(e) =>
+           updateField(
+               i,
+               "stock",
+               Math.max(
+               0,
+               Math.floor(
+          Number(e.target.value) || 0
+        )
+      )
+    )
+  }
+  className="border p-1 w-20"
+/>
                       </td>
 
                       {/* SALE */}
@@ -692,36 +659,30 @@ export default function VariantEditor({
                             />
 
                             <input
-                              type="number"
-                              placeholder={
-                                t.sale_stock
-                              }
-                              value={
-                                v.sale_stock ??
-                                0
-                              }
-                              onChange={(
-                                e
-                              ) => {
-                                const value =
-                                  Number(
-                                    e.target
-                                      .value
-                                  ) || 0;
+  type="number"
+  min="0"
+  step="1"
+  placeholder={t.sale_stock}
+  value={v.sale_stock ?? 0}
+  onChange={(e) => {
+    const value = Math.max(
+      0,
+      Math.floor(
+        Number(e.target.value) || 0
+      )
+    );
 
-                                updateField(
-                                  i,
-                                  "sale_stock",
-                                  Math.min(
-                                    value,
-                                    Number(
-                                      v.stock
-                                    )
-                                  )
-                                );
-                              }}
-                              className="border p-1 w-24 block"
-                            />
+    updateField(
+      i,
+      "sale_stock",
+      Math.min(
+        value,
+        Number(v.stock)
+      )
+    );
+  }}
+  className="border p-1 w-24 block"
+/>
                           </>
                         )}
                       </td>
