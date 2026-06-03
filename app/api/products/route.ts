@@ -16,13 +16,32 @@ export async function GET(req: Request) {
   const result = await listProductsService(req);
   return NextResponse.json(result);
 }
-
 /* ================= POST ================= */
 export async function POST(req: Request) {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+  console.log("🚀 API /products POST HIT");
 
-  const result = await createProductService(req, auth.userId);
+  const auth = await requireSeller();
+
+  console.log("🔐 AUTH RESULT", {
+    ok: auth.ok,
+    userId: auth.ok ? auth.userId : null,
+  });
+
+  if (!auth.ok) {
+    console.log("❌ AUTH FAILED");
+    return auth.response;
+  }
+
+  const result = await createProductService(
+    req,
+    auth.userId
+  );
+
+  console.log(
+    "📦 CREATE PRODUCT RESULT",
+    JSON.stringify(result, null, 2)
+  );
+
   return NextResponse.json(result);
 }
 
