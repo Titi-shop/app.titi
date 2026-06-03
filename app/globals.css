@@ -349,4 +349,7 @@ body {
   backface-visibility: hidden;
   will-change: transform;
 }
-
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
