@@ -211,7 +211,8 @@ export async function listProductsService(
   }
 );
 
-    const hasVariants = product.has_variants === true;
+   const variants = await getVariantsByProductId(product.id);
+const hasVariants = variants.length > 0;
 
     // =========================
     // CASE 1: NO VARIANTS
