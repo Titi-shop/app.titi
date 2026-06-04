@@ -223,7 +223,7 @@ if (!address) {
 }
 
 const shipping: ShippingInput = {
-  name: String(address.name ?? ""),
+  name: String(address.full_name ?? ""),
   phone: String(address.phone ?? ""),
   address_line: String(address.address_line ?? ""),
 
