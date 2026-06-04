@@ -274,46 +274,48 @@ useEffect(() => {
   }
 
   async function handleReceived(orderId: string) {
-    setProcessingId(orderId);
+  if (processingId) return;
 
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return showToast(t.login_required ?? "Login required");
+  setProcessingId(orderId);
 
-      const res = await fetch(`/api/orders/${orderId}/complete`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  try {
+    const token = await getPiAccessToken();
 
-      if (!res.ok) throw new Error();
-
-mutate(
-  prev =>
-    prev?.map(order =>
-      order.id === orderId
-        ? {
-            ...order,
-            fulfillment_status:
-              ORDER_STATUS.CANCELLED,
-          }
-        : order
-    ),
-  false
-);
-
-await mutate();
-
-resetCancel();
-
-showToast(
-  t.cancel_success ??
-  "Cancelled"
-);
-    } catch {
-      showToast(t.action_failed ?? "Failed");
-    } finally {
-      setProcessingId(null);
+    if (!token) {
+      return showToast(
+        t.login_required ??
+        "Login required"
+      );
     }
+
+    const res = await fetch(
+      `/api/orders/${orderId}/complete`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error();
+    }
+
+    await mutate();
+
+    showToast(
+      t.received_success ??
+      "Order received"
+    );
+  } catch {
+    showToast(
+      t.action_failed ??
+      "Failed"
+    );
+  } finally {
+    setProcessingId(null);
+  }
   }
   async function handleReview(order: Order) {
   if (processingId) return;
