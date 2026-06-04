@@ -36,7 +36,6 @@ type Order = {
   total: number | string;
   currency: string;
   created_at: string;
-
   order_items?: OrderItem[];
 };
 
