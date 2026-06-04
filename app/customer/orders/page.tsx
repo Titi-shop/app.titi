@@ -169,7 +169,37 @@ export default function CustomerOrdersPage() {
     () => mergedOrders.reduce((s, o) => s + Number(o.total ?? 0), 0),
     [mergedOrders]
   );
+useEffect(() => {
+  async function loadReviews() {
+    try {
+      const token = await getPiAccessToken();
 
+      if (!token) return;
+
+      const res = await fetch(
+        "/api/reviews",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, boolean> = {};
+      for (const review of data.reviews ?? []) {
+        map[review.order_id] = true;
+      }
+
+      setReviewedMap(map);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  loadReviews();
+}, []);
   /* ================= STATE ================= */
 
   const [toast, setToast] = useState("");
