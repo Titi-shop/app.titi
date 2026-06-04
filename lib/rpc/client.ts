@@ -142,11 +142,6 @@ function normalizeAmount(
   if (amount === null) {
     return null;
   }
-
-  if (amount > 10000000) {
-    return amount / 10000000;
-  }
-
   return amount;
 }
 
