@@ -17,6 +17,7 @@ type OrderStatus =
   | "pending_fulfillment"
   | "processing"
   | "shipping"
+  | "delivered"
   | "completed"
   | "cancelled"
   | "refunded";
@@ -58,47 +59,33 @@ interface ApiOrder {
 
 interface OrderItem {
   id: string;
-
   product_id: string;
-
   product_name: string;
-
   thumbnail: string;
-
   quantity: number;
-
   unit_price: number;
   total_price: number;
-
   fulfillment_status: string;
 }
 
 interface Order {
   id: string;
-
   order_number: string;
-
   fulfillment_status: OrderStatus;
-
   total: number;
-
   created_at: string;
-
   seller_message: string | null;
   seller_cancel_reason: string | null;
-
   shipping_name: string;
   shipping_phone: string;
 
   shipping_address_line: string;
-
   shipping_ward: string | null;
   shipping_district: string | null;
   shipping_region: string | null;
 
   shipping_country: string | null;
   shipping_postal_code: string | null;
-
   order_items: OrderItem[];
 }
 
@@ -312,11 +299,8 @@ const fetcher = async (
 
 export default function OrderDetailPage() {
   const { t } = useTranslation();
-
   const router = useRouter();
-
   const params = useParams();
-
   const { user, loading: authLoading } =
     useAuth();
 
