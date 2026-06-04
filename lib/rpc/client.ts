@@ -136,12 +136,14 @@ function deepFindNumber(
   return null;
 }
 
-function normalizeAmount(
-  amount: number | null
-): number | null {
-  if (amount === null) {
-    return null;
+function normalizeAmount(amount: number | null): number | null {
+  if (amount === null) return null;
+
+  // detect stroop format
+  if (amount > 1_000_000) {
+    return amount / 10_000_000;
   }
+
   return amount;
 }
 
