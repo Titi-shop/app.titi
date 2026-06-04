@@ -255,64 +255,68 @@ export async function startShippingBySeller(
   sellerId: string
 ): Promise<boolean> {
   try {
-    return await withTransaction(
-      async (client) => {
-        const res =
-          await client.query(
-            `
-            UPDATE order_items
-            SET
-              fulfillment_status = 'shipped',
-              shipped_at = NOW(),
-              updated_at = NOW()
-            WHERE order_id = $1
-              AND seller_id = $2
-              AND fulfillment_status = 'processing'
-            `,
-            [orderId, sellerId]
-          );
+    return await withTransaction(async (client) => {
 
-        if (
-          res.rowCount === 0
-        ) {
-          console.warn(
-            "[ORDER][SELLER][SHIP][NO_ITEMS]",
-            {
-              orderId,
-              sellerId,
-            }
-          );
+      /* =========================
+         1. UPDATE ITEMS → SHIPPED
+      ========================= */
+      const res = await client.query(
+        `
+        UPDATE order_items
+        SET
+          fulfillment_status = 'shipped',
+          shipped_at = NOW(),
+          updated_at = NOW()
+        WHERE order_id = $1
+          AND seller_id = $2
+          AND fulfillment_status = 'processing'
+        `,
+        [orderId, sellerId]
+      );
 
-          return false;
-        }
-
-        await syncOrderFulfillmentStatus(
-          client,
-          orderId
-        );
-
-        console.log(
-          "[ORDER][SELLER][SHIP][SUCCESS]",
-          { orderId }
-        );
-
-        return true;
+      if (res.rowCount === 0) {
+        console.warn("[ORDER][SELLER][SHIP][NO_ITEMS]", {
+          orderId,
+          sellerId,
+        });
+        return false;
       }
-    );
+
+      /* =========================
+         2. FORCE UPDATE ORDER → SHIPPED
+         (QUAN TRỌNG NHẤT)
+      ========================= */
+      await client.query(
+        `
+        UPDATE orders
+        SET
+          fulfillment_status = 'shipped',
+          shipped_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+          AND fulfillment_status = 'processing'
+        `,
+        [orderId]
+      );
+
+      /* =========================
+         3. SYNC (optional safety)
+      ========================= */
+      await syncOrderFulfillmentStatus(client, orderId);
+
+      console.log("[ORDER][SELLER][SHIP][SUCCESS]", {
+        orderId,
+      });
+
+      return true;
+    });
+
   } catch (err) {
-    console.error(
-      "[ORDER][SELLER][SHIP][DB_ERROR]",
-      {
-        message:
-          err instanceof Error
-            ? err.message
-            : "UNKNOWN",
-      }
-    );
+    console.error("[ORDER][SELLER][SHIP][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
-    throw new Error(
-      "DB_ERROR"
-    );
+    throw new Error("DB_ERROR");
   }
 }
 
