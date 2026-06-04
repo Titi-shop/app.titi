@@ -213,46 +213,51 @@ export default function OrdersList({
 
   return (
     <section className="w-full">
-      {/* TABS */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex gap-5 px-4 py-3 overflow-x-auto whitespace-nowrap scrollbar-hide">
-          {tabs.map(
-            ([key, label]) => {
-              const active =
-                tab === key;
+    
+       {/* ================= TABS ================= */}
+<div className="sticky top-0 z-20 overflow-x-auto scrollbar-hide border-b border-orange-500/20 bg-white">
+  <div className="flex min-w-max gap-2 px-3 py-2">
+    {tabs.map(([key, label]) => {
+      const active = tab === key;
 
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() =>
-                    handleTabChange(
-                      key
-                    )
-                  }
-                  className={`min-w-fit pb-2 border-b-2 transition text-sm ${
-                    active
-                      ? "border-black text-black font-semibold"
-                      : "border-transparent text-gray-400"
-                  }`}
-                >
-                  <div>
-                    {label}
-                  </div>
+      return (
+        <button
+          key={key}
+          type="button"
+          onClick={() =>
+            handleTabChange(key)
+          }
+          className={`
+            shrink-0
+            rounded-xl
+            border
+            px-4
+            py-2
+            text-sm
+            font-medium
+            transition-all
 
-                  <div className="text-[11px] mt-1 text-center">
-                    {
-                      counts[
-                        key
-                      ]
-                    }
-                  </div>
-                </button>
-              );
+            ${
+              active
+                ? `
+                  border-orange-500
+                  text-orange-500
+                  bg-orange-50
+                `
+                : `
+                  border-orange-500/20
+                  text-gray-700
+                  bg-white
+                `
             }
-          )}
-        </div>
-      </div>
+          `}
+        >
+          {label} ({counts[key]})
+        </button>
+      );
+    })}
+  </div>
+</div>
 
       {/* LIST */}
       <div className="p-4 space-y-4">
