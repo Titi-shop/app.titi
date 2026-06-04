@@ -264,20 +264,6 @@ mutate(
         ? {
             ...order,
             fulfillment_status:
-              ORDER_STATUS.COMPLETED,
-          }
-        : order
-    ),
-  false
-);
-
-mutate(
-  prev =>
-    prev?.map(order =>
-      order.id === orderId
-        ? {
-            ...order,
-            fulfillment_status:
               ORDER_STATUS.CANCELLED,
           }
         : order
