@@ -222,38 +222,43 @@ export default function OrdersList({
 
       return (
         <button
-          key={key}
-          type="button"
-          onClick={() =>
-            handleTabChange(key)
-          }
-          className={`
-            shrink-0
-            rounded-xl
-            border
-            px-4
-            py-2
-            text-sm
-            font-medium
-            transition-all
+  key={key}
+  type="button"
+  onClick={() => handleTabChange(key)}
+  className={`
+    shrink-0
+    flex items-center gap-2
+    rounded-xl
+    border
+    px-4 py-2
+    text-sm font-medium
+    transition-all
 
-            ${
-              active
-                ? `
-                  border-orange-500
-                  text-orange-500
-                  bg-orange-50
-                `
-                : `
-                  border-orange-500/20
-                  text-gray-700
-                  bg-white
-                `
-            }
-          `}
-        >
-          {label} ({counts[key]})
-        </button>
+    ${
+      active
+        ? "border-orange-500 bg-orange-50 text-orange-600"
+        : "border-gray-200 bg-white text-gray-600"
+    }
+  `}
+>
+  <span>{label}</span>
+
+  <span
+    className={`
+      rounded-full
+      px-2 py-0.5
+      text-xs
+
+      ${
+        active
+          ? "bg-orange-500 text-white"
+          : "bg-gray-100 text-gray-500"
+      }
+    `}
+  >
+    {counts[key]}
+  </span>
+</button>
       );
     })}
   </div>
