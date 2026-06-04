@@ -58,23 +58,21 @@ export default function CustomerOrderActions({
       </button>
 
       {/* CANCEL */}
-      {isPending && onCancel && (
-        <button
-          onClick={stop(onCancel)}
-          className={`${base} border border-red-500 text-red-500`}
-        >
-          {t.cancel_order ?? "Cancel"}
-        </button>
-      )}
+{(isPending || isPendingFulfillment) && onCancel && (
+  <button
+    onClick={stop(onCancel)}
+    className={`${base} border border-red-500 text-red-500`}
+  >
+    {t.cancel_order ?? "Cancel"}
+  </button>
+)}
 
-      {/* STATUS LABEL */}
-      {(isPendingFulfillment || isProcessing) && (
-        <span className={`${base} bg-blue-50 text-blue-600`}>
-          {isPendingFulfillment
-            ? "Waiting seller"
-            : "Processing"}
-        </span>
-      )}
+{/* PROCESSING */}
+{isProcessing && (
+  <span className={`${base} bg-blue-50 text-blue-600`}>
+    {t.processing ?? "Processing"}
+  </span>
+)}
 
       {/* 🚨 SHIPPED = NHẬN HÀNG */}
       {isShipped && onReceived && (
