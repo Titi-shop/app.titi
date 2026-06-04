@@ -9,8 +9,9 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 export type OrderStatus =
   | "pending"
-  | "confirmed"
-  | "shipping"
+  | "pending_fulfillment"
+  | "processing"
+  | "shipped"
   | "completed"
   | "cancelled"
   | "returned";
@@ -130,7 +131,7 @@ export default function OrderActions({
 
       {/* CONFIRMED */}
       {status ===
-        "confirmed" &&
+        "processing" &&
         onShipping && (
           <button
             type="button"
@@ -148,8 +149,7 @@ export default function OrderActions({
         )}
 
       {/* SHIPPING */}
-      {status ===
-        "shipping" && (
+      {status === "shipped" && (
         <span className="px-3 py-2 text-xs rounded-xl bg-blue-50 text-blue-600 font-medium">
           {t.order_shipping ??
             "Shipping"}
