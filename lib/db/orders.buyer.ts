@@ -238,6 +238,7 @@ export type BuyerOrderCounts = {
   pending_fulfillment: number;
   processing: number;
   shipped: number;
+  delivered: number;
   completed: number;
   cancelled: number;
   refunded: number;
@@ -266,6 +267,7 @@ export async function getBuyerOrderCounts(
     pending_fulfillment: 0,
     processing: 0,
     shipped: 0,
+    delivered: 0,
     completed: 0,
     cancelled: 0,
     refunded: 0,
