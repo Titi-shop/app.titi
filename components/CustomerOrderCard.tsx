@@ -83,6 +83,12 @@ export default function CustomerOrderCard({
   const { t } = useTranslation();
 
   const items = order.order_items ?? [];
+  console.log(
+  "ORDER",
+  order.id,
+  order.status,
+  order.fulfillment_status
+);
   const status = normalizeStatus(
   order.fulfillment_status ??
   order.status ??
