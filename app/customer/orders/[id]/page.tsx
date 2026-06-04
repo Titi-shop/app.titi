@@ -547,7 +547,41 @@ export default function OrderDetailPage() {
       ===================================================== */}
 
       <div className="space-y-3 px-4 pt-4">
+{order.fulfillment_status === "delivered" && (
+  <button
+    onClick={async () => {
+      try {
+        const token = await getPiAccessToken();
 
+        if (!token) return;
+
+        const res = await fetch(
+          `/api/orders/${order.id}/complete`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error();
+        }
+
+        window.location.reload();
+      } catch {
+        alert(
+          t.action_failed ??
+          "Action failed"
+        );
+      }
+    }}
+    className="btn-primary w-full"
+  >
+    ✅ {t.confirm_received_order ?? "Đã nhận hàng"}
+  </button>
+)}
         {order.fulfillment_status ===
           "completed" && (
           <>
