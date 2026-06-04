@@ -400,7 +400,7 @@ export async function cancelOrderBySeller(
    SELLER — CONFIRM ORDER
 ========================================================= */
   
-export async function confirmOrderBySeller(
+            export async function confirmOrderBySeller(
   orderId: string,
   sellerId: string,
   sellerMessage?: string | null
@@ -408,6 +408,9 @@ export async function confirmOrderBySeller(
   try {
     return await withTransaction(async (client) => {
 
+      /* =========================
+         1. GET ORDER (ONLY CHECK)
+      ========================= */
       const { rows } = await client.query<{
         seller_id: string;
         fulfillment_status: string;
@@ -426,56 +429,47 @@ export async function confirmOrderBySeller(
       const order = rows[0];
 
       if (!order) {
-        console.warn(
-          "[ORDER][SELLER][CONFIRM][NOT_FOUND]",
-          { orderId }
-        );
+        console.warn("[ORDER][SELLER][CONFIRM][NOT_FOUND]", {
+          orderId,
+        });
         return false;
       }
 
       if (order.seller_id !== sellerId) {
-        console.warn(
-          "[ORDER][SELLER][CONFIRM][FORBIDDEN]",
-          {
-            orderId,
-            sellerId,
-          }
-        );
+        console.warn("[ORDER][SELLER][CONFIRM][FORBIDDEN]", {
+          orderId,
+          sellerId,
+        });
         return false;
       }
 
-      /* ✅ STATUS MỚI */
-      if (
-        order.fulfillment_status !==
-        "pending_fulfillment"
-      ) {
-        console.warn(
-          "[ORDER][SELLER][CONFIRM][INVALID_STATUS]",
-          {
-            orderId,
-            status:
-              order.fulfillment_status,
-          }
-        );
-
+      /* =========================
+         2. CHECK ORDER STATE
+      ========================= */
+      if (order.fulfillment_status !== "pending_fulfillment") {
+        console.warn("[ORDER][SELLER][CONFIRM][INVALID_STATUS]", {
+          orderId,
+          status: order.fulfillment_status,
+        });
         return false;
       }
 
+      /* =========================
+         3. UPDATE ORDER ITEMS
+         (FIXED HERE 🔥)
+      ========================= */
       const res = await client.query(
         `
         UPDATE order_items
         SET
           fulfillment_status = 'processing',
           confirmed_at = NOW(),
-          seller_message = COALESCE(
-            $3,
-            seller_message
-          ),
+          processing_at = NOW(),
+          seller_message = COALESCE($3, seller_message),
           updated_at = NOW()
         WHERE order_id = $1
           AND seller_id = $2
-          AND fulfillment_status =
-              'pending_fulfillment'
+          AND fulfillment_status = 'pending'
         `,
         [
           orderId,
@@ -485,40 +479,30 @@ export async function confirmOrderBySeller(
       );
 
       if (res.rowCount === 0) {
-        console.warn(
-          "[ORDER][SELLER][CONFIRM][NO_ITEMS]",
-          { orderId }
-        );
-
+        console.warn("[ORDER][SELLER][CONFIRM][NO_ITEMS]", {
+          orderId,
+          sellerId,
+        });
         return false;
       }
 
-      /* ✅ sync đúng function */
-      await syncOrderFulfillmentStatus(
-        client,
-        orderId
-      );
+      /* =========================
+         4. SYNC ORDER STATUS
+      ========================= */
+      await syncOrderFulfillmentStatus(client, orderId);
 
-      console.log(
-        "[ORDER][SELLER][CONFIRM][SUCCESS]",
-        { orderId }
-      );
+      console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", {
+        orderId,
+      });
 
       return true;
     });
 
   } catch (err) {
-
-    console.error(
-      "[ORDER][SELLER][CONFIRM][DB_ERROR]",
-      {
-        message:
-          err instanceof Error
-            ? err.message
-            : "UNKNOWN",
-      }
-    );
+    console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     throw new Error("DB_ERROR");
   }
-}
+            }
