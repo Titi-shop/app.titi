@@ -285,18 +285,34 @@ showToast(
       setProcessingId(null);
     }
   }
-
-  async function handleReceived(orderId: string) {
+  async function handleReview(order: Order) {
   if (processingId) return;
-  setProcessingId(orderId);
-    try {
-      const token = await getPiAccessToken();
-      if (!token) return showToast(t.login_required ?? "Login required");
 
-      const productId = order.order_items?.[0]?.product_id;
-      if (!productId) return showToast(t.review_failed ?? "Review failed");
+  setProcessingId(order.id);
 
-      const res = await fetch("/api/reviews", {
+  try {
+    const token = await getPiAccessToken();
+
+    if (!token) {
+      return showToast(
+        t.login_required ??
+        "Login required"
+      );
+    }
+
+    const productId =
+      order.order_items?.[0]?.product_id;
+
+    if (!productId) {
+      return showToast(
+        t.review_failed ??
+        "Review failed"
+      );
+    }
+
+    const res = await fetch(
+      "/api/reviews",
+      {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -306,21 +322,37 @@ showToast(
           order_id: order.id,
           product_id: productId,
           rating,
-          comment: comment.trim() || "Good product",
+          comment:
+            comment.trim() ||
+            "Good product",
         }),
-      });
+      }
+    );
 
-      if (!res.ok) throw new Error();
-
-      setReviewedMap(prev => ({ ...prev, [order.id]: true }));
-      resetReview();
-      showToast(t.review_success ?? "Review success");
-    } catch {
-      showToast(t.review_failed ?? "Review failed");
-    } finally {
-      setProcessingId(null);
+    if (!res.ok) {
+      throw new Error();
     }
+
+    setReviewedMap(prev => ({
+      ...prev,
+      [order.id]: true,
+    }));
+
+    resetReview();
+
+    showToast(
+      t.review_success ??
+      "Review success"
+    );
+  } catch {
+    showToast(
+      t.review_failed ??
+      "Review failed"
+    );
+  } finally {
+    setProcessingId(null);
   }
+}
 
   /* ================= LOADING ================= */
 
