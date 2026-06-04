@@ -15,8 +15,10 @@ import OrderCard from "./OrderCard";
 
 export type OrderStatus =
   | "pending"
-  | "confirmed"
-  | "shipping"
+  | "pending_fulfillment"
+  | "processing"
+  | "shipped"
+  | "delivered"
   | "completed"
   | "returned"
   | "cancelled";
@@ -110,35 +112,33 @@ export default function OrdersList({
       t.all ?? "All",
     ],
     [
-      "pending",
-      t.pending_orders ??
-        "Pending",
-    ],
-    [
-      "confirmed",
-      t.confirmed_orders ??
-        "Confirmed",
-    ],
-    [
-      "shipping",
-      t.shipping_orders ??
-        "Shipping",
-    ],
-    [
-      "completed",
-      t.completed_orders ??
-        "Completed",
-    ],
-    [
-      "returned",
-      t.returned_orders ??
-        "Returned",
-    ],
-    [
-      "cancelled",
-      t.cancelled_orders ??
-        "Cancelled",
-    ],
+  "pending",
+  t.pending_orders ?? "Pending",
+],
+[
+  "pending_fulfillment",
+  t.confirmed_orders ?? "Confirmed",
+],
+[
+  "processing",
+  t.processing_orders ?? "Processing",
+],
+[
+  "shipped",
+  t.shipping_orders ?? "Shipped",
+],
+[
+  "completed",
+  t.completed_orders ?? "Completed",
+],
+[
+  "returned",
+  t.returned_orders ?? "Returned",
+],
+[
+  "cancelled",
+  t.cancelled_orders ?? "Cancelled",
+],
   ];
 
   /* ======================================================
@@ -146,18 +146,16 @@ export default function OrdersList({
   ====================================================== */
 
   const counts = useMemo(() => {
-    const map: Record<
-      OrderTab,
-      number
-    > = {
-      all: orders.length,
-      pending: 0,
-      confirmed: 0,
-      shipping: 0,
-      completed: 0,
-      returned: 0,
-      cancelled: 0,
-    };
+    const map: Record<OrderStatus, number> = {
+  all: orders.length,
+  pending: 0,
+  pending_fulfillment: 0,
+  processing: 0,
+  shipped: 0,
+  completed: 0,
+  returned: 0,
+  cancelled: 0,
+};
 
     for (const order of orders) {
       if (
