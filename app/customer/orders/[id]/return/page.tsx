@@ -18,11 +18,13 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 /* ================= TYPES ================= */
 
 type OrderStatus =
-  | "pending"
-  | "pickup"
-  | "shipping"
+  | "pending_fulfillment"
+  | "processing"
+  | "shipped"
+  | "delivered"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "refunded";
 
 type OrderItem = {
   id: string;
@@ -149,12 +151,15 @@ export default function OrderReturnPage() {
         // fallback to fresh
       }
     }
-
-    if (order.status !== "completed") {
-      setError(t.return_only_completed);
-      initialized.current = true;
-      return;
-    }
+    
+if (
+  order.status !== "delivered" &&
+  order.status !== "completed"
+) {
+  setError(t.return_only_completed);
+  initialized.current = true;
+  return;
+}
 
     setItems(
       order.order_items.map((i) => ({
@@ -259,9 +264,7 @@ export default function OrderReturnPage() {
         });
 
         if (!res.ok) throw new Error("UPLOAD_URL_FAILED");
-
         const data = await res.json();
-
         const uploadRes = await fetch(data.uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
