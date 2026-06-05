@@ -119,7 +119,7 @@ export async function GET(
       orderId: order.id,
       userId,
       orderNumber: order.order_number ?? null,
-      status: order.status ?? null,
+      status: order.fulfillment_status ?? null,
       settlementStatus: order.settlement_status ?? null,
       paymentStatus: order.payment_status ?? null,
       currency: order.currency ?? null,
@@ -134,9 +134,14 @@ export async function GET(
        RESPONSE
     ===================================================== */
     return NextResponse.json({
-      ok: true,
-      order,
-    });
+  ok: true,
+  order: {
+    ...order,
+    order_items: Array.isArray(order.order_items)
+      ? order.order_items
+      : [],
+  },
+});
 
   } catch (err) {
     /* =====================================================
