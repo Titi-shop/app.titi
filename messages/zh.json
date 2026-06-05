@@ -637,6 +637,11 @@
   "order_paid": "订单待确认",
   "order_shipped": "订单运输中",
   "order_delivered": "订单已送达",
-  "order_refunded": "订单已退款"
+  "order_refunded": "订单已退款",
+  "buy_again": "再次购买",
+  "received": "已收货",
+  "shipped_orders": "运输中的订单",
+  "delivered_orders": "已送达订单"
+
 
 }
