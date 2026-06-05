@@ -72,26 +72,21 @@ const { user, loading: authLoading } = useAuth();
 
   /* ================= ACTION ================= */
 
-  async function markReceived() {
-    if (!data || acting) return;
+  async function load() {
+  try {
+    const res = await apiAuthFetch(
+      `/api/returns/${id}`
+    );
 
-    try {
-      setActing(true);
-
-      const res = await apiAuthFetch(`/api/seller/returns/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: "received" }),
-      });
-
-      if (!res.ok) {
-        alert(t.action_failed);
-        return;
-      }
-
-      await load();
-    } finally {
-      setActing(false);
-    }
+    if (!res.ok) return;
+    const json = await res.json();
+    console.log("RETURN DETAIL", json);
+    setData(json);
+  } catch (err) {
+    console.error("[RETURN][LOAD]", err);
+  } finally {
+    setLoading(false);
+  }
   }
 
   /* ================= HELPERS ================= */
