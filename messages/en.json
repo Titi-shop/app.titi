@@ -6,9 +6,6 @@
   "order_confirmed": "Confirmed",
   "order_detail": "Details",
   "order_completed": "Completed",
-  "order_pending": "Pending Confirmation",
-  "order_pickup": "Awaiting Pickup",
-  "order_shipping": "Shipping",
   "order_review": "Review",
   "order_received": "Received",
   "admin": "Administrator",
@@ -639,7 +636,14 @@
   "digital_products": "Digital Products",
   "gift_ideas": "Gift Ideas",
   "limited_time_deals":"Limited time deals",
-  "view": "View"
+  "view": "View",
+  
+  "order_pending": "Awaiting Payment",
+  "order_paid": "Awaiting Confirmation",
+  "order_shipped": "Order Shipped",
+  "order_delivered": "Order Delivered",
+  "order_refunded": "Order Refunded"
+
     
 
   
