@@ -34,7 +34,7 @@ type OrderItem = {
 
 type OrderDetail = {
   id: string;
-  status: OrderStatus;
+  fulfillment_status: OrderStatus;
   order_items: OrderItem[];
 };
 
