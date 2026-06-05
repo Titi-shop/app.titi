@@ -6,9 +6,6 @@
   "order_confirmed": "已确认",
   "order_detail": "详情",
   "order_completed": "完成",
-  "order_pending": "待确认",
-  "order_pickup": "待取货",
-  "order_shipping": "运输中",
   "order_review": "评价",
   "order_received": "已收货",
   "admin": "管理员",
@@ -635,5 +632,11 @@
   "digital_products": "数字产品",
   "gift_ideas": "礼品推荐",
   "limited_time_deals": "限时优惠",
-  "view": "查看"
+  "view": "查看",
+  "order_pending": "订单待付款",
+  "order_paid": "订单待确认",
+  "order_shipped": "订单运输中",
+  "order_delivered": "订单已送达",
+  "order_refunded": "订单已退款"
+
 }
