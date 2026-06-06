@@ -251,24 +251,38 @@ export default function CheckoutSheet({
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* ADDRESS */}
-          <div className="border rounded-xl p-3">
-            {shipping ? (
-              <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-500">{shipping.phone}</p>
-                <p className="text-sm text-gray-500">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500">
-                  {[shipping.ward, shipping.district, shipping.region]
-                    .filter(Boolean)
-                    .join(", ")}{" "}
-                  – {getCountryDisplay(shipping.country)}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-400">➕ {t.add_shipping}</p>
-            )}
-          </div>
+         {/* ADDRESS */}
+<div
+  className="border rounded-xl p-3 cursor-pointer transition"
+  onClick={() => router.push("/customer/address")}
+  style={{
+    borderColor: "var(--nav-border)",
+  }}
+>
+  {shipping ? (
+    <>
+      <p className="font-medium">{shipping.name}</p>
+      <p className="text-sm text-gray-500">{shipping.phone}</p>
+      <p className="text-sm text-gray-500">
+        {shipping.address_line}
+      </p>
+      <p className="text-sm text-gray-500">
+        {[shipping.ward, shipping.district, shipping.region]
+          .filter(Boolean)
+          .join(", ")}{" "}
+        – {getCountryDisplay(shipping.country)}
+      </p>
+
+      <p className="text-xs mt-2 text-orange-500 font-medium">
+        {t.change_address ?? "Tap to change address"}
+      </p>
+    </>
+  ) : (
+    <p className="text-gray-400">
+      ➕ {t.add_shipping}
+    </p>
+  )}
+</div>
 
           {/* SHIPPING ZONE */}
           <div className="border rounded-xl p-3">
