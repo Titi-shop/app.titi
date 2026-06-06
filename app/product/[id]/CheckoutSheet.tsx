@@ -30,9 +30,6 @@ import {
 /* =========================================================
 ZONE DETECT (PRO)
 ========================================================= */
-function detectZone(country: string, rates: ShippingRate[]): Region | null {
-  if (!country || !rates?.length) return null;
-
   const c = country.toUpperCase();
 
   const match = rates.find(
@@ -77,7 +74,6 @@ export default function CheckoutSheet({
   /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
-  const [zone, setZone] = useState<Region | null>(null);
   const [qty, setQty] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -131,12 +127,7 @@ export default function CheckoutSheet({
       if (!def) return;
 
       setShipping(def);
-      const z = detectZone(def.country, regions);
-
-      setZone(z ?? regions[0]?.zone ?? null);
-    })();
-  }, [open, user, regions]);
-
+      
   /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
