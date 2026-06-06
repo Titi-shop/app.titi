@@ -107,9 +107,19 @@ useState("1");
 const [message, setMessage] =
 useState<Message | null>(null);
 
-const [zone, setZone] =
-useState<Region | null>(null);
+const zone = useMemo<Region | null>(() => {
+  if (!shipping || availableRegions.length === 0) return null;
 
+  const country = shipping.country?.toUpperCase();
+
+  const domestic = availableRegions.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domestic_country_code?.toUpperCase() === country
+  );
+
+  return (domestic?.zone as Region) ?? availableRegions[0]?.zone ?? null;
+}, [shipping, availableRegions]);
 /* =========================================================
 DEBUG
 ========================================================= */
@@ -332,25 +342,28 @@ item?.final_price ?? 0;
 const total = useMemo(() => {
   if (preview?.total != null) return preview.total;
 
-  return unitPrice * quantity;
-}, [preview?.total, unitPrice, quantity]);
+  const shippingPrice =
+    availableRegions.find((r) => r.zone === zone)?.price ?? 0;
+
+  return unitPrice * quantity + shippingPrice;
+}, [preview?.total, unitPrice, quantity, zone, availableRegions]);
 /* =========================================================
 VALIDATE
 ========================================================= */
 
 const validate = () =>
-validateBeforePay({
-user,
-piReady,
-shipping,
-zone,
-item,
-quantity,
-maxStock,
-pilogin,
-showMessage,
-t,
-});
+  validateBeforePay({
+    user,
+    piReady,
+    shipping,
+    zone,
+    item,
+    quantity,
+    maxStock,
+    pilogin,
+    showMessage,
+    t,
+  });
 
 /* =========================================================
 PAY
@@ -369,7 +382,7 @@ t,
 user,
 router,
 onClose,
-zone,
+zone: zone!,
 product,
 showMessage,
 validate,
@@ -399,8 +412,6 @@ string
 domestic:
 t.region_domestic ??
 "Domestic",
-
-
 
 sea:  
   t.region_sea ?? "Sea",  
@@ -561,91 +572,26 @@ onClick={() =>
       </div>  
 
       {/* SHIPPING REGION */}  
+<div className="border rounded-xl p-3 mb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 Shipping zone
+  </p>
 
-     <div
+  <div className="text-sm font-semibold">
+    {zone === "domestic"
+      ? "Domestic"
+      : zone}
+  </div>
 
-className="
-border rounded-xl p-3 mb-4
-"
-style={{
-borderColor: "#f97316",
-borderWidth: "1.5px",
-}}
-
-> 
-
-<p className="text-sm font-medium mb-3">  
-          🌍{" "}  
-          {t.select_region ||  
-            "Select region"}  
-        </p>  
-
-        {availableRegions.length ===  
-        0 ? (  
-          <p  
-            className="text-sm"  
-            style={{  
-              color:  
-                "var(--text-muted)",  
-            }}  
-          >  
-            No shipping regions  
-          </p>  
-        ) : (  
-          <div className="flex gap-2 overflow-x-auto">  
-            {availableRegions.map(  
-              (r) => {  
-                const active =  
-                  zone ===  
-                  r.zone;  
-
-                return (  
-                  <button  
-                    key={`${r.zone}-${r.domestic_country_code}`}  
-                    onClick={() => {  
-                      if (  
-                        !r.zone  
-                      ) {  
-                        return;  
-                      }  
-
-                      setZone(  
-                        r.zone as Region  
-                      );  
-                    }}  
-                    className="  
-                      min-w-[100px]  
-                      rounded-xl  
-                      border  
-                      px-3 py-2  
-                      text-xs  
-                      text-center  
-                      transition  
-                    "  
-                    style={{
-
-backgroundColor: active
-? "rgba(249, 115, 22, 0.12)"
-: "var(--card-bg)",
-
-color: active
-? "#f97316"
-: "var(--foreground)",
-
-borderColor: active
-? "#f97316"
-: "#e5e7eb",
-
-borderWidth: "1.5px",
-}}
->
-<div className="font-medium">
-{r.zone === "domestic"
-  ? `Domestic (${r.domestic_country_code ?? "—"})`
-  : labelMap[r.zone] ?? r.zone}
-</div>
-<div  
-                      className="text-[11px] mt-1"  
+  <div className="text-xs mt-1 opacity-70">
+    {availableRegions.find(r => r.zone === zone)
+      ? `${formatPi(
+          availableRegions.find(r => r.zone === zone)!.price
+        )} π`
+      : "—"}
+  </div>
+</div>                 
+      className="text-[11px] mt-1"  
                       style={{  
                         opacity: 0.8,  
                       }}  
