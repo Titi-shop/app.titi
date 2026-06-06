@@ -27,7 +27,6 @@ export const previewFetcher = async ([
     method: "POST",
     body: JSON.stringify({
       address_id,
-      zone,
       items: [
         {
           product_id,
