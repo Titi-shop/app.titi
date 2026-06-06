@@ -1,6 +1,8 @@
-/* =========================================================
-   CHECKOUT TYPES (ONLY FOR CHECKOUT FLOW)
-========================================================= */
+import type { ShippingRate } from "@/types/Product";
+
+/* =========================
+   REGION
+========================= */
 
 export type Region =
   | "domestic"
@@ -10,113 +12,126 @@ export type Region =
   | "north_america"
   | "rest_of_world";
 
-/* =========================================================
-   PRODUCT SNAPSHOT FOR CHECKOUT
-   (IMPORTANT: NOT FULL ProductRecord)
-========================================================= */
+/* =========================
+   SHIPPING INFO
+========================= */
 
-export type CheckoutProduct = {
-  id: string;
-  name: string;
-  thumbnail?: string;
-
-  price: number;
-  sale_price?: number | null;
-  final_price?: number;
-
-  stock?: number;
-
-  shipping_rates?: {
-    zone: Region;
-    price: number;
-    domestic_country_code?: string | null;
-  }[];
-
-  selectedVariant?: {
-    id: string;
-    price?: number;
-    sale_price?: number | null;
-    final_price?: number | null;
-    stock?: number;
-  } | null;
-};
-
-/* =========================================================
-   SHIPPING
-========================================================= */
-
-export type CheckoutShipping = {
+export interface ShippingInfo {
   id: string;
   name: string;
   phone: string;
-
   address_line: string;
-  ward?: string;
+  region: string;
   district?: string;
-  region?: string;
+  ward?: string;
   country: string;
-  postal_code?: string;
-};
+  postal_code?: string | null;
+}
 
-/* =========================================================
-   ITEM SENT TO API
-========================================================= */
+/* =========================
+   MESSAGE
+========================= */
 
-export type CheckoutItem = {
-  product_id: string;
-  variant_id: string | null;
-  quantity: number;
-};
+export interface Message {
+  text: string;
+  type: "error" | "success";
+}
 
-/* =========================================================
-   VALIDATION PARAMS
-========================================================= */
+/* =========================
+   CHECKOUT ITEM (internal use)
+========================= */
 
-export type ValidateParams = {
-  user: any;
-  piReady: boolean;
-  shipping: CheckoutShipping | null;
-  zone: Region | null;
-  item: {
+export interface CheckoutItem {
+  id: string;
+  name: string;
+  price: number;
+  final_price: number;
+  thumbnail?: string;
+  stock: number;
+}
+
+/* =========================
+   PRODUCT FOR CHECKOUT
+========================= */
+
+export interface CheckoutProduct {
+  id: string;
+  name: string;
+  thumbnail: string;
+  price: number;
+  sale_price?: number | null;
+  final_price: number;
+  stock: number;
+
+  shipping_rates?: ShippingRate[];
+
+  selectedVariant?: {
     id: string;
-    stock?: number;
+    price: number;
+    sale_price?: number | null;
+    final_price?: number;
+    stock: number;
   } | null;
+
+  variant_id?: string | null;
+}
+
+/* =========================
+   PROPS
+========================= */
+
+export interface CheckoutProps {
+  open: boolean;
+  onClose: () => void;
+  product: CheckoutProduct;
+}
+
+/* =========================
+   VALIDATE PARAMS
+========================= */
+
+export interface ValidateParams {
+  user: unknown;
+  piReady: boolean;
+  shipping: ShippingInfo | null;
+  zone: Region | null;
+  item: CheckoutItem | null;
   quantity: number;
   maxStock: number;
   pilogin?: () => void;
-  showMessage: (text: string) => void;
+  showMessage: (text: string, type?: "error" | "success") => void;
   t: Record<string, string>;
-};
+}
 
-/* =========================================================
-   USE CHECKOUT PAY PARAMS
-========================================================= */
+/* =========================
+   PAY PARAMS
+========================= */
 
-export type UseCheckoutPayParams = {
-  item: {
-    id: string;
-  } | null;
-
+export interface UseCheckoutPayParams {
+  item: CheckoutItem | null;
   quantity: number;
   total: number;
+  shipping: ShippingInfo | null;
   unitPrice: number;
-
-  shipping: CheckoutShipping | null;
 
   processing: boolean;
   setProcessing: (v: boolean) => void;
-  processingRef: React.MutableRefObject<boolean>;
-  t: Record<string, string>;
-  user: any;
+  processingRef: { current: boolean };
 
-  router: any;
+  t: Record<string, string>;
+  user: unknown;
+
+  router: {
+    push: (path: string) => void;
+  };
+
   onClose: () => void;
 
   zone: Region | null;
 
-  product: CheckoutProduct | null;
+  variantId?: string | null;
 
-  showMessage: (msg: string, type?: "error" | "success") => void;
+  showMessage: (text: string, type?: "error" | "success") => void;
 
   validate: () => boolean;
-};
+}
