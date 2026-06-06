@@ -307,42 +307,168 @@ export default function CheckoutSheet({
               </>
             )}
           </div>
+          {/* PRODUCT */}    
 
-          {/* PRODUCT */}
-          <div className="flex items-center gap-3">
+  <div className="flex items-center gap-3">    
+    <img    
+      src={    
+        item.thumbnail ||    
+        "/placeholder.png"    
+      }    
+      className="    
+        w-16 h-16    
+        rounded-lg    
+        object-cover    
+        border    
+      "    
+      style={{    
+        borderColor:    
+          "var(--nav-border)",    
+      }}    
+    />    
 
-            <img
-              src={item.thumbnail}
-              className="w-16 h-16 rounded-lg object-cover"
-            />
+    <div className="flex-1">    
+      <p className="font-medium">    
+        {item.name}    
+      </p>    
 
-            <div className="flex-1">
-              <p className="font-medium">{item.name}</p>
+      {/* QUANTITY */}    
 
-              <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mt-2">    
+        <button    
+          onClick={() => {    
+            const val =    
+              Math.max(    
+                1,    
+                quantity - 1    
+              );    
 
-                <button onClick={() =>
-                  setQty(String(Math.max(1, quantity - 1)))
-                }>
-                  -
-                </button>
+            setQtyDraft(    
+              String(val)    
+            );    
+          }}    
+          disabled={    
+            quantity <= 1    
+          }    
+          className="    
+            w-8 h-8    
+            border rounded-lg    
+            text-lg    
+            disabled:opacity-30    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        >    
+          -    
+        </button>    
 
-                <input
-                  value={qty}
-                  onChange={(e) =>
-                    setQty(e.target.value.replace(/\D/g, ""))
-                  }
-                  className="w-12 text-center border"
-                />
+        <input    
+          type="text"    
+          inputMode="numeric"    
+          value={qtyDraft}    
+          onChange={(e) => {    
+            const val =    
+              e.target.value.replace(    
+                /\D/g,    
+                ""    
+              );    
 
-                <button onClick={() =>
-                  setQty(String(Math.min(maxStock, quantity + 1)))
-                }>
-                  +
-                </button>
+            if (    
+              val === ""    
+            ) {    
+              setQtyDraft(    
+                ""    
+              );    
 
-              </div>
-            </div>
+              return;    
+            }    
+
+            const num =    
+              Number(val);    
+
+            if (    
+              num >    
+              maxStock    
+            ) {    
+              return;    
+            }    
+
+            setQtyDraft(    
+              val    
+            );    
+          }}    
+          onBlur={() => {    
+            const val =    
+              Number(    
+                qtyDraft ||    
+                  "0"    
+              );    
+
+            if (    
+              val < 1    
+            ) {    
+              setQtyDraft(    
+                "1"    
+              );    
+            } else if (    
+              val >    
+              maxStock    
+            ) {    
+              setQtyDraft(    
+                String(    
+                  maxStock    
+                )    
+              );    
+            }    
+          }}    
+          className="    
+            w-12    
+            text-center    
+            border    
+            rounded-lg    
+            py-1    
+            text-sm    
+            bg-transparent    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        />    
+
+        <button    
+          onClick={() => {    
+            const val =    
+              Math.min(    
+                maxStock,    
+                quantity + 1    
+              );    
+
+            setQtyDraft(    
+              String(val)    
+            );    
+          }}    
+          disabled={    
+            quantity >=    
+            maxStock    
+          }    
+          className="    
+            w-8 h-8    
+            border rounded-lg    
+            text-lg    
+            disabled:opacity-30    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        >    
+          +    
+        </button>    
+      </div>    
+    </div>    
 
             <div className="text-right font-bold text-red-500">
               {formatPi(total)} π
