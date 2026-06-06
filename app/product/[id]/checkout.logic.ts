@@ -2,7 +2,6 @@
 
 import { useCallback ,useRef} from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
-import type { ShippingInfo, Region } from "./checkout.types";
 import type {
   ShippingInfo,
   Region,
