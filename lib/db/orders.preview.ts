@@ -18,8 +18,7 @@ export type PreviewItemInput = {
 
 export type PreviewOrderInput = {
   userId: string;
-  address_id: string;
-  zone: string; 
+  address_id: string; 
   items: PreviewItemInput[];
 };
 
@@ -65,18 +64,13 @@ function mapPricingToPreview(
       (item) => ({
         product_id:
           item.product_id,
-
         variant_id:
           item.variant_id,
-
         name: item.name,
-
         price:
           item.unit_price,
-
         quantity:
           item.quantity,
-
         total:
           item.subtotal,
       })
@@ -84,12 +78,9 @@ function mapPricingToPreview(
 
     subtotal:
       pricing.subtotal,
-
     shipping_fee:
       pricing.shipping_fee,
-
     total: pricing.total,
-
     buyer_zone:
       pricing.buyer_zone,
   };
@@ -110,8 +101,7 @@ export async function previewOrder(
 
 const pricingInput: PricingInput = {
   user_id: input.userId,
-  address_id: input.address_id,
-  zone: input.zone, 
+  address_id: input.address_id, 
   items: input.items.map((item) => ({
     product_id: item.product_id,
     variant_id: item.variant_id ?? null,
