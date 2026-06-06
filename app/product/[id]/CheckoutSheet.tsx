@@ -245,7 +245,7 @@ const previewKey = useMemo(() => {
   zone,
   item,
   quantity,
-  product?.variant_id,
+  product?.selectedVariant?.id
 ]);
 
   /* =========================================================
