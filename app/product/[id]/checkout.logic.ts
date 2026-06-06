@@ -331,19 +331,16 @@ showMessage(
 setTimeout(() => {
   onClose();
 }, 1500);
-  } catch (err) {
-    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
+} catch (err) {
+  console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
 
-    const key = getErrorKey(
-      (err as Error).message
-    );
+  const key = getErrorKey((err as Error).message);
 
-    showMessage(t[key] ?? key);
-  } finally {
-    processingRef.current = false;
-
-    setProcessing(false);
-  }
+  showMessage(t[key] ?? key);
+} finally {
+  processingRef.current = false;
+  setProcessing(false);
+}
 },
 
           onCancel: () => {
