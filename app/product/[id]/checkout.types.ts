@@ -98,20 +98,6 @@ export interface Message {
    PREVIEW
 ========================= */
 
-export interface PreviewItem {
-  product_id: string;
-  variant_id?: string | null;
-  quantity: number;
-}
-
-export interface PreviewPayload {
-  address_id: string;
-  items: PreviewItem[];
-}
-
-  items: PreviewItem[];
-}
-
 export interface PreviewResponse {
   shipping_fee: number;
   total: number;
@@ -208,8 +194,4 @@ export interface UseCheckoutPayParams {
   ) => void;
 
   validate: () => boolean;
-
-  preview: {
-    total: number;
-  } | null;
 }
