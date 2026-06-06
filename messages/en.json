@@ -646,7 +646,13 @@
   "buy_again": "Buy Again",
   "received": "Received",
   "shipped_orders": "Shipped Orders",
-  "delivered_orders": "Delivered Orders"
+  "delivered_orders": "Delivered Orders",
+  
+  "change_address": "Tap to change address",
+  "add_shipping": "Add shipping address",
+  "shipping_zone": "Shipping Zone",
+  "no_shipping_zone": "No shipping zone available"
+
 
 
     
