@@ -364,7 +364,7 @@ const previewKey = useMemo(() => {
      PAY
   ========================================================= */
 
-  useCheckoutPay({
+  const { handlePay } = useCheckoutPay({
   item,
   quantity,
   total,
@@ -378,7 +378,7 @@ const previewKey = useMemo(() => {
   router,
   onClose,
   zone,
-  variantId: product?.variant_id ?? null,
+  variantId: product?.selectedVariant?.id ?? null,
   showMessage,
   validate,
 });
