@@ -28,40 +28,7 @@ import {
 } from "./checkout.logic";
 
 /* =========================================================
-ZONE LABEL ENGINE
-========================================================= */
-
-function getZoneLabel(zone: Region | null, country?: string) {
-  if (!zone) return "Unknown";
-
-  const c = country?.toUpperCase();
-
-  switch (zone) {
-    case "domestic":
-      return c ? `Domestic (${c})` : "Domestic";
-
-    case "asia":
-      return "Asia";
-
-    case "europe":
-      return "Europe";
-
-    case "north_america":
-      return "North America";
-
-    case "sea":
-      return "Southeast Asia";
-
-    case "rest_of_world":
-      return "Global";
-
-    default:
-      return zone;
-  }
-}
-
-/* =========================================================
-DETECT ZONE
+ZONE DETECT (PRO)
 ========================================================= */
 
 function detectZone(country: string, rates: ShippingRate[]): Region | null {
@@ -69,7 +36,6 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
 
   const c = country.toUpperCase();
 
-  // 1. match exact country code (IMPORTANT)
   const exact = rates.find(
     (r) =>
       r.domestic_country_code?.toUpperCase() === c ||
@@ -77,13 +43,14 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
   );
 
   if (exact) return exact.zone as Region;
-  const priority =
-    rates.find(r => r.zone === "domestic") ||
-    rates.find(r => r.zone === "asia") ||
-    rates.find(r => r.zone === "sea") ||
-    rates.find(r => r.zone === "rest_of_world");
 
-  return (priority?.zone as Region) ?? null;
+  const fallback =
+    rates.find((r) => r.zone === "asia") ||
+    rates.find((r) => r.zone === "domestic") ||
+    rates.find((r) => r.zone === "sea") ||
+    rates.find((r) => r.zone === "rest_of_world");
+
+  return (fallback?.zone as Region) ?? null;
 }
 
 /* =========================================================
@@ -158,14 +125,13 @@ export default function CheckoutSheet({
       if (!def) return;
 
       setShipping(def);
-
       const z = detectZone(def.country, regions);
 
       setZone(z ?? regions[0]?.zone ?? null);
     })();
   }, [open, user, regions]);
 
-  /* ================= SWR PREVIEW ================= */
+  /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
     if (!open || !shipping || !zone || !item) return null;
@@ -189,8 +155,6 @@ export default function CheckoutSheet({
     }
   );
 
-  /* ================= PRICE ================= */
-
   const unitPrice = item?.final_price ?? 0;
 
   const total = useMemo(() => {
@@ -198,12 +162,23 @@ export default function CheckoutSheet({
     return unitPrice * quantity;
   }, [preview?.total, unitPrice, quantity]);
 
-  /* ================= MESSAGE ================= */
+  /* ================= RESOLVED REGION ================= */
 
-  const showMessage = (text: string, type: "error" | "success" = "error") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 3000);
-  };
+  const resolvedRegion = useMemo(() => {
+    if (!shipping || !regions.length) return null;
+
+    const country = shipping.country?.toUpperCase();
+
+    const exact = regions.find(
+      (r) =>
+        r.domestic_country_code?.toUpperCase() === country ||
+        r.country_code?.toUpperCase() === country
+    );
+
+    if (exact) return exact;
+
+    return regions.find((r) => r.zone === zone) ?? null;
+  }, [shipping, regions, zone]);
 
   /* ================= PAY ================= */
 
@@ -222,7 +197,10 @@ export default function CheckoutSheet({
     onClose,
     zone,
     product,
-    showMessage,
+    showMessage: (text, type = "error") => {
+      setMessage({ text, type });
+      setTimeout(() => setMessage(null), 3000);
+    },
     validate: () =>
       validateBeforePay({
         user,
@@ -233,7 +211,8 @@ export default function CheckoutSheet({
         quantity,
         maxStock,
         pilogin,
-        showMessage,
+        showMessage: (text, type) =>
+          setMessage({ text, type }),
         t,
       }),
   });
@@ -242,60 +221,43 @@ export default function CheckoutSheet({
 
   if (!open || !item) return null;
 
- const resolvedRegion = useMemo(() => {
-  if (!shipping || !availableRegions.length) return null;
+  /* =========================================================
+  UI LABELS (i18n ONLY)
+  ========================================================= */
 
-  const country = shipping.country?.toUpperCase();
+  const zoneLabel = (r: ShippingRate) => {
+    if (r.zone === "domestic") {
+      return `${t.region_domestic ?? "Domestic"} (${r.domestic_country_code ?? "—"})`;
+    }
 
-  // 1. match exact country first
-  const exact = availableRegions.find(
-    (r) =>
-      r.domestic_country_code?.toUpperCase() === country ||
-      r.country_code?.toUpperCase() === country
-  );
+    return (
+      t[`region_${r.zone}` as keyof typeof t] ??
+      r.zone
+    );
+  };
 
-  if (exact) return exact;
-
-  // 2. fallback: match selected zone
-  const byZone = availableRegions.find((r) => r.zone === zone);
-
-  return byZone ?? null;
-}, [shipping, availableRegions, zone]);
-  /* ================= RENDER ================= */
+  /* =========================================================
+  RENDER
+  ========================================================= */
 
   return (
     <div className="fixed inset-0 z-[100]">
-
-      {/* MESSAGE */}
-      {message && (
-        <div
-          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white z-[120]
-          ${message.type === "success" ? "bg-green-600" : "bg-red-500"}`}
-        >
-          {message.text}
-        </div>
-      )}
 
       {/* OVERLAY */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* SHEET */}
-      <div className="absolute bottom-0 left-0 right-0 h-[65vh] rounded-t-2xl flex flex-col bg-white">
+      <div className="absolute bottom-0 left-0 right-0 h-[65vh] bg-white rounded-t-2xl flex flex-col">
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
           {/* ADDRESS */}
-          <div
-            className="border rounded-xl p-3 cursor-pointer"
-            onClick={() => router.push("/customer/address")}
-          >
+          <div className="border rounded-xl p-3">
             {shipping ? (
               <>
                 <p className="font-medium">{shipping.name}</p>
                 <p className="text-sm text-gray-500">{shipping.phone}</p>
-                <p className="text-sm text-gray-500">
-                  {shipping.address_line}
-                </p>
+                <p className="text-sm text-gray-500">{shipping.address_line}</p>
                 <p className="text-sm text-gray-500">
                   {[shipping.ward, shipping.district, shipping.region]
                     .filter(Boolean)
@@ -310,38 +272,22 @@ export default function CheckoutSheet({
 
           {/* SHIPPING ZONE */}
           <div className="border rounded-xl p-3">
-            <p className="font-medium mb-2">🌍 Shipping zone</p>
+            <p className="font-medium mb-2">🌍 {t.shipping_zone}</p>
 
-            {!zone ? (
+            {!resolvedRegion ? (
               <p className="text-red-500 text-sm">
-                No shipping zone available
+                {t.no_shipping_zone}
               </p>
             ) : (
               <>
-                <div className="text-sm font-semibold">
-           {resolvedRegion ? (
-  <div>
-    <div className="font-semibold">
-      {getZoneLabel(resolvedRegion.zone, shipping?.country)}
-    </div>
+                <div className="font-semibold text-sm">
+                  {zoneLabel(resolvedRegion)}
+                </div>
 
-    <div className="text-xs opacity-70">
-      {getCountryDisplay(shipping?.country)} • {resolvedRegion.domestic_country_code || resolvedRegion.country_code || "N/A"}
-    </div>
-  </div>
-) : (
-  "Unknown region"
-)}
-</div>
-
-                <div className="text-xs mt-1 opacity-70">
-  {resolvedRegion
-    ? `${getZoneLabel(
-        resolvedRegion.zone,
-        shipping?.country
-      )} · ${formatPi(resolvedRegion.price)} π`
-    : "No rate"}
-</div>
+                <div className="text-xs opacity-70 mt-1">
+                  {getCountryDisplay(shipping?.country)} ·{" "}
+                  {formatPi(resolvedRegion.price)} π
+                </div>
               </>
             )}
           </div>
@@ -350,24 +296,19 @@ export default function CheckoutSheet({
           <div className="flex items-center gap-3">
 
             <img
-              src={item.thumbnail || "/placeholder.png"}
+              src={item.thumbnail}
               className="w-16 h-16 rounded-lg object-cover border"
-              style={{ borderColor: "var(--nav-border)" }}
-              alt={item.name}
             />
 
             <div className="flex-1">
-              <p className="font-medium line-clamp-2">
-                {item.name}
-              </p>
+              <p className="font-medium line-clamp-2">{item.name}</p>
 
               <div className="flex items-center gap-2 mt-2">
 
                 <button
-                  type="button"
                   onClick={() => setQty(String(Math.max(1, quantity - 1)))}
                   disabled={quantity <= 1}
-                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
+                  className="w-8 h-8 border rounded-lg"
                 >
                   -
                 </button>
@@ -375,26 +316,20 @@ export default function CheckoutSheet({
                 <input
                   value={qty}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    if (!val) return setQty("");
-                    if (Number(val) > maxStock) return;
-                    setQty(val);
+                    const v = e.target.value.replace(/\D/g, "");
+                    if (!v) return setQty("");
+                    if (Number(v) > maxStock) return;
+                    setQty(v);
                   }}
-                  onBlur={() => {
-                    const v = Number(qty || "0");
-                    if (v < 1) setQty("1");
-                    else if (v > maxStock) setQty(String(maxStock));
-                  }}
-                  className="w-12 text-center border rounded-lg text-sm"
+                  className="w-12 text-center border rounded-lg"
                 />
 
                 <button
-                  type="button"
                   onClick={() =>
                     setQty(String(Math.min(maxStock, quantity + 1)))
                   }
                   disabled={quantity >= maxStock}
-                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
+                  className="w-8 h-8 border rounded-lg"
                 >
                   +
                 </button>
@@ -404,9 +339,6 @@ export default function CheckoutSheet({
 
             <div className="text-right font-bold text-red-500">
               {formatPi(total)} π
-              {(isLoading || isValidating) && (
-                <p className="text-xs text-gray-400">Updating...</p>
-              )}
             </div>
 
           </div>
@@ -416,9 +348,9 @@ export default function CheckoutSheet({
         {/* FOOTER */}
         <div className="border-t p-4">
           <button
-            onClick={() => handlePay?.()}
+            onClick={handlePay}
             disabled={processing}
-            className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold"
           >
             {processing ? t.processing : t.pay_now}
           </button>
