@@ -19,6 +19,7 @@ export type PreviewItemInput = {
 export type PreviewOrderInput = {
   userId: string;
   address_id: string;
+  zone: string; 
   items: PreviewItemInput[];
 };
 
@@ -107,16 +108,16 @@ export async function previewOrder(
     throw new Error("INVALID_USER");
   }
 
-  const pricingInput: PricingInput = {
-    user_id: input.userId,
-    address_id: input.address_id,
-
-    items: input.items.map((item) => ({
-      product_id: item.product_id,
-      variant_id: item.variant_id ?? null,
-      quantity: item.quantity,
-    })),
-  };
+const pricingInput: PricingInput = {
+  user_id: input.userId,
+  address_id: input.address_id,
+  zone: input.zone, 
+  items: input.items.map((item) => ({
+    product_id: item.product_id,
+    variant_id: item.variant_id ?? null,
+    quantity: item.quantity,
+  })),
+};
 
   vlog("PRICING_INPUT", pricingInput);
 
