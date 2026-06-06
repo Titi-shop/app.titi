@@ -17,11 +17,11 @@ import type {
 } from "@/types/Product";
 
 import type {
-  Props,
+  CheckoutProps as Props,
   Region,
   ShippingInfo,
   Message,
-} from "./checkout.types";
+} from "@/types/checkout";
 
 import {
   previewFetcher,
@@ -159,13 +159,26 @@ const showMessage = (
   ========================================================= */
 
   const item = useMemo(() => {
-    if (!product) {
-      return null;
-    }
+  if (!product) return null;
 
-    const selected =
-      product.selectedVariant;
+  const variant = product.selectedVariant ?? null;
 
+  const price =
+    variant?.final_price ??
+    variant?.sale_price ??
+    variant?.price ??
+    product.final_price ??
+    product.price;
+
+  return {
+    id: product.id,
+    name: product.name,
+    price,
+    final_price: price,
+    thumbnail: product.thumbnail || "/placeholder.png",
+    stock: variant?.stock ?? product.stock ?? 0,
+  };
+}, [product]);
     /* ================= VARIANT ================= */
 
     if (selected) {
@@ -264,9 +277,9 @@ const showMessage = (
 const previewKey = useMemo(() => {
   if (!open || !shipping || !zone || !item) return null;
 
-  return [
-    "/api/orders/preview",
-    {
+  return {
+    url: "/api/orders/preview",
+    payload: {
       address_id: shipping.id,
       country: shipping.country?.toUpperCase(),
       zone,
@@ -278,23 +291,19 @@ const previewKey = useMemo(() => {
       items: [
         {
           product_id: item.id,
-          variant_id: product?.selectedVariant?.id ?? null,
+          variant_id: product?.variant_id ?? null,
           quantity,
         },
       ],
     },
-  ] as const;
+  };
 }, [
   open,
-  shipping?.id,
-  shipping?.country,
-  shipping?.region,
-  shipping?.district,
-  shipping?.ward,
+  shipping,
   zone,
-  item?.id,
+  item,
   quantity,
-  product?.selectedVariant?.id,
+  product?.variant_id,
 ]);
 
   /* =========================================================
@@ -413,25 +422,24 @@ const previewKey = useMemo(() => {
      PAY
   ========================================================= */
 
-  const handlePay =
-    useCheckoutPay({
-      item,
-      quantity,
-      total,
-      shipping,
-      unitPrice,
-      processing,
-      setProcessing,
-      processingRef,
-      t,
-      user,
-      router,
-      onClose,
-      zone,
-      product,
-      showMessage,
-      validate,
-    });
+  useCheckoutPay({
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  setProcessing,
+  processingRef,
+  t,
+  user,
+  router,
+  onClose,
+  zone,
+  variantId: product?.variant_id ?? null,
+  showMessage,
+  validate,
+});
 
   /* =========================================================
      GUARD
