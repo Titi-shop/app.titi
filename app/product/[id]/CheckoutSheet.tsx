@@ -868,8 +868,12 @@ const previewKey = useMemo(() => {
           }}
         >
           <button
-  onClick={handlePay}
+  onClick={() => {
+    console.log("PAY CLICKED");
+    handlePay?.();
+  }}
   disabled={processing}
+
   className="
     w-full py-3
     rounded-xl
