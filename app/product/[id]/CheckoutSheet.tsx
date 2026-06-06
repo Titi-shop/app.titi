@@ -217,40 +217,23 @@ product?.shipping_rates
 /* =========================================================
 PREVIEW KEY
 ========================================================= */
-
 const previewKey = useMemo(() => {
   if (!open || !shipping || !zone || !item) return null;
 
-  return JSON.stringify({
-    url: "/api/orders/preview",
-    payload: {
-      address_id: shipping.id,
-      country: shipping.country?.toUpperCase(),
-      zone,
-      shipping: {
-        region: shipping.region,
-        district: shipping.district ?? "",
-        ward: shipping.ward ?? "",
-      },
-      items: [
-        {
-          product_id: item.id,
-          variant_id: product?.selectedVariant?.id ?? null,
-          quantity,
-        },
-      ],
-    },
-  });
+  return [
+    "/api/orders/preview",
+    shipping.id,
+    zone,
+    quantity,
+    item.id,
+    product?.selectedVariant?.id ?? null,
+  ];
 }, [
   open,
   shipping?.id,
-  shipping?.country,
-  shipping?.region,
-  shipping?.district,
-  shipping?.ward,
   zone,
-  item?.id,
   quantity,
+  item?.id,
   product?.selectedVariant?.id,
 ]);
 /* =========================================================
@@ -338,12 +321,7 @@ showMessage(
 );
 
 }, [previewError, t]);
-useEffect(() => {
-  if (!previewKey) return;
 
-  // force SWR refetch
-  mutate(previewKey);
-}, [zone, quantity, shipping?.id]);
 /* =========================================================
 PRICE
 ========================================================= */
