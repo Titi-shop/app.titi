@@ -40,8 +40,9 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
       r.zone === "domestic" &&
       r.domestic_country_code?.toUpperCase() === c
   );
+
   if (match) return match.zone as Region;
-  // fallback theo priority SERVER LOGIC
+
   const priority = [
     "asia",
     "sea",
@@ -52,8 +53,10 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
 
   for (const z of priority) {
     const found = rates.find((r) => r.zone === z);
+
     if (found) return found.zone as Region;
   }
+
   return null;
 }
 /* =========================================================
