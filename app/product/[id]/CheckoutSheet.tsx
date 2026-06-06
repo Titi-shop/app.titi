@@ -28,35 +28,41 @@ import {
 } from "./checkout.logic";
 
 /* =========================================================
-ZONE LABEL ENGINE
+ZONE LABEL (i18n SAFE)
 ========================================================= */
 
-function getZoneLabel(zone: Region | null, country?: string) {
-  if (!zone) return "Unknown";
+function getZoneLabel(
+  zone: Region | null,
+  country?: string,
+  t?: any
+) {
+  if (!zone) return t?.zone_unknown ?? "Unknown";
 
   const c = country?.toUpperCase();
 
   switch (zone) {
     case "domestic":
-      return c ? `Domestic (${c})` : "Domestic";
+      return c
+        ? `${t?.zone_domestic ?? "Domestic"} (${c})`
+        : t?.zone_domestic ?? "Domestic";
 
     case "asia":
-      return "Asia";
+      return t?.zone_asia ?? "Asia";
 
     case "europe":
-      return "Europe";
+      return t?.zone_europe ?? "Europe";
 
     case "north_america":
-      return "North America";
+      return t?.zone_north_america ?? "North America";
 
     case "sea":
-      return "Southeast Asia";
+      return t?.zone_sea ?? "Southeast Asia";
 
     case "rest_of_world":
-      return "Global";
+      return t?.zone_global ?? "Global";
 
     default:
-      return zone;
+      return String(zone);
   }
 }
 
@@ -65,7 +71,7 @@ DETECT ZONE
 ========================================================= */
 
 function detectZone(country: string, rates: ShippingRate[]): Region | null {
-  if (!country || !rates?.length) return null;
+  if (!country || !Array.isArray(rates)) return null;
 
   const c = country.toUpperCase();
 
@@ -75,7 +81,7 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
       r.domestic_country_code?.toUpperCase() === c
   );
 
-  return (match?.zone as Region) ?? null;
+  return match ? (match.zone as Region) : null;
 }
 
 /* =========================================================
@@ -153,11 +159,11 @@ export default function CheckoutSheet({
 
       const z = detectZone(def.country, regions);
 
-      setZone(z ?? regions[0]?.zone ?? null);
+      setZone((z ?? regions[0]?.zone ?? null) as Region | null);
     })();
   }, [open, user, regions]);
 
-  /* ================= SWR PREVIEW ================= */
+  /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
     if (!open || !shipping || !zone || !item) return null;
@@ -279,128 +285,103 @@ export default function CheckoutSheet({
                 </p>
               </>
             ) : (
-              <p className="text-gray-400">➕ {t.add_shipping}</p>
+              <p className="text-gray-400">{t.add_shipping}</p>
             )}
           </div>
 
           {/* SHIPPING ZONE */}
           <div className="border rounded-xl p-3">
-            <p className="font-medium mb-2">🌍 Shipping zone</p>
+            <p className="font-medium mb-2">{t.shipping_zone}</p>
 
             {!zone ? (
               <p className="text-red-500 text-sm">
-                No shipping zone available
+                {t.no_shipping_zone}
               </p>
             ) : (
               <>
                 <div className="text-sm font-semibold">
-                  {getZoneLabel(zone, shipping?.country)}
+                  {getZoneLabel(zone, shipping?.country, t)}
                 </div>
 
                 <div className="text-xs mt-1 opacity-70">
                   {activeRegion
-                    ? `${getZoneLabel(zone, shipping?.country)} · ${formatPi(
+                    ? `${getZoneLabel(zone, shipping?.country, t)} · ${formatPi(
                         activeRegion.price
                       )} π`
-                    : "No rate"}
+                    : t.no_rate}
                 </div>
               </>
             )}
           </div>
+
           {/* PRODUCT */}
-<div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
 
-  {/* IMAGE */}
-  <img
-    src={item?.thumbnail || "/placeholder.png"}
-    className="w-16 h-16 rounded-lg object-cover border"
-    style={{ borderColor: "var(--nav-border)" }}
-    alt={item?.name || "product"}
-  />
+            <img
+              src={item.thumbnail || "/placeholder.png"}
+              className="w-16 h-16 rounded-lg object-cover border"
+              style={{ borderColor: "var(--nav-border)" }}
+              alt={item.name}
+            />
 
-  {/* INFO */}
-  <div className="flex-1">
-    <p className="font-medium line-clamp-2">
-      {item?.name}
-    </p>
+            <div className="flex-1">
+              <p className="font-medium line-clamp-2">
+                {item.name}
+              </p>
 
-    {/* QUANTITY */}
-    <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2">
 
-      {/* MINUS */}
-      <button
-        type="button"
-        onClick={() => {
-          const next = Math.max(1, quantity - 1);
-          setQty(String(next));
-        }}
-        disabled={quantity <= 1}
-        className="w-8 h-8 border rounded-lg text-lg disabled:opacity-30"
-        style={{ borderColor: "var(--nav-border)" }}
-      >
-        -
-      </button>
+                <button
+                  type="button"
+                  onClick={() => setQty(String(Math.max(1, quantity - 1)))}
+                  disabled={quantity <= 1}
+                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
+                >
+                  -
+                </button>
 
-      {/* INPUT */}
-      <input
-        type="text"
-        inputMode="numeric"
-        value={qty}
-        onChange={(e) => {
-          const val = e.target.value.replace(/\D/g, "");
+                <input
+                  value={qty}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (!val) return setQty("");
+                    if (Number(val) > maxStock) return;
+                    setQty(val);
+                  }}
+                  onBlur={() => {
+                    const v = Number(qty || "0");
+                    if (v < 1) setQty("1");
+                    else if (v > maxStock) setQty(String(maxStock));
+                  }}
+                  className="w-12 text-center border rounded-lg text-sm"
+                />
 
-          if (!val) {
-            setQty("");
-            return;
-          }
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQty(String(Math.min(maxStock, quantity + 1)))
+                  }
+                  disabled={quantity >= maxStock}
+                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
+                >
+                  +
+                </button>
 
-          const num = Number(val);
+              </div>
+            </div>
 
-          if (num > maxStock) return;
+            <div className="text-right font-bold text-red-500">
+              {formatPi(total)} π
+              {(isLoading || isValidating) && (
+                <p className="text-xs text-gray-400">
+                  {t.updating}
+                </p>
+              )}
+            </div>
 
-          setQty(val);
-        }}
-        onBlur={() => {
-          const val = Number(qty || "0");
+          </div>
 
-          if (val < 1) {
-            setQty("1");
-          } else if (val > maxStock) {
-            setQty(String(maxStock));
-          }
-        }}
-        className="w-12 text-center border rounded-lg py-1 text-sm bg-transparent"
-        style={{ borderColor: "var(--nav-border)" }}
-      />
-
-      {/* PLUS */}
-      <button
-        type="button"
-        onClick={() => {
-          const next = Math.min(maxStock, quantity + 1);
-          setQty(String(next));
-        }}
-        disabled={quantity >= maxStock}
-        className="w-8 h-8 border rounded-lg text-lg disabled:opacity-30"
-        style={{ borderColor: "var(--nav-border)" }}
-      >
-        +
-      </button>
-
-    </div>
-  </div>
-
-  {/* TOTAL */}
-  <div className="text-right font-bold text-red-500">
-    {formatPi(total)} π
-
-    {(isLoading || isValidating) && (
-      <p className="text-xs text-gray-400">
-        Updating...
-      </p>
-    )}
-  </div>
-</div>
+        </div>
 
         {/* FOOTER */}
         <div className="border-t p-4">
@@ -416,4 +397,4 @@ export default function CheckoutSheet({
       </div>
     </div>
   );
-      }
+        }
