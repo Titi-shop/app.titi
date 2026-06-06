@@ -35,28 +35,31 @@ function getZoneLabel(zone: Region | null, country?: string) {
   if (!zone) return "Unknown";
 
   const c = country?.toUpperCase();
+const c = country?.toUpperCase();
 
   switch (zone) {
     case "domestic":
-      return c ? `Domestic (${c})` : "Domestic";
+      return c
+        ? `${t.region_domestic ?? "Domestic"} (${c})`
+        : t.region_domestic ?? "Domestic";
 
     case "asia":
-      return "Asia";
+      return t.region_asia ?? "Asia";
 
     case "europe":
-      return "Europe";
+      return t.region_europe ?? "Europe";
 
     case "north_america":
-      return "North America";
+      return t.region_north_america ?? "North America";
 
     case "sea":
-      return "Southeast Asia";
+      return t.region_sea ?? "Southeast Asia";
 
     case "rest_of_world":
-      return "Global";
+      return t.region_global ?? "Global";
 
     default:
-      return zone;
+      return String(zone);
   }
 }
 
