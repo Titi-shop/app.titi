@@ -66,7 +66,10 @@ DETECT ZONE
 
 function detectZone(country: string, rates: ShippingRate[]): Region | null {
   if (!country || !rates?.length) return null;
+
   const c = country.toUpperCase();
+
+  // 1. match exact country code (IMPORTANT)
   const exact = rates.find(
     (r) =>
       r.domestic_country_code?.toUpperCase() === c ||
@@ -74,12 +77,13 @@ function detectZone(country: string, rates: ShippingRate[]): Region | null {
   );
 
   if (exact) return exact.zone as Region;
+  const priority =
+    rates.find(r => r.zone === "domestic") ||
+    rates.find(r => r.zone === "asia") ||
+    rates.find(r => r.zone === "sea") ||
+    rates.find(r => r.zone === "rest_of_world");
 
-  // 2. fallback by region priority (backend-safe)
-  const asia = rates.find((r) => r.zone === "asia");
-  const domestic = rates.find((r) => r.zone === "domestic");
-  const global = rates.find((r) => r.zone === "rest_of_world");
-  return (asia?.zone || domestic?.zone || global?.zone) as Region | null;
+  return (priority?.zone as Region) ?? null;
 }
 
 /* =========================================================
@@ -238,13 +242,13 @@ export default function CheckoutSheet({
 
   if (!open || !item) return null;
 
-  const resolvedRegion = useMemo(() => {
-  if (!shipping || !regions.length) return null;
+ const resolvedRegion = useMemo(() => {
+  if (!shipping || !availableRegions.length) return null;
 
   const country = shipping.country?.toUpperCase();
 
-  // 1. match chính xác country
-  const exact = regions.find(
+  // 1. match exact country first
+  const exact = availableRegions.find(
     (r) =>
       r.domestic_country_code?.toUpperCase() === country ||
       r.country_code?.toUpperCase() === country
@@ -252,9 +256,11 @@ export default function CheckoutSheet({
 
   if (exact) return exact;
 
-  // 2. fallback theo zone backend
-  return regions.find((r) => r.zone === zone) ?? null;
-}, [shipping, regions, zone]);
+  // 2. fallback: match selected zone
+  const byZone = availableRegions.find((r) => r.zone === zone);
+
+  return byZone ?? null;
+}, [shipping, availableRegions, zone]);
   /* ================= RENDER ================= */
 
   return (
@@ -313,12 +319,19 @@ export default function CheckoutSheet({
             ) : (
               <>
                 <div className="text-sm font-semibold">
-            {resolvedRegion
-        ? `${getCountryDisplay(shipping?.country)} - ${getZoneLabel(
-        resolvedRegion.zone,
-        shipping?.country
-      )}`
-    : "Unknown region"}
+           {resolvedRegion ? (
+  <div>
+    <div className="font-semibold">
+      {getZoneLabel(resolvedRegion.zone, shipping?.country)}
+    </div>
+
+    <div className="text-xs opacity-70">
+      {getCountryDisplay(shipping?.country)} • {resolvedRegion.domestic_country_code || resolvedRegion.country_code || "N/A"}
+    </div>
+  </div>
+) : (
+  "Unknown region"
+)}
 </div>
 
                 <div className="text-xs mt-1 opacity-70">
