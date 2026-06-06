@@ -28,41 +28,7 @@ import {
 } from "./checkout.logic";
 
 /* =========================================================
-ZONE LABEL ENGINE
-========================================================= */
-
-function getZoneLabel(zone: Region | null, country?: string) {
-  if (!zone) return "Unknown";
-const c = country?.toUpperCase();
-
-  switch (zone) {
-    case "domestic":
-      return c
-        ? `${t.region_domestic ?? "Domestic"} (${c})`
-        : t.region_domestic ?? "Domestic";
-
-    case "asia":
-      return t.region_asia ?? "Asia";
-
-    case "europe":
-      return t.region_europe ?? "Europe";
-
-    case "north_america":
-      return t.region_north_america ?? "North America";
-
-    case "sea":
-      return t.region_sea ?? "Southeast Asia";
-
-    case "rest_of_world":
-      return t.region_global ?? "Global";
-
-    default:
-      return String(zone);
-  }
-}
-
-/* =========================================================
-DETECT ZONE
+ZONE DETECT (SAFE)
 ========================================================= */
 
 function detectZone(country: string, rates: ShippingRate[]): Region | null {
@@ -93,8 +59,6 @@ export default function CheckoutSheet({
   const { user, piReady, pilogin } = useAuth();
 
   const processingRef = useRef(false);
-
-  /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [zone, setZone] = useState<Region | null>(null);
@@ -153,12 +117,11 @@ export default function CheckoutSheet({
       setShipping(def);
 
       const z = detectZone(def.country, regions);
-
-      setZone(z ?? regions[0]?.zone ?? null);
+      setZone(z);
     })();
   }, [open, user, regions]);
 
-  /* ================= SWR PREVIEW ================= */
+  /* ================= SWR ================= */
 
   const previewKey = useMemo(() => {
     if (!open || !shipping || !zone || !item) return null;
@@ -182,8 +145,6 @@ export default function CheckoutSheet({
     }
   );
 
-  /* ================= PRICE ================= */
-
   const unitPrice = item?.final_price ?? 0;
 
   const total = useMemo(() => {
@@ -191,14 +152,12 @@ export default function CheckoutSheet({
     return unitPrice * quantity;
   }, [preview?.total, unitPrice, quantity]);
 
-  /* ================= MESSAGE ================= */
+  const activeRegion = regions.find((r) => r.zone === zone);
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
   };
-
-  /* ================= PAY ================= */
 
   const handlePay = useCheckoutPay({
     item,
@@ -231,134 +190,53 @@ export default function CheckoutSheet({
       }),
   });
 
-  /* ================= GUARD ================= */
-
   if (!open || !item) return null;
 
-  const activeRegion = regions.find((r) => r.zone === zone);
-
-  /* ================= RENDER ================= */
+  /* =========================================================
+  RENDER
+  ========================================================= */
 
   return (
     <div className="fixed inset-0 z-[100]">
 
-      {/* MESSAGE */}
       {message && (
-        <div
-          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white z-[120]
-          ${message.type === "success" ? "bg-green-600" : "bg-red-500"}`}
-        >
+        <div className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white z-[120]
+          ${message.type === "success" ? "bg-green-600" : "bg-red-500"}`}>
           {message.text}
         </div>
       )}
 
-      {/* OVERLAY */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* SHEET */}
       <div className="absolute bottom-0 left-0 right-0 h-[65vh] rounded-t-2xl flex flex-col bg-white">
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* ADDRESS */}
-          <div
-            className="border rounded-xl p-3 cursor-pointer"
-            onClick={() => router.push("/customer/address")}
-          >
-            {shipping ? (
-              <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-500">{shipping.phone}</p>
-                <p className="text-sm text-gray-500">
-                  {shipping.address_line}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {[shipping.ward, shipping.district, shipping.region]
-                    .filter(Boolean)
-                    .join(", ")}{" "}
-                  – {getCountryDisplay(shipping.country)}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-400">➕ {t.add_shipping}</p>
-            )}
-          </div>
-
-          {/* SHIPPING ZONE */}
-          <div className="border rounded-xl p-3">
-            <p className="font-medium mb-2">🌍 Shipping zone</p>
-
-            {!zone ? (
-              <p className="text-red-500 text-sm">
-                No shipping zone available
-              </p>
-            ) : (
-              <>
-                <div className="text-sm font-semibold">
-                  {getZoneLabel(zone, shipping?.country)}
-                </div>
-
-                <div className="text-xs mt-1 opacity-70">
-                  {activeRegion
-                    ? `${getZoneLabel(zone, shipping?.country)} · ${formatPi(
-                        activeRegion.price
-                      )} π`
-                    : "No rate"}
-                </div>
-              </>
-            )}
-          </div>
-
-         {/* PRODUCT */}
+          {/* PRODUCT */}
           <div className="flex items-center gap-3">
 
             <img
-              src={item.thumbnail || "/placeholder.png"}
+              src={item.thumbnail}
               className="w-16 h-16 rounded-lg object-cover border"
-              style={{ borderColor: "var(--nav-border)" }}
               alt={item.name}
             />
 
             <div className="flex-1">
-              <p className="font-medium line-clamp-2">
-                {item.name}
-              </p>
+              <p className="font-medium">{item.name}</p>
 
               <div className="flex items-center gap-2 mt-2">
 
-                <button
-                  type="button"
-                  onClick={() => setQty(String(Math.max(1, quantity - 1)))}
-                  disabled={quantity <= 1}
-                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
-                >
+                <button onClick={() => setQty(String(Math.max(1, quantity - 1)))}>
                   -
                 </button>
 
                 <input
                   value={qty}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    if (!val) return setQty("");
-                    if (Number(val) > maxStock) return;
-                    setQty(val);
-                  }}
-                  onBlur={() => {
-                    const v = Number(qty || "0");
-                    if (v < 1) setQty("1");
-                    else if (v > maxStock) setQty(String(maxStock));
-                  }}
-                  className="w-12 text-center border rounded-lg text-sm"
+                  onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
+                  className="w-12 text-center border rounded"
                 />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setQty(String(Math.min(maxStock, quantity + 1)))
-                  }
-                  disabled={quantity >= maxStock}
-                  className="w-8 h-8 border rounded-lg disabled:opacity-30"
-                >
+                <button onClick={() => setQty(String(Math.min(maxStock, quantity + 1)))}>
                   +
                 </button>
 
@@ -376,12 +254,11 @@ export default function CheckoutSheet({
 
         </div>
 
-        {/* FOOTER */}
         <div className="border-t p-4">
           <button
             onClick={() => handlePay?.()}
             disabled={processing}
-            className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold"
           >
             {processing ? t.processing : t.pay_now}
           </button>
@@ -390,4 +267,4 @@ export default function CheckoutSheet({
       </div>
     </div>
   );
-                       }
+}
