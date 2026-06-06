@@ -107,19 +107,9 @@ useState("1");
 const [message, setMessage] =
 useState<Message | null>(null);
 
-const zone = useMemo<Region | null>(() => {
-  if (!shipping || availableRegions.length === 0) return null;
+const [zone, setZone] =
+useState<Region | null>(null);
 
-  const country = shipping.country?.toUpperCase();
-
-  const domestic = availableRegions.find(
-    (r) =>
-      r.zone === "domestic" &&
-      r.domestic_country_code?.toUpperCase() === country
-  );
-
-  return (domestic?.zone as Region) ?? availableRegions[0]?.zone ?? null;
-}, [shipping, availableRegions]);
 /* =========================================================
 DEBUG
 ========================================================= */
@@ -134,9 +124,9 @@ console.log(
 product
 );
 
-console.log(  
-  "[CHECKOUT SHIPPING RATES]",  
-  product?.shipping_rates  
+console.log(
+"[CHECKOUT SHIPPING RATES]",
+product?.shipping_rates
 );
 
 }
@@ -203,11 +193,11 @@ item?.stock ?? 0
 const quantity = useMemo(() => {
 const n = Number(qtyDraft);
 
-return Number.isInteger(n) &&  
-  n >= 1 &&  
-  n <= maxStock  
-  ? n  
-  : 1;
+return Number.isInteger(n) &&
+n >= 1 &&
+n <= maxStock
+? n
+: 1;
 
 }, [qtyDraft, maxStock]);
 
@@ -228,23 +218,23 @@ product?.shipping_rates
 PREVIEW KEY
 ========================================================= */
 const previewKey = useMemo(() => {
-  if (!open || !shipping || !zone || !item) return null;
+if (!open || !shipping || !zone || !item) return null;
 
-  return [
-    "/api/orders/preview",
-    shipping.id,
-    zone,
-    quantity,
-    item.id,
-    product?.selectedVariant?.id ?? null,
-  ];
+return [
+"/api/orders/preview",
+shipping.id,
+zone,
+quantity,
+item.id,
+product?.selectedVariant?.id ?? null,
+];
 }, [
-  open,
-  shipping?.id,
-  zone,
-  quantity,
-  item?.id,
-  product?.selectedVariant?.id,
+open,
+shipping?.id,
+zone,
+quantity,
+item?.id,
+product?.selectedVariant?.id,
 ]);
 /* =========================================================
 PREVIEW
@@ -276,33 +266,33 @@ async function loadAddress() {
 const def =
 await fetchDefaultAddress();
 
-if (!def) {  
-    return;  
-  }  
+if (!def) {
+return;
+}
 
-  setShipping(def);  
+setShipping(def);
 
-  const autoZone =  
-    detectInitialZone(  
-      def.country,  
-      availableRegions  
-    );  
+const autoZone =
+detectInitialZone(
+def.country,
+availableRegions
+);
 
-  if (autoZone) {  
-    setZone(autoZone);  
-  } else if (  
-    availableRegions.length > 0  
-  ) {  
-    setZone(  
-      availableRegions[0]  
-        .zone as Region  
-    );  
-  }  
-}  
+if (autoZone) {
+setZone(autoZone);
+} else if (
+availableRegions.length > 0
+) {
+setZone(
+availableRegions[0]
+.zone as Region
+);
+}
+}
 
-if (!open || !user) {  
-  return;  
-}  
+if (!open || !user) {
+return;
+}
 
 loadAddress();
 
@@ -321,13 +311,13 @@ if (!previewError) {
 return;
 }
 
-const key =  
-  getErrorKey(  
-    previewError.message  
-  );  
+const key =
+getErrorKey(
+previewError.message
+);
 
-showMessage(  
-  t[key] ?? key  
+showMessage(
+t[key] ?? key
 );
 
 }, [previewError, t]);
@@ -340,30 +330,27 @@ const unitPrice =
 item?.final_price ?? 0;
 
 const total = useMemo(() => {
-  if (preview?.total != null) return preview.total;
+if (preview?.total != null) return preview.total;
 
-  const shippingPrice =
-    availableRegions.find((r) => r.zone === zone)?.price ?? 0;
-
-  return unitPrice * quantity + shippingPrice;
-}, [preview?.total, unitPrice, quantity, zone, availableRegions]);
+return unitPrice * quantity;
+}, [preview?.total, unitPrice, quantity]);
 /* =========================================================
 VALIDATE
 ========================================================= */
 
 const validate = () =>
-  validateBeforePay({
-    user,
-    piReady,
-    shipping,
-    zone,
-    item,
-    quantity,
-    maxStock,
-    pilogin,
-    showMessage,
-    t,
-  });
+validateBeforePay({
+user,
+piReady,
+shipping,
+zone,
+item,
+quantity,
+maxStock,
+pilogin,
+showMessage,
+t,
+});
 
 /* =========================================================
 PAY
@@ -382,7 +369,7 @@ t,
 user,
 router,
 onClose,
-zone: zone!,
+zone,
 product,
 showMessage,
 validate,
@@ -413,23 +400,25 @@ domestic:
 t.region_domestic ??
 "Domestic",
 
-sea:  
-  t.region_sea ?? "Sea",  
 
-asia:  
-  t.region_asia ?? "Asia",  
 
-europe:  
-  t.region_europe ??  
-  "Europe",  
+sea:
+t.region_sea ?? "Sea",
 
-north_america:  
-  t.region_us ??  
-  "North America",  
+asia:
+t.region_asia ?? "Asia",
 
-rest_of_world:  
-  t.region_global ??  
-  "Global",
+europe:
+t.region_europe ??
+"Europe",
+
+north_america:
+t.region_us ??
+"North America",
+
+rest_of_world:
+t.region_global ??
+"Global",
 
 };
 
@@ -438,60 +427,48 @@ RENDER
 ========================================================= */
 
 return (
-<div className="fixed inset-0 z-[100]">
-{/* MESSAGE */}
 
-{message && (  
-    <div  
-      className={`  
-        fixed top-16 left-1/2 -translate-x-1/2  
-        px-4 py-2 rounded-lg text-white z-[120]  
-        ${  
-          message.type ===  
-          "success"  
-            ? "bg-green-600"  
-            : "bg-red-500"  
-        }  
-      `}  
-    >  
-      {message.text}  
-    </div>  
-  )}  
+<div className="fixed inset-0 z-[100]">  
+{/* MESSAGE */}  {message && (
+<div
+className={    fixed top-16 left-1/2 -translate-x-1/2     px-4 py-2 rounded-lg text-white z-[120]     ${     message.type ===     "success"     ? "bg-green-600"     : "bg-red-500"     }    }
+>
+{message.text}
+</div>
+)}
 
-  {/* OVERLAY */}  
+{/* OVERLAY */}
 
-  <div  
-    className="absolute inset-0 bg-black/50"  
-    onClick={onClose}  
-  />  
+  <div    
+    className="absolute inset-0 bg-black/50"    
+    onClick={onClose}    
+  />    {/* SHEET */}
 
-  {/* SHEET */}  
+  <div    
+    className="    
+      absolute bottom-0 left-0 right-0    
+      rounded-t-2xl    
+      h-[65vh]    
+      flex flex-col    
+      border-t    
+    "    
+    style={{    
+      backgroundColor:    
+        "var(--card-bg)",    color:    
+    "var(--foreground)",    
 
-  <div  
-    className="  
-      absolute bottom-0 left-0 right-0  
-      rounded-t-2xl  
-      h-[65vh]  
-      flex flex-col  
-      border-t  
-    "  
-    style={{  
-      backgroundColor:  
-        "var(--card-bg)",  
+  borderColor:    
+    "var(--nav-border)",    
+}}
 
-      color:  
-        "var(--foreground)",  
+> 
 
-      borderColor:  
-        "var(--nav-border)",  
-    }}  
-  >  
-    {/* SCROLL */}  
+{/* SCROLL */}    
 
-    <div className="flex-1 overflow-y-auto px-4 py-3">  
-      {/* ADDRESS */}  
+<div className="flex-1 overflow-y-auto px-4 py-3">    
+  {/* ADDRESS */}    
 
-      <div
+  <div
 
 className="
 border rounded-xl p-3 cursor-pointer mb-4
@@ -501,281 +478,344 @@ borderColor: "#f97316", // ORANGE BORDER
 borderWidth: "1.5px",
 }}
 
-onClick={() =>  
-          router.push(  
-            "/customer/address"  
-          )  
-        }  
-      >  
-        {shipping ? (  
-          <>  
-            <p className="font-medium">  
-              {shipping.name}  
-            </p>  
+onClick={() =>
+router.push(
+"/customer/address"
+)
+}
+>
+{shipping ? (
+<>
+<p className="font-medium">
+{shipping.name}
+</p>
 
-            <p  
-              className="text-sm"  
-              style={{  
-                color:  
-                  "var(--text-muted)",  
-              }}  
-            >  
-              {shipping.phone}  
-            </p>  
+<p    
+          className="text-sm"    
+          style={{    
+            color:    
+              "var(--text-muted)",    
+          }}    
+        >    
+          {shipping.phone}    
+        </p>    
 
-            <p  
-              className="text-sm mt-1"  
-              style={{  
-                color:  
-                  "var(--text-muted)",  
-              }}  
-            >  
-              {  
-                shipping.address_line  
-              }  
-            </p>  
+        <p    
+          className="text-sm mt-1"    
+          style={{    
+            color:    
+              "var(--text-muted)",    
+          }}    
+        >    
+          {    
+            shipping.address_line    
+          }    
+        </p>    
 
-            <p  
-              className="text-sm mt-1"  
-              style={{  
-                color:  
-                  "var(--text-muted)",  
-              }}  
-            >  
-              {[  
-                shipping.ward,  
-                shipping.district,  
-                shipping.region,  
-              ]  
-                .filter(Boolean)  
-                .join(", ")}  
-              {" – "}  
-              {getCountryDisplay(  
-                shipping.country  
-              )}  
-              {" – "}  
-              {shipping.postal_code ??  
-                ""}  
-            </p>  
-          </>  
-        ) : (  
-          <p  
-            style={{  
-              color:  
-                "var(--text-muted)",  
-            }}  
-          >  
-            ➕{" "}  
-            {t.add_shipping}  
-          </p>  
-        )}  
-      </div>  
+        <p    
+          className="text-sm mt-1"    
+          style={{    
+            color:    
+              "var(--text-muted)",    
+          }}    
+        >    
+          {[    
+            shipping.ward,    
+            shipping.district,    
+            shipping.region,    
+          ]    
+            .filter(Boolean)    
+            .join(", ")}    
+          {" – "}    
+          {getCountryDisplay(    
+            shipping.country    
+          )}    
+          {" – "}    
+          {shipping.postal_code ??    
+            ""}    
+        </p>    
+      </>    
+    ) : (    
+      <p    
+        style={{    
+          color:    
+            "var(--text-muted)",    
+        }}    
+      >    
+        ➕{" "}    
+        {t.add_shipping}    
+      </p>    
+    )}    
+  </div>    
 
-      {/* SHIPPING REGION */}  
-<div className="border rounded-xl p-3 mb-4">
-  <p className="text-sm font-medium mb-2">
-    🌍 Shipping zone
-  </p>
+  {/* SHIPPING REGION */}    
 
-  <div className="text-sm font-semibold">
-    {zone === "domestic"
-      ? "Domestic"
-      : zone}
-  </div>
+ <div
 
-  <div className="text-xs mt-1 opacity-70">
-    {availableRegions.find(r => r.zone === zone)
-      ? `${formatPi(
-          availableRegions.find(r => r.zone === zone)!.price
-        )} π`
-      : "—"}
-  </div>
-</div>                 
-      className="text-[11px] mt-1"  
-                      style={{  
-                        opacity: 0.8,  
-                      }}  
-                    >  
-                      {formatPi(  
-                        r.price  
-                      )}{" "}  
-                      π  
-                    </div>  
-                  </button>  
-                );  
-              }  
-            )}  
-          </div>  
-        )}  
-      </div>  
+className="
+border rounded-xl p-3 mb-4
+"
+style={{
+borderColor: "#f97316",
+borderWidth: "1.5px",
+}}
 
-      {/* PRODUCT */}  
+> 
 
-      <div className="flex items-center gap-3">  
-        <img  
-          src={  
-            item.thumbnail ||  
-            "/placeholder.png"  
-          }  
-          className="  
-            w-16 h-16  
-            rounded-lg  
-            object-cover  
-            border  
-          "  
-          style={{  
-            borderColor:  
-              "var(--nav-border)",  
-          }}  
-        />  
+<p className="text-sm font-medium mb-3">    
+          🌍{" "}    
+          {t.select_region ||    
+            "Select region"}    
+        </p>    {availableRegions.length ===    
+    0 ? (    
+      <p    
+        className="text-sm"    
+        style={{    
+          color:    
+            "var(--text-muted)",    
+        }}    
+      >    
+        No shipping regions    
+      </p>    
+    ) : (    
+      <div className="flex gap-2 overflow-x-auto">    
+        {availableRegions.map(    
+          (r) => {    
+            const active =    
+              zone ===    
+              r.zone;    
 
-        <div className="flex-1">  
-          <p className="font-medium">  
-            {item.name}  
-          </p>  
+            return (    
+              <button    
+                key={`${r.zone}-${r.domestic_country_code}`}    
+                onClick={() => {    
+                  if (    
+                    !r.zone    
+                  ) {    
+                    return;    
+                  }    
 
-          {/* QUANTITY */}  
+                  setZone(    
+                    r.zone as Region    
+                  );    
+                }}    
+                className="    
+                  min-w-[100px]    
+                  rounded-xl    
+                  border    
+                  px-3 py-2    
+                  text-xs    
+                  text-center    
+                  transition    
+                "    
+                style={{
 
-          <div className="flex items-center gap-2 mt-2">  
-            <button  
-              onClick={() => {  
-                const val =  
-                  Math.max(  
-                    1,  
-                    quantity - 1  
-                  );  
+backgroundColor: active
+? "rgba(249, 115, 22, 0.12)"
+: "var(--card-bg)",
 
-                setQtyDraft(  
-                  String(val)  
-                );  
-              }}  
-              disabled={  
-                quantity <= 1  
-              }  
-              className="  
-                w-8 h-8  
-                border rounded-lg  
-                text-lg  
-                disabled:opacity-30  
-              "  
-              style={{  
-                borderColor:  
-                  "var(--nav-border)",  
-              }}  
-            >  
-              -  
-            </button>  
+color: active
+? "#f97316"
+: "var(--foreground)",
 
-            <input  
-              type="text"  
-              inputMode="numeric"  
-              value={qtyDraft}  
-              onChange={(e) => {  
-                const val =  
-                  e.target.value.replace(  
-                    /\D/g,  
-                    ""  
-                  );  
+borderColor: active
+? "#f97316"
+: "#e5e7eb",
 
-                if (  
-                  val === ""  
-                ) {  
-                  setQtyDraft(  
-                    ""  
-                  );  
+borderWidth: "1.5px",
+}}
 
-                  return;  
-                }  
+> 
 
-                const num =  
-                  Number(val);  
+<div className="font-medium">  
+{r.zone === "domestic"  
+  ? `Domestic (${r.domestic_country_code ?? "—"})`  
+  : labelMap[r.zone] ?? r.zone}  
+</div>  
+<div    
+                      className="text-[11px] mt-1"    
+                      style={{    
+                        opacity: 0.8,    
+                      }}    
+                    >    
+                      {formatPi(    
+                        r.price    
+                      )}{" "}    
+                      π    
+                    </div>    
+                  </button>    
+                );    
+              }    
+            )}    
+          </div>    
+        )}    
+      </div>    {/* PRODUCT */}    
 
-                if (  
-                  num >  
-                  maxStock  
-                ) {  
-                  return;  
-                }  
+  <div className="flex items-center gap-3">    
+    <img    
+      src={    
+        item.thumbnail ||    
+        "/placeholder.png"    
+      }    
+      className="    
+        w-16 h-16    
+        rounded-lg    
+        object-cover    
+        border    
+      "    
+      style={{    
+        borderColor:    
+          "var(--nav-border)",    
+      }}    
+    />    
 
-                setQtyDraft(  
-                  val  
-                );  
-              }}  
-              onBlur={() => {  
-                const val =  
-                  Number(  
-                    qtyDraft ||  
-                      "0"  
-                  );  
+    <div className="flex-1">    
+      <p className="font-medium">    
+        {item.name}    
+      </p>    
 
-                if (  
-                  val < 1  
-                ) {  
-                  setQtyDraft(  
-                    "1"  
-                  );  
-                } else if (  
-                  val >  
-                  maxStock  
-                ) {  
-                  setQtyDraft(  
-                    String(  
-                      maxStock  
-                    )  
-                  );  
-                }  
-              }}  
-              className="  
-                w-12  
-                text-center  
-                border  
-                rounded-lg  
-                py-1  
-                text-sm  
-                bg-transparent  
-              "  
-              style={{  
-                borderColor:  
-                  "var(--nav-border)",  
-              }}  
-            />  
+      {/* QUANTITY */}    
 
-            <button  
-              onClick={() => {  
-                const val =  
-                  Math.min(  
-                    maxStock,  
-                    quantity + 1  
-                  );  
+      <div className="flex items-center gap-2 mt-2">    
+        <button    
+          onClick={() => {    
+            const val =    
+              Math.max(    
+                1,    
+                quantity - 1    
+              );    
 
-                setQtyDraft(  
-                  String(val)  
-                );  
-              }}  
-              disabled={  
-                quantity >=  
-                maxStock  
-              }  
-              className="  
-                w-8 h-8  
-                border rounded-lg  
-                text-lg  
-                disabled:opacity-30  
-              "  
-              style={{  
-                borderColor:  
-                  "var(--nav-border)",  
-              }}  
-            >  
-              +  
-            </button>  
-          </div>  
-        </div>  
+            setQtyDraft(    
+              String(val)    
+            );    
+          }}    
+          disabled={    
+            quantity <= 1    
+          }    
+          className="    
+            w-8 h-8    
+            border rounded-lg    
+            text-lg    
+            disabled:opacity-30    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        >    
+          -    
+        </button>    
 
-        {/* TOTAL */}  
+        <input    
+          type="text"    
+          inputMode="numeric"    
+          value={qtyDraft}    
+          onChange={(e) => {    
+            const val =    
+              e.target.value.replace(    
+                /\D/g,    
+                ""    
+              );    
 
-        <div className="text-right">  
-          <p
+            if (    
+              val === ""    
+            ) {    
+              setQtyDraft(    
+                ""    
+              );    
+
+              return;    
+            }    
+
+            const num =    
+              Number(val);    
+
+            if (    
+              num >    
+              maxStock    
+            ) {    
+              return;    
+            }    
+
+            setQtyDraft(    
+              val    
+            );    
+          }}    
+          onBlur={() => {    
+            const val =    
+              Number(    
+                qtyDraft ||    
+                  "0"    
+              );    
+
+            if (    
+              val < 1    
+            ) {    
+              setQtyDraft(    
+                "1"    
+              );    
+            } else if (    
+              val >    
+              maxStock    
+            ) {    
+              setQtyDraft(    
+                String(    
+                  maxStock    
+                )    
+              );    
+            }    
+          }}    
+          className="    
+            w-12    
+            text-center    
+            border    
+            rounded-lg    
+            py-1    
+            text-sm    
+            bg-transparent    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        />    
+
+        <button    
+          onClick={() => {    
+            const val =    
+              Math.min(    
+                maxStock,    
+                quantity + 1    
+              );    
+
+            setQtyDraft(    
+              String(val)    
+            );    
+          }}    
+          disabled={    
+            quantity >=    
+            maxStock    
+          }    
+          className="    
+            w-8 h-8    
+            border rounded-lg    
+            text-lg    
+            disabled:opacity-30    
+          "    
+          style={{    
+            borderColor:    
+              "var(--nav-border)",    
+          }}    
+        >    
+          +    
+        </button>    
+      </div>    
+    </div>    
+
+    {/* TOTAL */}    
+
+    <div className="text-right">    
+      <p
 
 className="font-bold text-lg"
 style={{
@@ -786,33 +826,31 @@ color: "#ef4444", // RED
 
 {formatPi(total)} π
 
-</p>  {(isLoading ||  
-            isValidating) && (  
-            <p  
-              className="text-xs"  
-              style={{  
-                color:  
-                  "var(--text-muted)",  
-              }}  
-            >  
-              Đang cập nhật  
-              giá...  
-            </p>  
-          )}  
-        </div>  
-      </div>  
-    </div>  
+</p>  {(isLoading ||    
+            isValidating) && (    
+            <p    
+              className="text-xs"    
+              style={{    
+                color:    
+                  "var(--text-muted)",    
+              }}    
+            >    
+              Đang cập nhật    
+              giá...    
+            </p>    
+          )}    
+        </div>    
+      </div>    
+    </div>    {/* FOOTER */}    
 
-    {/* FOOTER */}  
-
-    <div  
-      className="border-t p-4"  
-      style={{  
-        borderColor:  
-          "var(--nav-border)",  
-      }}  
-    >  
-      <button
+<div    
+  className="border-t p-4"    
+  style={{    
+    borderColor:    
+      "var(--nav-border)",    
+  }}    
+>    
+  <button
 
 onClick={() => {
 console.log("PAY CLICKED");
@@ -832,15 +870,15 @@ backgroundColor: processing
 ? "#9CA3AF"
 : "#f97316", // orange primary
 
-borderColor: processing  
-  ? "#9CA3AF"  
-  : "#f97316",  
+borderColor: processing
+? "#9CA3AF"
+: "#f97316",
 
-color: "#fff",  
+color: "#fff",
 
-boxShadow: processing  
-  ? "none"  
-  : "0 10px 25px rgba(249,115,22,0.35)",
+boxShadow: processing
+? "none"
+: "0 10px 25px rgba(249,115,22,0.35)",
 
 }}
 
@@ -848,8 +886,9 @@ boxShadow: processing
 
 {processing ? t.processing : t.pay_now}
 </button>
-</div>
-</div>
-</div>
-);
+
+</div>  
+</div>  
+</div>  
+);  
   }
