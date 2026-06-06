@@ -378,7 +378,7 @@ setTimeout(() => {
     router,
     onClose,
     zone,
-    product?.variant_id
+    product?.variant_id,
     validate,
     showMessage,
   ]);
