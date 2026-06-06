@@ -27,35 +27,32 @@ import {
   useCheckoutPay,
 } from "./checkout.logic";
 
+/* =========================================================
+ZONE DETECT (PRO)
+========================================================= */
+
 function detectZone(country: string, rates: ShippingRate[]): Region | null {
   if (!country || !rates?.length) return null;
 
   const c = country.toUpperCase();
 
-  const match = rates.find(
+  const exact = rates.find(
     (r) =>
-      r.zone === "domestic" &&
-      r.domestic_country_code?.toUpperCase() === c
+      r.domestic_country_code?.toUpperCase() === c ||
+      r.country_code?.toUpperCase() === c
   );
 
-  if (match) return match.zone as Region;
+  if (exact) return exact.zone as Region;
 
-  const priority = [
-    "asia",
-    "sea",
-    "europe",
-    "north_america",
-    "rest_of_world",
-  ];
+  const fallback =
+    rates.find((r) => r.zone === "asia") ||
+    rates.find((r) => r.zone === "domestic") ||
+    rates.find((r) => r.zone === "sea") ||
+    rates.find((r) => r.zone === "rest_of_world");
 
-  for (const z of priority) {
-    const found = rates.find((r) => r.zone === z);
-
-    if (found) return found.zone as Region;
-  }
-
-  return null;
+  return (fallback?.zone as Region) ?? null;
 }
+
 /* =========================================================
 COMPONENT
 ========================================================= */
@@ -68,11 +65,13 @@ export default function CheckoutSheet({
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
+
   const processingRef = useRef(false);
 
   /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
+  const [zone, setZone] = useState<Region | null>(null);
   const [qty, setQty] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -81,7 +80,9 @@ export default function CheckoutSheet({
 
   const item = useMemo(() => {
     if (!product) return null;
+
     const v = product.selectedVariant;
+
     const price =
       v?.final_price ??
       v?.sale_price ??
@@ -117,35 +118,34 @@ export default function CheckoutSheet({
   /* ================= LOAD ADDRESS ================= */
 
   useEffect(() => {
-  if (!open || !user) return;
+    if (!open || !user) return;
 
-  (async () => {
-    const def = await fetchDefaultAddress();
-    if (!def) return;
+    (async () => {
+      const def = await fetchDefaultAddress();
+      if (!def) return;
 
-    setShipping(def);
-  })();
-}, [open, user]);
-      
+      setShipping(def);
+      const z = detectZone(def.country, regions);
+
+      setZone(z ?? regions[0]?.zone ?? null);
+    })();
+  }, [open, user, regions]);
+
   /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
-  if (!open || !shipping || !item) return null;
+    if (!open || !shipping || !zone || !item) return null;
 
-  return [
-    "/api/orders/preview",
-    shipping.id,
-    quantity,
-    item.id,
-    product?.selectedVariant?.id ?? "",
-  ];
-}, [
-  open,
-  shipping,
-  quantity,
-  item,
-  product,
-]);
+    return [
+      "/api/orders/preview",
+      shipping.id,
+      zone,
+      quantity,
+      item.id,
+      product?.selectedVariant?.id ?? null,
+    ];
+  }, [open, shipping, zone, quantity, item, product]);
+
   const { data: preview, isLoading, isValidating } = useSWR(
     previewKey,
     previewFetcher,
@@ -165,14 +165,20 @@ export default function CheckoutSheet({
   /* ================= RESOLVED REGION ================= */
 
   const resolvedRegion = useMemo(() => {
-  if (!preview?.buyer_zone) return null;
+    if (!shipping || !regions.length) return null;
 
-  return (
-    regions.find(
-      (r) => r.zone === preview.buyer_zone
-    ) ?? null
-  );
-}, [preview?.buyer_zone, regions]);
+    const country = shipping.country?.toUpperCase();
+
+    const exact = regions.find(
+      (r) =>
+        r.domestic_country_code?.toUpperCase() === country ||
+        r.country_code?.toUpperCase() === country
+    );
+
+    if (exact) return exact;
+
+    return regions.find((r) => r.zone === zone) ?? null;
+  }, [shipping, regions, zone]);
 
   /* ================= PAY ================= */
 
@@ -189,7 +195,7 @@ export default function CheckoutSheet({
     user,
     router,
     onClose,
-    zone: preview?.buyer_zone ?? null,
+    zone,
     product,
     showMessage: (text, type = "error") => {
       setMessage({ text, type });
@@ -200,7 +206,7 @@ export default function CheckoutSheet({
         user,
         piReady,
         shipping,
-        zone: preview?.buyer_zone ?? null,
+        zone,
         item,
         quantity,
         maxStock,
@@ -277,7 +283,6 @@ export default function CheckoutSheet({
     </p>
   )}
 </div>
-
           {/* SHIPPING ZONE */}
           <div className="border rounded-xl p-3">
             <p className="font-medium mb-2">🌍 {t.shipping_zone}</p>
@@ -293,16 +298,9 @@ export default function CheckoutSheet({
                 </div>
 
                 <div className="text-xs opacity-70 mt-1">
-  {getCountryDisplay(shipping?.country)}
-</div>
-
-<div className="text-xs opacity-70">
-  Zone: {preview?.buyer_zone}
-</div>
-
-<div className="text-xs opacity-70">
-  Shipping: {formatPi(preview?.shipping_fee ?? 0)} π
-</div>
+                  {getCountryDisplay(shipping?.country)} ·{" "}
+                  {formatPi(resolvedRegion.price)} π
+                </div>
               </>
             )}
           </div>
