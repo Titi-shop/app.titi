@@ -430,7 +430,15 @@ return (
 <div className="fixed inset-0 z-[100]">  
 {/* MESSAGE */}  {message && (
 <div
-className={    fixed top-16 left-1/2 -translate-x-1/2     px-4 py-2 rounded-lg text-white z-[120]     ${     message.type ===     "success"     ? "bg-green-600"     : "bg-red-500"     }    }
+  className={`
+    fixed top-16 left-1/2 -translate-x-1/2
+    px-4 py-2 rounded-lg text-white z-[120]
+    ${
+      message.type === "success"
+        ? "bg-green-600"
+        : "bg-red-500"
+    }
+  `}
 >
 {message.text}
 </div>
