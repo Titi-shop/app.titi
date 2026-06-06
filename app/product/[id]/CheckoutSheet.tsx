@@ -548,69 +548,6 @@ router.push(
   </div>    
 
   {/* SHIPPING REGION */}    
-
- <div
-
-className="
-border rounded-xl p-3 mb-4
-"
-style={{
-borderColor: "#f97316",
-borderWidth: "1.5px",
-}}
-
-> 
-
-<p className="text-sm font-medium mb-3">    
-          🌍{" "}    
-          {t.select_region ||    
-            "Select region"}    
-        </p>    {availableRegions.length ===    
-    0 ? (    
-      <p    
-        className="text-sm"    
-        style={{    
-          color:    
-            "var(--text-muted)",    
-        }}    
-      >    
-        No shipping regions    
-      </p>    
-    ) : (    
-      <div className="flex gap-2 overflow-x-auto">    
-        {availableRegions.map(    
-          (r) => {    
-            const active =    
-              zone ===    
-              r.zone;    
-
-            return (    
-              <button    
-                key={`${r.zone}-${r.domestic_country_code}`}    
-                onClick={() => {    
-                  if (    
-                    !r.zone    
-                  ) {    
-                    return;    
-                  }    
-
-                  setZone(    
-                    r.zone as Region    
-                  );    
-                }}    
-                className="    
-                  min-w-[100px]    
-                  rounded-xl    
-                  border    
-                  px-3 py-2    
-                  text-xs    
-                  text-center    
-                  transition    
-                "    
-                style={{
-
-backgroundColor: active
-? "rgba(249, 115, 22, 0.12)"
 <div className="border rounded-xl p-3 mb-4">
   <p className="text-sm font-medium mb-2">
     🌍 Shipping zone
