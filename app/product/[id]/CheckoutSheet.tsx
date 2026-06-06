@@ -658,15 +658,10 @@ borderWidth: "1.5px",
 }}
 >
 <div className="font-medium">
-{r.zone ===
-"domestic"
-? Domestic (${r.domestic_country_code ?? "—"})
-: labelMap[
-r.zone
-] ??
-r.zone}
+{r.zone === "domestic"
+  ? `Domestic (${r.domestic_country_code ?? "—"})`
+  : labelMap[r.zone] ?? r.zone}
 </div>
-
 <div  
                       className="text-[11px] mt-1"  
                       style={{  
