@@ -179,33 +179,8 @@ const showMessage = (
     stock: variant?.stock ?? product.stock ?? 0,
   };
 }, [product]);
-    /* ================= VARIANT ================= */
-
-    if (selected) {
-      const price =
-        selected.final_price ??
-        selected.sale_price ??
-        selected.price;
-
-      return {
-        id: product.id,
-
-        name: product.name,
-
-        price,
-
-        final_price: price,
-
-        thumbnail:
-          product.thumbnail ||
-          "/placeholder.png",
-
-        stock:
-          selected.stock ?? 0,
-      };
-    }
-
-    /* ================= PRODUCT ================= */
+  
+  /* ================= PRODUCT ================= */
 
     const price =
       typeof product.final_price ===
