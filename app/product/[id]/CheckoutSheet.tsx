@@ -215,56 +215,50 @@ const showMessage = (
   /* =========================================================
      PREVIEW KEY
   ========================================================= */
-
 const previewKey = useMemo(() => {
   if (!open || !shipping || !zone || !item) return null;
 
-  return {
-    url: "/api/orders/preview",
-    payload: {
-      address_id: shipping.id,
-      country: shipping.country?.toUpperCase(),
-      zone,
-      shipping: {
-        region: shipping.region,
-        district: shipping.district ?? "",
-        ward: shipping.ward ?? "",
-      },
-      items: [
-        {
-          product_id: item.id,
-          variant_id: product?.selectedVariant?.id ?? null,
-          quantity,
-        },
-      ],
-    },
-  };
+  return JSON.stringify({
+    address_id: shipping.id,
+    country: shipping.country?.toUpperCase(),
+    zone,
+    quantity,
+    product_id: item.id,
+    variant_id: product?.selectedVariant?.id ?? null,
+  });
 }, [
   open,
-  shipping,
+  shipping?.id,
+  shipping?.country,
   zone,
-  item,
   quantity,
-  product?.selectedVariant?.id
+  product?.selectedVariant?.id,
+  item?.id,
 ]);
   /* =========================================================
      PREVIEW
   ========================================================= */
 
-  const {
-  data: preview,
-  error: previewError,
-  isLoading,
-  isValidating,
-} = useSWR(previewKey, previewFetcher, {
-  revalidateOnFocus: false,
-  dedupingInterval: 2000,
-  onSuccess: (data) => {
-    console.log("[PREVIEW SUCCESS]", data);
-  },
-  onError: (err) => {
-    console.error("[PREVIEW ERROR]", err);
-  },
+  const { data: preview } = useSWR(previewKey, (key) => {
+  if (!key) return null;
+
+  const params = JSON.parse(key);
+
+  return previewFetcher([
+    "/api/orders/preview",
+    {
+      address_id: params.address_id,
+      country: params.country,
+      zone: params.zone,
+      items: [
+        {
+          product_id: params.product_id,
+          variant_id: params.variant_id,
+          quantity: params.quantity,
+        },
+      ],
+    },
+  ]);
 });
 
   /* =========================================================
@@ -337,9 +331,14 @@ const previewKey = useMemo(() => {
   const unitPrice =
     item?.final_price ?? 0;
 
-  const total =
-    preview?.total ??
-    unitPrice * quantity;
+  const shippingCost =
+  availableRegions.find(r => r.zone === zone)?.price ?? 0;
+
+const total = useMemo(() => {
+  if (preview?.total) return preview.total;
+
+  return unitPrice * quantity + shippingCost;
+}, [preview, unitPrice, quantity, zone, availableRegions]);
 
   /* =========================================================
      VALIDATE
