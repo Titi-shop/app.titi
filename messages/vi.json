@@ -688,7 +688,12 @@
   "buy_again": "Mua lại",
   "received": "Đã nhận hàng",
   "shipped_orders": "Đơn hàng đang giao",
-  "delivered_orders": "Đơn hàng đã giao"
+  "delivered_orders": "Đơn hàng đã giao",
+  
+  "change_address": "Nhấn để thay đổi địa chỉ",
+  "add_shipping": "Thêm địa chỉ giao hàng",
+  "shipping_zone": "Khu vực vận chuyển",
+  "no_shipping_zone": "Không tìm thấy khu vực vận chuyển"
 
 
 
