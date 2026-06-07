@@ -170,53 +170,36 @@ async function loadVariant(variantId: string, productId: string) {
    SHIPPING (DOMESTIC PRIORITY FIXED)
 ========================================================= */
 
-async function getShipping(
-  productId: string,
-  country: string,
-  zone: string
-) {
+async function getShipping(productId: string, country: string) {
   const rates = await getShippingRatesByProduct(productId);
 
-  if (!rates.length) {
-    throw new Error("SHIPPING_NOT_AVAILABLE");
-  }
+  if (!rates.length) throw new Error("SHIPPING_NOT_AVAILABLE");
 
   const buyerCountry = country.toUpperCase();
 
-  // 1. DOMESTIC ONLY when exact match country
+  // 🥇 DOMESTIC FIRST (DB DESIGN)
   const domestic = rates.find(
-    (r) =>
+    r =>
       r.zone === "domestic" &&
       r.domestic_country_code?.toUpperCase() === buyerCountry
   );
 
-  if (domestic) {
-    return safeNumber(domestic.price);
+  if (domestic) return Number(domestic.price);
+
+  // 🥈 ZONE fallback
+  const zone = await getZoneByCountry(buyerCountry);
+
+  if (zone) {
+    const zoneRate = rates.find(r => r.zone === zone);
+    if (zoneRate) return Number(zoneRate.price);
   }
 
-  // 2. IMPORTANT: chỉ dùng zone nếu KHÔNG phải domestic match
-  const zoneRate = rates.find(
-    (r) =>
-      r.zone === zone &&
-      r.zone !== "domestic"
-  );
-
-  if (zoneRate) {
-    return safeNumber(zoneRate.price);
-  }
-
-  // 3. fallback
-  const globalRate = rates.find(
-    (r) => r.zone === "rest_of_world"
-  );
-
-  if (globalRate) {
-    return safeNumber(globalRate.price);
-  }
+  // 🥉 fallback global
+  const global = rates.find(r => r.zone === "rest_of_world");
+  if (global) return Number(global.price);
 
   throw new Error("SHIPPING_NOT_AVAILABLE");
 }
-
 /* =========================================================
    MAIN ENGINE
 ========================================================= */
