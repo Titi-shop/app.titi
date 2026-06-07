@@ -117,67 +117,47 @@ async function loadVariant(variantId: string, productId: string) {
 ========================================================= */
     
     async function getShipping(
+  prasync function getShipping(
   productId: string,
-  country: string,
-  zone: string
-) {
-  const rates =
-    await getShippingRatesByProduct(
-      productId
-    );
+  buyerCountry: string,
+  buyerZone: string
+): Promise<number> {
+  const rates = await getShippingRatesByProduct(productId);
 
   if (!rates.length) {
-    throw new Error(
-      "SHIPPING_NOT_AVAILABLE"
-    );
+    throw new Error("SHIPPING_NOT_AVAILABLE");
   }
 
-  const buyerCountry =
-    country.toUpperCase();
+  const country = buyerCountry.toUpperCase();
 
-  /* ======================
-     DOMESTIC
-  ====================== */
-
+  // 1. DOMESTIC (ABSOLUTE PRIORITY)
   const domestic = rates.find(
     (r) =>
       r.zone === "domestic" &&
-      r.domestic_country_code?.toUpperCase() ===
-        buyerCountry
+      r.domestic_country_code?.toUpperCase() === country
   );
 
   if (domestic) {
     return safeNumber(domestic.price);
   }
 
-  /* ======================
-     BUYER ZONE
-  ====================== */
-
-  const zoneRate = rates.find(
-    (r) => r.zone === zone
-  );
+  // 2. ZONE BASED
+  const zoneRate = rates.find((r) => r.zone === buyerZone);
 
   if (zoneRate) {
     return safeNumber(zoneRate.price);
   }
 
-  /* ======================
-     GLOBAL
-  ====================== */
-
+  // 3. FALLBACK GLOBAL
   const globalRate = rates.find(
-    (r) =>
-      r.zone === "rest_of_world"
+    (r) => r.zone === "rest_of_world"
   );
 
   if (globalRate) {
     return safeNumber(globalRate.price);
   }
 
-  throw new Error(
-    "SHIPPING_NOT_AVAILABLE"
-  );
+  throw new Error("SHIPPING_NOT_AVAILABLE");
     }
 /* =========================================================
    MAIN ENGINE
@@ -246,7 +226,7 @@ export async function calculatePricing(input: PricingInput): Promise<PricingResu
     subtotal += line;
 
     if (!product.is_digital) {
-      shipping += await getShipping(product.id, buyerCountry, buyerZone);
+      const shippingCache = new Map<string, any>();
     }
 
     items.push({
