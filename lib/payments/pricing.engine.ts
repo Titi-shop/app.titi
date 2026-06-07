@@ -257,7 +257,7 @@ export async function calculatePricing(
 
   let subtotal = 0;
   let shipping = 0;
-  let shippingZone: ShippingZone = "domestic";
+  let shippingZone: ShippingZone | null = null;
   const items: PricingResult["items"] = [];
 
   for (const item of input.items) {
@@ -267,7 +267,24 @@ export async function calculatePricing(
       log("INVALID_PRODUCT_ID", item.product_id);
       throw new Error("INVALID_PRODUCT_ID");
     }
+for (const item of input.items) {
+  log("ITEM_START", item);
 
+  if (!isUUID(item.product_id)) {
+    log("INVALID_PRODUCT_ID", item.product_id);
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
+  if (
+    item.variant_id &&
+    !isUUID(item.variant_id)
+  ) {
+    log("INVALID_VARIANT_ID", item.variant_id);
+    throw new Error("INVALID_VARIANT_ID");
+  }
+
+  const qty = safeQty(item.quantity);
+  const product = await loadProduct(item.product_id);
     const qty = safeQty(item.quantity);
     const product = await loadProduct(item.product_id);
     if (product.seller_country) {
