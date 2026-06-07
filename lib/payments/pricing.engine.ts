@@ -1,4 +1,3 @@
-bạn hướng dẫn mình chậm lại .
 import { getProductById } from "@/lib/db/products";
 import { getVariantById } from "@/lib/db/variants";
 import {
