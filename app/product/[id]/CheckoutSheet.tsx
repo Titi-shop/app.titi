@@ -123,23 +123,17 @@ export default function CheckoutSheet({
     (async () => {
       const def = await fetchDefaultAddress();
       if (!def) return;
-
       setShipping(def);
-      const z = detectZone(def.country, regions);
-
-      setZone(z ?? regions[0]?.zone ?? null);
-    })();
   }, [open, user, regions]);
 
   /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
-    if (!open || !shipping || !zone || !item) return null;
+    if (!open || !shipping || !item) return null;
 
     return [
       "/api/orders/preview",
       shipping.id,
-      zone,
       quantity,
       item.id,
       product?.selectedVariant?.id ?? null,
@@ -165,20 +159,14 @@ export default function CheckoutSheet({
   /* ================= RESOLVED REGION ================= */
 
   const resolvedRegion = useMemo(() => {
-    if (!shipping || !regions.length) return null;
+  if (!preview?.buyer_zone) return null;
 
-    const country = shipping.country?.toUpperCase();
-
-    const exact = regions.find(
-      (r) =>
-        r.domestic_country_code?.toUpperCase() === country ||
-        r.country_code?.toUpperCase() === country
-    );
-
-    if (exact) return exact;
-
-    return regions.find((r) => r.zone === zone) ?? null;
-  }, [shipping, regions, zone]);
+  return (
+    regions.find(
+      (r) => r.zone === preview.buyer_zone
+    ) ?? null
+  );
+}, [preview?.buyer_zone, regions]);
 
   /* ================= PAY ================= */
 
@@ -299,7 +287,7 @@ export default function CheckoutSheet({
 
                 <div className="text-xs opacity-70 mt-1">
                   {getCountryDisplay(shipping?.country)} ·{" "}
-                  {formatPi(resolvedRegion.price)} π
+                  {formatPi(preview?.shipping ?? 0)} π
                 </div>
               </>
             )}
