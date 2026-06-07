@@ -257,8 +257,7 @@ export async function calculatePricing(
 
   let subtotal = 0;
   let shipping = 0;
-  let shippingZone: ShippingZone = "rest_of_world";
-  let shippingZone = "domestic";
+  let shippingZone: ShippingZone = "domestic";
   const items: PricingResult["items"] = [];
 
   for (const item of input.items) {
