@@ -59,16 +59,19 @@ export function validateBeforePay({
   /* =========================
      USER CHECK
   ========================= */
-  if (!user) {
+if (!user) {
   localStorage.setItem("pending_checkout", "1");
   showMessage(
     t.logging_in_pi ??
       "Connecting to Pi account...",
     "info"
   );
-  pilogin?.();
+
+  setTimeout(() => {
+    pilogin?.();
+  }, 500);
   return false;
-  }
+}
 
   /* =========================
      PI READY CHECK
