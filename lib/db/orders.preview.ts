@@ -35,9 +35,10 @@ export type PreviewOrderResult = {
   subtotal: number;
   shipping_fee: number;
   total: number;
-  buyer_zone: string;
-};
 
+  buyer_zone: string;
+  shipping_zone: string;
+};
 /* =========================================================
    LOGGER
 ========================================================= */
@@ -60,30 +61,22 @@ function mapPricingToPreview(
   pricing: PricingResult
 ): PreviewOrderResult {
   return {
-    items: pricing.items.map(
-      (item) => ({
-        product_id:
-          item.product_id,
-        variant_id:
-          item.variant_id,
-        name: item.name,
-        price:
-          item.unit_price,
-        quantity:
-          item.quantity,
-        total:
-          item.subtotal,
-      })
-    ),
+  items: pricing.items.map((item) => ({
+    product_id: item.product_id,
+    variant_id: item.variant_id,
+    name: item.name,
+    price: item.unit_price,
+    quantity: item.quantity,
+    total: item.subtotal,
+  })),
 
-    subtotal:
-      pricing.subtotal,
-    shipping_fee:
-      pricing.shipping_fee,
-    total: pricing.total,
-    buyer_zone:
-      pricing.buyer_zone,
-  };
+  subtotal: pricing.subtotal,
+  shipping_fee: pricing.shipping_fee,
+  total: pricing.total,
+
+  buyer_zone: pricing.buyer_zone,
+  shipping_zone: pricing.shipping_zone,
+};
 }
 
 /* =========================================================
