@@ -173,7 +173,7 @@ async function getShipping(
   productId: string,
   buyerCountry: string,
   buyerZone: string
-): Promise<number> {
+): Promise<{ price: number; zone: string }> {
   const rates = await getShippingRatesByProduct(productId);
 
   if (!rates.length) {
@@ -192,24 +192,33 @@ async function getShipping(
   );
 
   if (domestic) {
-    return Number(domestic.price);
-  }
+  return {
+    price: Number(domestic.price),
+    zone: "domestic"
+  };
+}
 
   /* =========================
      2. ONLY USE ZONE IF NOT DOMESTIC
   ========================= */
   const zoneRate = rates.find((r) => r.zone === buyerZone);
-  if (zoneRate) {
-    return Number(zoneRate.price);
-  }
+if (zoneRate) {
+  return {
+    price: Number(zoneRate.price),
+    zone: zoneRate.zone
+  };
+}
 
   /* =========================
      3. GLOBAL FALLBACK
   ========================= */
   const global = rates.find((r) => r.zone === "rest_of_world");
-  if (global) {
-    return Number(global.price);
-  }
+if (global) {
+  return {
+    price: Number(global.price),
+    zone: "rest_of_world"
+  };
+}
   throw new Error("SHIPPING_NOT_AVAILABLE");
 }
 
@@ -234,7 +243,7 @@ export async function calculatePricing(
 
   let subtotal = 0;
   let shipping = 0;
-
+  let shippingZone = "domestic";
   const items: PricingResult["items"] = [];
 
   for (const item of input.items) {
@@ -246,9 +255,7 @@ export async function calculatePricing(
     }
 
     const qty = safeQty(item.quantity);
-
     const product = await loadProduct(item.product_id);
-
     if (product.seller_country) {
       const sellerCountry = product.seller_country.toUpperCase();
       if (sellerCountry !== buyerCountry) {
