@@ -116,8 +116,7 @@ async function loadVariant(variantId: string, productId: string) {
    SHIPPING
 ========================================================= */
     
-    async function getShipping(
-  prasync function getShipping(
+   async function getShipping(
   productId: string,
   buyerCountry: string,
   buyerZone: string
