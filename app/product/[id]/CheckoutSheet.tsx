@@ -353,32 +353,32 @@ export default function CheckoutSheet({
 
         {/* FOOTER */}
         <div className="border-t p-4">
-          <button
-  onClick={handlePay}
-  disabled={processing}
-  className={`
-    w-full py-3 rounded-xl
-    text-white font-bold
-    transition-all duration-200
-    active:scale-[0.98]
-    ${
-      processing
-        ? "bg-orange-700 opacity-90"
-        : "bg-orange-500 hover:bg-orange-600"
-    }
-  `}
->
-  {processing ? (
-    <span className="flex items-center justify-center gap-2">
-      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-      {t.processing ?? "Processing..."}
-    </span>
-  ) : (
-    t.pay_now
-  )}
-</button>
-        </div>
 
+  {message && (
+    <div
+      className={`
+        mb-3 px-3 py-2 rounded-lg text-sm
+        ${
+          message.type === "success"
+            ? "bg-green-100 text-green-700"
+            : message.type === "info"
+            ? "bg-blue-100 text-blue-700"
+            : "bg-red-100 text-red-700"
+        }
+      `}
+    >
+      {message.text}
+    </div>
+  )}
+
+  <button
+    onClick={handlePay}
+    disabled={processing}
+    className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold"
+  >
+    {processing ? t.processing : t.pay_now}
+  </button>
+</div>
       </div>
     </div>
   );
