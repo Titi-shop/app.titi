@@ -252,7 +252,11 @@ export async function calculatePricing(input: PricingInput): Promise<PricingResu
     subtotal += line;
 
     if (!product.is_digital) {
-      shipping += await getShipping(product.id, buyerCountry, buyerZone);
+   shipping += await getShipping(
+  product.id,
+  buyerCountry,
+  effectiveZone
+);
     }
 
     items.push({
