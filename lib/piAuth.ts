@@ -48,100 +48,112 @@ declare global {
    CLIENT: GET PI ACCESS TOKEN
 ========================================================= */
 
-export async function getPiAccessToken(
+      export async function getPiAccessToken(
   forceRefresh = false
 ): Promise<string> {
+  try {
+    console.log("🚀 [PiAuth] getPiAccessToken called");
 
-  if (!forceRefresh && cachedToken) {
-    return cachedToken;
-  }
-
-  if (authPromise) {
-    return authPromise;
-  }
-
-  if (typeof window === "undefined") {
-    throw new Error("PI_BROWSER_REQUIRED");
-  }
-
-  if (!window.Pi) {
-    throw new Error("PI_SDK_NOT_AVAILABLE");
-  }
-
-  const scopes = ["username", "payments"];
-
-  authPromise = (async () => {
-    try {
-
-      const auth = await window.Pi.authenticate(
-  scopes,
-  async (payment: PiIncompletePayment) => {
-    console.log("🔁 INCOMPLETE PAYMENT FOUND:", payment);
-
-    const paymentId =
-      typeof payment.identifier === "string"
-        ? payment.identifier
-        : "";
-
-    const txid =
-      typeof (payment as { transaction?: { txid?: string } })
-        .transaction?.txid === "string"
-        ? (payment as { transaction?: { txid?: string } })
-            .transaction!.txid!
-        : "";
-
-    if (paymentId) {
-      localStorage.setItem("pi:lastPaymentId", paymentId);
-      console.log("💾 SAVED paymentId:", paymentId);
-    }
-
-    if (txid) {
-      localStorage.setItem("pi:lastTxid", txid);
-      console.log("💾 SAVED txid:", txid);
-    }
-
-    // 🔥 AUTO FIX KẸT ĐƠN
-    if (paymentId && txid) {
-      try {
-        console.log("🟡 AUTO COMPLETE START");
-
-        const token = await getPiAccessToken(true);
-
-        const res = await fetch("/api/pi/complete-incomplete", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            paymentId,
-            txid,
-          }),
-        });
-
-        console.log("🟢 AUTO COMPLETE RES:", res.status);
-
-      } catch (err) {
-        console.error("❌ AUTO COMPLETE FAIL", err);
-      }
-    }
-  }
-);
-
-      if (!auth || !auth.accessToken) {
-        throw new Error("PI_AUTH_FAILED");
-      }
-
-      cachedToken = auth.accessToken;
-
+    // 1. cache token
+    if (!forceRefresh && cachedToken) {
+      console.log("♻️ [PiAuth] using cached token");
       return cachedToken;
-
-    } finally {
-      authPromise = null;
     }
-  })();
 
-  return authPromise;
+    // 2. prevent duplicate calls
+    if (authPromise) {
+      console.log("⏳ [PiAuth] waiting existing authPromise");
+      return authPromise;
+    }
+
+    // 3. SSR check
+    if (typeof window === "undefined") {
+      throw new Error("PI_BROWSER_REQUIRED");
+    }
+
+    // 4. SDK check
+    if (!window.Pi) {
+      throw new Error("PI_SDK_NOT_AVAILABLE");
+    }
+
+    const scopes = ["username", "payments"];
+
+    authPromise = (async () => {
+      try {
+        console.log("🟡 [PiAuth] calling Pi.authenticate...");
+
+        const auth = await window.Pi.authenticate(
+          scopes,
+          async (payment: PiIncompletePayment) => {
+            console.log("🔁 INCOMPLETE PAYMENT:", payment);
+
+            const paymentId =
+              typeof payment.identifier === "string"
+                ? payment.identifier
+                : "";
+
+            const txid =
+              typeof (payment as any)?.transaction?.txid === "string"
+                ? (payment as any).transaction.txid
+                : "";
+
+            if (paymentId) {
+              localStorage.setItem("pi:lastPaymentId", paymentId);
+            }
+
+            if (txid) {
+              localStorage.setItem("pi:lastTxid", txid);
+            }
+
+            // auto fix pending payment
+            if (paymentId && txid) {
+              try {
+                console.log("🟡 AUTO COMPLETE START");
+
+                const token = await getPiAccessToken(true);
+
+                await fetch("/api/pi/complete-incomplete", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ paymentId, txid }),
+                });
+
+                console.log("🟢 AUTO COMPLETE DONE");
+              } catch (err) {
+                console.error("❌ AUTO COMPLETE FAIL", err);
+              }
+            }
+          }
+        );
+
+        console.log("📦 [PiAuth] auth response:", auth);
+
+        if (!auth?.accessToken) {
+          throw new Error("PI_AUTH_FAILED_NO_TOKEN");
+        }
+
+        cachedToken = auth.accessToken;
+
+        console.log("🟢 [PiAuth] LOGIN SUCCESS");
+
+        return cachedToken;
+      } catch (err) {
+        console.error("❌ [PiAuth] authenticate error:", err);
+        throw err;
+      } finally {
+        authPromise = null;
+      }
+    })();
+
+    return authPromise;
+  } catch (err) {
+    console.error("❌ [PiAuth] fatal error:", err);
+    authPromise = null;
+    throw err;
+  }
 }
 
 /* =========================================================
