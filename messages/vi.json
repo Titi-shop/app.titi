@@ -693,8 +693,18 @@
   "change_address": "Nhấn để thay đổi địa chỉ",
   "add_shipping": "Thêm địa chỉ giao hàng",
   "shipping_zone": "Khu vực vận chuyển",
-  "no_shipping_zone": "Không tìm thấy khu vực vận chuyển"
+  "no_shipping_zone": "Không tìm thấy khu vực vận chuyển",
 
+  "logging_in_pi": "Đang kết nối tài khoản Pi...",
+  "creating_order": "Đang tạo đơn hàng...",
+  "opening_pi_wallet": "Đang mở ví Pi...",
+  "authorizing_payment": "Đang xác thực thanh toán...",
+  "payment_authorized": "Thanh toán đã được xác thực",
+  "confirming_payment": "Đang xác nhận thanh toán...",
+  "payment_cancelled": "Bạn đã hủy thanh toán",
+  "payment_failed": "Thanh toán thất bại. Vui lòng thử lại.",
+  "transaction_failed": "Giao dịch thất bại. Vui lòng thử lại.",
+  "order_created_success": "Thanh toán thành công. Đơn hàng đã được tạo."
 
 
 
