@@ -11,7 +11,7 @@ import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
   const { t } = useTranslation();
-  const { user, loading, pilogin, logout, piReady } = useAuth();
+  const { user, loading, pilogin, logout } = useAuth();
 
   const [agreed, setAgreed] = useState(false);
 
@@ -26,21 +26,13 @@ export default function AccountPage() {
   if (!user) {
     return (
       <main
-        className="
-          min-h-screen
-          flex
-          items-center
-          justify-center
-          px-6
-          transition-colors
-        "
+        className="min-h-screen flex items-center justify-center px-6 transition-colors"
         style={{
           backgroundColor: "var(--background)",
           color: "var(--foreground)",
         }}
       >
         <div className="w-full max-w-sm">
-          {/* FIXED HEIGHT CONTAINER */}
           <div
             className="rounded-3xl p-6 shadow-sm border"
             style={{
@@ -52,7 +44,7 @@ export default function AccountPage() {
               {t.account}
             </h1>
 
-            {/* BUTTON WRAPPER FIX HEIGHT */}
+            {/* LOGIN BUTTON */}
             <div className="h-[52px]">
               <button
                 onClick={pilogin}
@@ -67,7 +59,7 @@ export default function AccountPage() {
                   transition-all
                   duration-200
                   ${
-                    piReady && agreed
+                    agreed && !loading
                       ? "bg-orange-600 hover:bg-orange-700 active:scale-[0.98]"
                       : "bg-gray-400 cursor-not-allowed"
                   }
@@ -83,20 +75,10 @@ export default function AccountPage() {
                 type="checkbox"
                 checked={agreed}
                 onChange={() => setAgreed((v) => !v)}
-                className="
-                  mt-1
-                  w-4
-                  h-4
-                  accent-orange-500
-                  shrink-0
-                "
+                className="mt-1 w-4 h-4 accent-orange-500 shrink-0"
               />
 
-              <label
-                style={{
-                  color: "var(--muted-foreground)",
-                }}
-              >
+              <label style={{ color: "var(--muted-foreground)" }}>
                 {t.i_agree}{" "}
                 <a
                   href="https://www.termsfeed.com/live/32e8bf86-ceaf-4eb6-990e-cd1fa0b0775e"
