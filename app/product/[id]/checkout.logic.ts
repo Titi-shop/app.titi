@@ -310,11 +310,13 @@ showMessage(
     const successMessage =
   t.order_created_success ??
   "Order created successfully. Please check Pending orders.";
-localStorage.setItem(  "global_success_alert", successMessage
+localStorage.setItem( "global_success_alert", successMessage);
+
+window.dispatchEvent(
+  new CustomEvent("global-alert", {
+    detail: successMessage,
+  })
 );
-
-showMessage(successMessage, "success");
-
     setTimeout(() => {
       onClose();
     }, 1500);
