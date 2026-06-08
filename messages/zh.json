@@ -646,7 +646,19 @@
   "change_address": "点击更改地址",
   "add_shipping": "添加收货地址",
   "shipping_zone": "配送区域",
-  "no_shipping_zone": "未找到配送区域"
+  "no_shipping_zone": "未找到配送区域",
+  
+  "logging_in_pi": "正在连接 Pi 账户...",
+  "creating_order": "正在创建订单...",
+  "opening_pi_wallet": "正在打开 Pi 钱包...",
+  "authorizing_payment": "正在授权支付...",
+  "payment_authorized": "支付已授权",
+  "confirming_payment": "正在确认支付...",
+  "payment_cancelled": "用户已取消支付",
+  "payment_failed": "支付失败，请重试。",
+  "transaction_failed": "交易失败，请重试。",
+  "order_created_success": "支付成功，订单已创建。"
+
 
 
 }
