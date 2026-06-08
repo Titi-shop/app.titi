@@ -1,5 +1,4 @@
-
-        "use client";
+"use client";
 
 import {
   createContext,
@@ -8,9 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-
 import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
-import { usePi } from "@/app/pi/PiContext";
 
 /* ========================= TYPES ========================= */
 
@@ -32,8 +29,6 @@ type AuthContextType = {
 
 const USER_KEY = "pi_user";
 
-/* ========================= CONTEXT ========================= */
-
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
@@ -45,68 +40,38 @@ const AuthContext = createContext<AuthContextType>({
 /* ========================= PROVIDER ========================= */
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { ready: piReady } = usePi();
-
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [piReady, setPiReady] = useState(false);
 
-  /* ================= DEBUG STATE ================= */
-
-  useEffect(() => {
-    console.log("🧠 [AUTH] STATE CHANGE:", {
-      user,
-      loading,
-      piReady,
-    });
-  }, [user, loading, piReady]);
-
-  /* ================= HYDRATE FROM LOCALSTORAGE ================= */
+  /* ================= PI READY ================= */
 
   useEffect(() => {
-    console.log("📦 [AUTH] Hydrating from localStorage...");
+    if (typeof window === "undefined") return;
 
-    try {
-      const saved = localStorage.getItem(USER_KEY);
-
-      if (saved) {
-        const parsed: PiUser = JSON.parse(saved);
-        console.log("✅ [AUTH] Found saved user:", parsed);
-
-        setUser(parsed);
-      } else {
-        console.log("ℹ️ [AUTH] No saved user");
+    const timer = setInterval(() => {
+      if (window.Pi) {
+        setPiReady(true);
+        clearInterval(timer);
       }
-    } catch (err) {
-      console.error("❌ [AUTH] Failed to parse localStorage user:", err);
-    } finally {
-      setLoading(false);
-      console.log("🏁 [AUTH] Hydration done, loading = false");
-    }
+    }, 300);
+
+    return () => clearInterval(timer);
   }, []);
 
-  /* ================= INIT AUTH (PI LOGIN CHECK) ================= */
+  /* ================= INIT (NO AUTO LOGIN) ================= */
 
   useEffect(() => {
-  if (!piReady) {
-    console.log("⏳ Waiting Pi SDK ready...");
-    return;
-  }
-
-  console.log("🚀 Pi SDK ready → initAuth start");
+  if (!piReady) return;
 
   const initAuth = async () => {
     try {
-      console.log("🔐 Getting Pi access token...");
-
       const token = await getPiAccessToken();
 
       if (!token) {
         setUser(null);
-        setLoading(false);
         return;
       }
-
-      console.log("📡 Calling /api/pi/verify...");
 
       const res = await fetch("/api/pi/verify", {
         method: "POST",
@@ -115,19 +80,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      const data: { user?: PiUser } = await res.json();
+      if (!res.ok) {
+        setUser(null);
+        return;
+      }
 
-      if (res.ok && data?.user) {
-        console.log("🟢 AUTO LOGIN SUCCESS:", data.user);
+      const data: unknown = await res.json();
 
-        setUser(data.user);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "user" in data
+      ) {
+        const verifiedUser = (data as { user: PiUser }).user;
+
+        setUser(verifiedUser);
+        localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
       } else {
-        console.log("🔴 NO USER");
         setUser(null);
       }
-    } catch (err) {
-      console.error("❌ initAuth error:", err);
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -141,13 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const pilogin = async () => {
     try {
-      console.log("👆 [AUTH] manual login triggered");
-
       setLoading(true);
 
       const token = await getPiAccessToken();
-
-      console.log("🎟️ [AUTH] login token:", !!token);
 
       if (!token) return;
 
@@ -158,57 +126,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      console.log("📨 [AUTH] login verify status:", res.status);
-
-      const data: { user?: PiUser } = await res.json();
-
-      console.log("📦 [AUTH] login response:", data);
+      const data = await res.json();
 
       if (!res.ok || !data?.user) {
         throw new Error("VERIFY_FAILED");
       }
 
-      console.log("🟢 [AUTH] LOGIN SUCCESS (manual)");
+      const verifiedUser: PiUser = data.user;
 
-      setUser(data.user);
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-
+      setUser(verifiedUser);
+      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
       sessionStorage.removeItem("cart_merged");
+      console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
-      console.error("❌ [AUTH] LOGIN ERROR:", err);
+      console.error("❌ LOGIN ERROR:", err);
     } finally {
       setLoading(false);
-      console.log("🏁 [AUTH] login finished");
     }
   };
 
   /* ================= LOGOUT ================= */
 
   const logout = () => {
-    console.log("🔴 [AUTH] logout triggered");
+  console.log("🔴 LOGOUT");
 
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem("cart");
-    sessionStorage.removeItem("cart_merged");
+  // 🧹 clear user
+  localStorage.removeItem(USER_KEY);
 
-    clearPiToken();
+  // 🧹 clear cart (QUAN TRỌNG)
+  localStorage.removeItem("cart");
 
-    setUser(null);
+  // 🧹 reset merge flag
+  sessionStorage.removeItem("cart_merged");
 
-    console.log("✅ [AUTH] logout done");
-  };
+  // 🧹 clear Pi token
+  clearPiToken();
 
+  setUser(null);
+};
   /* ================= PROVIDER ================= */
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        piReady,
-        pilogin,
-        logout,
-      }}
+      value={{ user, loading, piReady, pilogin, logout }}
     >
       {children}
     </AuthContext.Provider>
