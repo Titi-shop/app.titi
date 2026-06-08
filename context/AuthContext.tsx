@@ -47,18 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ================= PI READY ================= */
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  const timer = setInterval(() => {
+    if (
+      window.Pi &&
+      window.__pi_initialized === true
+    ) {
+      setPiReady(true);
+      clearInterval(timer);
+    }
+  }, 300);
 
-    const timer = setInterval(() => {
-      if (window.Pi) {
-        setPiReady(true);
-        clearInterval(timer);
-      }
-    }, 300);
-
-    return () => clearInterval(timer);
-  }, []);
-
+  return () => clearInterval(timer);
+}, []);
   /* ================= INIT (NO AUTO LOGIN) ================= */
 
   useEffect(() => {
