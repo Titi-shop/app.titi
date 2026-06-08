@@ -70,7 +70,6 @@ export default function AlertProvider() {
          EVENTS
       ========================= */
       button.onclick = close;
-
       overlay.onclick = (e: MouseEvent) => {
         if (e.target === overlay) {
           close();
@@ -85,10 +84,24 @@ export default function AlertProvider() {
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
     };
+const checkGlobalAlert = () => {
+  const msg = localStorage.getItem("global_success_alert");
+  if (!msg) return;
+  localStorage.removeItem("global_success_alert");
+  window.alert(msg);
+};
 
+checkGlobalAlert();
+window.addEventListener("focus", checkGlobalAlert);
+
+return () => {
+  window.removeEventListener("focus", checkGlobalAlert);
+  window.alert = oldAlert;
+};
     return () => {
-      window.alert = oldAlert;
-    };
+  window.removeEventListener("focus", checkGlobalAlert);
+  window.alert = oldAlert;
+};
   }, []);
 
   return null;
