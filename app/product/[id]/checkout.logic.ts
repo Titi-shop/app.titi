@@ -307,11 +307,13 @@ showMessage(
 
     callback?.();
 
-    showMessage(
-      t.order_created_success ??
-        "Order created successfully. Please check Pending orders.",
-      "success"
-    );
+    const successMessage =
+  t.order_created_success ??
+  "Order created successfully. Please check Pending orders.";
+localStorage.setItem(  "global_success_alert", successMessage
+);
+
+showMessage(successMessage, "success");
 
     setTimeout(() => {
       onClose();
