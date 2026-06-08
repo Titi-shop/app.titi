@@ -49,60 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================= DEBUG STATE ================= */
+  /* ================= INIT AUTH ================= */
 
   useEffect(() => {
-    console.log("🧠 [AUTH] STATE CHANGE:", {
-      user,
-      loading,
-      piReady,
-    });
-  }, [user, loading, piReady]);
-
-  /* ================= HYDRATE FROM LOCALSTORAGE ================= */
-
-  useEffect(() => {
-    console.log("📦 [AUTH] Hydrating from localStorage...");
-
-    try {
-      const saved = localStorage.getItem(USER_KEY);
-
-      if (saved) {
-        const parsed: PiUser = JSON.parse(saved);
-        console.log("✅ [AUTH] Found saved user:", parsed);
-
-        setUser(parsed);
-      } else {
-        console.log("ℹ️ [AUTH] No saved user");
-      }
-    } catch (err) {
-      console.error("❌ [AUTH] Failed to parse localStorage user:", err);
-    } finally {
-      setLoading(false);
-      console.log("🏁 [AUTH] Hydration done, loading = false");
-    }
-  }, []);
-
-  /* ================= INIT AUTH (PI LOGIN CHECK) ================= */
-
-  useEffect(() => {
-    console.log("🚀 [AUTH] initAuth trigger check:", { piReady });
+    if (!piReady) return;
 
     const initAuth = async () => {
       try {
-        console.log("🔐 [AUTH] Getting Pi access token...");
-
         const token = await getPiAccessToken();
-
-        console.log("🎟️ [AUTH] Token received:", !!token);
 
         if (!token) {
           setUser(null);
-          setLoading(false);
           return;
         }
-
-        console.log("📡 [AUTH] Calling /api/pi/verify...");
 
         const res = await fetch("/api/pi/verify", {
           method: "POST",
@@ -111,44 +70,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        console.log("📨 [AUTH] Verify response status:", res.status);
+        if (!res.ok) {
+          setUser(null);
+          return;
+        }
 
         const data: { user?: PiUser } = await res.json();
 
-        console.log("📦 [AUTH] Verify response data:", data);
-
-        if (res.ok && data?.user) {
-          console.log("🟢 [AUTH] LOGIN SUCCESS:", data.user);
-
+        if (data?.user) {
           setUser(data.user);
           localStorage.setItem(USER_KEY, JSON.stringify(data.user));
         } else {
-          console.log("🔴 [AUTH] LOGIN FAILED OR NO USER");
           setUser(null);
         }
       } catch (err) {
-        console.error("❌ [AUTH] initAuth ERROR:", err);
+        console.error("INIT AUTH ERROR:", err);
         setUser(null);
       } finally {
         setLoading(false);
-        console.log("🏁 [AUTH] initAuth finished");
       }
     };
 
     initAuth();
-  }, []);
+  }, [piReady]);
 
   /* ================= LOGIN ================= */
 
   const pilogin = async () => {
     try {
-      console.log("👆 [AUTH] manual login triggered");
-
       setLoading(true);
 
       const token = await getPiAccessToken();
-
-      console.log("🎟️ [AUTH] login token:", !!token);
 
       if (!token) return;
 
@@ -159,34 +111,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      console.log("📨 [AUTH] login verify status:", res.status);
-
       const data: { user?: PiUser } = await res.json();
-
-      console.log("📦 [AUTH] login response:", data);
 
       if (!res.ok || !data?.user) {
         throw new Error("VERIFY_FAILED");
       }
 
-      console.log("🟢 [AUTH] LOGIN SUCCESS (manual)");
-
       setUser(data.user);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-
       sessionStorage.removeItem("cart_merged");
+
+      console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
-      console.error("❌ [AUTH] LOGIN ERROR:", err);
+      console.error("❌ LOGIN ERROR:", err);
     } finally {
       setLoading(false);
-      console.log("🏁 [AUTH] login finished");
     }
   };
 
   /* ================= LOGOUT ================= */
 
   const logout = () => {
-    console.log("🔴 [AUTH] logout triggered");
+    console.log("🔴 LOGOUT");
 
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem("cart");
@@ -195,8 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearPiToken();
 
     setUser(null);
-
-    console.log("✅ [AUTH] logout done");
   };
 
   /* ================= PROVIDER ================= */
