@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-
 type PiContextType = {
   ready: boolean;
 };
