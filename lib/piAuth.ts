@@ -1,11 +1,3 @@
-/* =========================================================
-   Pi Auth Utility
-   - Client: get accessToken từ Pi Browser
-   - Server: verify accessToken với Pi API
-   Architecture:
-   NETWORK-FIRST + AUTH-CENTRIC
-========================================================= */
-
 const PI_API_URL = process.env.PI_API_URL ?? "https://api.minepi.com/v2";
 
 let cachedToken: string | null = null;
@@ -36,6 +28,10 @@ type PiAuthResult = {
 };
 
 type PiBrowser = {
+  init(options: {
+    version: string;
+    sandbox: boolean;
+  }): void | Promise<void>;
   authenticate(
     scopes: string[],
     onIncompletePaymentFound: (payment: unknown) => void
@@ -45,7 +41,6 @@ type PiBrowser = {
 declare global {
   interface Window {
     Pi?: PiBrowser;
-    __pi_initialized?: boolean;
   }
 }
 
