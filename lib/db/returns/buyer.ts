@@ -155,7 +155,29 @@ export async function getReturnByIdForBuyer(
     `,
     [returnId]
   );
+const { rows: addressRows } = await query(
+  `
+  SELECT
+    sa.recipient_name,
+    sa.phone,
+    sa.country,
+    sa.region,
+    sa.district,
+    sa.ward,
+    sa.address_line,
+    sa.postal_code
+  FROM returns r
+  JOIN seller_addresses sa
+    ON sa.id = r.return_address_id
+  WHERE r.id = $1
+  LIMIT 1
+  `,
+  [returnId]
+);
 
+const sellerAddress =
+  addressRows[0] ?? null;
+   
   let evidenceImages: string[] = [];
 
   if (Array.isArray(ret.evidence_images)) {
@@ -169,30 +191,31 @@ export async function getReturnByIdForBuyer(
   const firstItem = itemRows[0];
 
   return {
-    id: ret.id,
-    return_number: ret.return_number,
-    status: ret.status,
-    reason: ret.reason,
-    description: ret.description,
+  id: ret.id,
+  return_number: ret.return_number,
+  status: ret.status,
+  reason: ret.reason,
+  description: ret.description,
 
-    refund_amount: Number(ret.refund_amount),
-    created_at: ret.created_at,
+  refund_amount: Number(ret.refund_amount),
+  created_at: ret.created_at,
 
-    product_name:
-      firstItem?.product_name ?? "",
+  product_name:
+    firstItem?.product_name ?? "",
 
-    product_thumbnail:
-      firstItem?.thumbnail ?? "",
+  product_thumbnail:
+    firstItem?.thumbnail ?? "",
 
-    evidence_images: evidenceImages,
+  evidence_images: evidenceImages,
+  seller_address: sellerAddress,
 
-    items: itemRows.map((item) => ({
-      product_name: item.product_name,
-      thumbnail: item.thumbnail,
-      quantity: Number(item.quantity),
-      unit_price: Number(item.unit_price),
-    })),
-  };
+  items: itemRows.map((item) => ({
+    product_name: item.product_name,
+    thumbnail: item.thumbnail,
+    quantity: Number(item.quantity),
+    unit_price: Number(item.unit_price),
+  })),
+};
 }
 
 /* =====================================================
