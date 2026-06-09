@@ -64,9 +64,7 @@ try {
 const token =
 await getPiAccessToken();
 
-    const res = await fetch(
-      `/api/customer/returns/${returnId}/shipping`,
-      {
+    const res = await fetch(  `/api/returns/${returnId}`,
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -116,9 +114,9 @@ try {
     await getPiAccessToken();
 
   const res = await fetch(
-    `/api/customer/returns/${returnId}/ship`,
-    {
-      method: "POST",
+  `/api/returns/${returnId}/ship`,
+  {
+    method: "PATCH",
       headers: {
         "Content-Type":
           "application/json",
