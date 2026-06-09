@@ -21,19 +21,27 @@ export default function SellerAddressesPage() {
 
     const load = async () => {
       try {
+        setLoadingData(true);
+
         const token = await getPiAccessToken();
 
-        const res = await fetch(
-          `/api/seller-addresses?seller_id=${user.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        if (!token) return;
+
+        // ✅ FIX: đúng API route
+        const res = await fetch("/api/seller/addresses", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to load addresses");
+        }
 
         const data = await res.json();
-        setAddresses(data || []);
+
+        setAddresses(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("LOAD ADDRESSES ERROR", err);
         setAddresses([]);
