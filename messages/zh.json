@@ -657,7 +657,42 @@
   "payment_cancelled": "用户已取消支付",
   "payment_failed": "支付失败，请重试。",
   "transaction_failed": "交易失败，请重试。",
-  "order_created_success": "支付成功，订单已创建。"
+  "order_created_success": "支付成功，订单已创建。",
+
+
+  
+  "return_orders": "退货订单",
+  "return_detail": "退货详情",
+  "reason": "退货原因",
+  "pending": "待处理",
+  "approved": "已批准",
+  "shipping_back": "退货运输中",
+  "received": "已收到退货",
+  "refund_pending": "等待退款",
+  "refunded": "已退款",
+  "rejected": "已拒绝",
+  "approve": "批准",
+  "reject": "拒绝",
+  "mark_received": "标记为已收到",
+  "action_failed": "操作失败",
+  "loading": "加载中...",
+  "qty": "数量",
+  "return_number": "退货编号",
+  "return_status": "退货状态",
+  "return_request": "退货申请",
+  "evidence_images": "凭证图片",
+  "tracking_code": "退货物流单号",
+  "customer_returned_item": "买家已寄回商品",
+  "seller_received_item": "卖家已收到退货",
+  "waiting_customer_return": "等待买家寄回商品",
+  "waiting_refund": "等待退款",
+  "refund_completed": "退款完成",
+  "return_rejected": "退货申请被拒绝",
+  "no_return_orders": "暂无退货订单",
+  "view_details": "查看详情",
+  "confirm_received": "确认收到退货",
+  "approve_return_request": "批准退货申请",
+  "reject_return_request": "拒绝退货申请"
 
 
 
