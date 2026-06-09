@@ -1,41 +1,55 @@
 import { NextResponse } from "next/server";
-import { validate as isUuid } from "uuid";
+import { requireSeller } from "@/lib/auth/guard";
 import {
   getSellerAddresses,
   createSellerAddress,
 } from "@/lib/db/sellerAddresses";
 
-export async function GET(req: Request) {
-  const sellerId = req.headers.get("x-seller-id");
+export const runtime = "nodejs";
 
-  if (!sellerId || !isUuid(sellerId)) {
+/* ================= GET ================= */
+export async function GET(req: Request) {
+  try {
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
+
+    const sellerId = auth.userId;
+
+    const data = await getSellerAddresses(sellerId);
+
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error("[ADDRESSES GET ERROR]", err);
+
     return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
+      { error: "INTERNAL_ERROR" },
+      { status: 500 }
     );
   }
-
-  const data = await getSellerAddresses(sellerId);
-
-  return NextResponse.json(data);
 }
 
+/* ================= POST ================= */
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-  const sellerId = req.headers.get("x-seller-id");
+    const sellerId = auth.userId;
 
-  if (!sellerId || !isUuid(sellerId)) {
+    const body = await req.json();
+
+    const data = await createSellerAddress({
+      ...body,
+      seller_id: sellerId,
+    });
+
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error("[ADDRESSES CREATE ERROR]", err);
+
     return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
+      { error: "INTERNAL_ERROR" },
+      { status: 500 }
     );
   }
-
-  const data = await createSellerAddress({
-    ...body,
-    seller_id: sellerId,
-  });
-
-  return NextResponse.json(data);
 }
