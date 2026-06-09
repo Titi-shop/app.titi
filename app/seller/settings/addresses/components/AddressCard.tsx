@@ -8,6 +8,13 @@ type Props = {
   onDelete?: (id: string) => void;
 };
 
+const typeLabel: Record<SellerAddress["type"], string> = {
+  return: "Return",
+  warehouse: "Warehouse",
+  pickup: "Pickup",
+  support: "Support",
+};
+
 export default function AddressCard({
   item,
   onSetDefault,
@@ -19,7 +26,7 @@ export default function AddressCard({
       {/* TYPE + DEFAULT */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase text-orange-500">
-          {item.type}
+          {typeLabel[item.type]}
         </span>
 
         {item.is_default && (
@@ -30,26 +37,34 @@ export default function AddressCard({
       </div>
 
       {/* NAME */}
-      {item.recipient_name && (
+      {item.recipient_name ? (
         <p className="text-sm font-semibold">
           {item.recipient_name}
         </p>
-      )}
+      ) : null}
 
       {/* PHONE */}
-      {item.phone && (
+      {item.phone ? (
         <p className="text-xs text-[var(--text-muted)]">
           📞 {item.phone}
         </p>
-      )}
+      ) : null}
 
       {/* ADDRESS */}
       <p className="text-sm">
         {item.address_line}
       </p>
 
+      {/* LOCATION */}
       <p className="text-xs text-[var(--text-muted)]">
-        {item.ward}, {item.district}, {item.province}, {item.country}
+        {[
+          item.ward,
+          item.district,
+          item.province,
+          item.country,
+        ]
+          .filter(Boolean)
+          .join(", ")}
       </p>
 
       {/* ACTIONS */}
