@@ -8,7 +8,9 @@ import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-/* ================= TYPES ================= */
+/* =====================================================
+   TYPES
+===================================================== */
 
 type TimelineItem = {
   label: string;
@@ -34,11 +36,15 @@ type ReturnDetail = {
   return_tracking_code?: string;
 };
 
-/* ================= SAFE HELPERS ================= */
+/* =====================================================
+   SAFE HELPERS
+===================================================== */
 
 const safeArray = <T,>(v: any): T[] => (Array.isArray(v) ? v : []);
 
-/* ================= PAGE ================= */
+/* =====================================================
+   PAGE
+===================================================== */
 
 export default function ReturnDetailPage() {
   const { t } = useTranslation();
@@ -52,7 +58,9 @@ export default function ReturnDetailPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
 
-  /* ================= LOAD ================= */
+  /* =====================================================
+     LOAD DATA
+  ===================================================== */
 
   useEffect(() => {
     if (authLoading) return;
@@ -63,31 +71,37 @@ export default function ReturnDetailPage() {
   }, [authLoading, user, id]);
 
   async function load() {
-  async function load() {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const res = await apiAuthFetch(
-      `/api/returns/${id}`
-    );
+      const res = await apiAuthFetch(
+        `/api/returns/${id}`
+      );
 
-    if (!res.ok) {
+      if (!res.ok) {
+        setData(null);
+        return;
+      }
+
+      const json = await res.json();
+
+      setData({
+        ...json,
+        items: safeArray(json?.items),
+        evidence_images: safeArray(json?.evidence_images),
+        timeline: safeArray(json?.timeline),
+      });
+    } catch (err) {
+      console.error("[RETURN_DETAIL][LOAD]", err);
       setData(null);
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    const json = await res.json();
-
-    setData(json);
-  } catch (err) {
-    console.error("[RETURN][LOAD]", err);
-    setData(null);
-  } finally {
-    setLoading(false);
-  }
   }
 
-  /* ================= HELPERS ================= */
+  /* =====================================================
+     HELPERS
+  ===================================================== */
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -111,10 +125,14 @@ export default function ReturnDetailPage() {
   }
 
   function getStatusText(status: string) {
-    return t[`return_status_${status}`] ?? status;
+    return (
+      t[`return_status_${status}`] ?? status
+    );
   }
 
-  /* ================= DERIVED DATA ================= */
+  /* =====================================================
+     DERIVED DATA
+  ===================================================== */
 
   const allImages = useMemo(() => {
     return [
@@ -123,10 +141,16 @@ export default function ReturnDetailPage() {
     ].filter(Boolean);
   }, [data]);
 
-  /* ================= LOADING ================= */
+  /* =====================================================
+     LOADING UI
+  ===================================================== */
 
   if (loading) {
-    return <div className="p-4 text-sm">{t.loading}</div>;
+    return (
+      <div className="p-4 text-sm">
+        {t.loading}
+      </div>
+    );
   }
 
   if (!data) {
@@ -137,7 +161,9 @@ export default function ReturnDetailPage() {
     );
   }
 
-  /* ================= UI ================= */
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24 space-y-4">
@@ -164,12 +190,13 @@ export default function ReturnDetailPage() {
 
         {data.return_tracking_code && (
           <p className="text-xs text-blue-600">
-            {t.tracking}: {data.return_tracking_code}
+            {t.tracking}:{" "}
+            {data.return_tracking_code}
           </p>
         )}
       </div>
 
-      {/* PRODUCT */}
+      {/* ITEMS */}
       <div className="bg-white p-4 space-y-3">
         {(data.items ?? []).map((item, i) => (
           <div key={i} className="flex gap-3">
@@ -197,7 +224,9 @@ export default function ReturnDetailPage() {
 
       {/* REASON */}
       <div className="bg-white p-4">
-        <p className="font-semibold mb-1">{t.reason}</p>
+        <p className="font-semibold mb-1">
+          {t.reason}
+        </p>
         <p className="text-gray-600 text-sm">
           {data.reason}
         </p>
@@ -229,11 +258,13 @@ export default function ReturnDetailPage() {
           </p>
 
           <div className="space-y-3">
-            {data.timeline!.map((tItem, i) => (
+            {(data.timeline ?? []).map((tItem, i) => (
               <div key={i} className="flex gap-3">
                 <div className="mt-1 w-2 h-2 bg-black rounded-full" />
                 <div>
-                  <p className="text-sm">{tItem.label}</p>
+                  <p className="text-sm">
+                    {tItem.label}
+                  </p>
                   <p className="text-xs text-gray-400">
                     {tItem.time}
                   </p>
@@ -252,7 +283,9 @@ export default function ReturnDetailPage() {
             onClick={() => setActing(true)}
             className="w-full bg-blue-500 text-white py-4 rounded-xl text-sm font-semibold active:scale-95 transition"
           >
-            {acting ? t.processing : t.mark_as_received}
+            {acting
+              ? t.processing
+              : t.mark_as_received}
           </button>
         </div>
       )}
@@ -271,4 +304,4 @@ export default function ReturnDetailPage() {
       )}
     </main>
   );
-        }
+  }
