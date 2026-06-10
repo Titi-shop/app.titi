@@ -547,47 +547,43 @@ export default function OrderDetailPage() {
       ===================================================== */}
 
       <div className="space-y-3 px-4 pt-4">
-  {order.fulfillment_status ===
-          "delivered" && (
-          <>
-            <button
-              onClick={() =>
-                router.push(
-                  `/customer/orders/${order.id}/return`
-                )
-              }
-              className="btn-primary w-full"
-            >
-              ↩{" "}
-              {t.request_return ??
-                "Trả hàng / Hoàn tiền"}
-            </button>
+  {/* RETURN BUTTON - ONLY DELIVERED + NO RETURN YET */}
+  {order.fulfillment_status === "delivered" &&
+    !order.has_return_request && (
+      <button
+        onClick={() =>
+          router.push(
+            `/customer/orders/${order.id}/return`
+          )
+        }
+        className="btn-primary w-full active:scale-95 transition"
+      >
+        ↩ {t.request_return ?? "Trả hàng / Hoàn tiền"}
+      </button>
+    )}
 
-            {order.order_items.length >
-              0 && (
-              <button
-                onClick={() =>
-                  router.push(
-                    `/product/${order.order_items[0]?.product_id}`
-                  )
-                }
-                className="w-full rounded-xl border border-black/10 bg-card py-3 text-sm font-semibold transition active:scale-95"
-              >
-                {t.buy_again ??
-                  "Mua lại"}
-              </button>
-            )}
+  {/* BUY AGAIN */}
+  {order.order_items.length > 0 && (
+    <button
+      onClick={() =>
+        router.push(
+          `/product/${order.order_items[0]?.product_id}`
+        )
+      }
+      className="w-full rounded-xl border border-black/10 bg-card py-3 text-sm font-semibold active:scale-95 transition"
+    >
+      {t.buy_again ?? "Mua lại"}
+    </button>
+  )}
 
-          </>
-        )}
+  {/* CANCELLED STATE */}
+  {order.fulfillment_status === "cancelled" && (
+    <button className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 active:scale-95 transition">
+      {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
+    </button>
+  )}
 
-        {order.fulfillment_status ===
-          "cancelled" && (
-          <>
-            <button className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600">
-              {t.view_cancel_detail ??
-                "Xem chi tiết huỷ"}
-            </button>
+</div>
 
             {order.order_items.length >
               0 && (
