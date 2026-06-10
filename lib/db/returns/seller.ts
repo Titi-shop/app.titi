@@ -268,100 +268,91 @@ export async function updateReturnStatusBySeller(
        RECEIVED + REFUND (FIXED V7 WALLET SCHEMA)
     ===================================================== */
 
-    if (action === "received") {
-      if (ret.status !== "shipping_back") {
-        throw new Error("INVALID_STATE");
-      }
+if (action === "received") {
+  if (ret.status !== "shipping_back") {
+    throw new Error("INVALID_STATE");
+  }
 
-      const amount = Number(ret.refund_amount);
-      if (!amount || amount <= 0) {
-        throw new Error("INVALID_AMOUNT");
-      }
+  const amount = Number(ret.refund_amount);
+  if (!amount || amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
 
-      const { rows: orderRows } = await client.query<{ buyer_id: string }>(
-        `
-        SELECT buyer_id
-        FROM orders
-        WHERE id = $1
-        `,
-        [ret.order_id]
-      );
+  const { rows: orderRows } = await client.query<{ buyer_id: string }>(
+    `
+    SELECT buyer_id
+    FROM orders
+    WHERE id = $1
+    `,
+    [ret.order_id]
+  );
 
-      const buyerId = orderRows[0]?.buyer_id;
-      if (!buyerId) throw new Error("BUYER_NOT_FOUND");
+  const buyerId = orderRows[0]?.buyer_id;
+  if (!buyerId) throw new Error("BUYER_NOT_FOUND");
 
-      /* =====================================================
-         WALLET UPSERT
-      ===================================================== */
+  /* UPSERT WALLET */
+  await client.query(
+    `
+    INSERT INTO wallets (user_id, balance)
+    VALUES ($1, 0)
+    ON CONFLICT (user_id)
+    DO NOTHING
+    `,
+    [buyerId]
+  );
 
-      await client.query(
-        `
-        INSERT INTO wallets (user_id, balance)
-        VALUES ($1, 0)
-        ON CONFLICT (user_id)
-        DO NOTHING
-        `,
-        [buyerId]
-      );
+  /* CREDIT BALANCE */
+  await client.query(
+    `
+    UPDATE wallets
+    SET balance = balance + $1,
+        updated_at = now()
+    WHERE user_id = $2
+    `,
+    [amount, buyerId]
+  );
 
-      await client.query(
-        `
-        UPDATE wallets
-        SET balance = balance + $1,
-            updated_at = now()
-        WHERE user_id = $2
-        `,
-        [amount, buyerId]
-      );
+  /* JOURNAL (V7 LEDGER) */
+  await client.query(
+    `
+    INSERT INTO wallet_journal (
+      owner_id,
+      owner_type,
+      entry_type,
+      direction,
+      amount,
+      currency,
+      note,
+      ref_id,
+      ref_table
+    )
+    VALUES (
+      $1,
+      'BUYER',
+      'BUYER_REFUND',
+      'CREDIT',
+      $2,
+      'PI',
+      'Return refund',
+      $3,
+      'returns'
+    )
+    `,
+    [buyerId, amount, returnId]
+  );
 
-      /* =====================================================
-         FIX: wallet_transactions -> wallet_journal
-      ===================================================== */
+  /* UPDATE RETURN */
+  await client.query(
+    `
+    UPDATE returns
+    SET status = 'refunded',
+        refunded_at = now(),
+        received_at = now(),
+        updated_at = now()
+    WHERE id = $1
+    `,
+    [returnId]
+  );
 
-      await client.query(
-        `
-        INSERT INTO wallet_journal (
-          owner_id,
-          owner_type,
-          entry_type,
-          direction,
-          amount,
-          currency,
-          note,
-          ref_id,
-          ref_table
-        )
-        VALUES (
-          $1,
-          'BUYER',
-          'BUYER_REFUND',
-          'CREDIT',
-          $2,
-          'PI',
-          'Refund for return',
-          $3,
-          'returns'
-        )
-        `,
-        [buyerId, amount, returnId]
-      );
-
-      await client.query(
-        `
-        UPDATE returns
-        SET
-          status = 'refunded',
-          refunded_at = now(),
-          received_at = now(),
-          updated_at = now()
-        WHERE id = $1
-        `,
-        [returnId]
-      );
-
-      return;
-    }
-
-    throw new Error("INVALID_ACTION");
-  });
-         }
+  return;
+}
