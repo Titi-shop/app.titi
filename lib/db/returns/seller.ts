@@ -355,4 +355,6 @@ if (action === "received") {
   );
 
   return;
+
+});
 }
