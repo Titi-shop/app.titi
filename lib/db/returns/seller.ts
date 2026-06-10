@@ -1,6 +1,42 @@
 import { query, withTransaction } from "@/lib/db";
 
 /* =====================================================
+   TYPES (V7 STRICT)
+===================================================== */
+
+type ReturnStatus =
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refunded"
+  | "rejected";
+
+type TimelineItem = {
+  key: string;
+  label: string;
+  time: string;
+};
+
+type ReturnItem = {
+  product_name: string;
+  thumbnail: string;
+  quantity: number;
+  unit_price: number;
+};
+
+type SellerReturnDetail = {
+  id: string;
+  return_number: string;
+  status: ReturnStatus;
+  reason: string;
+  description: string | null;
+  evidence_images: string[];
+  timeline: TimelineItem[];
+  items: ReturnItem[];
+};
+
+/* =====================================================
    HELPERS
 ===================================================== */
 
@@ -9,18 +45,13 @@ function isValidUuid(value: string): boolean {
 }
 
 /* =====================================================
-   GET RETURNS
+   GET RETURNS LIST
 ===================================================== */
 
 export async function getReturnsBySeller(
   sellerId: string,
   status?: string | null
 ) {
-  console.log("🚀 [DB][SELLER RETURNS]", {
-    sellerId,
-    status,
-  });
-
   const { rows } = await query(
     `
     SELECT
@@ -46,21 +77,16 @@ export async function getReturnsBySeller(
 }
 
 /* =====================================================
-   RETURN DETAIL
+   RETURN DETAIL (SELLER)
 ===================================================== */
 
 export async function getReturnByIdForSeller(
   returnId: string,
   sellerId: string
-) {
+): Promise<SellerReturnDetail | null> {
   if (!isValidUuid(returnId) || !isValidUuid(sellerId)) {
     throw new Error("INVALID_INPUT");
   }
-
-  console.log("🚀 [DB][RETURN DETAIL]", {
-    returnId,
-    sellerId,
-  });
 
   const { rows: returnRows } = await query(
     `
@@ -87,10 +113,7 @@ export async function getReturnByIdForSeller(
   );
 
   const ret = returnRows[0];
-
-  if (!ret) {
-    return null;
-  }
+  if (!ret) return null;
 
   const { rows: itemRows } = await query(
     `
@@ -105,113 +128,94 @@ export async function getReturnByIdForSeller(
     [returnId]
   );
 
-  let evidenceImages: string[] = [];
+  const evidence_images: string[] = Array.isArray(ret.evidence_images)
+    ? ret.evidence_images.filter(
+        (u: unknown): u is string =>
+          typeof u === "string" &&
+          u.startsWith("http")
+      )
+    : [];
 
-  if (Array.isArray(ret.evidence_images)) {
-    evidenceImages = ret.evidence_images.filter(
-      (url) =>
-        typeof url === "string" &&
-        url.startsWith("http")
-    );
-  }
-
-  const timeline = [
+  const timeline: TimelineItem[] = [
     {
       key: "created",
       label: "Request created",
       time: ret.created_at,
     },
-
     ret.approved_at && {
       key: "approved",
       label: "Seller approved",
       time: ret.approved_at,
     },
-
     ret.rejected_at && {
       key: "rejected",
       label: "Rejected",
       time: ret.rejected_at,
     },
-
     ret.shipped_back_at && {
       key: "shipping_back",
       label: "Buyer shipped back",
       time: ret.shipped_back_at,
     },
-
     ret.received_at && {
       key: "received",
       label: "Seller received",
       time: ret.received_at,
     },
-
     ret.refunded_at && {
       key: "refunded",
       label: "Refund completed",
       time: ret.refunded_at,
     },
-  ].filter(Boolean);
+  ].filter(Boolean) as TimelineItem[];
 
   return {
     id: ret.id,
     return_number: ret.return_number,
     status: ret.status,
     reason: ret.reason,
-    description: ret.description,
-
-    evidence_images: evidenceImages,
-
+    description: ret.description ?? null,
+    evidence_images,
     timeline,
-
-    items: itemRows.map((item) => ({
-      product_name: item.product_name,
-      thumbnail: item.thumbnail,
-      quantity: Number(item.quantity),
-      unit_price: Number(item.unit_price),
+    items: itemRows.map((i) => ({
+      product_name: i.product_name,
+      thumbnail: i.thumbnail,
+      quantity: Number(i.quantity),
+      unit_price: Number(i.unit_price),
     })),
   };
 }
 
 /* =====================================================
-   UPDATE STATUS
+   UPDATE STATUS (SELLER)
 ===================================================== */
 
 export async function updateReturnStatusBySeller(
   returnId: string,
   sellerId: string,
-  action: string
+  action: "approve" | "reject" | "received"
 ) {
   return withTransaction(async (client) => {
     const { rows } = await client.query<{
-      status: string;
+      status: ReturnStatus;
       refund_amount: string;
       order_id: string;
-      pi_payment_id: string | null;
-      refunded_at: string | null;
     }>(
       `
       SELECT
-        r.status,
-        r.refund_amount,
-        r.order_id,
-        r.refunded_at,
-        o.pi_payment_id
-      FROM returns r
-      JOIN orders o
-        ON o.id = r.order_id
-      WHERE r.id = $1
-        AND r.seller_id = $2
+        status,
+        refund_amount,
+        order_id
+      FROM returns
+      WHERE id = $1
+        AND seller_id = $2
       FOR UPDATE
       `,
       [returnId, sellerId]
     );
 
     const ret = rows[0];
-
-    if (!ret) {
-      throw new Error("NOT_FOUND");
-    }
+    if (!ret) throw new Error("NOT_FOUND");
 
     /* =====================================================
        APPROVE
@@ -222,29 +226,27 @@ export async function updateReturnStatusBySeller(
         throw new Error("INVALID_STATE");
       }
 
-      const { rows: addrRows } = await client.query<{
-  id: string;
-}>(
-  `
-  SELECT id
-  FROM seller_addresses
-  WHERE seller_id = $1
-    AND is_active = true
-  ORDER BY
-    CASE
-      WHEN type = 'return' THEN 1
-      WHEN type = 'pickup' THEN 2
-      ELSE 3
-    END
-  LIMIT 1
-  `,
-  [sellerId]
-);
+      const { rows: addrRows } = await client.query<{ id: string }>(
+        `
+        SELECT id
+        FROM seller_addresses
+        WHERE seller_id = $1
+          AND is_active = true
+        ORDER BY
+          CASE
+            WHEN type = 'return' THEN 1
+            WHEN type = 'pickup' THEN 2
+            ELSE 3
+          END
+        LIMIT 1
+        `,
+        [sellerId]
+      );
 
-const returnAddressId = addrRows[0]?.id;
-if (!returnAddressId) {
-  throw new Error("RETURN_ADDRESS_REQUIRED");
-}
+      const returnAddressId = addrRows[0]?.id;
+      if (!returnAddressId) {
+        throw new Error("RETURN_ADDRESS_REQUIRED");
+      }
 
       await client.query(
         `
@@ -263,123 +265,103 @@ if (!returnAddressId) {
     }
 
     /* =====================================================
-       RECEIVED + REFUND
+       RECEIVED + REFUND (FIXED V7 WALLET SCHEMA)
     ===================================================== */
 
-      if (action === "received") {
-  if (ret.status !== "shipping_back") {
-    throw new Error("INVALID_STATE");
-  }
-
-  if (ret.refunded_at) {
-    throw new Error("ALREADY_REFUNDED");
-  }
-
-  const amount = Number(ret.refund_amount);
-
-  if (!amount || amount <= 0) {
-    throw new Error("INVALID_AMOUNT");
-  }
-
-  const { rows: orderRows } = await client.query<{
-    buyer_id: string;
-  }>(
-    `
-    SELECT buyer_id
-    FROM orders
-    WHERE id = $1
-    `,
-    [ret.order_id]
-  );
-
-  const buyerId = orderRows[0]?.buyer_id;
-
-  if (!buyerId) {
-    throw new Error("BUYER_NOT_FOUND");
-  }
-
-  /* =====================================================
-     1. ENSURE WALLET EXISTS
-  ===================================================== */
-
-  await client.query(
-    `
-    INSERT INTO wallets (user_id, balance)
-    VALUES ($1, 0)
-    ON CONFLICT (user_id) DO NOTHING
-    `,
-    [buyerId]
-  );
-
-  /* =====================================================
-     2. UPDATE WALLET BALANCE
-  ===================================================== */
-
-  await client.query(
-    `
-    UPDATE wallets
-    SET balance = balance + $1,
-        updated_at = now()
-    WHERE user_id = $2
-    `,
-    [amount, buyerId]
-  );
-
-  /* =====================================================
-     3. WALLET LEDGER (NEW SYSTEM)
-  ===================================================== */
-
-  await client.query(
-    `
-    INSERT INTO wallet_journal (
-      owner_id,
-      owner_type,
-      ref_id,
-      ref_table,
-      entry_type,
-      direction,
-      amount,
-      currency,
-      note
-    ) VALUES (
-      $1,
-      'BUYER',
-      $2,
-      'returns',
-      'BUYER_REFUND',
-      'CREDIT',
-      $3,
-      'PI',
-      'Refund after seller received return'
-    )
-    `,
-    [buyerId, returnId, amount]
-  );
-
-  /* =====================================================
-     4. UPDATE RETURN STATUS
-  ===================================================== */
-
-  await client.query(
-    `
-    UPDATE returns
-    SET
-      status = 'refunded',
-      refunded_at = now(),
-      updated_at = now()
-    WHERE id = $1
-    `,
-    [returnId]
-  );
-
-  console.log("🟢 [RETURN REFUND SUCCESS]", {
-    returnId,
-    buyerId,
-    amount,
-  });
-
-  return;
+    if (action === "received") {
+      if (ret.status !== "shipping_back") {
+        throw new Error("INVALID_STATE");
       }
+
+      const amount = Number(ret.refund_amount);
+      if (!amount || amount <= 0) {
+        throw new Error("INVALID_AMOUNT");
+      }
+
+      const { rows: orderRows } = await client.query<{ buyer_id: string }>(
+        `
+        SELECT buyer_id
+        FROM orders
+        WHERE id = $1
+        `,
+        [ret.order_id]
+      );
+
+      const buyerId = orderRows[0]?.buyer_id;
+      if (!buyerId) throw new Error("BUYER_NOT_FOUND");
+
+      /* =====================================================
+         WALLET UPSERT
+      ===================================================== */
+
+      await client.query(
+        `
+        INSERT INTO wallets (user_id, balance)
+        VALUES ($1, 0)
+        ON CONFLICT (user_id)
+        DO NOTHING
+        `,
+        [buyerId]
+      );
+
+      await client.query(
+        `
+        UPDATE wallets
+        SET balance = balance + $1,
+            updated_at = now()
+        WHERE user_id = $2
+        `,
+        [amount, buyerId]
+      );
+
+      /* =====================================================
+         FIX: wallet_transactions -> wallet_journal
+      ===================================================== */
+
+      await client.query(
+        `
+        INSERT INTO wallet_journal (
+          owner_id,
+          owner_type,
+          entry_type,
+          direction,
+          amount,
+          currency,
+          note,
+          ref_id,
+          ref_table
+        )
+        VALUES (
+          $1,
+          'BUYER',
+          'BUYER_REFUND',
+          'CREDIT',
+          $2,
+          'PI',
+          'Refund for return',
+          $3,
+          'returns'
+        )
+        `,
+        [buyerId, amount, returnId]
+      );
+
+      await client.query(
+        `
+        UPDATE returns
+        SET
+          status = 'refunded',
+          refunded_at = now(),
+          received_at = now(),
+          updated_at = now()
+        WHERE id = $1
+        `,
+        [returnId]
+      );
+
+      return;
+    }
+
     throw new Error("INVALID_ACTION");
   });
-}
+         }
