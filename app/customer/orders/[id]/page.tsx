@@ -581,9 +581,6 @@ export default function OrderDetailPage() {
     <button className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 active:scale-95 transition">
       {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
     </button>
-  )}
-
-</div>
 
             {order.order_items.length >
               0 && (
