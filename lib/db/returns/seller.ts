@@ -356,5 +356,4 @@ if (action === "received") {
 
   return;
 
-});
 }
