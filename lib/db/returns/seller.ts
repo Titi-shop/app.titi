@@ -265,13 +265,12 @@ export async function updateReturnStatusBySeller(
     /* =====================================================
        RECEIVED + REFUND (FIXED V7 WALLET SCHEMA)
     ===================================================== */
-
 if (action === "received") {
   if (ret.status !== "shipping_back") {
     throw new Error("INVALID_STATE");
   }
 
-  const amount = Number(ret.refund_amount);
+  const amount = Number(ret.refund_amount ?? 0);
   if (!amount || amount <= 0) {
     throw new Error("INVALID_AMOUNT");
   }
@@ -281,6 +280,7 @@ if (action === "received") {
     SELECT buyer_id
     FROM orders
     WHERE id = $1
+    LIMIT 1
     `,
     [ret.order_id]
   );
@@ -288,13 +288,13 @@ if (action === "received") {
   const buyerId = orderRows[0]?.buyer_id;
   if (!buyerId) throw new Error("BUYER_NOT_FOUND");
 
-  /* UPSERT WALLET */
+  /* WALLET UPSERT SAFE */
   await client.query(
     `
     INSERT INTO wallets (user_id, balance)
     VALUES ($1, 0)
     ON CONFLICT (user_id)
-    DO NOTHING
+    DO UPDATE SET user_id = EXCLUDED.user_id
     `,
     [buyerId]
   );
@@ -310,7 +310,7 @@ if (action === "received") {
     [amount, buyerId]
   );
 
-  /* JOURNAL (V7 LEDGER) */
+  /* LEDGER SAFE (NO DOUBLE REFUND) */
   await client.query(
     `
     INSERT INTO wallet_journal (
@@ -322,7 +322,8 @@ if (action === "received") {
       currency,
       note,
       ref_id,
-      ref_table
+      ref_table,
+      idempotency_key
     )
     VALUES (
       $1,
@@ -333,13 +334,14 @@ if (action === "received") {
       'PI',
       'Return refund',
       $3,
-      'returns'
+      'returns',
+      $4
     )
+    ON CONFLICT (idempotency_key) DO NOTHING
     `,
-    [buyerId, amount, returnId]
+    [buyerId, amount, returnId, `refund_${returnId}`]
   );
 
-  /* UPDATE RETURN */
   await client.query(
     `
     UPDATE returns
