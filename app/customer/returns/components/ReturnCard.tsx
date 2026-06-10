@@ -319,12 +319,14 @@ export default function ReturnCard({
       <button
         type="button"
         onClick={(e) => {
-          e.stopPropagation();
-
-          router.push(
-            `/customer/orders/${item.order_id}`
-          );
-        }}
+  e.stopPropagation();
+  const orderId = item.order_id;
+  if (!orderId || orderId === "null") {
+    console.warn("Invalid orderId:", item);
+    return;
+  }
+  router.push(`/customer/orders/${orderId}`);
+}}
         className="
   rounded-xl border border-blue-500/20
   bg-blue-500/10
