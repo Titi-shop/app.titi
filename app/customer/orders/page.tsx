@@ -30,9 +30,8 @@ type OrderItem = {
 type Order = {
   id: string;
   order_number: string;
-  payment_status: PaymentStatus;
-  fulfillment_status: OrderStatus;
-
+  payment_status?: PaymentStatus;
+  fulfillment_status?: OrderStatus;
   total: number | string;
   currency: string;
   created_at: string;
@@ -66,8 +65,6 @@ type CancelReasonKey = (typeof CANCEL_REASON_KEYS)[number];
 function normalizeOrder(order: Order): Order {
   return {
     ...order,
-    fulfillment_status:
-      order.fulfillment_status ?? ORDER_STATUS.PENDING_FULFILLMENT,
   };
 }
 
@@ -78,7 +75,34 @@ async function safeJson<T>(res: Response): Promise<T | null> {
     return null;
   }
 }
+function normalizeStatus(
+  order: Order
+): OrderStatus {
+  const f = order.fulfillment_status;
+  const p = order.payment_status;
 
+  if (f) {
+    return f;
+  }
+
+  if (p === "pending") {
+    return ORDER_STATUS.PENDING;
+  }
+
+  if (p === "paid") {
+    return ORDER_STATUS.PENDING_FULFILLMENT;
+  }
+
+  if (p === "failed") {
+    return ORDER_STATUS.CANCELLED;
+  }
+
+  if (p === "refunded") {
+    return ORDER_STATUS.REFUNDED;
+  }
+
+  return ORDER_STATUS.PENDING;
+}
 /* =====================================================
    FETCHER
 ===================================================== */
@@ -149,7 +173,15 @@ export default function CustomerOrdersPage() {
 
   const mergedOrders = useMemo(() => {
     if (!optimisticOrder) return orders;
-
+const normalizedOrders = useMemo(
+  () =>
+    mergedOrders.map((order) => ({
+      ...order,
+      fulfillment_status:
+        normalizeStatus(order),
+    })),
+  [mergedOrders]
+);
     const exists = orders.some(o => o.id === optimisticOrder.id);
     return exists ? orders : [optimisticOrder, ...orders];
   }, [orders, optimisticOrder]);
@@ -316,6 +348,17 @@ useEffect(() => {
     setProcessingId(null);
   }
   }
+  const status = normalizeStatus(order);
+
+if (
+  status !== ORDER_STATUS.DELIVERED &&
+  status !== ORDER_STATUS.COMPLETED
+) {
+  return showToast(
+    t.review_not_available ??
+    "Review not available"
+  );
+}
   async function handleReview(order: Order) {
   if (processingId) return;
 
@@ -454,7 +497,7 @@ if (loading || isLoading) {
     }>
       <CustomerOrdersList
         initialTab="all"
-        orders={mergedOrders}
+        orders={normalizedOrders}
         reviewedMap={reviewedMap}
         onDetail={(id) => router.push(`/customer/orders/${id}`)}
         onCancel={setShowCancelFor}
@@ -502,28 +545,29 @@ if (loading || isLoading) {
 
           {selectedReason === "cancel_reason_other" && (
             <textarea
-              rows={3}
-              value={customReason}
-              onChange={e => setCustomReason(e.target.value)}
-              className={`
-  w-full rounded-2xl border px-4 py-3 text-left transition-all
-  ${
-    selectedReason === key
-      ? `
-        border-orange-500
-        bg-orange-500/10
-        text-orange-500
-      `
-      : `
-        border-orange-500/20
-        bg-[var(--card-secondary)]
-        text-[var(--foreground)]
-      `
+              <textarea
+  rows={3}
+  value={customReason}
+  onChange={(e) =>
+    setCustomReason(e.target.value)
   }
-`}
-              placeholder={t.enter_cancel_reason ?? "Enter reason"}
-            />
-          )}
+  placeholder={
+    t.enter_cancel_reason ??
+    "Enter reason"
+  }
+  className="
+    mt-3
+    w-full
+    rounded-2xl
+    border border-orange-500/20
+    bg-[var(--card-secondary)]
+    p-3
+    text-[var(--foreground)]
+    placeholder:text-[var(--text-muted)]
+    outline-none
+  "
+/>
+        }}
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
@@ -637,9 +681,9 @@ if (loading || isLoading) {
   onClick={() => {
     if (processingId) return;
 
-    const order = mergedOrders.find(
-      item => item.id === activeReviewId
-    );
+    const order = normalizedOrders.find(
+  item => item.id === activeReviewId
+);
 
     if (order) {
       void handleReview(order);
