@@ -101,7 +101,6 @@ const fetcher = async (): Promise<Order[]> => {
 
   const typed = data as OrdersResponse;
   const orders = Array.isArray(typed.orders) ? typed.orders : [];
-
   return orders.map(normalizeOrder);
 };
 
