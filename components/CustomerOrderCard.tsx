@@ -13,24 +13,40 @@ import {
    TYPES
 ======================================================= */
 
+type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded";
+
 type OrderItem = {
   id?: string;
+
   product_id?: string;
-  product_name?: string;
+
+  product_name?: string | null;
+
   thumbnail?: string | null;
   images?: string[] | null;
+
   quantity?: number;
-  unit_price?: number;
+
+  unit_price?: number | string;
+
   seller_message?: string | null;
   seller_cancel_reason?: string | null;
 };
 
 type Order = {
   id: string;
+
   order_number?: string | null;
-  status: string;
+
+  payment_status?: PaymentStatus;
   fulfillment_status?: OrderStatus;
-  total?: number;
+
+  total?: number | string;
+
   order_items?: OrderItem[];
 };
 
@@ -50,17 +66,31 @@ type Props = {
    NORMALIZE STATUS
 ======================================================= */
 
-function normalizeStatus(status: string): OrderStatus {
-  switch (status) {
-    case ORDER_STATUS.PENDING:
-    case ORDER_STATUS.PENDING_FULFILLMENT:
-    case ORDER_STATUS.PROCESSING:
-    case ORDER_STATUS.SHIPPED:
-    case ORDER_STATUS.DELIVERED:
-    case ORDER_STATUS.COMPLETED:
-    case ORDER_STATUS.CANCELLED:
-    case ORDER_STATUS.REFUNDED:
-      return status;
+function normalizeOrderStatus(
+  order: Order
+): OrderStatus {
+  const fulfillment =
+    order.fulfillment_status;
+
+  const payment =
+    order.payment_status;
+
+  if (fulfillment) {
+    return fulfillment;
+  }
+
+  switch (payment) {
+    case "pending":
+      return ORDER_STATUS.PENDING;
+
+    case "paid":
+      return ORDER_STATUS.PENDING_FULFILLMENT;
+
+    case "failed":
+      return ORDER_STATUS.CANCELLED;
+
+    case "refunded":
+      return ORDER_STATUS.REFUNDED;
 
     default:
       return ORDER_STATUS.PENDING;
@@ -82,18 +112,11 @@ export default function CustomerOrderCard({
 }: Props) {
   const { t } = useTranslation();
 
-  const items = order.order_items ?? [];
-  console.log(
-  "ORDER",
-  order.id,
-  order.status,
-  order.fulfillment_status
-);
-  const status = normalizeStatus(
-  order.fulfillment_status ??
-  order.status ??
-  ORDER_STATUS.PENDING
-);
+  const items =
+    order.order_items ?? [];
+
+  const status =
+    normalizeOrderStatus(order);
 
   return (
     <div
@@ -144,23 +167,31 @@ export default function CustomerOrderCard({
 
           return (
             <div
-              key={item.id ?? `${order.id}-${index}`}
-              className="flex gap-3 px-4 py-4"
+              key={
+                item.id ??
+                `${order.id}-${index}`
+              }
+              className="
+                flex gap-3
+                px-4 py-4
+              "
             >
-              {/* IMAGE */}
               <img
                 src={image}
-                alt={item.product_name ?? "Product"}
+                alt={
+                  item.product_name ??
+                  "Product"
+                }
                 loading="lazy"
                 className="
-                  h-16 w-16 shrink-0 rounded-xl
+                  h-16 w-16 shrink-0
+                  rounded-xl
                   border border-orange-500/10
                   bg-[var(--card-secondary)]
                   object-cover
                 "
               />
 
-              {/* INFO */}
               <div className="min-w-0 flex-1">
                 <p
                   className="
@@ -169,29 +200,36 @@ export default function CustomerOrderCard({
                     text-[var(--foreground)]
                   "
                 >
-                  {item.product_name ?? "Product"}
+                  {item.product_name ??
+                    "Product"}
                 </p>
 
-                {/* PRICE */}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  x{item.quantity ?? 0} ·{" "}
+                  x{item.quantity ?? 0}
+                  {" · "}
                   <span className="font-semibold text-orange-500">
-                    π{formatPi(Number(item.unit_price ?? 0))}
+                    π
+                    {formatPi(
+                      Number(
+                        item.unit_price ?? 0
+                      )
+                    )}
                   </span>
                 </p>
 
-                {/* SELLER MESSAGE */}
                 {item.seller_message && (
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     💌 {item.seller_message}
                   </p>
                 )}
 
-                {/* CANCEL REASON */}
-                {status === ORDER_STATUS.CANCELLED &&
+                {status ===
+                  ORDER_STATUS.CANCELLED &&
                   item.seller_cancel_reason && (
                     <p className="mt-1 line-clamp-2 text-xs text-red-500">
-                      {item.seller_cancel_reason}
+                      {
+                        item.seller_cancel_reason
+                      }
                     </p>
                   )}
               </div>
@@ -207,11 +245,14 @@ export default function CustomerOrderCard({
           border-t border-orange-500/10
           bg-[var(--card-secondary)]
           px-4 py-3
-          sm:flex-row sm:items-center sm:justify-between
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
         "
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
-        {/* TOTAL */}
         <span className="text-sm text-[var(--foreground)]">
           {t.total ?? "Total"}:{" "}
           <span
@@ -225,11 +266,13 @@ export default function CustomerOrderCard({
               text-orange-500
             "
           >
-            π{formatPi(Number(order.total ?? 0))}
+            π
+            {formatPi(
+              Number(order.total ?? 0)
+            )}
           </span>
         </span>
 
-        {/* ACTIONS */}
         <CustomerOrderActions
           status={status}
           reviewed={reviewed}
