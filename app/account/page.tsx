@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
