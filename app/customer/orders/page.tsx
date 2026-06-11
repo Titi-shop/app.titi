@@ -567,7 +567,7 @@ if (loading || isLoading) {
     outline-none
   "
 />
-        }}
+        )}
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
