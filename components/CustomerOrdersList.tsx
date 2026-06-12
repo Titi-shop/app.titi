@@ -18,22 +18,13 @@ import {
   type OrderStatus,
 } from "@/constants/order-status";
 
+import type { Order } from "@/app/customer/orders/types";
+
 /* =======================================================
    TYPES
 ======================================================= */
 
 type OrderTab = OrderStatus | "all";
-
-type Order = {
-  id: string;
-  order_number?: string | null;
-
-  fulfillment_status: OrderStatus;
-
-  total?: number | string;
-
-  order_items?: unknown[];
-};
 
 /* =======================================================
    TABS
@@ -53,7 +44,7 @@ const VALID_TABS: OrderTab[] = [
 ];
 
 /* =======================================================
-   COMPONENT
+   PROPS
 ======================================================= */
 
 type Props = {
@@ -61,14 +52,18 @@ type Props = {
 
   initialTab?: OrderTab;
 
+  reviewedMap?: Record<string, boolean>;
+
   onDetail: (id: string) => void;
   onCancel?: (id: string) => void;
   onReceived?: (id: string) => void;
   onBuyAgain?: (id: string) => void;
   onReview?: (id: string) => void;
-
-  reviewedMap?: Record<string, boolean>;
 };
+
+/* =======================================================
+   WRAPPER
+======================================================= */
 
 export default function CustomerOrdersList(
   props: Props
@@ -76,7 +71,9 @@ export default function CustomerOrdersList(
   return (
     <Suspense
       fallback={
-        <div className="h-12 rounded-xl bg-[var(--card-bg)] animate-pulse p-4" />
+        <div className="p-4">
+          <div className="h-12 animate-pulse rounded-xl bg-[var(--card-bg)]" />
+        </div>
       }
     >
       <Inner {...props} />
@@ -92,13 +89,13 @@ function Inner({
   orders,
   initialTab = "all",
 
+  reviewedMap,
+
   onDetail,
   onCancel,
   onReceived,
   onBuyAgain,
   onReview,
-
-  reviewedMap,
 }: Props) {
   const { t } = useTranslation();
 
@@ -124,7 +121,7 @@ function Inner({
   }, [safeTab]);
 
   /* =====================================================
-     TAB LABELS
+     LABELS
   ===================================================== */
 
   const tabs: Array<
@@ -206,9 +203,12 @@ function Inner({
     };
 
     for (const order of orders) {
-      map[
-        order.fulfillment_status
-      ]++;
+      const status =
+        order.fulfillment_status ??
+        ORDER_STATUS.PENDING;
+
+      map[status] =
+        (map[status] ?? 0) + 1;
     }
 
     return map;
@@ -225,9 +225,11 @@ function Inner({
       }
 
       return orders.filter(
-        (order) =>
-          order.fulfillment_status ===
-          tab
+        order =>
+          (
+            order.fulfillment_status ??
+            ORDER_STATUS.PENDING
+          ) === tab
       );
     }, [orders, tab]);
 
@@ -237,9 +239,6 @@ function Inner({
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-
-      {/* TABS */}
-
       <div className="sticky top-0 z-20 overflow-x-auto scrollbar-hide border-b border-orange-500/20 bg-[var(--background)]">
         <div className="flex min-w-max gap-2 px-3 py-2">
           {tabs.map(
@@ -268,27 +267,27 @@ function Inner({
                       active
                         ? `
                           border-orange-500
-                          text-orange-500
                           bg-[var(--card-bg)]
+                          text-orange-500
                         `
                         : `
                           border-orange-500/20
-                          text-[var(--foreground)]
                           bg-[var(--card-bg)]
+                          text-[var(--foreground)]
                         `
                     }
                   `}
                 >
-                  {label} (
-                  {counts[key]})
+                  {label}
+                  {" ("}
+                  {counts[key]}
+                  {")"}
                 </button>
               );
             }
           )}
         </div>
       </div>
-
-      {/* LIST */}
 
       <div className="space-y-4 p-4">
         {filteredOrders.length ===
@@ -299,7 +298,7 @@ function Inner({
           </div>
         ) : (
           filteredOrders.map(
-            (order) => (
+            order => (
               <CustomerOrderCard
                 key={order.id}
                 order={order}
@@ -338,4 +337,4 @@ function Inner({
       </div>
     </div>
   );
-    }
+      }
