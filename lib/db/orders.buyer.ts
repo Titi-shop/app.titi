@@ -10,7 +10,7 @@ import type {
   Order as BuyerOrderRow,
   OrderItem as BuyerOrderItemRow,
   ReturnStatus,
-} from "@/lib/types/orders";
+} from "@/types/orders";
 
 /* =========================================================
    BUYER — ORDERS LIST
