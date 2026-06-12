@@ -161,12 +161,9 @@ export async function GET(
     return_status:
       order.return_status ?? null,
 
-    order_items:
-      Array.isArray(
-        order.order_items
-      )
-        ? order.order_items
-        : [],
+    order_items: Array.isArray(order.order_items)
+  ? order.order_items
+  : [],
   },
 });
   } catch (err) {
