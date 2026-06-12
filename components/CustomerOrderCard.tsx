@@ -13,6 +13,7 @@ import {
 import type {
   BuyerOrderRow,
   BuyerOrderItemRow,
+  ReturnStatus,
 } from "@/types/orders";
 
 /* =======================================================
@@ -32,35 +33,17 @@ type Props = {
 };
 
 /* =======================================================
-   STATUS
+   DISPLAY STATUS
 ======================================================= */
 
-function normalizeOrderStatus(
+function getDisplayStatus(
   order: BuyerOrderRow
-): OrderStatus {
-  const fulfillment =
-    order.fulfillment_status;
-
-  if (fulfillment) {
-    return fulfillment;
+): OrderStatus | `return_${ReturnStatus}` {
+  if (order.return_status) {
+    return `return_${order.return_status}`;
   }
 
-  switch (order.payment_status) {
-    case "pending":
-      return ORDER_STATUS.PENDING;
-
-    case "paid":
-      return ORDER_STATUS.PENDING_FULFILLMENT;
-
-    case "failed":
-      return ORDER_STATUS.CANCELLED;
-
-    case "refunded":
-      return ORDER_STATUS.REFUNDED;
-
-    default:
-      return ORDER_STATUS.PENDING;
-  }
+  return order.fulfillment_status;
 }
 
 /* =======================================================
@@ -76,7 +59,7 @@ function OrderItemRow({
   item: BuyerOrderItemRow;
   orderId: string;
   index: number;
-  status: OrderStatus;
+  status: string;
 }) {
   const image =
     item.thumbnail ||
@@ -87,10 +70,6 @@ function OrderItemRow({
 
   return (
     <div
-      key={
-        item.id ??
-        `${orderId}-${index}`
-      }
       className="
         flex gap-3
         px-4 py-4
@@ -130,9 +109,7 @@ function OrderItemRow({
           <span className="font-semibold text-orange-500">
             π
             {formatPi(
-              Number(
-                item.unit_price ?? 0
-              )
+              Number(item.unit_price)
             )}
           </span>
         </p>
@@ -173,7 +150,8 @@ export default function CustomerOrderCard({
   const { t } = useTranslation();
 
   const status =
-  getDisplayStatus(order);
+    getDisplayStatus(order);
+
   const items =
     order.order_items ?? [];
 
@@ -201,7 +179,7 @@ export default function CustomerOrderCard({
       >
         <span className="truncate font-semibold text-[var(--foreground)]">
           #
-          {order.order_number ??
+          {order.order_number ||
             order.id.slice(0, 8)}
         </span>
 
@@ -270,13 +248,15 @@ export default function CustomerOrderCard({
           >
             π
             {formatPi(
-              Number(order.total ?? 0)
+              Number(order.total)
             )}
           </span>
         </span>
 
         <CustomerOrderActions
-          status={status}
+          status={
+            order.fulfillment_status
+          }
           reviewed={reviewed}
           onDetail={onDetail}
           onCancel={onCancel}
