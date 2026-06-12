@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { Order } from "../types";
+import type { Order } from "@/types/orders";
 
 export function useOptimisticOrders(
   orders: Order[]
