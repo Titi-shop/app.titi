@@ -3,7 +3,7 @@
 import {
   CANCEL_REASON_KEYS,
   type CancelReasonKey,
-} from "../types";
+} from "@/types/orders";
 
 type Props = {
   open: boolean;
