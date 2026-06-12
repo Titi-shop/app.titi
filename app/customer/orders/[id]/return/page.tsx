@@ -128,13 +128,7 @@ export default function OrderReturnPage() {
     user && orderId ? `/api/orders/${orderId}` : null,
     fetcher
   );
-  useEffect(() => {
-  if (!order) return;
-
-  if (order.return_status) {
-    router.replace(`/customer/orders/${order.id}`);
-  }
-}, [order, router]);
+  
 const canCreateReturn =
   order?.fulfillment_status === "delivered" &&
   !order?.return_status;
@@ -370,7 +364,11 @@ useEffect(() => {
   if (!order) {
     return <p className="p-4 text-red-500">{t.order_not_found}</p>;
   }
-
+if (
+  order.return_status
+) {
+  return null;
+}
   return (
     <main className="min-h-screen bg-gray-100 p-4 space-y-4">
 
