@@ -138,7 +138,7 @@ export async function getOrdersByBuyer(
 
       o.payment_status,
       o.fulfillment_status,
-      rt.status AS return_status,
+      MAX(rt.status) AS return_status,
       o.total,
       o.currency,
       o.items_total,
@@ -328,9 +328,9 @@ export async function getOrderByBuyerId(
         o.order_number,
 
         o.payment_status,
-      o.fulfillment_status,
-       rt.status AS return_status,
-       o.total,
+        o.fulfillment_status,
+       MAX(rt.status) AS return_status,
+        o.total,
         o.currency,
 
         o.items_total,
