@@ -52,6 +52,7 @@ export type OrderItem = {
 
   fulfillment_status: string;
 
+  /* RETURN */
   return_status: ReturnStatus | null;
 
   seller_message: string | null;
@@ -81,6 +82,7 @@ export type Order = {
 
   fulfillment_status: OrderStatus;
 
+  /* RETURN */
   return_status: ReturnStatus | null;
 
   total: string;
@@ -159,3 +161,19 @@ export type CancelReasonKey =
 
 export type ReviewedMap =
   Record<string, boolean>;
+
+/* =====================================================
+   RETURN HELPERS
+===================================================== */
+
+export const ACTIVE_RETURN_STATUSES: ReturnStatus[] = [
+  "pending",
+  "approved",
+  "shipping_back",
+  "received",
+];
+
+export const FINISHED_RETURN_STATUSES: ReturnStatus[] = [
+  "refunded",
+  "rejected",
+];
