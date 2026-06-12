@@ -1,57 +1,26 @@
 "use client";
 
 import { formatPi } from "@/lib/pi";
-import CustomerOrderActions from "./CustomerOrderActions";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+
+import CustomerOrderActions from "./CustomerOrderActions";
 
 import {
   ORDER_STATUS,
   type OrderStatus,
 } from "@/constants/order-status";
 
+import type {
+  BuyerOrderRow,
+  BuyerOrderItemRow,
+} from "@/types/orders";
+
 /* =======================================================
    TYPES
 ======================================================= */
 
-type PaymentStatus =
-  | "pending"
-  | "paid"
-  | "failed"
-  | "refunded";
-
-type OrderItem = {
-  id?: string;
-
-  product_id?: string;
-
-  product_name?: string | null;
-
-  thumbnail?: string | null;
-  images?: string[] | null;
-
-  quantity?: number;
-
-  unit_price?: number | string;
-
-  seller_message?: string | null;
-  seller_cancel_reason?: string | null;
-};
-
-type Order = {
-  id: string;
-
-  order_number?: string | null;
-
-  payment_status?: PaymentStatus;
-  fulfillment_status?: OrderStatus;
-
-  total?: number | string;
-
-  order_items?: OrderItem[];
-};
-
 type Props = {
-  order: Order;
+  order: BuyerOrderRow;
 
   onDetail: () => void;
   onCancel?: () => void;
@@ -63,23 +32,20 @@ type Props = {
 };
 
 /* =======================================================
-   NORMALIZE STATUS
+   STATUS
 ======================================================= */
 
 function normalizeOrderStatus(
-  order: Order
+  order: BuyerOrderRow
 ): OrderStatus {
   const fulfillment =
     order.fulfillment_status;
-
-  const payment =
-    order.payment_status;
 
   if (fulfillment) {
     return fulfillment;
   }
 
-  switch (payment) {
+  switch (order.payment_status) {
     case "pending":
       return ORDER_STATUS.PENDING;
 
@@ -98,6 +64,100 @@ function normalizeOrderStatus(
 }
 
 /* =======================================================
+   ITEM ROW
+======================================================= */
+
+function OrderItemRow({
+  item,
+  orderId,
+  index,
+  status,
+}: {
+  item: BuyerOrderItemRow;
+  orderId: string;
+  index: number;
+  status: OrderStatus;
+}) {
+  const image =
+    item.thumbnail ||
+    (Array.isArray(item.images)
+      ? String(item.images[0] ?? "")
+      : "") ||
+    "/placeholder.png";
+
+  return (
+    <div
+      key={
+        item.id ??
+        `${orderId}-${index}`
+      }
+      className="
+        flex gap-3
+        px-4 py-4
+      "
+    >
+      <img
+        src={image}
+        alt={
+          item.product_name ??
+          "Product"
+        }
+        loading="lazy"
+        className="
+          h-16 w-16 shrink-0
+          rounded-xl
+          border border-orange-500/10
+          bg-[var(--card-secondary)]
+          object-cover
+        "
+      />
+
+      <div className="min-w-0 flex-1">
+        <p
+          className="
+            line-clamp-2
+            text-sm font-medium
+            text-[var(--foreground)]
+          "
+        >
+          {item.product_name ??
+            "Product"}
+        </p>
+
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          x{item.quantity}
+          {" · "}
+          <span className="font-semibold text-orange-500">
+            π
+            {formatPi(
+              Number(
+                item.unit_price ?? 0
+              )
+            )}
+          </span>
+        </p>
+
+        {item.seller_message && (
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            💌 {item.seller_message}
+          </p>
+        )}
+
+        {status ===
+          ORDER_STATUS.CANCELLED &&
+          item.seller_cancel_reason && (
+            <p className="mt-1 line-clamp-2 text-xs text-red-500">
+              {
+                item.seller_cancel_reason
+              }
+            </p>
+          )}
+      </div>
+    </div>
+  );
+}
+
+/* =======================================================
    COMPONENT
 ======================================================= */
 
@@ -112,11 +172,11 @@ export default function CustomerOrderCard({
 }: Props) {
   const { t } = useTranslation();
 
-  const items =
-    order.order_items ?? [];
-
   const status =
     normalizeOrderStatus(order);
+
+  const items =
+    order.order_items ?? [];
 
   return (
     <div
@@ -130,6 +190,7 @@ export default function CustomerOrderCard({
       "
     >
       {/* HEADER */}
+
       <div
         className="
           flex items-center justify-between gap-3
@@ -140,7 +201,9 @@ export default function CustomerOrderCard({
         "
       >
         <span className="truncate font-semibold text-[var(--foreground)]">
-          #{order.order_number ?? order.id.slice(0, 8)}
+          #
+          {order.order_number ??
+            order.id.slice(0, 8)}
         </span>
 
         <span
@@ -153,92 +216,32 @@ export default function CustomerOrderCard({
             text-orange-500
           "
         >
-          {t[`order_${status}`] ?? status}
+          {t[`order_${status}`] ??
+            status}
         </span>
       </div>
 
       {/* ITEMS */}
-      <div className="divide-y divide-orange-500/10">
-        {items.map((item, index) => {
-          const image =
-            item.thumbnail ||
-            item.images?.[0] ||
-            "/placeholder.png";
 
-          return (
-            <div
+      <div className="divide-y divide-orange-500/10">
+        {items.map(
+          (item, index) => (
+            <OrderItemRow
               key={
                 item.id ??
                 `${order.id}-${index}`
               }
-              className="
-                flex gap-3
-                px-4 py-4
-              "
-            >
-              <img
-                src={image}
-                alt={
-                  item.product_name ??
-                  "Product"
-                }
-                loading="lazy"
-                className="
-                  h-16 w-16 shrink-0
-                  rounded-xl
-                  border border-orange-500/10
-                  bg-[var(--card-secondary)]
-                  object-cover
-                "
-              />
-
-              <div className="min-w-0 flex-1">
-                <p
-                  className="
-                    line-clamp-2
-                    text-sm font-medium
-                    text-[var(--foreground)]
-                  "
-                >
-                  {item.product_name ??
-                    "Product"}
-                </p>
-
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  x{item.quantity ?? 0}
-                  {" · "}
-                  <span className="font-semibold text-orange-500">
-                    π
-                    {formatPi(
-                      Number(
-                        item.unit_price ?? 0
-                      )
-                    )}
-                  </span>
-                </p>
-
-                {item.seller_message && (
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    💌 {item.seller_message}
-                  </p>
-                )}
-
-                {status ===
-                  ORDER_STATUS.CANCELLED &&
-                  item.seller_cancel_reason && (
-                    <p className="mt-1 line-clamp-2 text-xs text-red-500">
-                      {
-                        item.seller_cancel_reason
-                      }
-                    </p>
-                  )}
-              </div>
-            </div>
-          );
-        })}
+              item={item}
+              orderId={order.id}
+              index={index}
+              status={status}
+            />
+          )
+        )}
       </div>
 
       {/* FOOTER */}
+
       <div
         className="
           flex flex-col gap-3
