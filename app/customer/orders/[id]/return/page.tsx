@@ -25,6 +25,7 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refunded";
+
 type ReturnStatus =
   | "pending"
   | "approved"
@@ -33,6 +34,12 @@ type ReturnStatus =
   | "refunded"
   | "rejected";
 
+type OrderItem = {
+  id: string;
+  product_name: string;
+  thumbnail?: string;
+};
+
 type OrderDetail = {
   id: string;
   fulfillment_status: OrderStatus;
@@ -40,36 +47,33 @@ type OrderDetail = {
   order_items: OrderItem[];
 };
 
-type OrderItem = {
-  id: string;
-  product_name: string;
-  thumbnail?: string;
-};
-
-
 type ReturnItemState = {
   orderItemId: string;
   selected: boolean;
-  reasonValue: string; // dropdown
-  reasonText: string;  // when "other"
+  reasonValue: string;
+  reasonText: string;
   files: File[];
   previews: string[];
 };
 
+/* ================= CONSTANT ================= */
+
+const ALLOWED_RETURN_STATUS: OrderStatus[] = ["delivered"];
+
 /* ================= FETCHER ================= */
-const ALLOWED_RETURN_STATUS: OrderStatus[] = [
-  "delivered",
-];
+
 const fetcher = async (url: string): Promise<OrderDetail | null> => {
   const res = await apiAuthFetch(url);
-  if (!res.ok) return null;
-  return res.json();
+  const data = await res.json();
+
+  if (!res.ok || !data?.order) return null;
+
+  return data.order as OrderDetail;
 };
 
 /* ================= IMAGE COMPRESS ================= */
 
 async function compressImage(file: File): Promise<File> {
-  // giữ type
   const type = file.type || "image/jpeg";
 
   const img = document.createElement("img");
@@ -77,28 +81,28 @@ async function compressImage(file: File): Promise<File> {
 
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
-    img.onerror = () => reject();
+    img.onerror = reject;
     img.src = blobUrl;
   });
 
   const maxW = 1280;
   const scale = Math.min(1, maxW / img.width);
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
 
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return file;
-  ctx.drawImage(img, 0, 0, w, h);
-  const quality = 0.7; // 0.6–0.8 tuỳ bạn
-  const blob: Blob = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b as Blob), type, quality)
-  );
+
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const blob: Blob = await new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b as Blob), type, 0.7);
+  });
 
   URL.revokeObjectURL(blobUrl);
+
   return new File([blob], file.name, { type });
 }
 
@@ -106,16 +110,13 @@ async function compressImage(file: File): Promise<File> {
 
 export default function OrderReturnPage() {
   const { t } = useTranslation();
-  const params = useParams<{ id: string }>();
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
 
-  const orderId =
-    typeof params?.id === "string"
-      ? params.id
-      : Array.isArray(params?.id)
-      ? params.id[0]
-      : "";
+  const orderId = Array.isArray(params?.id)
+    ? params.id[0]
+    : params?.id ?? "";
 
   const draftKey = `return_draft_${orderId}`;
 
@@ -130,83 +131,83 @@ export default function OrderReturnPage() {
     user && orderId ? `/api/orders/${orderId}` : null,
     fetcher
   );
-  
-const canCreateReturn =
-  order?.fulfillment_status === "delivered" &&
-  !order?.return_status;
 
-useEffect(() => {
-  if (!order) return;
+  /* ================= SAFE GUARD (FIX CRASH) ================= */
+
+  if (isLoading || authLoading) {
+    return <p className="p-4">{t.loading}</p>;
+  }
+
+  if (!order?.id || !Array.isArray(order.order_items)) {
+    return <p className="p-4 text-red-500">{t.order_not_found}</p>;
+  }
 
   if (order.return_status) {
-    router.replace(
-      `/customer/orders/${order.id}`
-    );
-    return;
+    router.replace(`/customer/orders/${order.id}`);
+    return null;
   }
 
-  if (
-    order.fulfillment_status !==
-    "delivered"
-  ) {
-    setError(
-      t.return_only_delivered ??
-      "Chỉ được hoàn đơn khi đơn đã giao"
-    );
-  }
-}, [order, router, t]);
-  /* ================= REASONS ================= */
-
-  const reasons = [
-    { value: "damaged", label: t.return_reason_damaged },
-    { value: "wrong_item", label: t.return_reason_wrong },
-    { value: "not_as_described", label: t.return_reason_not_match },
-    { value: "other", label: t.return_reason_other },
-  ];
-
-  /* ================= INIT (NO RESET ON I18N) ================= */
+  /* ================= STATUS CHECK ================= */
 
   useEffect(() => {
-  if (!order || initialized.current) return;
-  const allowed =
-  ALLOWED_RETURN_STATUS.includes(
-    order.fulfillment_status
-  );
-  if (!allowed) return;
-  const saved = localStorage.getItem(draftKey);
-  if (saved) {
-    try {
-      setItems(JSON.parse(saved));
-      initialized.current = true;
+    if (!order?.id) return;
+
+    if (order.return_status) {
+      router.replace(`/customer/orders/${order.id}`);
       return;
-    } catch {}
-  }
+    }
 
-  setItems(
-    order.order_items.map((i) => ({
-      orderItemId: i.id,
-      selected: false,
-      reasonValue: "",
-      reasonText: "",
-      files: [],
-      previews: [],
-    }))
-  );
+    if (!ALLOWED_RETURN_STATUS.includes(order.fulfillment_status)) {
+      setError(
+        t.return_only_delivered ??
+          "Chỉ được hoàn đơn khi đơn đã giao"
+      );
+    }
+  }, [order, router, t]);
 
-  initialized.current = true;
-}, [order]);
+  /* ================= INIT ================= */
+
+  useEffect(() => {
+    if (!order || initialized.current) return;
+
+    const allowed = ALLOWED_RETURN_STATUS.includes(
+      order.fulfillment_status
+    );
+
+    if (!allowed) return;
+
+    const saved = localStorage.getItem(draftKey);
+
+    if (saved) {
+      try {
+        setItems(JSON.parse(saved));
+        initialized.current = true;
+        return;
+      } catch {}
+    }
+
+    setItems(
+      order.order_items.map((i) => ({
+        orderItemId: i.id,
+        selected: false,
+        reasonValue: "",
+        reasonText: "",
+        files: [],
+        previews: [],
+      }))
+    );
+
+    initialized.current = true;
+  }, [order]);
 
   /* ================= AUTOSAVE ================= */
 
   useEffect(() => {
     if (!initialized.current) return;
-    try {
-      localStorage.setItem(draftKey, JSON.stringify(items));
-      isDirtyRef.current = true;
-    } catch {
-      // ignore quota
-    }
-  }, [items, draftKey]);
+
+    localStorage.setItem(draftKey, JSON.stringify(items));
+    isDirtyRef.current = true;
+  }, [items]);
 
   /* ================= LEAVE WARNING ================= */
 
@@ -214,8 +215,9 @@ useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (!isDirtyRef.current || submitting) return;
       e.preventDefault();
-      e.returnValue = ""; // required
+      e.returnValue = "";
     };
+
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [submitting]);
@@ -231,45 +233,37 @@ useEffect(() => {
     e: ChangeEvent<HTMLInputElement>,
     index: number
   ) {
-    const list = e.target.files;
-    if (!list) return;
+    const files = e.target.files;
+    if (!files) return;
 
-    const selected = Array.from(list);
+    const selected = Array.from(files);
 
     const updated = [...items];
-    const currentFiles = updated[index].files;
+    const current = updated[index];
 
-    // merge + max 3
-    let merged = [...currentFiles, ...selected].slice(0, 3);
+    let merged = [...current.files, ...selected].slice(0, 3);
 
-    // validate size (raw)
-    for (const f of merged) {
-      if (f.size > 5 * 1024 * 1024) {
-        setError(t.return_image_limit); // you can adjust message
-        return;
-      }
-    }
-
-    // compress all new files
     const compressed = await Promise.all(
-      merged.map(async (f) => compressImage(f))
+      merged.map(compressImage)
     );
 
-    // revoke old previews
-    updated[index].previews.forEach(URL.revokeObjectURL);
-    updated[index].files = compressed;
-    updated[index].previews = compressed.map((f) =>
+    current.files.forEach((f) => f && URL.revokeObjectURL(f as any));
+
+    current.files = compressed;
+    current.previews = compressed.map((f) =>
       URL.createObjectURL(f)
     );
 
-    setItems(updated);
+    setItems([...updated]);
   }
 
   function removeImage(index: number, imgIndex: number) {
     const updated = [...items];
+
     updated[index].files.splice(imgIndex, 1);
     updated[index].previews.splice(imgIndex, 1);
-    setItems(updated);
+
+    setItems([...updated]);
   }
 
   /* ================= UPLOAD ================= */
@@ -281,15 +275,13 @@ useEffect(() => {
           method: "POST",
         });
 
-        if (!res.ok) throw new Error("UPLOAD_URL_FAILED");
         const data = await res.json();
-        const uploadRes = await fetch(data.uploadUrl, {
+
+        await fetch(data.uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
           body: file,
         });
-
-        if (!uploadRes.ok) throw new Error("UPLOAD_FAILED");
 
         return data.publicUrl as string;
       })
@@ -299,9 +291,9 @@ useEffect(() => {
   /* ================= SUBMIT ================= */
 
   async function handleSubmit() {
-    const selectedItems = items.filter((i) => i.selected);
+    const selected = items.filter((i) => i.selected);
 
-    if (selectedItems.length === 0) {
+    if (!selected.length) {
       setError(t.return_select_item);
       return;
     }
@@ -311,50 +303,41 @@ useEffect(() => {
       setError(null);
 
       await Promise.all(
-        selectedItems.map(async (item) => {
-          const finalReason =
+        selected.map(async (item) => {
+          const reason =
             item.reasonValue === "other"
               ? item.reasonText
               : item.reasonValue;
 
-          if (!finalReason || !finalReason.trim()) {
+          if (!reason?.trim()) {
             throw new Error(t.return_reason_required);
           }
 
-          if (item.files.length === 0) {
+          if (!item.files.length) {
             throw new Error(t.return_upload_required);
           }
 
-          const imageUrls = await uploadImages(item.files);
+          const images = await uploadImages(item.files);
 
-          const res = await apiAuthFetch("/api/returns", {
+          await apiAuthFetch("/api/returns", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               orderId,
               orderItemId: item.orderItemId,
-              reason: finalReason,
-              description: "",
-              images: imageUrls,
+              reason,
+              images,
             }),
           });
-
-          if (!res.ok) {
-            const data = await res.json().catch(() => null);
-            throw new Error(data?.error || t.return_submit_failed);
-          }
         })
       );
 
-      // clear draft on success
       localStorage.removeItem(draftKey);
       isDirtyRef.current = false;
 
       router.push("/customer/returns");
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : t.system_error;
-      setError(msg);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.system_error);
     } finally {
       setSubmitting(false);
     }
@@ -362,29 +345,14 @@ useEffect(() => {
 
   /* ================= UI ================= */
 
-  if (isLoading || authLoading) {
-    return <p className="p-4">{t.loading}</p>;
-  }
-
-  if (!order) {
-    return <p className="p-4 text-red-500">{t.order_not_found}</p>;
-  }
-if (
-  order.return_status
-) {
-  return null;
-}
   return (
     <main className="min-h-screen bg-gray-100 p-4 space-y-4">
-
-      {/* TITLE */}
       <div className="bg-white p-4 rounded-xl shadow">
         <h1 className="text-lg font-semibold">
           🔄 {t.return_request}
         </h1>
       </div>
 
-      {/* ITEMS */}
       {order.order_items.map((item, index) => {
         const state = items[index];
         if (!state) return null;
@@ -392,13 +360,8 @@ if (
         return (
           <div
             key={item.id}
-            className={`bg-white rounded-xl p-4 shadow space-y-3 border ${
-              state.selected
-                ? "border-orange-500"
-                : "border-transparent"
-            }`}
+            className="bg-white p-4 rounded-xl shadow space-y-3"
           >
-            {/* HEADER */}
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -410,120 +373,30 @@ if (
                 }}
               />
 
-              {item.thumbnail && (
-                <img
-                  src={item.thumbnail}
-                  className="w-14 h-14 rounded-lg object-cover"
-                />
-              )}
+              <img
+                src={item.thumbnail}
+                className="w-12 h-12 rounded"
+              />
 
-              <p className="text-sm font-medium">
-                {item.product_name}
-              </p>
+              <span>{item.product_name}</span>
             </div>
-
-            {/* FORM */}
-            {state.selected && (
-              <>
-                {/* REASON */}
-                <select
-                  value={state.reasonValue}
-                  onChange={(e) => {
-                    const updated = [...items];
-                    updated[index].reasonValue = e.target.value;
-                    if (e.target.value !== "other") {
-                      updated[index].reasonText = "";
-                    }
-                    setItems(updated);
-                  }}
-                  className="w-full border rounded-lg p-3 text-sm"
-                >
-                  <option value="">
-                    {t.return_select_reason}
-                  </option>
-                  {reasons.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-
-                {state.reasonValue === "other" && (
-                  <input
-                    value={state.reasonText}
-                    onChange={(e) => {
-                      const updated = [...items];
-                      updated[index].reasonText = e.target.value;
-                      setItems(updated);
-                    }}
-                    placeholder={t.return_reason_placeholder}
-                    className="w-full border rounded-lg p-3 text-sm"
-                  />
-                )}
-
-                {/* IMAGE GRID */}
-                <div className="grid grid-cols-4 gap-2">
-                  {state.previews.map((src, i) => (
-                    <div key={i} className="relative h-20">
-                      <img
-                        src={src}
-                        className="w-full h-full object-cover rounded"
-                      />
-                      <button
-                        onClick={() =>
-                          removeImage(index, i)
-                        }
-                        className="absolute -top-2 -right-2 bg-black text-white w-5 h-5 rounded-full text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-
-                  {state.files.length < 3 && (
-                    <label className="border rounded flex items-center justify-center h-20 cursor-pointer text-gray-400">
-                      +
-                      <input
-                        hidden
-                        type="file"
-                        onChange={(e) =>
-                          handleImageChange(e, index)
-                        }
-                      />
-                    </label>
-                  )}
-                </div>
-
-                <p className="text-xs text-gray-400">
-                  {t.return_max_3_images}
-                </p>
-              </>
-            )}
           </div>
         );
       })}
 
-      {/* ERROR */}
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded">
+        <p className="text-red-500 bg-red-50 p-3 rounded">
           {error}
-        </div>
+        </p>
       )}
 
-      {/* SUBMIT */}
       <button
-        onClick={() => {
-          if (!confirmLeave()) return;
-          handleSubmit();
-        }}
+        onClick={() => confirmLeave() && handleSubmit()}
         disabled={submitting}
-        className="w-full bg-black text-white py-4 rounded-xl font-semibold"
+        className="w-full bg-black text-white py-3 rounded"
       >
-        {submitting
-          ? t.return_submitting
-          : t.return_submit}
+        {submitting ? t.return_submitting : t.return_submit}
       </button>
-
     </main>
   );
 }
