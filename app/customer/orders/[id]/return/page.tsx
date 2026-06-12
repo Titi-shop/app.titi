@@ -25,6 +25,20 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refunded";
+type ReturnStatus =
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refunded"
+  | "rejected";
+
+type OrderDetail = {
+  id: string;
+  fulfillment_status: OrderStatus;
+  return_status?: ReturnStatus | null;
+  order_items: OrderItem[];
+};
 
 type OrderItem = {
   id: string;
@@ -32,11 +46,6 @@ type OrderItem = {
   thumbnail?: string;
 };
 
-type OrderDetail = {
-  id: string;
-  fulfillment_status: OrderStatus;
-  order_items: OrderItem[];
-};
 
 type ReturnItemState = {
   orderItemId: string;
@@ -119,21 +128,37 @@ export default function OrderReturnPage() {
     user && orderId ? `/api/orders/${orderId}` : null,
     fetcher
   );
-const allowedReturnStatus: OrderStatus[] = [
-  "delivered",
-];
+  useEffect(() => {
+  if (!order) return;
+
+  if (order.return_status) {
+    router.replace(`/customer/orders/${order.id}`);
+  }
+}, [order, router]);
+const canCreateReturn =
+  order?.fulfillment_status === "delivered" &&
+  !order?.return_status;
 
 useEffect(() => {
   if (!order) return;
 
-  if (!allowedReturnStatus.includes(order.fulfillment_status)) {
+  if (order.return_status) {
+    router.replace(
+      `/customer/orders/${order.id}`
+    );
+    return;
+  }
+
+  if (
+    order.fulfillment_status !==
+    "delivered"
+  ) {
     setError(
       t.return_only_delivered ??
-        "Chỉ được hoàn đơn khi đơn đã giao"
+      "Chỉ được hoàn đơn khi đơn đã giao"
     );
-return;
   }
-}, [order]);
+}, [order, router, t]);
   /* ================= REASONS ================= */
 
   const reasons = [
