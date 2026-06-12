@@ -1,18 +1,14 @@
-"use client";
+              "use client";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 import CustomerOrdersList from "@/components/CustomerOrdersList";
-
 import { formatPi } from "@/lib/pi";
-
 import { useOrders } from "./hooks/useOrders";
 import { useOrderReviews } from "./hooks/useOrderReviews";
 import { useOptimisticOrders } from "./hooks/useOptimisticOrders";
@@ -56,16 +52,22 @@ export default function CustomerOrdersPage() {
 
   const {
     processingId,
+
     rating,
     setRating,
+
     comment,
     setComment,
+
     selectedReason,
     setSelectedReason,
+
     customReason,
     setCustomReason,
+
     resetReview,
     resetCancel,
+
     handleCancel,
     handleReceived,
     handleReview,
@@ -74,7 +76,6 @@ export default function CustomerOrdersPage() {
     markReviewed,
     showToast: setToast,
     t,
-    orders: mergedOrders,
     onCloseReview: () =>
       setActiveReviewId(null),
     onCloseCancel: () =>
@@ -83,38 +84,69 @@ export default function CustomerOrdersPage() {
 
   if (loading || isLoading) {
     return (
-      <main className="min-h-screen p-4 space-y-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="
-              h-28
-              animate-pulse
-              rounded-2xl
-              bg-[var(--card-bg)]
-            "
-          />
-        ))}
+      <main className="min-h-screen bg-[var(--background)] p-4 space-y-4">
+        {Array.from({ length: 4 }).map(
+          (_, index) => (
+            <div
+              key={index}
+              className="
+                h-28
+                rounded-2xl
+                animate-pulse
+                border border-orange-500/20
+                bg-[var(--card-bg)]
+              "
+            />
+          )
+        )}
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen pb-32">
-
+    <main
+      className="
+        min-h-screen
+        bg-[var(--background)]
+        text-[var(--foreground)]
+        pb-32
+        transition-colors
+        duration-300
+      "
+    >
       {toast && (
-        <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2">
+        <div
+          className="
+            fixed top-16 left-1/2 z-50
+            -translate-x-1/2
+            rounded-full
+            border border-orange-500
+            bg-[var(--card-bg)]
+            px-4 py-2
+            text-sm font-medium
+            text-[var(--foreground)]
+            shadow-lg
+          "
+        >
           {toast}
         </div>
       )}
 
-      <header className="p-4">
-        <div className="rounded-2xl border p-4">
-          <p>
+      <header className="px-4 py-4">
+        <div
+          className="
+            rounded-2xl
+            border border-orange-500/30
+            bg-[var(--card-bg)]
+            p-4
+            shadow-sm
+          "
+        >
+          <p className="text-sm font-semibold text-[var(--foreground)]">
             {t.orders ?? "Orders"}
           </p>
 
-          <p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
             {mergedOrders.length}
             {" · "}
             π{formatPi(totalPi)}
@@ -122,42 +154,57 @@ export default function CustomerOrdersPage() {
         </div>
       </header>
 
-      <Suspense fallback={null}>
-        <CustomerOrdersList
-          initialTab="all"
-          orders={mergedOrders}
-          reviewedMap={reviewedMap}
-          onDetail={(id) =>
-            router.push(
-              `/customer/orders/${id}`
-            )
-          }
-          onCancel={setShowCancelFor}
-          onReceived={setConfirmReceivedFor}
-          onReview={setActiveReviewId}
-        />
-      </Suspense>
+      <CustomerOrdersList
+        initialTab="all"
+        orders={mergedOrders}
+        reviewedMap={reviewedMap}
+        onDetail={(id) =>
+          router.push(
+            `/customer/orders/${id}`
+          )
+        }
+        onCancel={setShowCancelFor}
+        onReceived={
+          setConfirmReceivedFor
+        }
+        onReview={
+          setActiveReviewId
+        }
+      />
 
       <CancelOrderModal
         open={Boolean(showCancelFor)}
         processingId={processingId}
         selectedReason={selectedReason}
         customReason={customReason}
-        setSelectedReason={setSelectedReason}
-        setCustomReason={setCustomReason}
+        setSelectedReason={
+          setSelectedReason
+        }
+        setCustomReason={
+          setCustomReason
+        }
         onClose={resetCancel}
         onConfirm={() => {
-          if (!showCancelFor) return;
+          if (!showCancelFor) {
+            return;
+          }
 
-          void handleCancel(showCancelFor);
+          void handleCancel(
+            showCancelFor
+          );
         }}
+        t={t}
       />
 
       <ReviewOrderModal
-        open={Boolean(activeReviewId)}
+        open={Boolean(
+          activeReviewId
+        )}
         rating={rating}
         comment={comment}
-        processingId={processingId}
+        processingId={
+          processingId
+        }
         setRating={setRating}
         setComment={setComment}
         onClose={resetReview}
@@ -165,30 +212,47 @@ export default function CustomerOrdersPage() {
           const order =
             mergedOrders.find(
               item =>
-                item.id === activeReviewId
+                item.id ===
+                activeReviewId
             );
 
-          if (!order) return;
+          if (!order) {
+            return;
+          }
 
           void handleReview(order);
         }}
+        t={t}
       />
 
       <ConfirmReceivedModal
-        open={Boolean(confirmReceivedFor)}
-        processingId={processingId}
+        open={Boolean(
+          confirmReceivedFor
+        )}
+        processingId={
+          processingId
+        }
         onClose={() =>
-          setConfirmReceivedFor(null)
+          setConfirmReceivedFor(
+            null
+          )
         }
         onConfirm={async () => {
-          if (!confirmReceivedFor) return;
+          if (
+            !confirmReceivedFor
+          ) {
+            return;
+          }
 
           await handleReceived(
             confirmReceivedFor
           );
 
-          setConfirmReceivedFor(null);
+          setConfirmReceivedFor(
+            null
+          );
         }}
+        t={t}
       />
     </main>
   );
