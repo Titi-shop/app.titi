@@ -1,9 +1,7 @@
+
 import { NextResponse } from "next/server";
-
 import { withTransaction } from "@/lib/db";
-
 export const runtime = "nodejs";
-
 export const dynamic =
   "force-dynamic";
 
@@ -17,11 +15,14 @@ export const dynamic =
 
    IMPORTANT:
    - server-side only
-   - cron-triggered
-   - no client usage
+   - manually triggered / cron-triggered
 ===================================================== */
 
 export async function GET() {
+
+  console.log(
+    "[JOBS][START]"
+  );
 
   try {
 
@@ -30,12 +31,7 @@ export async function GET() {
         async (client) => {
 
           /* =====================================================
-             1. GET EXPIRED ESCROW HOLDS
-
-             CONDITIONS:
-             - HOLD
-             - release time reached
-             - already delivered/shipped
+             1. FIND EXPIRED ESCROW
           ===================================================== */
 
           const { rows } =
@@ -44,27 +40,47 @@ export async function GET() {
               order_id: string;
               seller_id: string;
               amount: string;
+              status: string;
+              release_status: string;
+              release_after: string;
             }>(
               `
               SELECT
                 id,
                 order_id,
                 seller_id,
-                amount
+                amount,
+                status,
+                release_status,
+                release_after
 
               FROM escrow_entries
 
               WHERE
-  release_status = 'HOLD'
-  AND status IN (
-    'PAID',
-    'SETTLED'
-  )
-  AND release_after IS NOT NULL
-  AND release_after <= NOW()
+                release_status = 'HOLD'
+
+                AND status IN (
+                  'PAID',
+                  'SETTLED'
+                )
+
+                AND release_after IS NOT NULL
+
+                AND release_after <= NOW()
+
               FOR UPDATE SKIP LOCKED
               `
             );
+
+          console.log(
+            "[JOBS][FOUND_ESCROWS]",
+            {
+              count:
+                rows.length,
+
+              rows,
+            }
+          );
 
           let processed = 0;
 
@@ -74,206 +90,375 @@ export async function GET() {
 
           for (const escrow of rows) {
 
-            const amount =
-              Number(
-                escrow.amount
+            console.log(
+              "[JOBS][PROCESS_ESCROW]",
+              escrow
+            );
+
+            try {
+
+              const amount =
+                Number(
+                  escrow.amount
+                );
+
+              console.log(
+                "[JOBS][AMOUNT]",
+                {
+                  raw:
+                    escrow.amount,
+
+                  parsed:
+                    amount,
+                }
               );
 
-            if (
-              Number.isNaN(
-                amount
-              ) ||
-              amount <= 0
-            ) {
-              continue;
-            }
+              if (
+                Number.isNaN(
+                  amount
+                ) ||
+                amount <= 0
+              ) {
 
-            /* =====================================================
-               2.1 ENSURE SELLER WALLET
-            ===================================================== */
+                console.warn(
+                  "[JOBS][INVALID_AMOUNT]",
+                  {
+                    escrowId:
+                      escrow.id,
 
-            await client.query(
-              `
-              INSERT INTO wallets (
-                user_id,
-                balance
-              )
-              VALUES ($1, 0)
+                    amount,
+                  }
+                );
 
-              ON CONFLICT (user_id)
-              DO NOTHING
-              `,
-              [
-                escrow.seller_id,
-              ]
-            );
+                continue;
+              }
 
-            /* =====================================================
-               2.2 CREDIT SELLER WALLET
-            ===================================================== */
+              /* =====================================================
+                 2.1 ENSURE WALLET
+              ===================================================== */
 
-            await client.query(
-              `
-              UPDATE wallets
+              const walletInsert =
+                await client.query(
+                  `
+                  INSERT INTO wallets (
+                    user_id,
+                    balance
+                  )
+                  VALUES ($1, 0)
 
-              SET
-                balance =
-                  balance + $1,
+                  ON CONFLICT (user_id)
+                  DO NOTHING
+                  `,
+                  [
+                    escrow.seller_id,
+                  ]
+                );
 
-                updated_at =
-                  NOW()
+              console.log(
+                "[JOBS][WALLET_ENSURED]",
+                {
+                  rowCount:
+                    walletInsert.rowCount,
+                }
+              );
 
-              WHERE user_id = $2
-              `,
-              [
-                amount,
-                escrow.seller_id,
-              ]
-            );
+              /* =====================================================
+                 2.2 CREDIT WALLET
+              ===================================================== */
 
-            /* =====================================================
-               2.3 INSERT LEDGER
-            ===================================================== */
+              const walletUpdate =
+                await client.query(
+                  `
+                  UPDATE wallets
 
-            await client.query(
-              `
-              INSERT INTO wallet_journal (
-                owner_id,
-                owner_type,
+                  SET
+                    balance =
+                      balance + $1,
 
-                ref_id,
-                ref_table,
+                    updated_at =
+                      NOW()
 
-                entry_type,
-                direction,
+                  WHERE user_id = $2
+                  `,
+                  [
+                    amount,
+                    escrow.seller_id,
+                  ]
+                );
 
-                amount,
-                currency,
+              console.log(
+                "[JOBS][WALLET_UPDATED]",
+                {
+                  rowCount:
+                    walletUpdate.rowCount,
 
-                note
-              )
-              VALUES (
-                $1,
-                'SELLER',
+                  sellerId:
+                    escrow.seller_id,
 
-                $2,
-                'escrow_entries',
-
-                'SELLER_CREDIT',
-                'CREDIT',
-
-                $3,
-                'PI',
-
-                'Auto escrow release'
-              )
-              `,
-              [
-                escrow.seller_id,
-                escrow.id,
-                amount,
-              ]
-            );
-
-            /* =====================================================
-               2.4 UPDATE ESCROW
-            ===================================================== */
-
-            await client.query(
-              `
-              UPDATE escrow_entries
-
-              SET
-                release_status =
-                  'RELEASED',
-                released_amount =
                   amount,
-                released_at =
-                  NOW(),
-                updated_at =
-                  NOW()
-              WHERE id = $1
-              AND release_status = 'HOLD'
-              `,
-              [escrow.id]
-            );
+                }
+              );
 
-            /* =====================================================
-               2.5 COMPLETE ORDER
-            ===================================================== */
+              /* =====================================================
+                 2.3 WALLET JOURNAL
+              ===================================================== */
 
-            await client.query(
-              `
-              UPDATE orders
+              const journalInsert =
+                await client.query(
+                  `
+                  INSERT INTO wallet_journal (
+                    owner_id,
+                    owner_type,
 
-              SET
-                fulfillment_status =
-                  'completed',
+                    ref_id,
+                    ref_table,
 
-                completed_at =
-                  NOW(),
+                    entry_type,
+                    direction,
 
-                updated_at =
-                  NOW()
+                    amount,
+                    currency,
 
-              WHERE id = $1
-              `,
-              [escrow.order_id]
-            );
+                    note
+                  )
+                  VALUES (
+                    $1,
+                    'SELLER',
 
-            /* =====================================================
-               2.6 COMPLETE ORDER ITEMS
-            ===================================================== */
+                    $2,
+                    'escrow_entries',
 
-            await client.query(
-              `
-              UPDATE order_items
+                    'SELLER_CREDIT',
+                    'CREDIT',
 
-              SET
-                fulfillment_status =
-                  'completed',
+                    $3,
+                    'PI',
 
-                completed_at =
-                  NOW(),
+                    'Auto escrow release'
+                  )
 
-                updated_at =
-                  NOW()
+                  RETURNING id
+                  `,
+                  [
+                    escrow.seller_id,
+                    escrow.id,
+                    amount,
+                  ]
+                );
 
-              WHERE order_id = $1
-                AND fulfillment_status IN (
-                  'shipped',
-                  'delivered'
-                )
-              `,
-              [escrow.order_id]
-            );
+              console.log(
+                "[JOBS][JOURNAL_INSERTED]",
+                {
+                  rowCount:
+                    journalInsert.rowCount,
 
-            /* =====================================================
-               2.7 SETTLEMENT EVENT
-            ===================================================== */
+                  rows:
+                    journalInsert.rows,
+                }
+              );
 
-            await client.query(
-              `
-              INSERT INTO settlement_events (
-                escrow_id,
-                event_type,
-                source,
-                reason,
-                metadata
-              )
-              VALUES (
-                $1,
-                'AUTO_RELEASE',
-                'SYSTEM',
-                'Release timer reached',
-                '{}'::jsonb
-              )
-              `,
-              [escrow.id]
-            );
+              /* =====================================================
+                 2.4 UPDATE ESCROW
+              ===================================================== */
 
-            processed++;
+              const escrowUpdate =
+                await client.query(
+                  `
+                  UPDATE escrow_entries
+
+                  SET
+                    release_status =
+                      'RELEASED',
+
+                    released_amount =
+                      amount,
+
+                    released_at =
+                      NOW(),
+
+                    updated_at =
+                      NOW()
+
+                  WHERE id = $1
+                    AND release_status = 'HOLD'
+
+                  RETURNING
+                    id,
+                    release_status,
+                    released_at
+                  `,
+                  [escrow.id]
+                );
+
+              console.log(
+                "[JOBS][ESCROW_RELEASED]",
+                {
+                  rowCount:
+                    escrowUpdate.rowCount,
+
+                  rows:
+                    escrowUpdate.rows,
+                }
+              );
+
+              /* =====================================================
+                 2.5 COMPLETE ORDER
+              ===================================================== */
+
+              const orderUpdate =
+                await client.query(
+                  `
+                  UPDATE orders
+
+                  SET
+                    fulfillment_status =
+                      'completed',
+
+                    completed_at =
+                      NOW(),
+
+                    updated_at =
+                      NOW()
+
+                  WHERE id = $1
+
+                  RETURNING
+                    id,
+                    fulfillment_status,
+                    completed_at
+                  `,
+                  [escrow.order_id]
+                );
+
+              console.log(
+                "[JOBS][ORDER_COMPLETED]",
+                {
+                  rowCount:
+                    orderUpdate.rowCount,
+
+                  rows:
+                    orderUpdate.rows,
+                }
+              );
+
+              /* =====================================================
+                 2.6 COMPLETE ORDER ITEMS
+              ===================================================== */
+
+              const itemsUpdate =
+                await client.query(
+                  `
+                  UPDATE order_items
+
+                  SET
+                    fulfillment_status =
+                      'completed',
+
+                    completed_at =
+                      NOW(),
+
+                    updated_at =
+                      NOW()
+
+                  WHERE order_id = $1
+                    AND fulfillment_status IN (
+                      'shipped',
+                      'delivered'
+                    )
+
+                  RETURNING
+                    id,
+                    fulfillment_status
+                  `,
+                  [escrow.order_id]
+                );
+
+              console.log(
+                "[JOBS][ORDER_ITEMS_COMPLETED]",
+                {
+                  rowCount:
+                    itemsUpdate.rowCount,
+
+                  rows:
+                    itemsUpdate.rows,
+                  }
+              );
+
+              /* =====================================================
+                 2.7 SETTLEMENT EVENT
+              ===================================================== */
+
+              const eventInsert =
+                await client.query(
+                  `
+                  INSERT INTO settlement_events (
+                    escrow_id,
+                    event_type,
+                    source,
+                    reason,
+                    metadata
+                  )
+                  VALUES (
+                    $1,
+                    'AUTO_RELEASE',
+                    'SYSTEM',
+                    'Release timer reached',
+                    '{}'::jsonb
+                  )
+
+                  RETURNING id
+                  `,
+                  [escrow.id]
+                );
+
+              console.log(
+                "[JOBS][EVENT_INSERTED]",
+                {
+                  rowCount:
+                    eventInsert.rowCount,
+
+                  rows:
+                    eventInsert.rows,
+                }
+              );
+
+              processed++;
+
+              console.log(
+                "[JOBS][ESCROW_DONE]",
+                {
+                  escrowId:
+                    escrow.id,
+
+                  processed,
+                }
+              );
+
+            } catch (escrowError) {
+
+              console.error(
+                "[JOBS][ESCROW_FAILED]",
+                {
+                  escrowId:
+                    escrow.id,
+
+                  message:
+                    escrowError instanceof Error
+                      ? escrowError.message
+                      : "UNKNOWN",
+                }
+              );
+
+              throw escrowError;
+            }
           }
+
+          console.log(
+            "[JOBS][FINISHED]",
+            {
+              processed,
+            }
+          );
 
           return {
             success: true,
@@ -289,7 +474,7 @@ export async function GET() {
   } catch (error) {
 
     console.error(
-      "[JOBS][PROCESS]",
+      "[JOBS][PROCESS_FATAL]",
       {
         message:
           error instanceof Error
@@ -309,3 +494,4 @@ export async function GET() {
     );
   }
 }
+```
