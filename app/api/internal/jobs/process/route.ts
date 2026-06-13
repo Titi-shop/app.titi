@@ -56,7 +56,7 @@ export async function GET() {
 
               WHERE
                 release_status = 'HOLD'
-                AND status = 'SETTLED'
+                AND status = 'PAID'
                 AND release_after IS NOT NULL
                 AND release_after <= NOW()
               FOR UPDATE SKIP LOCKED
