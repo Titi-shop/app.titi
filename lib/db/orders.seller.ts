@@ -256,11 +256,18 @@ export async function startShippingBySeller(
 ): Promise<boolean> {
 
   try {
+
     return await withTransaction(
       async (client) => {
 
         /* =====================================================
            1. UPDATE ORDER ITEMS → SHIPPED
+
+           FLOW:
+           processing → shipped
+
+           Buyer will now see:
+           "Shipping"
         ===================================================== */
 
         const res =
@@ -293,6 +300,7 @@ export async function startShippingBySeller(
             "[ORDER][SELLER][SHIP][NO_ITEMS]",
             {
               orderId,
+              sellerId,
             }
           );
 
@@ -300,14 +308,15 @@ export async function startShippingBySeller(
         }
 
         /* =====================================================
-           2. ESCROW RELEASE TIMER
+           2. ESCROW AUTO RELEASE TIMER
 
            IMPORTANT:
-           - NO wallet release here
-           - NO balance update here
-           - only schedule settlement timing
+           - NO wallet update here
+           - NO payout release here
+           - only schedule settlement
 
-           escrow_entries = financial source of truth
+           TEST MODE:
+           auto complete after 10 hours
         ===================================================== */
 
         await client.query(
@@ -331,17 +340,13 @@ export async function startShippingBySeller(
         );
 
         /* =====================================================
-           3. TEMP ORDER STATUS SYNC
+           3. UPDATE MAIN ORDER STATUS
 
-           IMPORTANT:
            Buyer page currently reads:
            orders.fulfillment_status
 
-           So temporarily force sync order → shipped
-
-           Later:
-           move fully into
-           syncOrderFulfillmentStatus()
+           FLOW:
+           processing → shipped
         ===================================================== */
 
         await client.query(
@@ -367,7 +372,8 @@ export async function startShippingBySeller(
         /* =====================================================
            4. GLOBAL STATUS SYNC
 
-           Multi-seller safe
+           IMPORTANT:
+           keep order + items synchronized
         ===================================================== */
 
         await syncOrderFulfillmentStatus(
@@ -379,6 +385,7 @@ export async function startShippingBySeller(
           "[ORDER][SELLER][SHIP][SUCCESS]",
           {
             orderId,
+            sellerId,
           }
         );
 
