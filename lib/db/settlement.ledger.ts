@@ -273,51 +273,49 @@ export class SettlementLedgerV3 {
   /* =====================================================
      RELEASE ESCROW
   ===================================================== */
+static async releaseEscrow(escrowId: string) {
+  const rs = await query<{ amount: string; release_status: string }>(
+    `
+    SELECT amount, release_status
+    FROM escrow_entries
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [escrowId]
+  );
 
-  static async releaseEscrow(escrowId: string) {
-    const rs = await query<{ amount: string; release_status: string }>(
-      `
-      SELECT amount, release_status
-      FROM escrow_entries
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [escrowId]
-    );
-
-    if (!rs.rows.length) {
-      throw new Error("ESCROW_NOT_FOUND");
-    }
-
-    if (rs.rows[0].release_status === "RELEASED") {
-      return;
-    }
-
-    const total = Number(rs.rows[0].amount);
-
-    await query(
-      `
-      UPDATE escrow_entries
-      SET
-        status = 'SETTLED',
-        release_status = 'RELEASED',
-        released_amount = $2,
-        released_at = now(),
-        escrow_version = escrow_version + 1,
-        updated_at = now()
-      WHERE id = $1
-      `,
-      [escrowId, total]
-    );
-
-    await this.eventOnce(
-      escrowId,
-      "ESCROW_RELEASED",
-      "ledger",
-      "ESCROW_TO_SELLER"
-    );
+  if (!rs.rows.length) {
+    throw new Error("ESCROW_NOT_FOUND");
   }
 
+  if (rs.rows[0].release_status === "RELEASED") {
+    return;
+  }
+
+  const total = Number(rs.rows[0].amount);
+
+  await query(
+    `
+    UPDATE escrow_entries
+    SET
+      status = 'SETTLED',
+      release_status = 'RELEASED',
+      released_amount = $2,
+      released_at = now(),
+      escrow_version = escrow_version + 1,
+      updated_at = now()
+    WHERE id = $1
+    `,
+    [escrowId, total]
+  );
+
+  await this.eventOnce(
+    escrowId,
+    "ESCROW_RELEASED",
+    "ledger",
+    "ESCROW_TO_SELLER"
+  );
+}
   /* =====================================================
      REFUND BUYER
   ===================================================== */
