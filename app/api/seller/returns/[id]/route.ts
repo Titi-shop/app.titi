@@ -3,7 +3,6 @@ import { requireSeller } from "@/lib/auth/guard";
 
 import {
   getReturnByIdForSeller,
-  updateReturnStatusBySeller,
 } from "@/lib/db/returns";
 
 export const runtime = "nodejs";
