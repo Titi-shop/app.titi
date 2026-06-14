@@ -273,24 +273,6 @@ async function safeLedger(
     }
 
     const escrowId = await SettlementLedger.createEscrow({
-      paymentIntentId,
-      orderId: paid.orderId,
-      buyerId: paid.buyerId,
-      sellerId: paid.sellerId,
-      amount: paid.amount,
-      txid,
-      piPaymentId,
-    });
-
-    await SettlementLedger.markPiVerified(escrowId);
-
-    if (rpcVerified.confirmed) {
-  await SettlementLedger.markRpcVerified(escrowId);
-   }
-
-    await SettlementLedger.linkOrder(escrowId, paid.orderId);
-
-    const escrowId = await SettlementLedger.createEscrow({
   paymentIntentId,
   orderId: paid.orderId,
   buyerId: paid.buyerId,
