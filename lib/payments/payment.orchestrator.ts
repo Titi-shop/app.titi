@@ -618,19 +618,17 @@ console.log("[PAYMENT][SETTLEMENT] LEDGER_START", {
   paymentIntentId,
 });
 
-/**
- * FIRE-AND-FORGET LEDGER PIPELINE
- * không block response để tránh delay redirect UI
- */
-void safeLedger(
+const ledgerOk = await safeLedger(
   paid,
   paymentIntentId,
   piPaymentId,
   txid,
   rpcVerified
-).catch((e) => {
-  console.error("[LEDGER_ASYNC_FAIL]", e);
-});
+);
+
+if (!ledgerOk) {
+  throw new Error("LEDGER_FAILED");
+}
 
 console.log("[PAYMENT][SETTLEMENT] SUCCESS", {
   paymentIntentId,
