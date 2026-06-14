@@ -357,9 +357,8 @@ export async function releaseEscrowFlow(
     }
   );
 
-  await createSettlementJournalOnce({
-    client,
-
+  await createSettlementJournalOnce(
+  {
     ownerId:
       escrow.seller_id,
 
@@ -382,7 +381,10 @@ export async function releaseEscrowFlow(
 
     note:
       "Escrow released to seller wallet",
-  });
+  },
+
+  client
+);
 
   console.log(
     "[SETTLEMENT][RELEASE] JOURNAL_DONE",
@@ -498,9 +500,8 @@ export async function releaseEscrowFlow(
     }
   );
 
-  await createSettlementEventOnce({
-    client,
-
+  await createSettlementEventOnce(
+  {
     escrowId:
       escrow.id,
 
@@ -522,7 +523,10 @@ export async function releaseEscrowFlow(
 
       amount,
     },
-  });
+  },
+
+  client
+);
 
   console.log(
     "[SETTLEMENT][RELEASE] EVENT_DONE",
