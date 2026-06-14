@@ -15,25 +15,31 @@ import {
   createSettlementJournalOnce,
 } from "./settlement.journal";
 
-import {
-  ensureWallet,
-  creditWallet,
-} from "@/lib/db/wallet";
+/* =====================================================
+   DB CLIENT TYPE
+===================================================== */
+
+type TransactionClient = {
+  query: <T>(
+    sql: string,
+    params?: unknown[]
+  ) => Promise<{
+    rows: T[];
+    rowCount: number | null;
+  }>;
+};
 
 /* =====================================================
    FIND RELEASABLE ESCROWS
 ===================================================== */
 
 export async function findReleasableEscrows(
-  client: {
-    query: <T>(
-      sql: string,
-      params?: unknown[]
-    ) => Promise<{
-      rows: T[];
-    }>;
-  }
+  client: TransactionClient
 ): Promise<EscrowReleaseRow[]> {
+
+  console.log(
+    "[SETTLEMENT][RELEASE] FIND_RELEASABLE_START"
+  );
 
   const { rows } =
     await client.query<EscrowReleaseRow>(
@@ -62,6 +68,13 @@ export async function findReleasableEscrows(
       `
     );
 
+  console.log(
+    "[SETTLEMENT][RELEASE] FIND_RELEASABLE_DONE",
+    {
+      total: rows.length,
+    }
+  );
+
   return rows;
 }
 
@@ -78,6 +91,23 @@ export async function releaseEscrowFlow(
     escrow,
   } = input;
 
+  console.log(
+    "[SETTLEMENT][RELEASE] FLOW_START",
+    {
+      escrowId:
+        escrow.id,
+
+      orderId:
+        escrow.order_id,
+
+      sellerId:
+        escrow.seller_id,
+
+      amount:
+        escrow.amount,
+    }
+  );
+
   const amount =
     Number(escrow.amount);
 
@@ -85,6 +115,18 @@ export async function releaseEscrowFlow(
     Number.isNaN(amount) ||
     amount <= 0
   ) {
+
+    console.error(
+      "[SETTLEMENT][RELEASE] INVALID_AMOUNT",
+      {
+        escrowId:
+          escrow.id,
+
+        rawAmount:
+          escrow.amount,
+      }
+    );
+
     throw new Error(
       "INVALID_ESCROW_AMOUNT"
     );
@@ -94,133 +136,230 @@ export async function releaseEscrowFlow(
      1. RELEASE ESCROW
   =================================================== */
 
-  await client.query(
-    `
-    UPDATE escrow_entries
+  console.log(
+    "[SETTLEMENT][RELEASE] ESCROW_UPDATE_START",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
 
-    SET
-      status = 'SETTLED',
+  const escrowUpdate =
+    await client.query(
+      `
+      UPDATE escrow_entries
 
-      release_status =
-        'RELEASED',
+      SET
+        status = 'SETTLED',
 
-      released_amount =
-        amount,
+        release_status =
+          'RELEASED',
 
-      released_at =
-        NOW(),
+        released_amount =
+          amount,
 
-      updated_at =
-        NOW(),
+        released_at =
+          NOW(),
 
-      escrow_version =
-        escrow_version + 1
+        updated_at =
+          NOW(),
 
-    WHERE id = $1
-      AND release_status = 'HOLD'
-    `,
-    [
-      escrow.id,
-    ]
+        escrow_version =
+          escrow_version + 1
+
+      WHERE id = $1
+        AND release_status = 'HOLD'
+      `,
+      [
+        escrow.id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] ESCROW_UPDATE_DONE",
+    {
+      escrowId:
+        escrow.id,
+
+      affected:
+        escrowUpdate.rowCount,
+    }
   );
 
   /* ===================================================
      2. RELEASE SELLER CREDIT
   =================================================== */
 
-  await client.query(
-    `
-    UPDATE seller_credits
+  console.log(
+    "[SETTLEMENT][RELEASE] CREDIT_RELEASE_START",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
 
-    SET
-      status = 'AVAILABLE',
+  const sellerCreditUpdate =
+    await client.query(
+      `
+      UPDATE seller_credits
 
-      available_amount =
-        amount,
+      SET
+        status = 'AVAILABLE',
 
-      frozen_amount = 0,
+        available_amount =
+          amount,
 
-      released_at =
-        NOW(),
+        frozen_amount = 0,
 
-      updated_at =
-        NOW(),
+        released_at =
+          NOW(),
 
-      ledger_version =
-        ledger_version + 1
+        updated_at =
+          NOW(),
 
-    WHERE escrow_id = $1
-      AND status = 'FROZEN'
-    `,
-    [
-      escrow.id,
-    ]
+        ledger_version =
+          ledger_version + 1
+
+      WHERE escrow_id = $1
+        AND status = 'FROZEN'
+      `,
+      [
+        escrow.id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] CREDIT_RELEASE_DONE",
+    {
+      escrowId:
+        escrow.id,
+
+      affected:
+        sellerCreditUpdate.rowCount,
+    }
   );
 
   /* ===================================================
      3. ENSURE WALLET
   =================================================== */
 
+  console.log(
+    "[SETTLEMENT][RELEASE] ENSURE_WALLET_START",
+    {
+      sellerId:
+        escrow.seller_id,
+    }
+  );
+
   await client.query(
-  `
-  INSERT INTO wallets (
-    user_id,
-    balance,
-    available_balance,
-    pending_balance,
-    frozen_balance,
-    wallet_version,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    $1,
-    0,
-    0,
-    0,
-    0,
-    1,
-    NOW(),
-    NOW()
-  )
-  ON CONFLICT (user_id)
-  DO NOTHING
-  `,
-  [escrow.seller_id]
-);
-
-await client.query(
-  `
-  UPDATE wallets
-
-  SET
-    balance =
-      balance + $1,
-
-    available_balance =
-      available_balance + $1,
-
-    wallet_version =
-      wallet_version + 1,
-
-    last_credit_at =
+    `
+    INSERT INTO wallets (
+      user_id,
+      balance,
+      available_balance,
+      pending_balance,
+      frozen_balance,
+      wallet_version,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      $1,
+      0,
+      0,
+      0,
+      0,
+      1,
       NOW(),
-
-    updated_at =
       NOW()
+    )
 
-  WHERE user_id = $2
-  `,
-  [
-    amount,
-    escrow.seller_id,
-  ]
-);
+    ON CONFLICT (user_id)
+    DO NOTHING
+    `,
+    [
+      escrow.seller_id,
+    ]
+  );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] ENSURE_WALLET_DONE",
+    {
+      sellerId:
+        escrow.seller_id,
+    }
+  );
+
+  /* ===================================================
+     4. CREDIT WALLET
+  =================================================== */
+
+  console.log(
+    "[SETTLEMENT][RELEASE] WALLET_CREDIT_START",
+    {
+      sellerId:
+        escrow.seller_id,
+
+      amount,
+    }
+  );
+
+  const walletUpdate =
+    await client.query(
+      `
+      UPDATE wallets
+
+      SET
+
+        balance =
+          balance + $1,
+
+        available_balance =
+          available_balance + $1,
+
+        wallet_version =
+          wallet_version + 1,
+
+        last_credit_at =
+          NOW(),
+
+        updated_at =
+          NOW()
+
+      WHERE user_id = $2
+      `,
+      [
+        amount,
+        escrow.seller_id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] WALLET_CREDIT_DONE",
+    {
+      sellerId:
+        escrow.seller_id,
+
+      affected:
+        walletUpdate.rowCount,
+    }
+  );
+
   /* ===================================================
      5. JOURNAL
   =================================================== */
 
+  console.log(
+    "[SETTLEMENT][RELEASE] JOURNAL_START",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
+
   await createSettlementJournalOnce({
+    client,
+
     ownerId:
       escrow.seller_id,
 
@@ -245,65 +384,123 @@ await client.query(
       "Escrow released to seller wallet",
   });
 
+  console.log(
+    "[SETTLEMENT][RELEASE] JOURNAL_DONE",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
+
   /* ===================================================
      6. COMPLETE ORDER
   =================================================== */
 
-  await client.query(
-    `
-    UPDATE orders
+  console.log(
+    "[SETTLEMENT][RELEASE] ORDER_COMPLETE_START",
+    {
+      orderId:
+        escrow.order_id,
+    }
+  );
 
-    SET
-      fulfillment_status =
-        'completed',
+  const orderUpdate =
+    await client.query(
+      `
+      UPDATE orders
 
-      completed_at =
-        NOW(),
+      SET
+        fulfillment_status =
+          'completed',
 
-      updated_at =
-        NOW()
+        completed_at =
+          NOW(),
 
-    WHERE id = $1
-    `,
-    [
-      escrow.order_id,
-    ]
+        updated_at =
+          NOW()
+
+      WHERE id = $1
+      `,
+      [
+        escrow.order_id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] ORDER_COMPLETE_DONE",
+    {
+      orderId:
+        escrow.order_id,
+
+      affected:
+        orderUpdate.rowCount,
+    }
   );
 
   /* ===================================================
      7. COMPLETE ORDER ITEMS
   =================================================== */
 
-  await client.query(
-    `
-    UPDATE order_items
+  console.log(
+    "[SETTLEMENT][RELEASE] ORDER_ITEMS_COMPLETE_START",
+    {
+      orderId:
+        escrow.order_id,
+    }
+  );
 
-    SET
-      fulfillment_status =
-        'completed',
+  const orderItemsUpdate =
+    await client.query(
+      `
+      UPDATE order_items
 
-      completed_at =
-        NOW(),
+      SET
+        fulfillment_status =
+          'completed',
 
-      updated_at =
-        NOW()
+        completed_at =
+          NOW(),
 
-    WHERE order_id = $1
-      AND fulfillment_status IN (
-        'shipped',
-        'delivered'
-      )
-    `,
-    [
-      escrow.order_id,
-    ]
+        updated_at =
+          NOW()
+
+      WHERE order_id = $1
+        AND fulfillment_status IN (
+          'shipped',
+          'delivered'
+        )
+      `,
+      [
+        escrow.order_id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] ORDER_ITEMS_COMPLETE_DONE",
+    {
+      orderId:
+        escrow.order_id,
+
+      affected:
+        orderItemsUpdate.rowCount,
+    }
   );
 
   /* ===================================================
      8. EVENT
   =================================================== */
 
+  console.log(
+    "[SETTLEMENT][RELEASE] EVENT_START",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
+
   await createSettlementEventOnce({
+    client,
+
     escrowId:
       escrow.id,
 
@@ -326,4 +523,32 @@ await client.query(
       amount,
     },
   });
+
+  console.log(
+    "[SETTLEMENT][RELEASE] EVENT_DONE",
+    {
+      escrowId:
+        escrow.id,
+    }
+  );
+
+  /* ===================================================
+     COMPLETE
+  =================================================== */
+
+  console.log(
+    "[SETTLEMENT][RELEASE] FLOW_SUCCESS",
+    {
+      escrowId:
+        escrow.id,
+
+      orderId:
+        escrow.order_id,
+
+      sellerId:
+        escrow.seller_id,
+
+      amount,
+    }
+  );
 }
