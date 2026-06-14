@@ -161,21 +161,61 @@ export async function releaseEscrowFlow(
      3. ENSURE WALLET
   =================================================== */
 
-  await ensureWallet(
-    escrow.seller_id
-  );
+  await client.query(
+  `
+  INSERT INTO wallets (
+    user_id,
+    balance,
+    available_balance,
+    pending_balance,
+    frozen_balance,
+    wallet_version,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (user_id)
+  DO NOTHING
+  `,
+  [escrow.seller_id]
+);
 
-  /* ===================================================
-     4. CREDIT WALLET
-  =================================================== */
+await client.query(
+  `
+  UPDATE wallets
 
-  await creditWallet({
-    userId:
-      escrow.seller_id,
+  SET
+    balance =
+      balance + $1,
 
+    available_balance =
+      available_balance + $1,
+
+    wallet_version =
+      wallet_version + 1,
+
+    last_credit_at =
+      NOW(),
+
+    updated_at =
+      NOW()
+
+  WHERE user_id = $2
+  `,
+  [
     amount,
-  });
-
+    escrow.seller_id,
+  ]
+);
   /* ===================================================
      5. JOURNAL
   =================================================== */
