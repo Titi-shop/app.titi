@@ -1,46 +1,14 @@
 import { query } from "@/lib/db";
 import { randomUUID, createHash } from "crypto";
 
-/* =========================================================
-   TYPES
-========================================================= */
-
-type CreateEscrowInput = {
-  paymentIntentId: string;
-  orderId: string;
-  buyerId: string;
-  sellerId: string;
-  amount: number;
-  txid: string;
-  piPaymentId: string;
-};
-
-type CreditSellerInput = {
-  escrowId: string;
-  sellerId: string;
-  amount: number;
-  paymentIntentId?: string;
-  orderId?: string;
-  piPaymentId?: string;
-};
-
-type RefundBuyerInput = {
-  escrowId: string;
-  buyerId: string;
-  amount: number;
-  reason?: string;
-  refundTxid?: string;
-  piPaymentId?: string;
-  approvedBy?: string | null;
-};
-
-type WithdrawSellerInput = {
-  sellerCreditId: string;
-  sellerId: string;
-  amount: number;
-  withdrawWallet: string;
-  txid?: string;
-};
+import type {
+  CreateEscrowInput,
+  CreditSellerInput,
+  RefundBuyerInput,
+  WithdrawSellerInput,
+  EscrowReleaseRow,
+  ReleaseEscrowFlowInput,
+} from "@/lib/payments/types";
 
 /* =========================================================
    HASH
