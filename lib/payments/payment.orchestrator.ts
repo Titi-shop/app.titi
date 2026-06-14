@@ -294,6 +294,8 @@ await SettlementLedger.creditSeller({
   escrowId,
   sellerId: paid.sellerId,
   amount: paid.amount,
+  paymentIntentId,
+  orderId: paid.orderId,
   piPaymentId,
 });
     await auditFinalizeDone(paymentIntentId, {
