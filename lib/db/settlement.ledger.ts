@@ -482,7 +482,7 @@ static async releaseEscrow(escrowId: string) {
       refId: input.sellerCreditId,
       refTable: "seller_withdrawals",
       entryType: "SELLER_WITHDRAW",
-      direction: "DEBIT",
+     direction: "CREDIT",
       amount: input.amount,
       note: "Seller withdrawal processed",
     });
