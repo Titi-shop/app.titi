@@ -168,7 +168,8 @@ export function useWallet() {
   return {
 
     loading:
-      isLoading,
+  authLoading ||
+  (isLoading && !data),
 
     error,
 
