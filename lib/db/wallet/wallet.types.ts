@@ -21,9 +21,18 @@ export type JournalDirection =
 export type JournalEntryType =
   | "ESCROW_HOLD"
   | "BUYER_REFUND"
+  | "BUYER_PARTIAL_REFUND"
   | "SELLER_CREDIT"
   | "SELLER_ESCROW_RELEASE"
   | "SELLER_WITHDRAW"
+  | "SELLER_WITHDRAW_REVERT"
+  | "ESCROW_RELEASE"
+  | "ESCROW_REVERT"
+  | "DISPUTE_LOCK"
+  | "DISPUTE_RELEASE"
+  | "DISPUTE_REFUND"
+  | "ADMIN_ADJUST"
+  | "ADMIN_REVERSE"
   | "SYSTEM_COMPENSATION";
 
 export type WalletOwnerType =
@@ -38,6 +47,7 @@ export type WalletClient = {
     params?: unknown[]
   ) => Promise<{
     rows: T[];
+    rowCount?: number | null;
   }>;
 };
 
