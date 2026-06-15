@@ -776,8 +776,21 @@
 
     "INSUFFICIENT_BALANCE": "Số dư không đủ",
     "WITHDRAW_DISABLED": "Rút tiền hiện đang bị tắt",
-    "INVALID_ADDRESS": "Địa chỉ ví không hợp lệ"
-  
+    "INVALID_ADDRESS": "Địa chỉ ví không hợp lệ",
+  "wallet_withdraw": "Rút tiền",
+  "wallet_withdraw_description": "Rút PI sang ví khác",
+
+  "wallet_invalid_amount": "Số tiền không hợp lệ",
+  "wallet_address_required": "Vui lòng nhập địa chỉ ví",
+  "wallet_withdraw_failed": "Rút tiền thất bại",
+
+  "wallet_address": "Địa chỉ ví",
+  "wallet_address_placeholder": "Địa chỉ ví Pi",
+
+  "wallet_amount": "Số lượng",
+
+  "common_cancel": "Hủy",
+  "common_processing": "Đang xử lý..."
 
 
 
