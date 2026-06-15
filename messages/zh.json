@@ -722,7 +722,21 @@
 
   "wallet_insufficient_balance": "余额不足",
   "wallet_withdraw_disabled": "提现功能已关闭",
-  "wallet_invalid_address": "钱包地址无效"
+  "wallet_invalid_address": "钱包地址无效",
+  "wallet_withdraw": "提现",
+  "wallet_withdraw_description": "将 PI 提现到其他钱包",
+
+  "wallet_invalid_amount": "金额无效",
+  "wallet_address_required": "请输入钱包地址",
+  "wallet_withdraw_failed": "提现失败",
+
+  "wallet_address": "钱包地址",
+  "wallet_address_placeholder": "Pi 钱包地址",
+
+  "wallet_amount": "金额",
+
+  "common_cancel": "取消",
+  "common_processing": "处理中..."
 
 
 
