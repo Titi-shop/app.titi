@@ -123,3 +123,42 @@ export type WalletApiResponse = {
   transactions:
     WalletTransaction[];
 };
+
+export type WalletWithdrawalStatus =
+  | "PENDING"
+  | "SENT"
+  | "FAILED"
+  | "CANCELLED";
+
+export type CreateWalletWithdrawalInput = {
+  client?: WalletClient;
+
+  userId: string;
+
+  amount: number;
+
+  withdrawWallet: string;
+};
+
+export type WalletWithdrawalRow = {
+  id: string;
+
+  user_id: string;
+
+  amount: string;
+
+  currency: string;
+
+  withdraw_wallet: string;
+
+  txid?: string | null;
+
+  status:
+    WalletWithdrawalStatus;
+
+  requested_at: string;
+
+  completed_at?: string | null;
+
+  fail_reason?: string | null;
+};
