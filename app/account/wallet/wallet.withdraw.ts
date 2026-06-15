@@ -1,3 +1,6 @@
+
+app/account/wallet/wallet.withdraw.ts
+
 // =====================================================
 // app/account/wallet/wallet.withdraw.ts
 // =====================================================
@@ -5,10 +8,6 @@
 import {
   apiAuthFetch,
 } from "@/lib/api/apiAuthFetch";
-
-import {
-  useTranslationClient as useTranslation,
-} from "@/app/lib/i18n/client";
 
 /* =====================================================
    TYPES
@@ -33,9 +32,6 @@ export async function createWithdraw(
   payload: WithdrawPayload
 ): Promise<WithdrawResponse> {
 
-  const { t } =
-    useTranslation();
-
   /* ===================================================
      VALIDATE AMOUNT
   =================================================== */
@@ -49,11 +45,8 @@ export async function createWithdraw(
 
     return {
       success: false,
-
       error:
-        t
-          .wallet_invalid_amount ??
-        "Invalid amount",
+        "INVALID_AMOUNT",
     };
   }
 
@@ -69,11 +62,8 @@ export async function createWithdraw(
 
     return {
       success: false,
-
       error:
-        t
-          .wallet_invalid_wallet ??
-        "Invalid wallet address",
+        "INVALID_WALLET",
     };
   }
 
@@ -121,11 +111,8 @@ export async function createWithdraw(
 
       return {
         success: false,
-
         error:
-          t
-            .wallet_invalid_response ??
-          "Invalid server response",
+          "INVALID_RESPONSE",
       };
     }
 
@@ -143,50 +130,14 @@ export async function createWithdraw(
       !response.ok
     ) {
 
-      let errorMessage =
-        t
-          .wallet_withdraw_failed ??
-        "Withdraw failed";
-
-      switch (
-        data.error
-      ) {
-
-        case
-          "INSUFFICIENT_BALANCE":
-
-          errorMessage =
-            t
-              .wallet_insufficient_balance ??
-            "Insufficient balance";
-
-          break;
-
-        case
-          "WITHDRAW_DISABLED":
-
-          errorMessage =
-            t
-              .wallet_withdraw_disabled ??
-            "Withdraw is disabled";
-
-          break;
-
-        case
-          "INVALID_ADDRESS":
-
-          errorMessage =
-            t
-              .wallet_invalid_address ??
-            "Invalid wallet address";
-
-          break;
-      }
-
       return {
         success: false,
+
         error:
-          errorMessage,
+          typeof data.error ===
+          "string"
+            ? data.error
+            : "WITHDRAW_FAILED",
       };
     }
 
@@ -208,11 +159,10 @@ export async function createWithdraw(
 
     return {
       success: false,
-
       error:
-        t
-          .wallet_network_error ??
-        "Network error",
+        "NETWORK_ERROR",
     };
   }
 }
+
+Viết các ngôn ngữ bên trong thành key ngôn ngữ .
