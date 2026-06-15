@@ -1,6 +1,3 @@
-
-app/account/wallet/wallet.withdraw.ts
-
 // =====================================================
 // app/account/wallet/wallet.withdraw.ts
 // =====================================================
@@ -164,4 +161,3 @@ export async function createWithdraw(
     };
   }
 }
-
