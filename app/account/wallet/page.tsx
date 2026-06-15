@@ -2,7 +2,12 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
+
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import {
   ArrowDownLeft,
@@ -14,13 +19,18 @@ import {
 } from "lucide-react";
 
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { useAuth } from "@/context/AuthContext";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-/* =======================================================
+import { useAuth } from "@/context/AuthContext";
+
+import {
+  useTranslationClient as useTranslation,
+} from "@/app/lib/i18n/client";
+
+/* =====================================================
    TYPES
-======================================================= */
-type TransactionType =
+===================================================== */
+
+type TransactionDirection =
   | "CREDIT"
   | "DEBIT";
 
@@ -39,61 +49,112 @@ type EntryType =
   | "DISPUTE_REFUND"
   | "ADMIN_ADJUST"
   | "ADMIN_REVERSE"
-  | "SYSTEM_COMPENSATION"
-  | string;
+  | "SYSTEM_COMPENSATION";
 
-
-type Tx = {
+type WalletTransaction = {
   id: string;
-  direction: TransactionType;
+  direction: TransactionDirection;
   amount: number;
   entry_type: EntryType;
   created_at: string;
 };
 
-type TransactionApiItem = {
-  id?: unknown;
-  direction?: unknown;
-  amount?: unknown;
-  entry_type?: unknown;
-  created_at?: unknown;
-};
 type WalletResponse = {
-  balance?: number | string;
-  transactions?: unknown[];
+  balance: number;
+  transactions: WalletTransaction[];
 };
 
-/* =======================================================
+/* =====================================================
+   FETCHER
+===================================================== */
+
+async function walletFetcher(
+  url: string
+): Promise<WalletResponse> {
+
+  const response =
+    await apiAuthFetch(url);
+
+  if (!response.ok) {
+
+    throw new Error(
+      "WALLET_FETCH_FAILED"
+    );
+  }
+
+  const data =
+    await response.json();
+
+  return {
+    balance:
+      Number(data.balance ?? 0),
+
+    transactions:
+      Array.isArray(
+        data.transactions
+      )
+        ? data.transactions.map(
+            (
+              item: WalletTransaction
+            ) => ({
+              id:
+                String(item.id),
+
+              direction:
+                item.direction ===
+                "DEBIT"
+                  ? "DEBIT"
+                  : "CREDIT",
+
+              amount:
+                Number(
+                  item.amount ?? 0
+                ),
+
+              entry_type:
+                item.entry_type,
+
+              created_at:
+                String(
+                  item.created_at
+                ),
+            })
+          )
+        : [],
+  };
+}
+
+/* =====================================================
    UTILS
-======================================================= */
+===================================================== */
 
-function formatPi(value: number): string {
-  return Number(value).toFixed(2);
+function formatPi(
+  value: number
+): string {
+
+  return value.toFixed(2);
 }
 
-function formatTime(date: string): string {
-  return new Date(date).toLocaleString();
-}
+function formatDate(
+  value: string
+): string {
 
-function isWalletResponse(
-  value: unknown
-): value is WalletResponse {
-  return (
-    typeof value === "object" &&
-    value !== null
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      hour12: false,
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  ).format(
+    new Date(value)
   );
 }
 
-function isTransactionApiItem(
-  value: unknown
-): value is TransactionApiItem {
-  return (
-    typeof value === "object" &&
-    value !== null
-  );
-}
-
-function getRefLabel(
+function getEntryLabel(
   type: EntryType
 ): string {
 
@@ -143,190 +204,158 @@ function getRefLabel(
   }
 }
 
-/* =======================================================
+/* =====================================================
    PAGE
-======================================================= */
+===================================================== */
 
 export default function WalletPage() {
-  const { t } = useTranslation();
+
+  const { t } =
+    useTranslation();
 
   const {
     loading: authLoading,
   } = useAuth();
 
-  const [balance, setBalance] =
-    useState<number>(0);
+  const [
+    refreshing,
+    setRefreshing,
+  ] = useState(false);
 
-  const [txs, setTxs] = useState<Tx[]>(
-    []
-  );
+  /* ===================================================
+     SWR
+  =================================================== */
 
-  const [loading, setLoading] =
-    useState<boolean>(true);
+  const {
+    data,
+    isLoading,
+    mutate,
+  } = useSWR<WalletResponse>(
+    authLoading
+      ? null
+      : "/api/wallet",
 
-  const [refreshing, setRefreshing] =
-    useState<boolean>(false);
+    walletFetcher,
 
-  const hasLoaded =
-    useRef<boolean>(false);
-
-  /* =======================================================
-     LOAD
-  ======================================================= */
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (hasLoaded.current) return;
-
-    hasLoaded.current = true;
-
-    void load();
-  }, [authLoading]);
-
-  async function load(): Promise<void> {
-    try {
-      const walletRes =
-  await apiAuthFetch(
-    "/api/wallet",
     {
-      cache: "no-store",
+      revalidateOnFocus:
+        false,
+
+      revalidateIfStale:
+        false,
+
+      dedupingInterval:
+        15000,
+
+      keepPreviousData:
+        true,
     }
   );
 
-      /* ================= WALLET ================= */
+  /* ===================================================
+     BALANCE
+  =================================================== */
 
-    if (walletRes.ok) {
+  const balance =
+    useMemo(() => {
 
-  const walletJson: unknown =
-    await walletRes.json();
-
-  if (
-    isWalletResponse(walletJson)
-  ) {
-
-    const parsedBalance =
-      Number(
-        walletJson.balance ?? 0
+      return Number(
+        data?.balance ?? 0
       );
 
-    setBalance(
-      Number.isNaN(parsedBalance)
-        ? 0
-        : parsedBalance
-    );
+    }, [data]);
 
-    if (
-      Array.isArray(
-        walletJson.transactions
-      )
-    ) {
+  /* ===================================================
+     TRANSACTIONS
+  =================================================== */
 
-      const safeTxs =
-        walletJson.transactions
-          .map(parseTransaction)
-          .filter(
-            (
-              item
-            ): item is Tx =>
-              item !== null
-          );
+  const transactions =
+    useMemo(() => {
 
-      setTxs(safeTxs);
-    }
-  }
-}
-    } catch (error) {
-      console.error(
-        "❌ WALLET LOAD ERROR",
-        error
-      );
+      return data?.transactions ??
+        [];
+
+    }, [data]);
+
+  /* ===================================================
+     STATS
+  =================================================== */
+
+  const totalIn =
+    useMemo(() => {
+
+      return transactions
+        .filter(
+          (
+            item
+          ) =>
+            item.direction ===
+            "CREDIT"
+        )
+        .reduce(
+          (
+            total,
+            item
+          ) =>
+            total +
+            item.amount,
+
+          0
+        );
+
+    }, [transactions]);
+
+  const totalOut =
+    useMemo(() => {
+
+      return transactions
+        .filter(
+          (
+            item
+          ) =>
+            item.direction ===
+            "DEBIT"
+        )
+        .reduce(
+          (
+            total,
+            item
+          ) =>
+            total +
+            item.amount,
+
+          0
+        );
+
+    }, [transactions]);
+
+  /* ===================================================
+     REFRESH
+  =================================================== */
+
+  async function refresh() {
+
+    try {
+
+      setRefreshing(true);
+
+      await mutate();
+
     } finally {
-      setLoading(false);
+
       setRefreshing(false);
     }
   }
 
-  async function refresh(): Promise<void> {
-    if (refreshing) return;
-
-    setRefreshing(true);
-
-    await load();
-  }
-
-  /* =======================================================
-     LABELS
-  ======================================================= */
-
-  function getRefLabel(
-    type: ReferenceType
-  ): string {
-    switch (type) {
-      case "order":
-        return (
-          t.wallet_ref_order ??
-          "Order Payment"
-        );
-
-      case "refund":
-        return (
-          t.wallet_ref_refund ??
-          "Refund"
-        );
-
-      case "withdraw":
-        return (
-          t.wallet_ref_withdraw ??
-          "Withdraw"
-        );
-
-      case "deposit":
-        return (
-          t.wallet_ref_deposit ??
-          "Deposit"
-        );
-
-      default:
-        return type;
-    }
-  }
-
-  /* =======================================================
-     STATS
-  ======================================================= */
-
-  const totalIn = useMemo(() => {
-    return txs
-      .filter(
-        (item) =>
-          item.direction === "CREDIT"
-      )
-      .reduce(
-        (acc, item) =>
-          acc + item.amount,
-        0
-      );
-  }, [txs]);
-
-  const totalOut = useMemo(() => {
-    return txs
-      .filter(
-        (item) =>
-          item.direction === "DEBIT"
-      )
-      .reduce(
-        (acc, item) =>
-          acc + item.amount,
-        0
-      );
-  }, [txs]);
-
-  /* =======================================================
+  /* ===================================================
      LOADING
-  ======================================================= */
+  =================================================== */
 
-  if (loading) {
+  if (
+    isLoading &&
+    !data
+  ) {
+
     return (
       <main className="min-h-screen bg-[var(--background)] p-4">
 
@@ -338,75 +367,60 @@ export default function WalletPage() {
         />
 
         <div className="mt-4 space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="
-                h-20 animate-pulse rounded-2xl
-                bg-[var(--card-secondary)]
-              "
-            />
-          ))}
+
+          {[1, 2, 3].map(
+            (item) => (
+              <div
+                key={item}
+                className="
+                  h-20 animate-pulse rounded-2xl
+                  bg-[var(--card-secondary)]
+                "
+              />
+            )
+          )}
+
         </div>
 
       </main>
     );
   }
 
-  /* =======================================================
+  /* ===================================================
      UI
-  ======================================================= */
+  =================================================== */
 
   return (
-    <main className="min-h-screen bg-[var(--background)] pb-28 transition-colors duration-300">
+    <main className="min-h-screen bg-[var(--background)] pb-28">
 
-      {/* =======================================================
-          HERO
-      ======================================================= */}
+      {/* HERO */}
 
       <section
         className="
           relative overflow-hidden
           rounded-b-[2.5rem]
-          border-b border-orange-500/10
           bg-gradient-to-br
           from-orange-500
           via-orange-500
           to-amber-500
           px-5 pb-8 pt-8
           text-white
-          shadow-xl
         "
       >
-        {/* glow */}
-        <div
-          className="
-            absolute -right-10 -top-10
-            h-40 w-40 rounded-full
-            bg-white/10 blur-3xl
-          "
-        />
 
-        <div
-          className="
-            absolute bottom-0 left-0
-            h-32 w-32 rounded-full
-            bg-yellow-300/10 blur-3xl
-          "
-        />
-
-        {/* top */}
-        <div className="relative z-10 flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between">
 
           <div>
+
             <p className="text-sm text-white/80">
               {t.wallet_balance ??
                 "Wallet Balance"}
             </p>
 
-            <h1 className="mt-3 text-4xl font-black tracking-tight">
+            <h1 className="mt-3 text-4xl font-black">
               π {formatPi(balance)}
             </h1>
+
           </div>
 
           <button
@@ -415,15 +429,13 @@ export default function WalletPage() {
               void refresh();
             }}
             className="
-              flex h-11 w-11 items-center justify-center
+              flex h-11 w-11
+              items-center justify-center
               rounded-2xl
-              border border-white/20
               bg-white/10
-              backdrop-blur-md
-              transition-all duration-200
-              active:scale-95
             "
           >
+
             <RefreshCcw
               size={18}
               className={
@@ -432,199 +444,107 @@ export default function WalletPage() {
                   : ""
               }
             />
+
           </button>
 
         </div>
 
-        {/* actions */}
-        <div className="relative z-10 mt-8 grid grid-cols-3 gap-3">
-
-          <button
-            type="button"
-            className="
-              rounded-2xl
-              border border-white/15
-              bg-white/10
-              p-3
-              backdrop-blur-md
-              transition-all duration-200
-              active:scale-95
-            "
-          >
-            <div
-              className="
-                mx-auto flex h-11 w-11
-                items-center justify-center
-                rounded-xl bg-white/15
-              "
-            >
-              <ArrowDownLeft size={20} />
-            </div>
-
-            <p className="mt-2 text-xs font-semibold">
-              {t.wallet_deposit ??
-                "Deposit"}
-            </p>
-          </button>
-
-          <button
-            type="button"
-            className="
-              rounded-2xl
-              border border-white/15
-              bg-white/10
-              p-3
-              backdrop-blur-md
-              transition-all duration-200
-              active:scale-95
-            "
-          >
-            <div
-              className="
-                mx-auto flex h-11 w-11
-                items-center justify-center
-                rounded-xl bg-white/15
-              "
-            >
-              <ArrowUpRight size={20} />
-            </div>
-
-            <p className="mt-2 text-xs font-semibold">
-              {t.wallet_withdraw ??
-                "Withdraw"}
-            </p>
-          </button>
-
-          <button
-            type="button"
-            className="
-              rounded-2xl
-              border border-white/15
-              bg-white/10
-              p-3
-              backdrop-blur-md
-              transition-all duration-200
-              active:scale-95
-            "
-          >
-            <div
-              className="
-                mx-auto flex h-11 w-11
-                items-center justify-center
-                rounded-xl bg-white/15
-              "
-            >
-              <CreditCard size={20} />
-            </div>
-
-            <p className="mt-2 text-xs font-semibold">
-              {t.wallet_pay ??
-                "Pay"}
-            </p>
-          </button>
-
-        </div>
       </section>
 
-      {/* =======================================================
-          STATS
-      ======================================================= */}
+      {/* STATS */}
 
-      <section className="px-4 pt-5">
-        <div className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-2 gap-4 px-4 pt-5">
 
-          {/* IN */}
+        <div
+          className="
+            rounded-3xl
+            bg-[var(--card-bg)]
+            p-5
+          "
+        >
+
           <div
             className="
-              rounded-3xl
-              border border-green-500/10
-              bg-[var(--card-bg)]
-              p-5
-              shadow-sm
+              flex h-12 w-12
+              items-center justify-center
+              rounded-2xl
+              bg-green-500/10
+              text-green-500
             "
           >
-            <div
-              className="
-                flex h-12 w-12 items-center justify-center
-                rounded-2xl
-                bg-green-500/10
-                text-green-500
-              "
-            >
-              <PiggyBank size={22} />
-            </div>
-
-            <p className="mt-4 text-xs text-[var(--text-muted)]">
-              {t.wallet_total_in ??
-                "Total In"}
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-green-500">
-              +π {formatPi(totalIn)}
-            </p>
+            <PiggyBank size={22} />
           </div>
 
-          {/* OUT */}
-          <div
-            className="
-              rounded-3xl
-              border border-red-500/10
-              bg-[var(--card-bg)]
-              p-5
-              shadow-sm
-            "
-          >
-            <div
-              className="
-                flex h-12 w-12 items-center justify-center
-                rounded-2xl
-                bg-red-500/10
-                text-red-500
-              "
-            >
-              <Wallet size={22} />
-            </div>
+          <p className="mt-4 text-xs text-[var(--text-muted)]">
+            {t.wallet_total_in ??
+              "Total In"}
+          </p>
 
-            <p className="mt-4 text-xs text-[var(--text-muted)]">
-              {t.wallet_total_out ??
-                "Total Out"}
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-red-500">
-              -π {formatPi(totalOut)}
-            </p>
-          </div>
+          <p className="mt-1 text-2xl font-bold text-green-500">
+            +π {formatPi(totalIn)}
+          </p>
 
         </div>
+
+        <div
+          className="
+            rounded-3xl
+            bg-[var(--card-bg)]
+            p-5
+          "
+        >
+
+          <div
+            className="
+              flex h-12 w-12
+              items-center justify-center
+              rounded-2xl
+              bg-red-500/10
+              text-red-500
+            "
+          >
+            <Wallet size={22} />
+          </div>
+
+          <p className="mt-4 text-xs text-[var(--text-muted)]">
+            {t.wallet_total_out ??
+              "Total Out"}
+          </p>
+
+          <p className="mt-1 text-2xl font-bold text-red-500">
+            -π {formatPi(totalOut)}
+          </p>
+
+        </div>
+
       </section>
 
-      {/* =======================================================
-          TRANSACTIONS
-      ======================================================= */}
+      {/* TRANSACTIONS */}
 
       <section className="mt-6 px-4">
 
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-[var(--foreground)]">
+
+          <h2 className="text-base font-bold">
             {t.wallet_transactions ??
               "Transactions"}
           </h2>
 
           <span className="text-xs text-[var(--text-muted)]">
-            {txs.length}
+            {transactions.length}
           </span>
+
         </div>
 
         <div
           className="
             overflow-hidden rounded-3xl
-            border border-orange-500/10
             bg-[var(--card-bg)]
-            shadow-sm
           "
         >
 
-          {txs.length === 0 && (
+          {transactions.length === 0 && (
+
             <div className="p-10 text-center">
 
               <div
@@ -647,69 +567,63 @@ export default function WalletPage() {
             </div>
           )}
 
-          {txs.map((item) => {
-            const isCredit =
-  item.direction === "CREDIT";
+          {transactions.map(
+            (item) => {
 
-            return (
-              <div
-                key={item.id}
-                className="
-                  flex items-center justify-between gap-4
-                  border-b border-orange-500/5
-                  p-4 last:border-b-0
-                "
-              >
+              const isCredit =
+                item.direction ===
+                "CREDIT";
 
-                {/* left */}
-                <div className="flex min-w-0 items-center gap-3">
+              return (
+                <div
+                  key={item.id}
+                  className="
+                    flex items-center justify-between
+                    border-b border-orange-500/5
+                    p-4 last:border-b-0
+                  "
+                >
 
-                  <div
-                    className={`
-                      flex h-12 w-12 shrink-0 items-center justify-center
-                      rounded-2xl
-                      ${
-                        isCredit
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-red-500/10 text-red-500"
-                      }
-                    `}
-                  >
-                    {isCredit ? (
-                      <ArrowDownLeft
-                        size={20}
-                      />
-                    ) : (
-                      <ArrowUpRight
-                        size={20}
-                      />
-                    )}
-                  </div>
+                  <div className="flex items-center gap-3">
 
-                  <div className="min-w-0">
-
-                    <p
-                      className="
-                        truncate text-sm font-semibold
-                        text-[var(--foreground)]
-                      "
+                    <div
+                      className={`
+                        flex h-12 w-12
+                        items-center justify-center
+                        rounded-2xl
+                        ${
+                          isCredit
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-red-500/10 text-red-500"
+                        }
+                      `}
                     >
-                      {getRefLabel(
-                        item.entry_type
-                      )}
-                    </p>
 
-                    <p className="mt-1 text-xs text-[var(--text-muted)]">
-                      {formatTime(
-                        item.created_at
+                      {isCredit ? (
+                        <ArrowDownLeft size={20} />
+                      ) : (
+                        <ArrowUpRight size={20} />
                       )}
-                    </p>
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-sm font-semibold">
+                        {getEntryLabel(
+                          item.entry_type
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-xs text-[var(--text-muted)]">
+                        {formatDate(
+                          item.created_at
+                        )}
+                      </p>
+
+                    </div>
 
                   </div>
-                </div>
-
-                {/* amount */}
-                <div className="text-right">
 
                   <p
                     className={`
@@ -721,23 +635,27 @@ export default function WalletPage() {
                       }
                     `}
                   >
+
                     {isCredit
                       ? "+"
                       : "-"}
+
                     π
                     {formatPi(
                       item.amount
                     )}
+
                   </p>
 
                 </div>
-
-              </div>
-            );
-          })}
+              );
+            }
+          )}
 
         </div>
+
       </section>
+
     </main>
   );
 }
