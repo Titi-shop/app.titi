@@ -726,7 +726,22 @@
 
     "INSUFFICIENT_BALANCE": "Insufficient balance",
     "WITHDRAW_DISABLED": "Withdraw is disabled",
-    "INVALID_ADDRESS": "Invalid wallet address"
+    "INVALID_ADDRESS": "Invalid wallet address",
+  "wallet_withdraw": "Withdraw",
+  "wallet_withdraw_description": "Withdraw PI to another wallet",
+
+  "wallet_invalid_amount": "Invalid amount",
+  "wallet_address_required": "Wallet address required",
+  "wallet_withdraw_failed": "Withdraw failed",
+
+  "wallet_address": "Wallet Address",
+  "wallet_address_placeholder": "Pi Wallet Address",
+
+  "wallet_amount": "Amount",
+
+  "common_cancel": "Cancel",
+  "common_processing": "Processing..."
+
 
 
 
