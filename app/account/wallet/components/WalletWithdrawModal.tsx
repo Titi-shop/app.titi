@@ -119,35 +119,35 @@ export default function WalletWithdrawModal({
       }
 
       const result =
-        await createWithdraw({
-          amount:
-            parsedAmount,
+  await createWithdraw({
+    amount:
+      parsedAmount,
 
-          withdrawWallet:
-            withdrawWallet.trim(),
-        });
+    withdrawWallet:
+      withdrawWallet.trim(),
+  });
 
-      if (
-        !result.success
-      ) {
+if (
+  !result.success
+) {
 
-        setError(
-          result.error ??
-          t
-            .wallet_withdraw_failed ??
-          "Withdraw failed"
-        );
+  setError(
+    result.error ??
+    t
+      .wallet_withdraw_failed ??
+    "Withdraw failed"
+  );
 
-        return;
-      }
+  return;
+}
 
-      setAmount("");
+setAmount("");
 
-      setWithdrawWallet("");
+setWithdrawWallet("");
 
-      await onSuccess();
+await onSuccess();
 
-      onClose();
+onClose();
 
     } catch {
 
