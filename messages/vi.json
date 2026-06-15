@@ -766,9 +766,18 @@
   "return_cancelled": "Đã hủy hoàn trả",
 
   "processing": "Đang xử lý...",
-  "mark_as_received": "Xác nhận đã nhận hàng"
+  "mark_as_received": "Xác nhận đã nhận hàng",
 
+    "invalid_amount": "Số tiền không hợp lệ",
+    "invalid_wallet": "Địa chỉ ví không hợp lệ",
+    "invalid_response": "Phản hồi máy chủ không hợp lệ",
+    "withdraw_failed": "Rút tiền thất bại",
+    "network_error": "Lỗi mạng",
 
+    "INSUFFICIENT_BALANCE": "Số dư không đủ",
+    "WITHDRAW_DISABLED": "Rút tiền hiện đang bị tắt",
+    "INVALID_ADDRESS": "Địa chỉ ví không hợp lệ"
+  
 
 
 
