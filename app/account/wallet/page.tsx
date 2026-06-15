@@ -7,6 +7,10 @@
 export const dynamic =
   "force-dynamic";
 
+import {
+  useState,
+} from "react";
+
 import WalletHero
   from "./components/WalletHero";
 
@@ -18,6 +22,9 @@ import WalletSkeleton
 
 import WalletTransactionList
   from "./components/WalletTransactionList";
+
+import WalletWithdrawModal
+  from "./components/WalletWithdrawModal";
 
 import {
   useWallet,
@@ -48,6 +55,15 @@ export default function WalletPage() {
   } = useWallet();
 
   /* ===================================================
+     MODAL
+  =================================================== */
+
+  const [
+    withdrawOpen,
+    setWithdrawOpen,
+  ] = useState(false);
+
+  /* ===================================================
      LOADING
   =================================================== */
 
@@ -63,43 +79,66 @@ export default function WalletPage() {
   =================================================== */
 
   return (
-    <main
-      className="
-        min-h-screen
-        bg-[var(--background)]
-        pb-40
-        transition-colors
-        duration-300
-      "
-    >
+    <>
+      <main
+        className="
+          min-h-screen
+          bg-[var(--background)]
+          pb-40
+          transition-colors
+          duration-300
+        "
+      >
 
-      {/* HERO */}
+        {/* HERO */}
 
-      <WalletHero
-        balance={balance}
-        refreshing={
-          refreshing
+        <WalletHero
+          balance={balance}
+          refreshing={
+            refreshing
+          }
+          onRefresh={() => {
+            void refresh();
+          }}
+          onWithdraw={() => {
+            setWithdrawOpen(
+              true
+            );
+          }}
+        />
+
+        {/* STATS */}
+
+        <WalletStats
+          totalIn={totalIn}
+          totalOut={totalOut}
+        />
+
+        {/* TRANSACTIONS */}
+
+        <WalletTransactionList
+          transactions={
+            transactions
+          }
+        />
+
+      </main>
+
+      {/* WITHDRAW MODAL */}
+
+      <WalletWithdrawModal
+        open={
+          withdrawOpen
         }
-        onRefresh={() => {
-          void refresh();
+        onClose={() => {
+          setWithdrawOpen(
+            false
+          );
         }}
-      />
-
-      {/* STATS */}
-
-      <WalletStats
-        totalIn={totalIn}
-        totalOut={totalOut}
-      />
-
-      {/* TRANSACTIONS */}
-
-      <WalletTransactionList
-        transactions={
-          transactions
+        onSuccess={
+          refresh
         }
       />
-
-    </main>
+    </>
   );
 }
