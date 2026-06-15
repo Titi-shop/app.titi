@@ -97,8 +97,6 @@ export default function WalletWithdrawModal({
       ) {
 
         setError(
-          t
-            .wallet_invalid_amount ??
           "Invalid amount"
         );
 
@@ -110,50 +108,31 @@ export default function WalletWithdrawModal({
       ) {
 
         setError(
-          t
-            .wallet_address_required ??
           "Wallet address required"
         );
 
         return;
       }
 
-      const result =
-  await createWithdraw({
-    amount:
-      parsedAmount,
+      await createWithdraw({
+        amount:
+          parsedAmount,
 
-    withdrawWallet:
-      withdrawWallet.trim(),
-  });
+        withdrawWallet:
+          withdrawWallet.trim(),
+      });
 
-if (
-  !result.success
-) {
+      setAmount("");
 
-  setError(
-    result.error ??
-    t
-      .wallet_withdraw_failed ??
-    "Withdraw failed"
-  );
+      setWithdrawWallet("");
 
-  return;
-}
+      await onSuccess();
 
-setAmount("");
-
-setWithdrawWallet("");
-
-await onSuccess();
-
-onClose();
+      onClose();
 
     } catch {
 
       setError(
-        t
-          .wallet_withdraw_failed ??
         "Withdraw failed"
       );
 
@@ -245,8 +224,8 @@ onClose();
                 text-[var(--text-muted)]
               "
             >
-              {t.wallet_withdraw_description ??
-                "Withdraw PI to another wallet"}
+              Withdraw PI
+              to another wallet
             </p>
 
           </div>
@@ -281,8 +260,7 @@ onClose();
               text-[var(--text-muted)]
             "
           >
-            {t.wallet_address ??
-              "Wallet Address"}
+            Wallet Address
           </p>
 
           <input
@@ -293,10 +271,7 @@ onClose();
                 e.target.value
               );
             }}
-            placeholder={
-              t.wallet_address_placeholder ??
-              "Pi Wallet Address"
-            }
+            placeholder="Pi Wallet Address"
             className="
               w-full rounded-2xl
               border border-orange-500/10
@@ -319,8 +294,7 @@ onClose();
               text-[var(--text-muted)]
             "
           >
-            {t.wallet_amount ??
-              "Amount"}
+            Amount
           </p>
 
           <input
@@ -364,8 +338,7 @@ onClose();
               active:scale-95
             "
           >
-            {t.common_cancel ??
-              "Cancel"}
+            Cancel
           </button>
 
           {/* SUBMIT */}
@@ -400,16 +373,8 @@ onClose();
             )}
 
             {loading
-              ? (
-                t
-                  .common_processing ??
-                "Processing..."
-              )
-              : (
-                t
-                  .wallet_withdraw ??
-                "Withdraw"
-              )}
+              ? "Processing..."
+              : "Withdraw"}
 
           </button>
 
