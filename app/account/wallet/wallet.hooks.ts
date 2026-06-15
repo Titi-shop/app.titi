@@ -42,22 +42,32 @@ export function useWallet() {
   /* ===================================================
      SWR
   =================================================== */
+const {
+  data,
+  error,
+  isLoading,
+  mutate,
+} = useSWR(
+  authLoading
+    ? null
+    : "wallet",
 
-  const {
-    data,
-    error,
-    isLoading,
-    mutate,
-  } = useSWR(
-    authLoading
-      ? null
-      : "wallet",
+  fetchWallet,
 
-    fetchWallet,
+  {
+    ...WALLET_SWR_CONFIG,
 
-    WALLET_SWR_CONFIG
-  );
+    shouldRetryOnError:
+      true,
 
+    errorRetryCount:
+      3,
+
+    errorRetryInterval:
+      2000,
+  }
+);
+  
   /* ===================================================
      DATA
   =================================================== */
