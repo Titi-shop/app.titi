@@ -25,8 +25,12 @@ import {
 
 type Props = {
   balance: number;
+
   refreshing: boolean;
+
   onRefresh: () => void;
+
+  onWithdraw: () => void;
 };
 
 /* =====================================================
@@ -37,6 +41,7 @@ export default function WalletHero({
   balance,
   refreshing,
   onRefresh,
+  onWithdraw,
 }: Props) {
 
   const { t } =
@@ -59,6 +64,7 @@ export default function WalletHero({
     >
 
       {/* glow */}
+
       <div
         className="
           absolute -right-10 -top-10
@@ -75,7 +81,8 @@ export default function WalletHero({
         "
       />
 
-      {/* top */}
+      {/* TOP */}
+
       <div
         className="
           relative z-10 flex items-start
@@ -84,6 +91,7 @@ export default function WalletHero({
       >
 
         <div>
+
           <p className="text-sm text-white/80">
             {t.wallet_balance ??
               "Wallet Balance"}
@@ -97,6 +105,7 @@ export default function WalletHero({
           >
             π {formatPi(balance)}
           </h1>
+
         </div>
 
         <button
@@ -113,6 +122,7 @@ export default function WalletHero({
             active:scale-95
           "
         >
+
           <RefreshCcw
             size={18}
             className={
@@ -121,10 +131,19 @@ export default function WalletHero({
                 : ""
             }
           />
+
         </button>
+
       </div>
 
-      <WalletActions />
+      {/* ACTIONS */}
+
+      <WalletActions
+        onWithdraw={
+          onWithdraw
+        }
+      />
+
     </section>
   );
 }
