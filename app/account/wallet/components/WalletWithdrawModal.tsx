@@ -97,6 +97,8 @@ export default function WalletWithdrawModal({
       ) {
 
         setError(
+          t
+            .wallet_invalid_amount ??
           "Invalid amount"
         );
 
@@ -108,19 +110,36 @@ export default function WalletWithdrawModal({
       ) {
 
         setError(
+          t
+            .wallet_address_required ??
           "Wallet address required"
         );
 
         return;
       }
 
-      await createWithdraw({
-        amount:
-          parsedAmount,
+      const result =
+        await createWithdraw({
+          amount:
+            parsedAmount,
 
-        withdrawWallet:
-          withdrawWallet.trim(),
-      });
+          withdrawWallet:
+            withdrawWallet.trim(),
+        });
+
+      if (
+        !result.success
+      ) {
+
+        setError(
+          result.error ??
+          t
+            .wallet_withdraw_failed ??
+          "Withdraw failed"
+        );
+
+        return;
+      }
 
       setAmount("");
 
@@ -133,6 +152,8 @@ export default function WalletWithdrawModal({
     } catch {
 
       setError(
+        t
+          .wallet_withdraw_failed ??
         "Withdraw failed"
       );
 
@@ -224,8 +245,8 @@ export default function WalletWithdrawModal({
                 text-[var(--text-muted)]
               "
             >
-              Withdraw PI
-              to another wallet
+              {t.wallet_withdraw_description ??
+                "Withdraw PI to another wallet"}
             </p>
 
           </div>
@@ -260,7 +281,8 @@ export default function WalletWithdrawModal({
               text-[var(--text-muted)]
             "
           >
-            Wallet Address
+            {t.wallet_address ??
+              "Wallet Address"}
           </p>
 
           <input
@@ -271,7 +293,10 @@ export default function WalletWithdrawModal({
                 e.target.value
               );
             }}
-            placeholder="{t.wallet_address_placeholder}"
+            placeholder={
+              t.wallet_address_placeholder ??
+              "Pi Wallet Address"
+            }
             className="
               w-full rounded-2xl
               border border-orange-500/10
@@ -294,7 +319,8 @@ export default function WalletWithdrawModal({
               text-[var(--text-muted)]
             "
           >
-            Amount
+            {t.wallet_amount ??
+              "Amount"}
           </p>
 
           <input
@@ -338,7 +364,8 @@ export default function WalletWithdrawModal({
               active:scale-95
             "
           >
-            Cancel
+            {t.common_cancel ??
+              "Cancel"}
           </button>
 
           {/* SUBMIT */}
@@ -373,8 +400,16 @@ export default function WalletWithdrawModal({
             )}
 
             {loading
-              ? "Processing..."
-              : "Withdraw"}
+              ? (
+                t
+                  .common_processing ??
+                "Processing..."
+              )
+              : (
+                t
+                  .wallet_withdraw ??
+                "Withdraw"
+              )}
 
           </button>
 
