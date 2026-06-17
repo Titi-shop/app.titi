@@ -80,7 +80,8 @@ const [initialScale, setInitialScale] =
   /* ================= RELATED PRODUCTS ================= */
 
   useEffect(() => {
-    const load = async () => {
+    const loadRelatedProducts =
+  async (): Promise<void> => {
       if (!product?.category_id) return;
 
       try {
@@ -98,42 +99,56 @@ const [initialScale, setInitialScale] =
 
 setRelated(filtered);
 
-console.log(
-  "[RELATED PRODUCTS]",
-  filtered.map((p) => ({
-    name: p.name,
-    has_variants: p.has_variants,
-    price: p.price,
-    sale_price: p.sale_price,
-    final_price: p.final_price,
-    variants: p.variants?.length,
-  }))
-);
+if (process.env.NODE_ENV === "development") {
+  console.log(
+    "[RELATED PRODUCTS]",
+    filtered.map((p) => ({
+      name: p.name,
+      has_variants: p.has_variants,
+      price: p.price,
+      sale_price: p.sale_price,
+      final_price: p.final_price,
+      variants: p.variants?.length,
+    }))
+  );
+}
       } catch (err) {
-        console.error("[RELATED ERROR]", err);
-      }
-    };
-
-    load();
+        if (process.env.NODE_ENV === "development") {
+  console.error(
+    "[RELATED ERROR]",
+    err
+  );
+}
+    void loadRelatedProducts();
   }, [product?.category_id]);
 
   /* ================= GUARD ================= */
 
   if (isLoading) {
-    return (
-      <div className="p-4 text-center text-gray-400">
-        {t.loading ?? "Loading..."}
-      </div>
-    );
-  }
+  return (
+    <div
+      className="p-4 text-center"
+      style={{
+        color: "var(--text-muted)",
+      }}
+    >
+      {t.loading ?? "Loading..."}
+    </div>
+  );
+}
 
-  if (!product) {
-    return (
-      <div className="p-4 text-center text-gray-500">
-        {t.product_not_found ?? "Product not found"}
-      </div>
-    );
-  }
+ if (!product) {
+  return (
+    <div
+      className="p-4 text-center"
+      style={{
+        color: "var(--text-muted)",
+      }}
+    >
+      {t.product_not_found ?? "Product not found"}
+    </div>
+  );
+}
 
   /* ================= LOGIC ================= */
 
@@ -180,7 +195,7 @@ console.log(
     quantity: 1,
   });
 
-  const add = () => {
+  const add = (): void => {
     if (!requireVariant()) return;
     if (!canBuy) return;
 
@@ -188,7 +203,7 @@ console.log(
     router.push("/cart");
   };
 
-  const buy = () => {
+  const buy = (): void => {
     if (!requireVariant()) return;
     if (!canBuy) return;
 
