@@ -61,6 +61,27 @@ export async function createOrder(input: CreateOrderInput) {
   const country = input.country?.trim().toUpperCase();
 
   return withTransaction(async (client) => {
+     const existingOrder =
+  await client.query<{ id: string }>(
+    `
+    SELECT id
+    FROM orders
+    WHERE idempotency_key = $1
+    LIMIT 1
+    `,
+    [input.idempotencyKey]
+  );
+
+if (existingOrder.rows.length) {
+  console.log(
+    "[ORDER][IDEMPOTENT_HIT]",
+    existingOrder.rows[0].id
+  );
+
+  return {
+    orderId: existingOrder.rows[0].id,
+  };
+}
     console.log("🟡 [ORDER][V7][PAID_FLOW] START", {
       userId,
       itemsCount: items.length,
@@ -99,10 +120,16 @@ export async function createOrder(input: CreateOrderInput) {
       variantIds.length > 0
         ? await client.query<any>(
             `
-            SELECT id, product_id, price, sale_price, stock
-            FROM product_variants
-            WHERE id = ANY($1::uuid[])
-            FOR UPDATE
+            SELECT
+  id,
+  product_id,
+  price,
+  sale_price,
+  stock,
+  is_active
+FROM product_variants
+WHERE id = ANY($1::uuid[])
+FOR UPDATE
             `,
             [variantIds]
           )
@@ -125,6 +152,13 @@ export async function createOrder(input: CreateOrderInput) {
       }
 
       const p = productMap.get(item.product_id);
+       if (
+  p.stock !== null &&
+  Number(p.stock) < qty &&
+  !item.variant_id
+) {
+  throw new Error("OUT_OF_STOCK");
+}
       if (!p) throw new Error("INVALID_PRODUCT");
 
       if (!p.is_active || p.deleted_at) {
@@ -136,11 +170,20 @@ export async function createOrder(input: CreateOrderInput) {
       let price = Number(p.price);
 
       if (item.variant_id) {
-        const v = variantMap.get(item.variant_id);
-        if (!v) throw new Error("INVALID_VARIANT");
+  const v = variantMap.get(item.variant_id);
 
-        price = v.sale_price ? Number(v.sale_price) : Number(v.price);
-      }
+  if (!v) {
+    throw new Error("INVALID_VARIANT");
+  }
+
+  if (!v.is_active) {
+    throw new Error("VARIANT_DISABLED");
+  }
+
+  price = v.sale_price
+    ? Number(v.sale_price)
+    : Number(v.price);
+}
 
       const total = price * qty;
 
