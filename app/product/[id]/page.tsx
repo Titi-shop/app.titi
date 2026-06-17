@@ -136,25 +136,71 @@ const [initialScale, setInitialScale] =
 if (isLoading) {
   return (
     <div
-      className="p-4 text-center"
+      className="min-h-screen"
       style={{
-        color: "var(--text-muted)",
+        background: "var(--background)",
       }}
     >
-      {t.loading ?? "Loading..."}
-    </div>
-  );
-}
+      {/* IMAGE */}
+      <div
+        className="aspect-square animate-pulse"
+        style={{
+          background: "var(--card-bg)",
+        }}
+      />
 
- if (!product) {
-  return (
-    <div
-      className="p-4 text-center"
-      style={{
-        color: "var(--text-muted)",
-      }}
-    >
-      {t.product_not_found ?? "Product not found"}
+      {/* INFO */}
+      <div className="p-4 space-y-3">
+        <div
+          className="h-6 w-3/4 rounded-lg animate-pulse"
+          style={{
+            background: "var(--card-bg)",
+          }}
+        />
+
+        <div
+          className="h-8 w-32 rounded-lg animate-pulse"
+          style={{
+            background: "var(--card-bg)",
+          }}
+        />
+
+        <div
+          className="h-4 w-1/2 rounded-lg animate-pulse"
+          style={{
+            background: "var(--card-bg)",
+          }}
+        />
+      </div>
+
+      {/* VARIANTS */}
+      <div className="px-4 pb-4">
+        <div className="grid grid-cols-3 gap-2">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="h-14 rounded-lg animate-pulse"
+              style={{
+                background: "var(--card-bg)",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* DESCRIPTION */}
+      <div className="px-4 space-y-2">
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="h-4 rounded-lg animate-pulse"
+            style={{
+              background: "var(--card-bg)",
+              width: `${100 - i * 10}%`,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
