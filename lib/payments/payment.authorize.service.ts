@@ -33,6 +33,15 @@ function vlog(
 function normalizeString(
   value: unknown
 ): string {
+  function isSameAmount(
+  a: number,
+  b: number
+): boolean {
+  return (
+    Math.abs(a - b) <
+    0.0000001
+  );
+}
   return typeof value === "string"
     ? value.trim()
     : "";
@@ -185,7 +194,10 @@ export async function piAuthorizePayment({
     await piGetPayment(
       piPaymentId
     );
-
+vlog(
+  "PI_IDENTIFIER",
+  payment.identifier
+);
   vlog("PI_PAYMENT_OK", {
     id: piPaymentId,
     amount: payment.amount,
@@ -194,7 +206,22 @@ export async function piAuthorizePayment({
     status:
       payment.status,
   });
+vlog(
+  "PI_STATUS",
+  {
+    developer_approved:
+      payment.status
+        ?.developer_approved,
 
+    transaction_verified:
+      payment.status
+        ?.transaction_verified,
+
+    developer_completed:
+      payment.status
+        ?.developer_completed,
+  }
+);
   /* =====================================================
      8. VERIFY PI USER
   ===================================================== */
@@ -222,7 +249,18 @@ export async function piAuthorizePayment({
       "PI_PAYMENT_CANCELLED"
     );
   }
+if (
+  payment.status
+    ?.developer_completed
+) {
+  vlog(
+    "PI_ALREADY_COMPLETED"
+  );
 
+  return {
+    success: true,
+  };
+}
   /* =====================================================
      10. VERIFY AMOUNT
   ===================================================== */
@@ -249,44 +287,76 @@ export async function piAuthorizePayment({
   }
 
   if (
-    intentAmount !==
+  !isSameAmount(
+    intentAmount,
     paymentAmount
-  ) {
-    vlog(
-      "AMOUNT_MISMATCH",
-      {
-        intentAmount,
-        paymentAmount,
-      }
-    );
+  )
+) {
+  vlog(
+    "AMOUNT_MISMATCH",
+    {
+      intentAmount,
+      paymentAmount,
+    }
+  );
 
-    throw new Error(
-      "PAYMENT_AMOUNT_MISMATCH"
-    );
-  }
+  throw new Error(
+    "PAYMENT_AMOUNT_MISMATCH"
+  );
+}
 
   /* =====================================================
      11. VERIFY RECEIVER WALLET
   ===================================================== */
 
-  if (
-    typeof intent.merchant_wallet ===
-      "string" &&
-    intent.merchant_wallet &&
-    payment.to_address !==
-      intent.merchant_wallet
-  ) {
-    throw new Error(
-      "MERCHANT_WALLET_MISMATCH"
-    );
+  const expectedWallet =
+  String(
+    intent.merchant_wallet
+  )
+    .trim()
+    .toLowerCase();
+
+const actualWallet =
+  String(
+    payment.to_address
+  )
+    .trim()
+    .toLowerCase();
+
+vlog(
+  "RECEIVER_CHECK",
+  {
+    expected:
+      expectedWallet,
+    actual:
+      actualWallet,
   }
+);
+
+if (
+  expectedWallet !==
+  actualWallet
+) {
+  throw new Error(
+    "MERCHANT_WALLET_MISMATCH"
+  );
+}
 
   /* =====================================================
      12. BIND PAYMENT
   ===================================================== */
 
   vlog("BIND_START");
-
+vlog(
+  "BIND_DATA",
+  {
+    paymentIntentId,
+    piPaymentId,
+    piUid: me.uid,
+    verifiedAmount:
+      paymentAmount,
+  }
+);
   await bindPiPaymentToIntent({
     userId,
 
