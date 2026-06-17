@@ -137,29 +137,30 @@ const [initialScale, setInitialScale] =
   if (isLoading) {
   return (
     <div
-      className="p-4 text-center"
+      className="
+        min-h-screen
+        flex
+        items-center
+        justify-center
+      "
       style={{
-        color: "var(--text-muted)",
+        background: "var(--background)",
       }}
     >
-      {t.loading ?? "Loading..."}
+      <div
+        className="
+          animate-pulse
+          h-12
+          w-40
+          rounded-xl
+        "
+        style={{
+          background: "var(--card-bg)",
+        }}
+      />
     </div>
   );
 }
-
- if (!product) {
-  return (
-    <div
-      className="p-4 text-center"
-      style={{
-        color: "var(--text-muted)",
-      }}
-    >
-      {t.product_not_found ?? "Product not found"}
-    </div>
-  );
-}
-
   /* ================= LOGIC ================= */
 
   const hasVariants = product.has_variants;
