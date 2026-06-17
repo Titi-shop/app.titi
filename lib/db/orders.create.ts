@@ -247,30 +247,94 @@ FOR UPDATE
     });
 
     /* =========================================================
-       STOCK DEDUCTION (STRICT)
-    ========================================================= */
+   STOCK DEDUCTION (STRICT)
+========================================================= */
 
-    if (item.variant_id) {
-  UPDATE product_variants
-}
-else {
-  UPDATE products
-}
-        SET stock = stock - $1,
-            sold = sold + $1
-        WHERE id = $2 AND stock >= $1
-        `,
-        [item.qty, item.product.id]
-      );
+for (const item of orderItems) {
+  let res;
 
-      if (!res.rowCount) {
-        console.error("❌ [ORDER][STOCK] OUT_OF_STOCK", {
-          productId: item.product.id,
-          qty: item.qty,
-        });
-        throw new Error("OUT_OF_STOCK");
+  if (item.variant_id) {
+    console.log(
+      "[ORDER][STOCK][VARIANT]",
+      {
+        variantId: item.variant_id,
+        qty: item.qty,
       }
+    );
+
+    res = await client.query(
+      `
+      UPDATE product_variants
+      SET stock = stock - $1
+      WHERE id = $2
+      AND stock >= $1
+      `,
+      [
+        item.qty,
+        item.variant_id,
+      ]
+    );
+
+    if (res.rowCount) {
+      await client.query(
+        `
+        UPDATE products
+        SET sold = sold + $1
+        WHERE id = $2
+        `,
+        [
+          item.qty,
+          item.product.id,
+        ]
+      );
     }
+  } else {
+    console.log(
+      "[ORDER][STOCK][PRODUCT]",
+      {
+        productId: item.product.id,
+        qty: item.qty,
+      }
+    );
+
+    res = await client.query(
+      `
+      UPDATE products
+      SET
+        stock = stock - $1,
+        sold = sold + $1
+      WHERE id = $2
+      AND stock >= $1
+      `,
+      [
+        item.qty,
+        item.product.id,
+      ]
+    );
+  }
+
+  if (!res.rowCount) {
+    console.error(
+      "[ORDER][STOCK_FAIL]",
+      {
+        productId: item.product.id,
+        variantId: item.variant_id,
+        qty: item.qty,
+      }
+    );
+
+    throw new Error("OUT_OF_STOCK");
+  }
+
+  console.log(
+    "[ORDER][STOCK_OK]",
+    {
+      productId: item.product.id,
+      variantId: item.variant_id,
+      qty: item.qty,
+    }
+  );
+}
 
     /* =========================================================
        CREATE ORDER (PAID ONLY FLOW)
