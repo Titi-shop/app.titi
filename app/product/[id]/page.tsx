@@ -133,78 +133,51 @@ const [initialScale, setInitialScale] =
 }, [product?.category_id]);
 
   /* ================= GUARD ================= */
-if (isLoading) {
+if (loading) {
   return (
-    <div
-      className="min-h-screen"
+    <main
+      className="min-h-screen p-4"
       style={{
         background: "var(--background)",
       }}
     >
-      {/* IMAGE */}
-      <div
-        className="aspect-square animate-pulse"
-        style={{
-          background: "var(--card-bg)",
-        }}
-      />
+      <div className="animate-pulse space-y-5">
 
-      {/* INFO */}
-      <div className="p-4 space-y-3">
         <div
-          className="h-6 w-3/4 rounded-lg animate-pulse"
+          className="h-14 rounded-2xl"
           style={{
             background: "var(--card-bg)",
           }}
         />
 
-        <div
-          className="h-8 w-32 rounded-lg animate-pulse"
-          style={{
-            background: "var(--card-bg)",
-          }}
-        />
-
-        <div
-          className="h-4 w-1/2 rounded-lg animate-pulse"
-          style={{
-            background: "var(--card-bg)",
-          }}
-        />
-      </div>
-
-      {/* VARIANTS */}
-      <div className="px-4 pb-4">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex gap-3 overflow-hidden">
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="h-14 rounded-lg animate-pulse"
+              className="h-20 min-w-[90px] rounded-2xl"
               style={{
                 background: "var(--card-bg)",
               }}
             />
           ))}
         </div>
-      </div>
 
-      {/* DESCRIPTION */}
-      <div className="px-4 space-y-2">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="h-4 rounded-lg animate-pulse"
-            style={{
-              background: "var(--card-bg)",
-              width: `${100 - i * 10}%`,
-            }}
-          />
-        ))}
+        <div className="grid grid-cols-2 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="h-72 rounded-[28px]"
+              style={{
+                background: "var(--card-bg)",
+              }}
+            />
+          ))}
+        </div>
+
       </div>
-    </div>
+    </main>
   );
 }
-
   /* ================= LOGIC ================= */
 
   const hasVariants = product.has_variants;
