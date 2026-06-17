@@ -192,7 +192,7 @@ if (loading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-3">
+          <p className="mb-3 text-[var(--text-muted)]">
             {t.empty_cart ?? "Cart is empty"}
           </p>
 
@@ -239,7 +239,11 @@ if (loading) {
           return (
             <div
               key={item.id}
-              className="flex gap-3 border-b border-black/5 p-4"
+              className="
+  flex gap-3 p-4
+  border-b
+  border-[var(--nav-border)]
+"
             >
               {/* CHECKBOX */}
 
@@ -267,7 +271,13 @@ if (loading) {
                   alt={item.name}
                   width={88}
                   height={88}
-                  className="h-[88px] w-[88px] rounded-xl border border-black/5 object-cover"
+                  className="
+  h-[88px] w-[88px]
+  rounded-xl
+  border
+  border-[var(--nav-border)]
+  object-cover
+"
                 />
 
                 {hasSale && (
@@ -303,7 +313,7 @@ if (loading) {
                 {/* QTY */}
 
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center overflow-hidden rounded-xl border border-black/10">
+                  <div className="flex items-center overflow-hidden rounded-xl border border-[var(--nav-border)]">
                     <button
                       onClick={() =>
                         updateQty(
@@ -328,7 +338,10 @@ if (loading) {
                           item.quantity + 1
                         )
                       }
-                      className="bg-gray-100 px-3 py-1 text-lg"
+                      className="
+  px-3 py-1 text-lg
+  bg-[var(--card-secondary)]
+"
                     >
                       +
                     </button>
@@ -363,7 +376,8 @@ if (loading) {
 
       {/* FOOTER */}
 
-     <div className="fixed bottom-16 left-0 right-0 border-t border-black/5 bg-card px-5 pb-6 pt-4">   <div className="mb-4 flex items-center justify-between">
+     <div className="fixed bottom-16 left-0 right-0 border-t border-black/5 bg-card px-5 pb-6 pt-4">  
+        <div className="mb-4 flex items-center justify-between">
           <span className="text-sm text-muted">
             {t.total ??
               "Total"}
