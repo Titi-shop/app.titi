@@ -152,32 +152,49 @@ FOR UPDATE
       }
 
       const p = productMap.get(item.product_id);
-       if (
+
+if (!p) {
+  throw new Error("INVALID_PRODUCT");
+}
+
+const qty = Math.max(item.quantity, 1);
+
+if (
   p.stock !== null &&
   Number(p.stock) < qty &&
   !item.variant_id
 ) {
   throw new Error("OUT_OF_STOCK");
 }
-      if (!p) throw new Error("INVALID_PRODUCT");
 
-      if (!p.is_active || p.deleted_at) {
-        throw new Error("PRODUCT_NOT_AVAILABLE");
-      }
+if (!p.is_active || p.deleted_at) {
+  throw new Error("PRODUCT_NOT_AVAILABLE");
+}
 
-      const qty = Math.max(item.quantity, 1);
+let price = Number(p.price);
 
-      let price = Number(p.price);
-
-      if (item.variant_id) {
+if (item.variant_id) {
   const v = variantMap.get(item.variant_id);
 
   if (!v) {
     throw new Error("INVALID_VARIANT");
   }
 
+  if (v.product_id !== p.id) {
+    throw new Error(
+      "VARIANT_PRODUCT_MISMATCH"
+    );
+  }
+
   if (!v.is_active) {
     throw new Error("VARIANT_DISABLED");
+  }
+
+  if (
+    v.stock !== null &&
+    Number(v.stock) < qty
+  ) {
+    throw new Error("OUT_OF_STOCK");
   }
 
   price = v.sale_price
