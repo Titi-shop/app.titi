@@ -607,7 +607,9 @@ await client.query(
        8. FINALIZE PAYMENT INTENT
     ===================================================== */
 
-    UPDATE payment_intents
+    await client.query(
+      `
+      UPDATE payment_intents
 SET
   status = 'paid',
 
