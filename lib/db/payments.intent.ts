@@ -226,10 +226,10 @@ export async function createPiPaymentIntent({
         APP_MERCHANT_WALLET,
 
       makeInitialStatus(),
+      
+      makeInitialSettlement(),
       "PENDING",
       "CREATED",
-      makeInitialSettlement(),
-
       expiresAt,
       ]
     );
@@ -256,22 +256,16 @@ export async function createPiPaymentIntent({
    GET PAYMENT INTENT
 ========================================================= */
 
-export async function getPaymentIntent(
-  id: string
-) {
+export async function getPaymentIntent(id: string) {
   const res = await query(
     `
-    SELECT
-  seller_id,
-  status
-FROM products
-WHERE id = $1
-LIMIT 1
+    SELECT *
+    FROM payment_intents
+    WHERE id = $1
+    LIMIT 1
     `,
     [id]
   );
 
-  return (
-    res.rows[0] ?? null
-  );
+  return res.rows[0] ?? null;
 }
