@@ -38,26 +38,38 @@
   }
 
   .btn-success {
-    @apply bg-green-600
-    hover:bg-green-700
-    text-white
-    font-semibold
-    px-4
-    py-2.5
-    rounded-xl
-    transition-all;
-  }
+  background: #16a34a;
+  color: white;
+
+  font-weight: 600;
+
+  padding: 10px 16px;
+
+  border-radius: 12px;
+
+  transition: all .2s ease;
+}
+
+.btn-success:hover {
+  background: #15803d;
+}
 
   .btn-danger {
-    @apply bg-red-600
-    hover:bg-red-700
-    text-white
-    font-semibold
-    px-4
-    py-2.5
-    rounded-xl
-    transition-all;
-  }
+  background: #dc2626;
+  color: white;
+
+  font-weight: 600;
+
+  padding: 10px 16px;
+
+  border-radius: 12px;
+
+  transition: all .2s ease;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
 
   /* =========================================================
      CARD
@@ -110,21 +122,26 @@
   ========================================================= */
 
   .badge {
-
-    @apply inline-flex
-    items-center
-    justify-center
-    px-2
-    py-1
-    text-xs
-    font-bold
-    rounded-full
-    text-white;
-  }
-
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  color: white;
+}
   .badge-sale {
-    @apply badge bg-red-600;
-  }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  color: white;
+  background: #dc2626;
+}
 
   .badge-upcoming {
     @apply badge bg-blue-600;
@@ -160,13 +177,9 @@
   }
 
   .modal-content {
-
     background: var(--card-bg);
-
     border: 1px solid var(--border-color);
-
     border-radius: var(--radius-xl);
-
     @apply w-full
     max-w-lg
     p-5;
@@ -186,13 +199,11 @@
     );
 
     background-size: 200% 100%;
-
     animation: shimmer 1.5s infinite linear;
-
     border-radius: var(--radius-md);
   }
 
   .img-disabled {
-    @apply opacity-40;
-  }
+  opacity: .4;
+}
 }
