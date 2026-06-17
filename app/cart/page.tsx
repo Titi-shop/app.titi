@@ -212,16 +212,19 @@ if (loading) {
       {/* MESSAGE */}
 
       {message && (
-        <div
-          className={`fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-xl px-4 py-2 text-sm shadow-lg ${
-            message.type === "error"
-              ? "bg-red-500 text-white"
-              : "bg-green-600 text-white"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+  <div
+    className="
+      fixed left-1/2 top-20 z-50
+      -translate-x-1/2
+      rounded-xl
+      bg-green-600
+      px-4 py-2
+      text-sm text-white
+    "
+  >
+    {message}
+  </div>
+)}
 
       {/* LIST */}
 
@@ -322,7 +325,11 @@ if (loading) {
                         )
                       }
                       disabled={item.quantity <= 1}
-                      className="bg-gray-100 px-3 py-1 text-lg disabled:opacity-30"
+                      className="
+  bg-[var(--card-secondary)]
+  px-3 py-1 text-lg
+  disabled:opacity-30
+"
                     >
                       −
                     </button>
