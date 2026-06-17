@@ -43,7 +43,11 @@ function makeInitialStatus(): PaymentIntentStatus {
 function makeInitialSettlement(): SettlementState {
   return "UNSETTLED";
 }
-
+function makeExpiresAt(): Date {
+  return new Date(
+    Date.now() + 30 * 60 * 1000
+  );
+}
 /* =========================================================
    MAIN
 ========================================================= */
@@ -97,8 +101,10 @@ export async function createPiPaymentIntent({
       seller_id: string;
     }>(
       `
-      SELECT seller_id
-      FROM products
+      SELECT
+  seller_id,
+  status
+     FROM products
       WHERE id = $1
       LIMIT 1
       `,
@@ -127,7 +133,7 @@ export async function createPiPaymentIntent({
     const idempotencyKey = safeUUID();
 
     const memo = `ORDER-${paymentIntentId.slice(0, 8)}`;
-
+     const expiresAt = makeExpiresAt();
     /* =====================================================
        4. SNAPSHOT (TRUST PRICING ENGINE)
     ===================================================== */
@@ -176,7 +182,10 @@ export async function createPiPaymentIntent({
         merchant_wallet,
 
         status,
-        settlement_state
+        settlement_state,
+        payment_state,
+        provider_status,
+        expires_at
       )
       VALUES (
         $1,$2,$3,$4,
@@ -187,7 +196,7 @@ export async function createPiPaymentIntent({
         $15,
         $16,$17,
         $18,
-        $19,$20
+        $19,$20,$21,$22,$23
       )
       `,
       [
@@ -216,8 +225,12 @@ export async function createPiPaymentIntent({
 
         APP_MERCHANT_WALLET,
 
-        makeInitialStatus(),
-        makeInitialSettlement(),
+      makeInitialStatus(),
+      "PENDING",
+      "CREATED",
+      makeInitialSettlement(),
+
+      expiresAt,
       ]
     );
 
@@ -248,10 +261,12 @@ export async function getPaymentIntent(
 ) {
   const res = await query(
     `
-    SELECT *
-    FROM payment_intents
-    WHERE id = $1
-    LIMIT 1
+    SELECT
+  seller_id,
+  status
+FROM products
+WHERE id = $1
+LIMIT 1
     `,
     [id]
   );
