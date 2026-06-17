@@ -80,8 +80,8 @@ const [initialScale, setInitialScale] =
   /* ================= RELATED PRODUCTS ================= */
 
   useEffect(() => {
-    const loadRelatedProducts =
-  async (): Promise<void> => {
+  const loadRelatedProducts =
+    async (): Promise<void> => {
       if (!product?.category_id) return;
 
       try {
@@ -91,36 +91,46 @@ const [initialScale, setInitialScale] =
 
         if (!res.ok) return;
 
-        const data: ProductRecord[] = await res.json();
+        const data: ProductRecord[] =
+          await res.json();
 
-       const filtered = data
-  .filter((p) => p.id !== product.id)
-  .slice(0, 10);
+        const filtered = data
+          .filter((p) => p.id !== product.id)
+          .slice(0, 10);
 
-setRelated(filtered);
+        setRelated(filtered);
 
-if (process.env.NODE_ENV === "development") {
-  console.log(
-    "[RELATED PRODUCTS]",
-    filtered.map((p) => ({
-      name: p.name,
-      has_variants: p.has_variants,
-      price: p.price,
-      sale_price: p.sale_price,
-      final_price: p.final_price,
-      variants: p.variants?.length,
-    }))
-  );
-}
+        if (
+          process.env.NODE_ENV ===
+          "development"
+        ) {
+          console.log(
+            "[RELATED PRODUCTS]",
+            filtered.map((p) => ({
+              name: p.name,
+              has_variants: p.has_variants,
+              price: p.price,
+              sale_price: p.sale_price,
+              final_price: p.final_price,
+              variants: p.variants?.length,
+            }))
+          );
+        }
       } catch (err) {
-        if (process.env.NODE_ENV === "development") {
-  console.error(
-    "[RELATED ERROR]",
-    err
-  );
-}
-    void loadRelatedProducts();
-  }, [product?.category_id]);
+        if (
+          process.env.NODE_ENV ===
+          "development"
+        ) {
+          console.error(
+            "[RELATED ERROR]",
+            err
+          );
+        }
+      }
+    };
+
+  void loadRelatedProducts();
+}, [product?.category_id]);
 
   /* ================= GUARD ================= */
 
