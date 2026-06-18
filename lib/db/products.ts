@@ -581,8 +581,13 @@ export async function createProduct(
       );
     }
 
-    const price =
-      safeNumber(
+    const hasVariants =
+  input.has_variants === true;
+
+const price =
+  hasVariants
+    ? null
+    : safeNumber(
         input.price
       );
 
@@ -593,7 +598,9 @@ export async function createProduct(
     }
 
     const salePrice =
-      safeNullableNumber(
+  hasVariants
+    ? null
+    : safeNullableNumber(
         input.sale_price
       );
 
@@ -607,8 +614,11 @@ export async function createProduct(
     }
 
     const finalPrice =
-      calcFinalPrice({
-        price,
+  hasVariants
+    ? null
+    : calcFinalPrice({
+        price:
+          safeNumber(price),
         sale_price:
           salePrice,
         sale_enabled:
@@ -699,16 +709,15 @@ export async function createProduct(
             "",
 
           price,
+         salePrice,
+         finalPrice,
+         "PI",
 
-          salePrice,
-
-          finalPrice,
-
-          "PI",
-
-          safeNumber(
-            input.stock
-          ),
+         hasVariants
+         ? null
+         : safeNumber(
+         input.stock
+         ),
 
           Boolean(
             input.is_unlimited
@@ -733,12 +742,16 @@ export async function createProduct(
           input.sale_end ??
             null,
 
-          Boolean(
-            input.sale_enabled
-          ),
+          hasVariants
+          ? false
+           : Boolean(
+           input.sale_enabled
+           ),
 
-          safeNumber(
-            input.sale_stock
+          hasVariants
+          ? null
+          : safeNumber(
+          input.sale_stock
           ),
 
           input.meta_title ??
