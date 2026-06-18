@@ -584,46 +584,76 @@ export async function createProduct(
     const hasVariants =
   input.has_variants === true;
 
-const price =
+const price = hasVariants
+  ? null
+  : safeNumber(input.price);
+
+const salePrice = hasVariants
+  ? null
+  : safeNullableNumber(
+      input.sale_price
+    );
+
+if (
+  !hasVariants &&
+  price !== null &&
+  price < 0
+) {
+  throw new Error(
+    "INVALID_PRODUCT_PRICE"
+  );
+}
+
+if (
+  !hasVariants &&
+  price !== null &&
+  salePrice !== null &&
+  salePrice >= price
+) {
+  throw new Error(
+    "INVALID_SALE_PRICE"
+  );
+}
+
+const finalPrice = hasVariants
+  ? null
+  : calcFinalPrice({
+      price,
+      sale_price: salePrice,
+      sale_enabled:
+        input.sale_enabled,
+    });
+
+const stock = hasVariants
+  ? null
+  : safeNumber(
+      input.stock
+    );
+
+const saleStock = hasVariants
+  ? null
+  : safeNumber(
+      input.sale_stock
+    );
+
+const saleEnabled =
+  hasVariants
+    ? false
+    : Boolean(
+        input.sale_enabled
+      );
+
+const saleStart =
   hasVariants
     ? null
-    : safeNumber(
-        input.price
-      );
+    : input.sale_start ??
+      null;
 
-    if (price < 0) {
-      throw new Error(
-        "INVALID_PRODUCT_PRICE"
-      );
-    }
-
-    const salePrice =
+const saleEnd =
   hasVariants
     ? null
-    : safeNullableNumber(
-        input.sale_price
-      );
-
-    if (
-      salePrice !== null &&
-      salePrice >= price
-    ) {
-      throw new Error(
-        "INVALID_SALE_PRICE"
-      );
-    }
-
-    const finalPrice =
-  hasVariants
-    ? null
-    : calcFinalPrice({
-        price:
-          safeNumber(price),
-        sale_price:
-          salePrice,
-        sale_enabled:
-          input.sale_enabled,
-      });
+    : input.sale_end ??
+      null;
 
     const slug =
       await generateUniqueSlug(
@@ -681,92 +711,76 @@ const price =
         RETURNING *
         `,
         [
-          seller_id,
-          input.name.trim(),
-          slug,
+          
+  seller_id,
+  input.name.trim(),
+  slug,
 
-          input.short_description ??
-            "",
+  input.short_description ??
+    "",
 
-          input.description ??
-            "",
+  input.description ??
+    "",
 
-          input.detail ??
-            "",
+  input.detail ??
+    "",
 
-          input.thumbnail ??
-            "",
+  input.thumbnail ??
+    "",
 
-          normalizeImages(
-            input.images
-          ),
+  normalizeImages(
+    input.images
+  ),
 
-          normalizeImages(
-            input.detail_images
-          ),
+  normalizeImages(
+    input.detail_images
+  ),
 
-          input.video_url ??
-            "",
+  input.video_url ??
+    "",
 
-          price,
-         salePrice,
-         finalPrice,
-         "PI",
+  price,
+  salePrice,
+  finalPrice,
+  "PI",
 
-         hasVariants
-         ? null
-         : safeNumber(
-         input.stock
-         ),
+  stock,
 
-          Boolean(
-            input.is_unlimited
-          ),
+  Boolean(
+    input.is_unlimited
+  ),
 
-          Boolean(
-            input.is_featured
-          ),
+  Boolean(
+    input.is_featured
+  ),
 
-          Boolean(
-            input.is_digital
-          ),
+  Boolean(
+    input.is_digital
+  ),
 
-          status,
+  status,
 
-          input.category_id ??
-            null,
+  input.category_id ??
+    null,
 
-          input.sale_start ??
-            null,
+  saleStart,
+  saleEnd,
 
-          input.sale_end ??
-            null,
+  saleEnabled,
 
-          hasVariants
-          ? false
-           : Boolean(
-           input.sale_enabled
-           ),
+  saleStock,
 
-          hasVariants
-          ? null
-          : safeNumber(
-          input.sale_stock
-          ),
+  input.meta_title ??
+    "",
 
-          input.meta_title ??
-            "",
+  input.meta_description ??
+    "",
 
-          input.meta_description ??
-            "",
+  input.is_active !==
+    false,
 
-          input.is_active !==
-            false,
-
-          Boolean(
-            input.has_variants
-          ),
-        ]
+  hasVariants,
+]
       );
 
     const row =
