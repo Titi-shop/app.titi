@@ -382,42 +382,44 @@ export async function getProductById(
     const row =
       result.rows[0] ??
       null;
-console.log(
-  "🧪 GET_BY_ID_DB_ROW",
-  {
-    id: row?.id,
 
-    category_id:
-      row?.category_id,
+    console.log(
+      "🧪 GET_BY_ID_DB_ROW",
+      {
+        id: row?.id,
 
-    price:
-      row?.price,
+        category_id:
+          row?.category_id,
 
-    sale_price:
-      row?.sale_price,
+        price:
+          row?.price,
 
-    final_price:
-      row?.final_price,
+        sale_price:
+          row?.sale_price,
 
-    stock:
-      row?.stock,
+        final_price:
+          row?.final_price,
 
-    sale_stock:
-      row?.sale_stock,
+        stock:
+          row?.stock,
 
-    sale_enabled:
-      row?.sale_enabled,
+        sale_stock:
+          row?.sale_stock,
 
-    sale_start:
-      row?.sale_start,
+        sale_enabled:
+          row?.sale_enabled,
 
-    sale_end:
-      row?.sale_end,
+        sale_start:
+          row?.sale_start,
 
-    has_variants:
-      row?.has_variants,
-  }
-);
+        sale_end:
+          row?.sale_end,
+
+        has_variants:
+          row?.has_variants,
+      }
+    );
+
     if (!row) {
       log(
         "GET_BY_ID_NOT_FOUND",
@@ -433,51 +435,55 @@ console.log(
     );
 
     const mapped =
-  mapRow(row);
+      mapRow(row);
 
-console.log(
-  "🧪 GET_BY_ID_MAPPED",
-  {
-    id: mapped.id,
+    console.log(
+      "🧪 GET_BY_ID_MAPPED",
+      {
+        id: mapped.id,
 
-    category_id:
-      mapped.category_id,
+        category_id:
+          mapped.category_id,
 
-    price:
-      mapped.price,
+        price:
+          mapped.price,
 
-    sale_price:
-      mapped.sale_price,
+        sale_price:
+          mapped.sale_price,
 
-    final_price:
-      mapped.final_price,
+        final_price:
+          mapped.final_price,
 
-    stock:
-      mapped.stock,
+        stock:
+          mapped.stock,
 
-    sale_stock:
-      mapped.sale_stock,
+        sale_stock:
+          mapped.sale_stock,
 
-    sale_enabled:
-      mapped.sale_enabled,
+        sale_enabled:
+          mapped.sale_enabled,
 
-    sale_start:
-      mapped.sale_start,
+        sale_start:
+          mapped.sale_start,
 
-    sale_end:
-      mapped.sale_end,
+        sale_end:
+          mapped.sale_end,
 
-    has_variants:
-      mapped.has_variants,
-  }
-);
+        has_variants:
+          mapped.has_variants,
+      }
+    );
 
-return mapped;
+    return mapped;
+  } catch (error) {
+    logError(
+      "GET_BY_ID_ERROR",
+      error
+    );
 
     throw error;
   }
 }
-
 /* =========================================================
    GET PRODUCTS BY IDS
 ========================================================= */
