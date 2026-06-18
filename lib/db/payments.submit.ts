@@ -299,7 +299,6 @@ console.log(
       "TX_BROADCASTED",
   }
 );
-}
 
     console.log("[PAYMENT][SUBMIT] VERIFYING_SET", {
       paymentIntentId,
