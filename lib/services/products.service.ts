@@ -483,6 +483,10 @@ export async function updateProductService(
 ) {
   const body =
   (await req.json()) as ProductRequestBody;
+  console.log(
+  "📦 UPDATE_PRODUCT_BODY",
+  JSON.stringify(body, null, 2)
+);
 
 /* =========================
    VALIDATE PRODUCT
@@ -499,10 +503,31 @@ const variants =
   normalizeVariants(
     body.variants ?? []
   );
+  console.log(
+  "🧪 UPDATE_VARIANTS",
+  JSON.stringify(
+    variants,
+    null,
+    2
+  )
+);
 const hasVariants =
   body.has_variants === true &&
   variants.length > 0;
- const finalPrice = hasVariants
+  console.log(
+  "🧪 UPDATE_HAS_VARIANTS",
+  {
+    bodyHasVariants:
+      body.has_variants,
+
+    variantCount:
+      variants.length,
+
+    finalHasVariants:
+      hasVariants,
+  }
+);
+ const productPrice = hasVariants
   ? null
   : Number(body.price ?? 0);
 
@@ -511,6 +536,41 @@ const stock = hasVariants
   : Number(body.stock ?? 0);
 
   const updated =
+    console.log(
+  "🚀 UPDATE_PRODUCT_DB",
+  {
+    id: body.id,
+
+    hasVariants,
+
+    price:
+      hasVariants
+        ? null
+        : Number(
+            body.price ?? 0
+          ),
+
+    stock:
+      hasVariants
+        ? null
+        : Number(
+            body.stock ?? 0
+          ),
+
+    sale_price:
+      hasVariants
+        ? null
+        : body.sale_price,
+
+    sale_enabled:
+      hasVariants
+        ? false
+        : body.sale_enabled,
+
+    variantCount:
+      variants.length,
+  }
+);
     await updateProductBySeller(
       userId,
       body.id ?? "",
