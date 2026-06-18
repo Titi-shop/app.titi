@@ -348,7 +348,47 @@ const stock =
           variants.length,
       }
     );
+console.log(
+  "🧪 CREATE_PRODUCT_INPUT",
+  {
+    hasVariants,
 
+    price:
+      hasVariants
+        ? null
+        : Number(body.price ?? 0),
+
+    stock:
+      hasVariants
+        ? null
+        : Number(body.stock ?? 0),
+
+    sale_price:
+      hasVariants
+        ? null
+        : body.sale_price ?? null,
+
+    sale_stock:
+      hasVariants
+        ? null
+        : Number(body.sale_stock ?? 0),
+
+    sale_enabled:
+      hasVariants
+        ? false
+        : Boolean(body.sale_enabled),
+
+    sale_start:
+      hasVariants
+        ? null
+        : body.sale_start ?? null,
+
+    sale_end:
+      hasVariants
+        ? null
+        : body.sale_end ?? null,
+  }
+);
     const product =
   await createProduct(userId, {
     name: body.name,
@@ -631,11 +671,44 @@ sale_end:
       error: "NOT_FOUND",
     };
   }
+console.log(
+  "✅ UPDATE_PRODUCT_SUCCESS",
+  {
+    id: updated.id,
+    has_variants:
+      updated.has_variants,
 
-  await replaceVariantsByProductId(
-    body.id ?? "",
-    variants
-  );
+    price:
+      updated.price,
+
+    sale_price:
+      updated.sale_price,
+
+    final_price:
+      updated.final_price,
+
+    stock:
+      updated.stock,
+  }
+);
+  console.log(
+  "🧪 UPDATE_REPLACE_VARIANTS_START",
+  {
+    productId:
+      body.id,
+    count:
+      variants.length,
+  }
+);
+
+await replaceVariantsByProductId(
+  body.id ?? "",
+  variants
+);
+
+console.log(
+  "✅ UPDATE_REPLACE_VARIANTS_DONE"
+);
 
   const cleanedRates =
     normalizeShippingRates(
