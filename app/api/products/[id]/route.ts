@@ -28,51 +28,79 @@ export async function GET(
     );
 
   console.log(
-    "📦 PRODUCT_ROUTE_RESPONSE",
-    {
-      success: result?.success,
+  "📦 PRODUCT_ROUTE_RESPONSE",
+  {
+    error:
+      "error" in result
+        ? result.error
+        : null,
 
-      id:
-        result?.data?.id,
+    id:
+      "id" in result
+        ? result.id
+        : null,
 
-      category_id:
-        result?.data?.category_id,
+    category_id:
+      "category_id" in result
+        ? result.category_id
+        : null,
 
-      has_variants:
-        result?.data?.has_variants,
+    has_variants:
+      "has_variants" in result
+        ? result.has_variants
+        : null,
 
-      price:
-        result?.data?.price,
+    price:
+      "price" in result
+        ? result.price
+        : null,
 
-      sale_price:
-        result?.data?.sale_price,
+    sale_price:
+      "sale_price" in result
+        ? result.sale_price
+        : null,
 
-      final_price:
-        result?.data?.final_price,
+    final_price:
+      "final_price" in result
+        ? result.final_price
+        : null,
 
-      stock:
-        result?.data?.stock,
+    stock:
+      "stock" in result
+        ? result.stock
+        : null,
 
-      sale_stock:
-        result?.data?.sale_stock,
+    sale_stock:
+      "sale_stock" in result
+        ? result.sale_stock
+        : null,
 
-      sale_enabled:
-        result?.data?.sale_enabled,
+    sale_enabled:
+      "sale_enabled" in result
+        ? result.sale_enabled
+        : null,
 
-      sale_start:
-        result?.data?.sale_start,
+    sale_start:
+      "sale_start" in result
+        ? result.sale_start
+        : null,
 
-      sale_end:
-        result?.data?.sale_end,
+    sale_end:
+      "sale_end" in result
+        ? result.sale_end
+        : null,
 
-      variantCount:
-        result?.data?.variants?.length ?? 0,
+    variantCount:
+      "variants" in result
+        ? result.variants?.length ?? 0
+        : 0,
 
-      shippingCount:
-        result?.data?.shipping_rates?.length ?? 0,
-    }
-  );
-
+    shippingCount:
+      "shipping_rates" in result
+        ? result.shipping_rates?.length ?? 0
+        : 0,
+  }
+);
   return NextResponse.json(result);
 }
 /* ================= PATCH ================= */
