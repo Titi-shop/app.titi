@@ -454,44 +454,53 @@ export function validateProductPayload(
   }
 
   const hasVariants =
-    Array.isArray(body.variants) &&
-    body.variants.length > 0;
+  Array.isArray(body.variants) &&
+  body.variants.length > 0;
 
-  /* =========================
-     PRODUCT + VARIANT SALE
-  ========================= */
+/* =========================
+   PRODUCT SALE
+========================= */
 
-  if (
-    hasVariants &&
-    body.sale_enabled
-  ) {
-    return "PRODUCT_SALE_NOT_ALLOWED_WITH_VARIANTS";
+if (
+  !hasVariants &&
+  body.sale_enabled
+) {
+  if (!body.sale_price) {
+    return "SALE_PRICE_REQUIRED";
   }
 
-  /* =========================
-     SALE REQUIRED FIELDS
-  ========================= */
-
-  if (
-    body.sale_enabled
-  ) {
-
-    if (!body.sale_price) {
-      return "SALE_PRICE_REQUIRED";
-    }
-
-    if (!body.sale_stock) {
-      return "SALE_STOCK_REQUIRED";
-    }
-
-    if (!body.sale_start) {
-      return "SALE_START_REQUIRED";
-    }
-
-    if (!body.sale_end) {
-      return "SALE_END_REQUIRED";
-    }
+  if (!body.sale_stock) {
+    return "SALE_STOCK_REQUIRED";
   }
+
+  if (!body.sale_start) {
+    return "SALE_START_REQUIRED";
+  }
+
+  if (!body.sale_end) {
+    return "SALE_END_REQUIRED";
+  }
+}
+
+/* =========================
+   VARIANT SALE WINDOW
+========================= */
+
+if (
+  hasVariants &&
+  (
+    body.sale_start ||
+    body.sale_end
+  )
+) {
+  if (!body.sale_start) {
+    return "SALE_START_REQUIRED";
+  }
+
+  if (!body.sale_end) {
+    return "SALE_END_REQUIRED";
+  }
+}
 
   return null;
 }
