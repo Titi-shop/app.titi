@@ -257,6 +257,10 @@ vlog(
   vlog(
     "PI_ALREADY_COMPLETED"
   );
+
+  return {
+    success: true,
+  };
 }
   /* =====================================================
      10. VERIFY AMOUNT
@@ -360,22 +364,25 @@ vlog(
       paymentAmount,
   }
 );
+  try {
   await bindPiPaymentToIntent({
     userId,
-
     paymentIntentId,
-
     piPaymentId,
-
     piUid: me.uid,
-
-    verifiedAmount:
-      paymentAmount,
-
+    verifiedAmount: paymentAmount,
     piPayload: payment,
   });
 
   vlog("BIND_DONE");
+} catch (error) {
+  console.error(
+    "[AUTHORIZE][BIND_FAILED]",
+    error
+  );
+
+  throw error;
+}
 
   /* =====================================================
      13. APPROVE PAYMENT
@@ -389,13 +396,22 @@ vlog(
       "PI_APPROVE_START"
     );
 
-    await piApprovePayment(
-      piPaymentId
-    );
+    try {
+  await piApprovePayment(
+    piPaymentId
+  );
 
-    vlog(
-      "PI_APPROVE_DONE"
-    );
+  vlog(
+    "PI_APPROVE_DONE"
+  );
+} catch (error) {
+  console.error(
+    "[AUTHORIZE][APPROVE_FAILED]",
+    error
+  );
+
+  throw error;
+}
   } else {
     vlog(
       "PI_ALREADY_APPROVED"
