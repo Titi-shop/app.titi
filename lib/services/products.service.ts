@@ -472,7 +472,7 @@ console.log(
         body.primary_shipping_country
       );
 console.log(
-  "🧪 UPDATE_SHIPPING_RATES",
+  "🧪 CREATE_SHIPPING_RATES",
   cleanedRates
 );
     console.log(
