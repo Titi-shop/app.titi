@@ -322,7 +322,7 @@ console.log(
 const hasVariants =
   variants.length > 0;
 
-const finalPrice =
+const productPrice =
   hasVariants
     ? null
     : Number(body.price ?? 0);
