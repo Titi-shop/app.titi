@@ -5,7 +5,6 @@ import {
   updateProductBySeller,
   deleteProductBySeller,
 } from "@/lib/db/products";
-
 import {
   getVariantsByProductId,
   replaceVariantsByProductId,
