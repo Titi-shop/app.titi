@@ -135,7 +135,16 @@ async function loadProduct(productId: string) {
   final_price: safeNumber(
     p.final_price
   ),
-
+if (
+  !Number.isFinite(
+    product.final_price
+  ) ||
+  product.final_price <= 0
+) {
+  throw new Error(
+    "PRODUCT_PRICE_CORRUPTED"
+  );
+}
   sale_start: p.sale_start ?? null,
   sale_end: p.sale_end ?? null,
   stock: p.stock ?? null,
@@ -174,7 +183,16 @@ async function loadVariant(variantId: string, productId: string) {
   final_price: safeNumber(
     v.final_price
   ),
-
+if (
+  !Number.isFinite(
+    variant.final_price
+  ) ||
+  variant.final_price <= 0
+) {
+  throw new Error(
+    "VARIANT_PRICE_CORRUPTED"
+  );
+}
   stock: v.stock ?? null,
   is_unlimited:
     !!v.is_unlimited,
