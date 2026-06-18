@@ -720,30 +720,14 @@ const stock = hasVariants
       input.stock
     );
 
-const saleStock = hasVariants
-  ? null
-  : safeNumber(
-      input.sale_stock
-    );
-
 const saleEnabled =
-  hasVariants
-    ? false
-    : Boolean(
-        input.sale_enabled
-      );
+  Boolean(input.sale_enabled);
 
 const saleStart =
-  hasVariants
-    ? null
-    : input.sale_start ??
-      null;
+  input.sale_start ?? null;
 
 const saleEnd =
-  hasVariants
-    ? null
-    : input.sale_end ??
-      null;
+  input.sale_end ?? null;
 
     const slug =
       await generateUniqueSlug(
