@@ -720,6 +720,12 @@ const stock = hasVariants
       input.stock
     );
 
+const saleStock = hasVariants
+  ? null
+  : safeNumber(
+      input.sale_stock
+    );
+
 const saleEnabled =
   Boolean(input.sale_enabled);
 
