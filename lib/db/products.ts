@@ -218,82 +218,96 @@ function mapRow(
   row: ProductRow
 ): ProductRecord {
   return {
-    ...row,
+  ...row,
 
-    price: safeNumber(
-      row.price
+  price:
+    row.price == null
+      ? null
+      : safeNumber(
+          row.price
+        ),
+
+  sale_price:
+    row.sale_price == null
+      ? null
+      : safeNullableNumber(
+          row.sale_price
+        ),
+
+  final_price:
+    row.final_price == null
+      ? null
+      : safeNumber(
+          row.final_price
+        ),
+
+  stock:
+    row.stock == null
+      ? null
+      : safeNumber(
+          row.stock
+        ),
+
+  sale_stock:
+    row.sale_stock == null
+      ? null
+      : safeNumber(
+          row.sale_stock
+        ),
+
+  sale_sold:
+    safeNumber(
+      row.sale_sold
     ),
 
-    sale_price:
-      safeNullableNumber(
-        row.sale_price
-      ),
-
-    final_price:
-      safeNumber(
-        row.final_price
-      ),
-
-    stock: safeNumber(
-      row.stock
-    ),
-
-    sale_stock:
-      safeNumber(
-        row.sale_stock
-      ),
-
-    sale_sold:
-      safeNumber(
-        row.sale_sold
-      ),
-
-    sold: safeNumber(
+  sold:
+    safeNumber(
       row.sold
     ),
 
-    views: safeNumber(
+  views:
+    safeNumber(
       row.views
     ),
 
-    rating_avg:
-      safeNumber(
-        row.rating_avg
-      ),
+  rating_avg:
+    safeNumber(
+      row.rating_avg
+    ),
 
-    rating_count:
-      safeNumber(
-        row.rating_count
-      ),
+  rating_count:
+    safeNumber(
+      row.rating_count
+    ),
 
-    images:
-      normalizeImages(
-        row.images
-      ),
+  images:
+    normalizeImages(
+      row.images
+    ),
 
-    detail_images:
-      normalizeImages(
-        row.detail_images
-      ),
+  detail_images:
+    normalizeImages(
+      row.detail_images
+    ),
 
-    is_active:
-      row.is_active === true,
+  is_active:
+    row.is_active === true,
 
-    is_featured:
-      row.is_featured === true,
+  is_featured:
+    row.is_featured === true,
 
-    is_digital:
-      row.is_digital === true,
+  is_digital:
+    row.is_digital === true,
 
-    is_unlimited:
-      row.is_unlimited === true,
+  is_unlimited:
+    row.is_unlimited === true,
 
-    sale_enabled:
-      row.sale_enabled === true,
+  sale_enabled:
+    row.sale_enabled === true,
 
-    has_variants:
-      row.has_variants === true,
-  };
+  has_variants:
+    row.has_variants === true,
+};
 }
 
 /* =========================================================
