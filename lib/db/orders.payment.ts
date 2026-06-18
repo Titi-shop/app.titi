@@ -47,10 +47,29 @@ export async function finalizePaidOrderFromIntent({
        1. LOCK PAYMENT INTENT
     ===================================================== */
 
-const rawShipping =
-  typeof intent.shipping_snapshot === "string"
-    ? JSON.parse(intent.shipping_snapshot)
-    : intent.shipping_snapshot;
+let rawShipping: unknown;
+
+try {
+  rawShipping =
+    typeof intent.shipping_snapshot === "string"
+      ? JSON.parse(
+          intent.shipping_snapshot
+        )
+      : intent.shipping_snapshot;
+} catch (error) {
+  await auditManualReview(
+    paymentIntentId,
+    "INVALID_SHIPPING_JSON",
+    {
+      error: String(error),
+    },
+    client
+  );
+
+  throw new Error(
+    "INVALID_SHIPPING_JSON"
+  );
+}
 
 const shipping: ShippingSnapshot =
   rawShipping?.buyer_shipping ?? rawShipping ?? {};
@@ -128,7 +147,42 @@ if (
       });
       throw new Error("RECEIVER_MISMATCH");
     }
+const existingOrder =
+  await client.query<{
+    id: string;
+  }>(
+    `
+    SELECT id
+    FROM orders
+    WHERE pi_payment_id = $1
+    LIMIT 1
+    `,
+    [piPaymentId]
+  );
 
+if (existingOrder.rows.length) {
+  console.log(
+    "[PAYMENT][FINALIZE] ORDER_ALREADY_EXISTS",
+    {
+      orderId:
+        existingOrder.rows[0].id,
+      piPaymentId,
+    }
+  );
+
+  return {
+    ok: true,
+    already: true,
+    orderId:
+      existingOrder.rows[0].id,
+    buyerId:
+      intent.buyer_id,
+    sellerId:
+      intent.seller_id,
+    amount:
+      verifiedAmount,
+  };
+}
 /* =====================================================
    4. CREATE ORDER
 ===================================================== */
@@ -616,7 +670,8 @@ SET
   payment_state = 'PAID',
   provider_status = 'COMPLETED',
 
-  settlement_state = 'LEDGER_POSTED',
+  settlement_state =
+    'LEDGER_POSTED',
 
   pi_payment_id = $2,
   txid = $3,
@@ -625,11 +680,22 @@ SET
   finalized_at = now(),
 
   updated_at = now()
+
 WHERE id = $1
+AND status <> 'paid'
 `,
 [paymentIntentId, piPaymentId, txid]
 );
+const finalizeUpdate =
+  await client.query(
+    ...
+  );
 
+if (!finalizeUpdate.rowCount) {
+  console.log(
+    "[PAYMENT][FINALIZE] ALREADY_PAID"
+  );
+}
     /* =====================================================
        9. RETURN
     ===================================================== */
