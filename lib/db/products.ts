@@ -985,10 +985,7 @@ const nextSalePrice =
     : current.sale_price;
 
 const nextSaleEnabled =
-  hasVariants
-    ? false
-    : input.sale_enabled !==
-        undefined
+  input.sale_enabled !== undefined
     ? Boolean(
         input.sale_enabled
       )
@@ -1045,18 +1042,12 @@ const nextSaleStock =
 ========================= */
 
 const nextSaleStart =
-  hasVariants
-    ? null
-    : input.sale_start !==
-        undefined
+  input.sale_start !== undefined
     ? input.sale_start
     : current.sale_start;
 
 const nextSaleEnd =
-  hasVariants
-    ? null
-    : input.sale_end !==
-        undefined
+  input.sale_end !== undefined
     ? input.sale_end
     : current.sale_end;
 
