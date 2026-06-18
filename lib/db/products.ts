@@ -855,42 +855,52 @@ export async function updateProductBySeller(
     }
 
     const current =
-      await getProductById(
-        product_id
-      );
+  await getProductById(
+    product_id
+  );
 
-    if (!current) {
-      return null;
-    }
+if (!current) {
+  return null;
+}
 
-    const nextPrice =
-  input.price !== undefined
-    ? input.price === null
-      ? null
-      : safeNumber(
-          input.price
-        )
+const hasVariants =
+  input.has_variants === true;
+
+/* =========================
+   PRICE
+========================= */
+
+const nextPrice =
+  hasVariants
+    ? null
+    : input.price !== undefined
+    ? safeNumber(
+        input.price
+      )
     : current.price;
 
-    const nextSalePrice =
-  input.sale_price !== undefined
-    ? input.sale_price === null
-      ? null
-      : safeNullableNumber(
-          input.sale_price
-        )
+const nextSalePrice =
+  hasVariants
+    ? null
+    : input.sale_price !==
+        undefined
+    ? safeNullableNumber(
+        input.sale_price
+      )
     : current.sale_price;
 
-    const nextSaleEnabled =
-      input.sale_enabled !==
-      undefined
-        ? Boolean(
-            input.sale_enabled
-          )
-        : current.sale_enabled;
+const nextSaleEnabled =
+  hasVariants
+    ? false
+    : input.sale_enabled !==
+        undefined
+    ? Boolean(
+        input.sale_enabled
+      )
+    : current.sale_enabled;
 
-    const nextFinalPrice =
-  input.has_variants === true
+const nextFinalPrice =
+  hasVariants
     ? null
     : calcFinalPrice({
         price:
@@ -902,6 +912,50 @@ export async function updateProductBySeller(
         sale_enabled:
           nextSaleEnabled,
       });
+
+/* =========================
+   STOCK
+========================= */
+
+const nextStock =
+  hasVariants
+    ? null
+    : input.stock !==
+        undefined
+    ? safeNumber(
+        input.stock
+      )
+    : current.stock;
+
+const nextSaleStock =
+  hasVariants
+    ? null
+    : input.sale_stock !==
+        undefined
+    ? safeNumber(
+        input.sale_stock
+      )
+    : current.sale_stock;
+
+/* =========================
+   SALE WINDOW
+========================= */
+
+const nextSaleStart =
+  hasVariants
+    ? null
+    : input.sale_start !==
+        undefined
+    ? input.sale_start
+    : current.sale_start;
+
+const nextSaleEnd =
+  hasVariants
+    ? null
+    : input.sale_end !==
+        undefined
+    ? input.sale_end
+    : current.sale_end;
 
     const nextStatus =
       normalizeStatus(
@@ -983,18 +1037,9 @@ export async function updateProductBySeller(
             current.video_url,
 
           nextPrice,
-
           nextSalePrice,
-
           nextFinalPrice,
-
-          input.stock !== undefined
-       ? input.stock === null
-    ? null
-    : safeNumber(
-        input.stock
-      )
-       : current.stock,
+          nextStock,
 
           input.is_unlimited !==
             undefined
@@ -1024,25 +1069,11 @@ export async function updateProductBySeller(
             ? input.category_id
             : current.category_id,
 
-          input.sale_start !==
-            undefined
-            ? input.sale_start
-            : current.sale_start,
-
-          input.sale_end !==
-            undefined
-            ? input.sale_end
-            : current.sale_end,
-
+          nextSaleStart,
+          nextSaleEnd,
           nextSaleEnabled,
 
-          input.sale_stock !== undefined
-       ? input.sale_stock === null
-    ? null
-    : safeNumber(
-        input.sale_stock
-      )
-       : current.sale_stock,
+          nextSaleStock,
 
           input.meta_title ??
             current.meta_title,
@@ -1055,10 +1086,7 @@ export async function updateProductBySeller(
             ? input.is_active
             : current.is_active,
 
-          input.has_variants !==
-            undefined
-            ? input.has_variants
-            : current.has_variants,
+          hasVariants,
 
           product_id,
           seller_id,
