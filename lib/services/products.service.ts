@@ -471,7 +471,10 @@ console.log(
         body,
         body.primary_shipping_country
       );
-
+console.log(
+  "🧪 UPDATE_SHIPPING_RATES",
+  cleanedRates
+);
     console.log(
       "🧪 SHIPPING_RATES",
       cleanedRates
@@ -486,7 +489,9 @@ console.log(
         rates:
           cleanedRates,
       });
-
+console.log(
+  "✅ UPDATE_SHIPPING_SAVED"
+);
       console.log(
         "✅ SHIPPING_SAVED"
       );
