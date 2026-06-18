@@ -238,7 +238,18 @@ export async function bindPiPaymentToIntent(
   piUid,
   amount,
 });
+let payloadJson = "{}";
 
+try {
+  payloadJson = JSON.stringify(
+    piPayload ?? {}
+  );
+} catch (error) {
+  vlog(
+    "PAYLOAD_SERIALIZE_FAILED",
+    error
+  );
+}
       await client.query(
   `
   UPDATE payment_intents
