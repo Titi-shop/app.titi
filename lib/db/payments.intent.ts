@@ -156,7 +156,7 @@ export async function createPiPaymentIntent({
     pricing.items[0] ?? null,
   variant_snapshot: null,
 } as const;
-};
+
 
     /* =====================================================
        5. INSERT INTENT
