@@ -7,7 +7,7 @@ import type {
 import type {
   CreateIntentResult,
   PaymentIntentRow,
-} from "@/lib/payments/types/intent";
+} from "@/lib/payments/types/intent.type";
 /* =========================================================
    GLOBAL WALLET
 ========================================================= */
