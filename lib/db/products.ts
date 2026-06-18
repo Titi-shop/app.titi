@@ -850,20 +850,22 @@ export async function updateProductBySeller(
     }
 
     const nextPrice =
-      input.price !==
-      undefined
-        ? safeNumber(
-            input.price
-          )
-        : current.price;
+  input.price !== undefined
+    ? input.price === null
+      ? null
+      : safeNumber(
+          input.price
+        )
+    : current.price;
 
     const nextSalePrice =
-      input.sale_price !==
-      undefined
-        ? safeNullableNumber(
-            input.sale_price
-          )
-        : current.sale_price;
+  input.sale_price !== undefined
+    ? input.sale_price === null
+      ? null
+      : safeNullableNumber(
+          input.sale_price
+        )
+    : current.sale_price;
 
     const nextSaleEnabled =
       input.sale_enabled !==
@@ -874,8 +876,13 @@ export async function updateProductBySeller(
         : current.sale_enabled;
 
     const nextFinalPrice =
-      calcFinalPrice({
-        price: nextPrice,
+  input.has_variants === true
+    ? null
+    : calcFinalPrice({
+        price:
+          safeNumber(
+            nextPrice
+          ),
         sale_price:
           nextSalePrice,
         sale_enabled:
@@ -967,12 +974,13 @@ export async function updateProductBySeller(
 
           nextFinalPrice,
 
-          input.stock !==
-            undefined
-            ? safeNumber(
-                input.stock
-              )
-            : current.stock,
+          input.stock !== undefined
+       ? input.stock === null
+    ? null
+    : safeNumber(
+        input.stock
+      )
+       : current.stock,
 
           input.is_unlimited !==
             undefined
@@ -1014,12 +1022,13 @@ export async function updateProductBySeller(
 
           nextSaleEnabled,
 
-          input.sale_stock !==
-            undefined
-            ? safeNumber(
-                input.sale_stock
-              )
-            : current.sale_stock,
+          input.sale_stock !== undefined
+       ? input.sale_stock === null
+    ? null
+    : safeNumber(
+        input.sale_stock
+      )
+       : current.sale_stock,
 
           input.meta_title ??
             current.meta_title,
