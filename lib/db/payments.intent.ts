@@ -5,7 +5,6 @@ import type {
 } from "@/lib/payments/pricing.engine";
 
 import type {
-  CreatePiPaymentIntentParams,
   CreateIntentResult,
   PaymentIntentRow,
 } from "@/lib/payments/types/intent";
@@ -161,7 +160,15 @@ export async function createPiPaymentIntent({
     /* =====================================================
        5. INSERT INTENT
     ===================================================== */
-
+vlog("INSERT_PREPARE", {
+  paymentIntentId,
+  buyer_id: userId,
+  seller_id,
+  productId,
+  variantId,
+  quantity,
+  total: pricing.total,
+});
     await client.query(
       `
       INSERT INTO payment_intents (
@@ -265,8 +272,9 @@ export async function createPiPaymentIntent({
 /* =========================================================
    GET PAYMENT INTENT
 ========================================================= */
-
-export async function getPaymentIntent(id: string) {
+export async function getPaymentIntent(
+  id: string
+): Promise<PaymentIntentRow | null> {
   const res =
   await query<PaymentIntentRow>(
     `
