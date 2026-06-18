@@ -21,11 +21,10 @@ type BindParams = {
 
 type IntentRow = {
   id: string;
-
   buyer_id: string;
-
   status: string | null;
-
+  payment_state: string | null;
+  provider_status: string | null;
   pi_payment_id: string | null;
 };
 
@@ -241,36 +240,30 @@ export async function bindPiPaymentToIntent(
 });
 
       await client.query(
-        `
-        UPDATE payment_intents
-        SET
-  pi_payment_id = $2,
-  pi_user_uid = $3,
-  pi_verified_amount = $4,
-  pi_payment_payload = $5,
-  status = 'submitted',
-  payment_state = 'AUTHORIZED',
-  provider_status = 'APPROVED',
+  `
+  UPDATE payment_intents
+  SET
+    pi_payment_id = $2,
+    pi_user_uid = $3,
+    pi_verified_amount = $4,
+    pi_payment_payload = $5,
 
-  updated_at = now()
+    status = 'submitted',
+    payment_state = 'AUTHORIZED',
+    provider_status = 'APPROVED',
 
-        WHERE id = $1
-        `,
-        [
-          paymentIntentId,
-          piPaymentId,
-          piUid,
-          amount,
-          let payloadJson = "{}";
-try {
-          payloadJson = JSON.stringify(
-          piPayload ?? {}
-          );
-          } catch {
-          payloadJson = "{}";
-},
-        ]
-      );
+    updated_at = now()
+
+  WHERE id = $1
+  `,
+  [
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    amount,
+    payloadJson,
+  ]
+);
 
       vlog("UPDATE_OK", {
         paymentIntentId,
