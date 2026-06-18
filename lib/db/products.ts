@@ -382,7 +382,42 @@ export async function getProductById(
     const row =
       result.rows[0] ??
       null;
+console.log(
+  "🧪 GET_BY_ID_DB_ROW",
+  {
+    id: row?.id,
 
+    category_id:
+      row?.category_id,
+
+    price:
+      row?.price,
+
+    sale_price:
+      row?.sale_price,
+
+    final_price:
+      row?.final_price,
+
+    stock:
+      row?.stock,
+
+    sale_stock:
+      row?.sale_stock,
+
+    sale_enabled:
+      row?.sale_enabled,
+
+    sale_start:
+      row?.sale_start,
+
+    sale_end:
+      row?.sale_end,
+
+    has_variants:
+      row?.has_variants,
+  }
+);
     if (!row) {
       log(
         "GET_BY_ID_NOT_FOUND",
@@ -397,12 +432,47 @@ export async function getProductById(
       product_id
     );
 
-    return mapRow(row);
-  } catch (error) {
-    logError(
-      "GET_BY_ID_ERROR",
-      error
-    );
+    const mapped =
+  mapRow(row);
+
+console.log(
+  "🧪 GET_BY_ID_MAPPED",
+  {
+    id: mapped.id,
+
+    category_id:
+      mapped.category_id,
+
+    price:
+      mapped.price,
+
+    sale_price:
+      mapped.sale_price,
+
+    final_price:
+      mapped.final_price,
+
+    stock:
+      mapped.stock,
+
+    sale_stock:
+      mapped.sale_stock,
+
+    sale_enabled:
+      mapped.sale_enabled,
+
+    sale_start:
+      mapped.sale_start,
+
+    sale_end:
+      mapped.sale_end,
+
+    has_variants:
+      mapped.has_variants,
+  }
+);
+
+return mapped;
 
     throw error;
   }
