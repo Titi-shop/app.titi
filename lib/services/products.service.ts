@@ -374,19 +374,13 @@ console.log(
         : Number(body.sale_stock ?? 0),
 
     sale_enabled:
-      hasVariants
-        ? false
-        : Boolean(body.sale_enabled),
+  Boolean(body.sale_enabled),
 
-    sale_start:
-      hasVariants
-        ? null
-        : body.sale_start ?? null,
+sale_start:
+  body.sale_start ?? null,
 
-    sale_end:
-      hasVariants
-        ? null
-        : body.sale_end ?? null,
+sale_end:
+  body.sale_end ?? null,
   }
 );
     const product =
@@ -420,19 +414,13 @@ console.log(
         : Number(body.sale_stock ?? 0),
 
     sale_enabled:
-      hasVariants
-        ? false
-        : Boolean(body.sale_enabled),
+  Boolean(body.sale_enabled),
 
-    sale_start:
-      hasVariants
-        ? null
-        : body.sale_start ?? null,
+sale_start:
+  body.sale_start ?? null,
 
-    sale_end:
-      hasVariants
-        ? null
-        : body.sale_end ?? null,
+sale_end:
+  body.sale_end ?? null,
 
     is_active: body.is_active !== false,
     has_variants: hasVariants,
