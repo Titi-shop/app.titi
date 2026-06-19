@@ -47,27 +47,66 @@ export async function getVariantsByProductId(
   }
 
   const result =
-    await query<ProductVariantDB>(
-      `
-      SELECT *
-      FROM product_variants
-      WHERE product_id = $1
-        AND deleted_at IS NULL
-      ORDER BY
-        sort_order ASC,
-        created_at ASC
-      `,
-      [productId]
-    );
-
-  vlog(
-    "GET_BY_PRODUCT_ROWS",
-    result.rows.length
+  await query<ProductVariantDB>(
+    `
+    SELECT *
+    FROM product_variants
+    WHERE product_id = $1
+      AND deleted_at IS NULL
+    ORDER BY
+      sort_order ASC,
+      created_at ASC
+    `,
+    [productId]
   );
 
-  return result.rows.map(
+/* ===== LOG DB RAW ===== */
+console.log(
+  "🧪 VARIANT_DB_ROWS",
+  result.rows.map((v) => ({
+    id: v.id,
+
+    price: v.price,
+    sale_price: v.sale_price,
+    final_price: v.final_price,
+
+    sale_enabled: v.sale_enabled,
+
+    sale_stock: v.sale_stock,
+    sale_sold: v.sale_sold,
+
+    stock: v.stock,
+  }))
+);
+
+vlog(
+  "GET_BY_PRODUCT_ROWS",
+  result.rows.length
+);
+
+/* ===== MAP ===== */
+const mapped =
+  result.rows.map(
     mapVariantToApp
   );
+
+/* ===== LOG AFTER MAP ===== */
+console.log(
+  "🧪 VARIANT_APP_ROWS",
+  mapped.map((v) => ({
+    id: v.id,
+
+    price: v.price,
+    sale_price: v.sale_price,
+    final_price: v.final_price,
+
+    sale_enabled: v.sale_enabled,
+
+    stock: v.stock,
+  }))
+);
+
+return mapped;
 }
 
 /* =========================================================
