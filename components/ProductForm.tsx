@@ -1,17 +1,40 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { toUTCFromInput } from "@/lib/utils/time";
-import { compressImage } from "@/lib/upload/imageUtils";
-import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase/client";
 
 import { useProductForm } from "./product/useProductForm";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
+import {
+  inputClass,
+  inputStyle,
+  cardStyle,
+} from "./product/product-form.styles";
 
+import {
+  ProductFormErrors,
+} from "./product/product-form.types";
+
+import {
+  uploadProductImages,
+  uploadDetailImages,
+} from "./product/product-upload";
+
+import {
+  showMessage,
+} from "./product/product-notify";
+
+import {
+  validateProductSale,
+  validateVariantSale,
+} from "./product/product-form.validation";
+
+import {
+  buildProductPayload,
+  normalizeVariants,
+} from "./product/product-form.payload";
 import type {
   Category,
   ProductPayload,
@@ -50,17 +73,10 @@ export default function ProductForm({
   const form = useProductForm(initialData);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{
-  name?: boolean;
-  category?: boolean;
-  images?: boolean;
-  price?: boolean;
-
-  sale_price?: boolean;
-  sale_stock?: boolean;
-  sale_start?: boolean;
-  sale_end?: boolean;
-}>({});
+  const [errors, setErrors] =
+  useState<ProductFormErrors>(
+    {}
+  );
 
   const inputClass =
   "w-full border p-2 rounded transition-colors";
@@ -155,72 +171,66 @@ const cardStyle = {
      MAIN IMAGE UPLOAD
   ========================= */
 
-  const handleUpload = async (files: File[]) => {
-    if (!files.length) return;
+  const handleUpload = async (
+  files: File[]
+) => {
+  try {
+    setUploading(true);
 
-    try {
-      setUploading(true);
+    const urls =
+      await uploadProductImages(
+        files
+      );
 
-      const uploads = files.map(async (file, index) => {
-        const compressed = await compressImage(file);
-        const { uploadUrl, publicUrl } = await getSignedUrl();
-        await uploadWithProgress(uploadUrl, compressed, index);
-        return publicUrl;
-      });
+    form.setImages(
+      (prev) => [
+        ...prev,
+        ...urls,
+      ]
+    );
+  } catch (error) {
+    console.error(error);
 
-      const urls = await Promise.all(uploads);
-      form.setImages((prev: string[]) => [...prev, ...urls]);
-    } catch (error) {
-      console.error("💥 UPLOAD ERROR:", error);
-      alert(t.upload_failed);
-    } finally {
-      setUploading(false);
-    }
-  };
+    showMessage(
+      t.upload_failed
+    );
+  } finally {
+    setUploading(false);
+  }
+};
 
   /* =========================
      DETAIL IMAGE UPLOAD
   ========================= */
 
-  const uploadDetailImages = async (files: File[]) => {
-    if (!files.length || !user) return;
+  const handleDetailUpload =
+  async (
+    files: File[]
+  ) => {
+    if (!user) return;
 
     try {
-      const uploads = files.map(async (file) => {
-        const path = `products/${user.id}/detail-${Date.now()}.jpg`;
+      const urls =
+        await uploadDetailImages(
+          files,
+          user.id
+        );
 
-        const { error } = await supabase.storage
-          .from("products")
-          .upload(path, file);
-
-        if (error) {
-          throw error;
-        }
-
-        const { data } = supabase.storage
-          .from("products")
-          .getPublicUrl(path);
-
-        return data.publicUrl;
-      });
-
-      const urls = await Promise.all(uploads);
-     setErrors({});
-      form.setDetail((prev: string) => {
-        const html = urls
-          .map((url) => `<img src="${url}" />`)
-          .join("\n");
-
-        return `${prev}\n${html}`;
-      });
-setErrors((prev) => ({
-  ...prev,
-  images: false,
-}));
+      form.setDetail(
+        (prev) =>
+          `${prev}\n${urls
+            .map(
+              (url) =>
+                `<img src="${url}" />`
+            )
+            .join("\n")}`
+      );
     } catch (error) {
-      console.error("💥 DETAIL IMAGE ERROR:", error);
+      console.error(error);
 
-      alert(t.upload_failed);
+      showMessage(
+        t.upload_failed
+      );
     }
   };
 
@@ -305,22 +315,34 @@ if (
   form.setSale_enabled(false);
       }
 
-      /* =========================
-         SALE VALIDATION
-      ========================= */
-
-if (
-  !hasVariants &&
-  form.sale_enabled
-) {
-
-  const sale = Number(
-    form.sale_price
+    const productSaleError =
+  validateProductSale(
+    Boolean(
+      form.sale_enabled
+    ),
+    Number(form.price),
+    Number(
+      form.sale_price
+    ),
+    Number(
+      form.sale_stock
+    ),
+    form.sale_start,
+    form.sale_end
   );
 
-  const price = Number(
-    form.price
+if (productSaleError) {
+  showMessage(
+    t[
+      productSaleError.toLowerCase() as keyof typeof t
+    ] ??
+      productSaleError
   );
+
+  setSubmitting(false);
+
+  return;
+}
 
   /* =====================
      SALE PRICE
@@ -483,145 +505,6 @@ console.log(
     variants: normalizedVariants,
   }
 );
-/* =========================
-   VARIANT SALE VALIDATION
-========================= */
-
-if (
-  hasVariantSale &&
-  (
-    !form.sale_start ||
-    !form.sale_end
-  )
-) {
-  setErrors((prev) => ({
-    ...prev,
-    sale_start:
-      !form.sale_start,
-
-    sale_end:
-      !form.sale_end,
-  }));
-
-  alert(
-    t.sale_date_required ??
-    "Please select sale start and end date"
-  );
-
-  setSubmitting(false);
-
-  return;
-}
-
-/* =========================
-   INVALID SALE RANGE
-========================= */
-
-if (
-  hasVariantSale &&
-  form.sale_start &&
-  form.sale_end &&
-  new Date(
-    form.sale_start
-  ).getTime() >=
-    new Date(
-      form.sale_end
-    ).getTime()
-) {
-  alert(
-    t.invalid_sale_time
-  );
-
-  setSubmitting(false);
-
-  return;
-}
-console.log("🧪 FORM CATEGORY:", form.category_id);
-const payload: ProductPayload = {
-  id:
-    typeof form.id === "string"
-      ? form.id
-      : undefined,
-  name: form.name,
-  category_id:
-    form.category_id !== "" &&
-    form.category_id !== null &&
-    form.category_id !== undefined
-      ? Number(form.category_id)
-      : undefined,
-
-  description: form.description,
-  detail: form.detail,
-  images: form.images,
-  thumbnail: form.images[0] || null,
-  is_active: form.is_active,
-  has_variants: hasVariants,
-  shipping_rates: shippingRatesPayload,
-  domestic_country_code:
-  form.domestic_country_code || null,
-  price: hasVariants
-    ? undefined
-    : Number(form.price),
-
-  stock: hasVariants
-    ? undefined
-    : Number(form.stock || 0),
-
-  sale_enabled:
-  hasVariants
-    ? hasVariantSale
-    : (
-        form.sale_enabled &&
-        hasSaleTime &&
-        hasSalePrice
-      ),
-
-  sale_price:
-    hasVariants
-      ? null
-      : !form.sale_enabled
-        ? null
-        : Number(form.sale_price),
-
-  sale_stock:
-    hasVariants || !form.sale_enabled
-      ? 0
-      : Number(form.sale_stock || 0),
-
-  sale_start:
-  hasSaleTime
-    ? toUTCFromInput(
-        form.sale_start
-      )
-    : null,
-
-sale_end:
-  hasSaleTime
-    ? toUTCFromInput(
-        form.sale_end
-      )
-    : null,
-
-  variants: normalizedVariants,
-  idempotency_key: generateKey(),
-};
-
-console.log("🧪 FORM CATEGORY:", form.category_id);
-console.log("📦 PRODUCT PAYLOAD:", payload);
-console.log(
-  "📦 PRODUCT PAYLOAD",
-  JSON.stringify(payload, null, 2)
-);
-
-await onSubmit(payload);
-    } catch (error) {
-      console.error(error);
-      alert(t.submit_failed);
-    } finally {
-      setSubmitting(false);
-    }
-
-  };
   /* =========================
      UI
   ========================= */
