@@ -64,106 +64,113 @@ export async function updateProductBySeller(
     }
 
     const current =
-      await getProductById(
-        product_id
-      );
+  await getProductById(
+    product_id
+  );
 
-    if (!current) {
-      return null;
-    }
+if (!current) {
+  return null;
+}
 
-    const hasVariants =
-      Boolean(
-        input.has_variants ??
-          current.has_variants
-      );
-
+const hasVariants = Boolean(
+  input.has_variants ??
+  current.has_variants
+);
     log(
-      "UPDATE_VARIANT_MODE",
-      {
-        current_has_variants:
-          current.has_variants,
+  "UPDATE_VARIANT_MODE",
+  {
+    current_has_variants:
+      current.has_variants,
 
-        input_has_variants:
-          input.has_variants,
+    input_has_variants:
+      input.has_variants,
 
-        final_has_variants:
-          hasVariants,
-      }
-    );
+    final_has_variants:
+      hasVariants,
+  }
+);
 
-    const nextPrice =
-      hasVariants
-        ? null
-        : input.price !==
-          undefined
-        ? safeNumber(
-            input.price
-          )
-        : current.price;
+/* =========================
+   PRICE
+========================= */
 
-    const nextSalePrice =
-      hasVariants
-        ? null
-        : input.sale_price !==
-          undefined
-        ? safeNullableNumber(
-            input.sale_price
-          )
-        : current.sale_price;
-
-    const nextSaleEnabled =
+const nextPrice =
   hasVariants
-    ? false
-    : input.sale_enabled !== undefined
-    ? Boolean(input.sale_enabled)
+    ? null
+    : input.price !== undefined
+    ? safeNumber(
+        input.price
+      )
+    : current.price;
+
+const nextSalePrice =
+  hasVariants
+    ? null
+    : input.sale_price !==
+        undefined
+    ? safeNullableNumber(
+        input.sale_price
+      )
+    : current.sale_price;
+
+const nextSaleEnabled =
+  input.sale_enabled !== undefined
+    ? Boolean(
+        input.sale_enabled
+      )
     : current.sale_enabled;
 
-    const nextFinalPrice =
-      hasVariants
-        ? null
-        : calcFinalPrice({
-            price:
-              safeNumber(
-                nextPrice
-              ),
-            sale_price:
-              nextSalePrice,
-            sale_enabled:
-              nextSaleEnabled,
-          });
+const nextFinalPrice =
+  hasVariants
+    ? null
+    : calcFinalPrice({
+        price:
+          safeNumber(
+            nextPrice
+          ),
+        sale_price:
+          nextSalePrice,
+        sale_enabled:
+          nextSaleEnabled,
+      });
+log(
+  "UPDATE_PRICE_CALC",
+  {
+    nextPrice,
+    nextSalePrice,
+    nextSaleEnabled,
+    nextFinalPrice,
+  }
+);
+/* =========================
+   STOCK
+========================= */
 
-    log(
-      "UPDATE_PRICE_CALC",
-      {
-        nextPrice,
-        nextSalePrice,
-        nextSaleEnabled,
-        nextFinalPrice,
-      }
-    );
+const nextStock =
+  hasVariants
+    ? null
+    : input.stock !==
+        undefined
+    ? safeNumber(
+        input.stock
+      )
+    : current.stock;
 
-    const nextStock =
-      hasVariants
-        ? null
-        : input.stock !==
-          undefined
-        ? safeNumber(
-            input.stock
-          )
-        : current.stock;
+const nextSaleStock =
+  hasVariants
+    ? null
+    : input.sale_stock !==
+        undefined
+    ? safeNumber(
+        input.sale_stock
+      )
+    : current.sale_stock;
 
-    const nextSaleStock =
-      hasVariants
-        ? null
-        : input.sale_stock !==
-          undefined
-        ? safeNumber(
-            input.sale_stock
-          )
-        : current.sale_stock;
+/* =========================
+   SALE WINDOW
+========================= */
 
-    const nextSaleStart =
+const nextSaleStart =
   input.sale_start !== undefined
     ? input.sale_start
     : current.sale_start;
