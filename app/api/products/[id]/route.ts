@@ -5,7 +5,7 @@ import {
   getProductService,
   updateProductService,
   deleteProductService,
-} from "@/lib/services/products.by-id.service";
+} from "@/lib/services/products/by-id";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
