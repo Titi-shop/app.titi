@@ -177,16 +177,10 @@ export async function updateProductService(
               ),
 
         sale_start:
-          hasVariants
-            ? null
-            : body.sale_start ??
-              null,
+  body.sale_start ?? null,
 
-        sale_end:
-          hasVariants
-            ? null
-            : body.sale_end ??
-              null,
+sale_end:
+  body.sale_end ?? null,
 
         is_active:
           body.is_active ??
