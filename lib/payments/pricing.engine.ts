@@ -151,10 +151,11 @@ async function loadProduct(productId: string) {
 };
 
 if (
-  !Number.isFinite(
-    product.final_price
-  ) ||
-  product.final_price <= 0
+  !p.has_variants &&
+  (
+    !Number.isFinite(product.final_price) ||
+    product.final_price <= 0
+  )
 ) {
   throw new Error(
     "PRODUCT_PRICE_CORRUPTED"
@@ -322,32 +323,26 @@ export async function calculatePricing(
       }
     }
 
-    let price =
-  product.final_price;
-if (
-  !Number.isFinite(price) ||
-  price <= 0
-) {
-  throw new Error(
-    "INVALID_PRODUCT_PRICE"
-  );
-}
+   let price = product.final_price;
+
 if (item.variant_id) {
   const variant = await loadVariant(
     item.variant_id,
     product.id
   );
 
-  let vPrice =
-  variant.final_price;
-if (
-  !Number.isFinite(vPrice) ||
-  vPrice <= 0
-) {
-  throw new Error(
-    "INVALID_VARIANT_PRICE"
-  );
-}
+  const vPrice =
+    variant.final_price;
+
+  if (
+    !Number.isFinite(vPrice) ||
+    vPrice <= 0
+  ) {
+    throw new Error(
+      "INVALID_VARIANT_PRICE"
+    );
+  }
+
   if (
     !variant.is_unlimited &&
     variant.stock !== null &&
@@ -360,6 +355,15 @@ if (
 
   price = vPrice;
 } else {
+  if (
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
+    throw new Error(
+      "INVALID_PRODUCT_PRICE"
+    );
+  }
+
   if (
     !product.is_unlimited &&
     product.stock !== null &&
