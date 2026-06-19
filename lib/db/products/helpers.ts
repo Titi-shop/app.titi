@@ -149,3 +149,26 @@ export function normalizeStatus(
     ? "hidden"
     : "active";
 }
+/* =========================================================
+   LOGGER
+========================================================= */
+
+export function log(
+  step: string,
+  data?: unknown
+): void {
+  console.log(
+    `🧪 [DB][PRODUCTS] ${step}`,
+    data ?? ""
+  );
+}
+
+export function logError(
+  step: string,
+  error: unknown
+): void {
+  console.error(
+    `💥 [DB][PRODUCTS] ${step}`,
+    error
+  );
+}
