@@ -38,8 +38,6 @@ import {
 import type {
   Category,
   ProductPayload,
-  ProductVariant,
-  ShippingRate,
 } from "@/types/product";
 /* =========================
    TYPES
@@ -52,10 +50,6 @@ interface ProductFormProps {
   onSubmit: (
     payload: ProductPayload
   ) => Promise<void>;
-}
-interface SignedUrlResponse {
-  uploadUrl: string;
-  publicUrl: string;
 }
 
 /* =========================
@@ -96,75 +90,11 @@ const cardStyle = {
      HELPERS
   ========================= */
 
-  const generateKey = (): string =>
-    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
   const toNumber = (value: string): number => {
     if (value.trim() === "") return 0;
 
     const n = Number(value);
     return Number.isNaN(n) ? 0 : n;
-  };
-
-  /* =========================
-     UPLOAD
-  ========================= */
-
-  const uploadWithProgress = (
-    url: string,
-    file: File,
-    index: number
-  ): Promise<void> =>
-    new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", url);
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-
-          console.log(`📊 [${index}] ${percent}%`);
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          resolve();
-        } else {
-          reject(new Error(String(xhr.status)));
-        }
-      };
-
-      xhr.onerror = () => {
-        reject(new Error("NETWORK_ERROR"));
-      };
-
-      xhr.setRequestHeader("Content-Type", file.type);
-
-      xhr.send(file);
-    });
-
-  const getSignedUrl = async (): Promise<SignedUrlResponse> => {
-    const token = await getPiAccessToken();
-
-    const res = await fetch("/api/upload-url", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ SIGNED URL FAIL:", text);
-      throw new Error("SIGNED_URL_FAILED");
-    }
-
-    const data: SignedUrlResponse = await res.json();
-    if (!data.uploadUrl || !data.publicUrl) {
-      throw new Error("NO_UPLOAD_URL");
-    }
-
-    return data;
   };
 
   /* =========================
@@ -344,167 +274,6 @@ if (productSaleError) {
   return;
 }
 
-  /* =====================
-     SALE PRICE
-  ===================== */
-
-if (
-  Number.isNaN(sale) ||
-  sale < 0.00001
-) {
-  setErrors((prev) => ({
-    ...prev,
-    sale_price: true,
-  }));
-  setSubmitting(false);
-  return;
-}
-
-  /* =====================
-     SALE STOCK
-  ===================== */
-
-  if (
-  !form.sale_stock ||
-  Number(form.sale_stock) <= 0
-) {
-  setErrors((prev) => ({
-    ...prev,
-    sale_stock: true,
-  }));
-
-  setSubmitting(false);
-  return;
-}
-
-  /* =====================
-     SALE TIME
-  ===================== */
-
-if (!hasSaleTime) {
-  setErrors((prev) => ({
-    ...prev,
-    sale_start: !form.sale_start,
-    sale_end: !form.sale_end,
-  }));
-  setSubmitting(false);
-  return;
-}
-
-  /* =====================
-     SALE PRICE < PRICE
-  ===================== */
-
-  if (sale >= price) {
-    alert(
-      t.sale_price_less_than_price
-    );
-
-    setSubmitting(false);
-
-    return;
-  }
-
-  /* =====================
-     INVALID TIME RANGE
-  ===================== */
-
-  if (
-    new Date(
-      form.sale_start
-    ).getTime() >=
-    new Date(
-      form.sale_end
-    ).getTime()
-  ) {
-    alert(
-      t.invalid_sale_time
-    );
-
-    setSubmitting(false);
-
-    return;
-  }
-}
-      /* =========================
-         SALE TIME BUT NO PRICE
-      ========================= */
-
-      if (
-        !hasVariants &&
-        hasSaleTime &&
-        !hasSalePrice
-      ) {
-        alert(t.sale_price_required);
-        setSubmitting(false);
-        return;
-      }
-
-      /* =========================
-         SHIPPING
-      ========================= */
-
-      const shippingRatesPayload: ShippingRate[] =
-  Object.entries(
-    form.shipping_rates
-  ).map(([zone, price]) => ({
-    zone:
-      zone as ShippingRate["zone"],
-    price: Number(price || 0),
-    domestic_country_code:
-      zone === "domestic"
-        ? form.domestic_country_code
-        : null,
-  }));
-
-      /* =========================
-         VARIANTS
-      ========================= */
-
-      const normalizedVariants: ProductVariant[] =
-        form.variants.map((v) => ({
-          ...v,
-
-          sale_enabled: Boolean(v.sale_enabled),
-
-          sale_price:
-            v.sale_enabled &&
-            v.sale_price !== null
-              ? Number(v.sale_price)
-              : null,
-
-          sale_stock:
-            v.sale_enabled
-              ? Number(v.sale_stock || 0)
-              : 0,
-
-          sale_sold: Number(v.sale_sold || 0),
-      final_price:
-     v.sale_enabled &&
-       v.sale_price !== null &&
-            Number(v.sale_price) > 0 &&
-            Number(v.sale_price) < Number(v.price)
-              ? Number(v.sale_price)
-              : Number(v.price),
-        }));
-
-      /* =========================
-         PAYLOAD
-      ========================= */
-      const hasVariantSale = normalizedVariants.some(
-  (v) =>
-    Boolean(v.sale_enabled) &&
-    Number(v.sale_price) > 0
-);
-
-console.log(
-  "🧪 VARIANT SALE CHECK",
-  {
-    hasVariants,
-    hasVariantSale,
-    variants: normalizedVariants,
-  }
-);
   /* =========================
      UI
   ========================= */
