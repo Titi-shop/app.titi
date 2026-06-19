@@ -8,11 +8,6 @@ import type {
 } from "@/types/Product";
 
 import {
-  log,
-  logError,
-} from "./logger";
-
-import {
   safeNumber,
   safeNullableNumber,
   normalizeImages,
