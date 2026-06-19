@@ -9,7 +9,7 @@ import type {
 import {
   log,
   logError,
-} from "./logger";
+} from "./helpers";
 
 import {
   isUUID,
