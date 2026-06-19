@@ -736,7 +736,9 @@
   "wallet_amount": "金额",
 
   "common_cancel": "取消",
-  "common_processing": "处理中..."
+  "common_processing": "处理中...",
+  "sale_date_required": "请选择促销开始和结束时间"
+
 
 
 
