@@ -14,7 +14,7 @@ import {
 import type {
   ShippingRateInput,
 } from "./types";
-
+import { isSaleActive } from "@/lib/utils/sale";
 /* =========================================================
    LIST PRODUCTS
 ========================================================= */
@@ -232,15 +232,15 @@ export async function listProductsService(
           );
 
         const saleVariants =
-          enrichedVariants.filter(
-            (v) =>
-              v.sale_price !==
-                null &&
-              Number(
-                v.sale_price
-              ) > 0
-          );
-
+      enrichedVariants.filter((v) =>
+    isSaleActive(
+      v.sale_enabled,
+      v.sale_price,
+      v.price,
+      product.sale_start,
+      product.sale_end
+    )
+  );
         return {
           ...product,
 
