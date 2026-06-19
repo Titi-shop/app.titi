@@ -7,11 +7,6 @@ import type {
 } from "@/types/Product";
 
 import {
-  log,
-  logError,
-} from "./helpers";
-
-import {
   isUUID,
   safeNumber,
   safeNullableNumber,
@@ -19,6 +14,8 @@ import {
   calcFinalPrice,
   normalizeStatus,
   slugify,
+  log,
+  logError,
 } from "./helpers";
 
 import { mapRow } from "./mapper";
