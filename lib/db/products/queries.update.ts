@@ -19,7 +19,7 @@ import {
 } from "./helpers";
 
 import { mapRow } from "./mapper";
-
+import { calcFinalPrice } from "./pricing";
 import { getProductById } from "./queries.read";
 
 export async function updateProductBySeller(
