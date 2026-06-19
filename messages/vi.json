@@ -538,27 +538,19 @@
   "sold": "đã bán",
 
   "view_all": "Xem tất cả",
-
   "explore_now": "Khám phá ngay",
-
   "search_products": "Tìm kiếm sản phẩm...",
-
   "trending_now": "Xu hướng hôm nay",
-
   "discover_products": "Khám phá sản phẩm",
 
   "most_popular_products_today":
     "Sản phẩm phổ biến nhất hôm nay",
-
   "curated_products_for_you":
     "Sản phẩm được đề xuất cho bạn",
-
   "trending_marketplace":
     "Marketplace xu hướng",
-
   "discover_modern_products":
     "Khám phá sản phẩm từ nền tảng thương mại hiện đại",
-
   "smart_shopping_discovery":
   "Sản phẩm xu hướng, bộ sưu tập nổi bật và trải nghiệm mua sắm thông minh.",
 "please_select_variant": "Vui lòng chọn phân loại trước khi thêm vào giỏ hàng",
@@ -790,7 +782,8 @@
   "wallet_amount": "Số lượng",
 
   "common_cancel": "Hủy",
-  "common_processing": "Đang xử lý..."
+  "common_processing": "Đang xử lý...",
+  "sale_date_required": "Vui lòng chọn thời gian bắt đầu và kết thúc khuyến mãi"
 
 
 
