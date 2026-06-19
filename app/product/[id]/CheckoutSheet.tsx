@@ -11,7 +11,6 @@ import { formatPi } from "@/lib/pi";
 import type { ShippingRate } from "@/types/Product";
 import type {
   CheckoutProps as Props,
-  Region,
   ShippingInfo,
   Message,
 } from "@/types/checkout";
@@ -26,32 +25,6 @@ import {
   validateBeforePay,
   useCheckoutPay,
 } from "./checkout.logic";
-
-/* =========================================================
-ZONE DETECT (PRO)
-========================================================= */
-
-function detectZone(country: string, rates: ShippingRate[]): Region | null {
-  if (!country || !rates?.length) return null;
-
-  const c = country.toUpperCase();
-
-  const exact = rates.find(
-    (r) =>
-      r.domestic_country_code?.toUpperCase() === c ||
-      r.country_code?.toUpperCase() === c
-  );
-
-  if (exact) return exact.zone as Region;
-
-  const fallback =
-    rates.find((r) => r.zone === "asia") ||
-    rates.find((r) => r.zone === "domestic") ||
-    rates.find((r) => r.zone === "sea") ||
-    rates.find((r) => r.zone === "rest_of_world");
-
-  return (fallback?.zone as Region) ?? null;
-}
 
 /* =========================================================
 COMPONENT
@@ -140,7 +113,7 @@ export default function CheckoutSheet({
       item.id,
       product?.selectedVariant?.id ?? null,
     ];
-  }, [open, shipping, zone, quantity, item, product]);
+  }, [open, shipping, quantity, item, product]);
 
   const { data: preview, isLoading, isValidating } = useSWR(
     previewKey,
@@ -175,7 +148,6 @@ export default function CheckoutSheet({
 
   /* ================= PAY ================= */
 console.log("🧪 CHECKOUT_ZONE", {
-  zone,
   resolvedRegion,
   shippingCountry: shipping?.country,
   previewZone: preview?.shipping_zone,
@@ -193,7 +165,6 @@ console.log("🧪 CHECKOUT_ZONE", {
     user,
     router,
     onClose,
-    zone,
     product,
     showMessage: (text, type = "error") => {
       setMessage({ text, type });
@@ -204,7 +175,6 @@ console.log("🧪 CHECKOUT_ZONE", {
         user,
         piReady,
         shipping,
-        zone,
         item,
         quantity,
         maxStock,
