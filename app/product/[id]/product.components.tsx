@@ -87,6 +87,25 @@ export function ProductView(props: ProductViewProps) {
     hasVariants,
     relatedProducts,
   } = props;
+  console.log("🧪 PRODUCT_VIEW", {
+  productId: product.id,
+  hasVariants: product.has_variants,
+
+  product_price: product.price,
+  product_sale_price: product.sale_price,
+  product_final_price: product.final_price,
+
+  selectedVariant: selectedVariant
+    ? {
+        id: selectedVariant.id,
+        option1: selectedVariant.option1,
+        price: selectedVariant.price,
+        sale_price: selectedVariant.sale_price,
+        final_price: selectedVariant.final_price,
+        stock: selectedVariant.stock,
+      }
+    : null,
+});
    
   /* ================= SAFE ================= */
  if (!product) return null;
@@ -404,6 +423,10 @@ let newScale =
       }}
     >
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+       console.log(
+  "🧪 AVAILABLE_VARIANTS",
+  availableVariants
+    );
         {availableVariants.map((v) => {
           const isSelected =
             selectedVariant?.id ===
