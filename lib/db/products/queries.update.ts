@@ -113,12 +113,11 @@ export async function updateProductBySeller(
         : current.sale_price;
 
     const nextSaleEnabled =
-      input.sale_enabled !==
-      undefined
-        ? Boolean(
-            input.sale_enabled
-          )
-        : current.sale_enabled;
+  hasVariants
+    ? false
+    : input.sale_enabled !== undefined
+    ? Boolean(input.sale_enabled)
+    : current.sale_enabled;
 
     const nextFinalPrice =
       hasVariants
@@ -165,16 +164,18 @@ export async function updateProductBySeller(
         : current.sale_stock;
 
     const nextSaleStart =
-      input.sale_start !==
-      undefined
-        ? input.sale_start
-        : current.sale_start;
+  hasVariants
+    ? null
+    : input.sale_start !== undefined
+    ? input.sale_start
+    : current.sale_start;
 
-    const nextSaleEnd =
-      input.sale_end !==
-      undefined
-        ? input.sale_end
-        : current.sale_end;
+const nextSaleEnd =
+  hasVariants
+    ? null
+    : input.sale_end !== undefined
+    ? input.sale_end
+    : current.sale_end;
 
     const nextStatus =
       normalizeStatus(
