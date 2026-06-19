@@ -127,7 +127,11 @@ export default function CheckoutSheet({
     setShipping(def);
   })();
 }, [open, user]);
-
+useEffect(() => {
+  if (resolvedRegion?.zone) {
+    setZone(resolvedRegion.zone as Region);
+  }
+}, [resolvedRegion]);
   /* ================= PREVIEW ================= */
 
   const previewKey = useMemo(() => {
@@ -174,7 +178,12 @@ export default function CheckoutSheet({
 ]);
 
   /* ================= PAY ================= */
-
+console.log("🧪 CHECKOUT_ZONE", {
+  zone,
+  resolvedRegion,
+  shippingCountry: shipping?.country,
+  previewZone: preview?.shipping_zone,
+});
   const handlePay = useCheckoutPay({
     item,
     quantity,
