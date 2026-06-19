@@ -129,21 +129,36 @@ const [lastTap, setLastTap] = useState(0);
       <div
   className="relative" style={{  backgroundColor: "var(--card-bg)",  }}
 >
-        {product.sale_price &&
- product.final_price < product.price && (
-         <div
-  className="absolute top-3 right-3 px-2 py-1 text-xs rounded z-10"
-  style={{
-    background: "var(--danger)",
-    color: "#fff",
-  }}
->
-            -{calcSalePercent(
-            product.price,
-           product.final_price
-           )}%
-          </div>
+        {(
+  hasVariants
+    ? selectedVariant &&
+      selectedVariant.sale_enabled &&
+      selectedVariant.final_price <
+        selectedVariant.price
+    : product.sale_enabled &&
+      product.final_price <
+        product.price
+) && (
+  <div
+    className="absolute top-3 right-3 px-2 py-1 text-xs rounded z-10"
+    style={{
+      background: "var(--danger)",
+      color: "#fff",
+    }}
+  >
+    -
+    {hasVariants && selectedVariant
+      ? calcSalePercent(
+          selectedVariant.price,
+          selectedVariant.final_price
+        )
+      : calcSalePercent(
+          product.price,
+          product.final_price
         )}
+    %
+  </div>
+)}
 
         <Swiper modules={[Pagination]} pagination={{ clickable: true }}>
           {gallery.map((img: string, i: number) => (
@@ -422,10 +437,7 @@ let newScale =
       }}
     >
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-       console.log(
-  "🧪 AVAILABLE_VARIANTS",
-  availableVariants
-    );
+       
         {availableVariants.map((v) => {
           const isSelected =
             selectedVariant?.id ===
@@ -433,7 +445,10 @@ let newScale =
 
           const isDisabled =
             v.stock <= 0;
-
+      console.log(
+  "🧪 AVAILABLE_VARIANTS",
+     availableVariants
+      );
           return (
             <button
               key={v.id}
