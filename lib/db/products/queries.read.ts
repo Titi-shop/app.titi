@@ -293,21 +293,51 @@ export async function getSellerProducts(
       await query<ProductRow>(
         `
         SELECT
-          p.*,
-          up.shop_name,
-          up.shop_banner,
-          up.avatar_url,
-          up.total_sales,
-          up.shop_description
-        FROM products p
+  p.*,
 
-        LEFT JOIN user_profiles up
-          ON up.user_id = p.seller_id
+  MIN(
+    COALESCE(
+      pv.final_price,
+      pv.sale_price,
+      pv.price
+    )
+  ) AS min_price,
 
-        WHERE p.seller_id = $1
-          AND p.deleted_at IS NULL
+  MIN(
+    CASE
+      WHEN pv.sale_enabled = true
+      THEN pv.sale_price
+      ELSE NULL
+    END
+  ) AS min_sale_price,
 
-        ORDER BY p.created_at DESC
+  up.shop_name,
+  up.shop_banner,
+  up.avatar_url,
+  up.total_sales,
+  up.shop_description
+
+FROM products p
+
+LEFT JOIN product_variants pv
+  ON pv.product_id = p.id
+ AND pv.deleted_at IS NULL
+
+LEFT JOIN user_profiles up
+  ON up.user_id = p.seller_id
+
+WHERE p.seller_id = $1
+  AND p.deleted_at IS NULL
+
+GROUP BY
+  p.id,
+  up.shop_name,
+  up.shop_banner,
+  up.avatar_url,
+  up.total_sales,
+  up.shop_description
+
+ORDER BY p.created_at DESC
         `,
         [seller_id]
       );
