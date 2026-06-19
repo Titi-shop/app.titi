@@ -8,7 +8,7 @@ import {
   safeNullableNumber,
   normalizeImages,
 } from "./helpers";
-
+import { isSaleActive } from "@/lib/utils/sale";
 /* =========================================================
    MAP DB ROW -> APP MODEL
 ========================================================= */
@@ -16,6 +16,27 @@ import {
 export function mapRow(
   row: ProductRow
 ): ProductRecord {
+  const price =
+    row.price == null
+      ? null
+      : safeNumber(row.price);
+
+  const salePrice =
+    row.sale_price == null
+      ? null
+      : safeNullableNumber(
+          row.sale_price
+        );
+
+  const saleActive =
+    isSaleActive(
+      row.sale_enabled,
+      salePrice,
+      price,
+      row.sale_start,
+      row.sale_end
+    );
+
   return {
     ...row,
 
@@ -27,18 +48,14 @@ export function mapRow(
           ),
 
     sale_price:
-      row.sale_price == null
-        ? null
-        : safeNullableNumber(
-            row.sale_price
-          ),
+  saleActive
+    ? salePrice
+    : null,
 
-    final_price:
-      row.final_price == null
-        ? null
-        : safeNumber(
-            row.final_price
-          ),
+final_price:
+  saleActive
+    ? Number(salePrice)
+    : price,
 
     stock:
       row.stock == null
@@ -102,7 +119,7 @@ export function mapRow(
       row.is_unlimited === true,
 
     sale_enabled:
-      row.sale_enabled === true,
+  saleActive,
 
     has_variants:
       row.has_variants === true,
