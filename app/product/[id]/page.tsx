@@ -67,15 +67,20 @@ const [initialScale, setInitialScale] =
   /* ================= DEFAULT VARIANT ================= */
 
   useEffect(() => {
-    if (!product) return;
+  if (!product) return;
 
-    const first =
-      product.variants?.find(
-        (v) => (v.is_active ?? true) && v.stock > 0
-      ) ?? null;
+  const first =
+    product.variants?.find(
+      (v) => (v.is_active ?? true) && v.stock > 0
+    ) ?? null;
 
-    setSelectedVariant(first);
-  }, [product]);
+  console.log("🧪 DEFAULT_VARIANT", {
+    found: !!first,
+    variant: first,
+  });
+
+  setSelectedVariant(first);
+}, [product]);
 
   /* ================= RELATED PRODUCTS ================= */
 
@@ -245,10 +250,7 @@ setInitialDistance={setInitialDistance}
 initialScale={initialScale}
 setInitialScale={setInitialScale}
       />
-
 <CheckoutSheet
-  open={openCheckout}
-  onClose={() => setOpenCheckout(false)}
   product={{
     id: product.id,
     selectedVariant,
@@ -258,15 +260,26 @@ setInitialScale={setInitialScale}
         ? `${product.name} - ${selectedVariant.option1}`
         : product.name,
 
-    price: product.price,
-    sale_price: product.sale_price,
-    final_price: product.final_price,
+    price:
+      selectedVariant?.price ??
+      product.price,
+    sale_price:
+      selectedVariant?.sale_price ??
+      product.sale_price,
+
+    final_price:
+      selectedVariant?.final_price ??
+      product.final_price,
     thumbnail: product.thumbnail,
     stock,
-    shipping_rates: product.shipping_rates,
-    variant_id: selectedVariant?.id ?? null,
+
+    shipping_rates:
+      product.shipping_rates,
+    variant_id:
+      selectedVariant?.id ?? null,
   }}
 />
+
     </>
   );
 }
