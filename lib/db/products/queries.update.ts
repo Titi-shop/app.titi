@@ -11,7 +11,6 @@ import {
   safeNumber,
   safeNullableNumber,
   normalizeImages,
-  calcFinalPrice,
   normalizeStatus,
   slugify,
   log,
