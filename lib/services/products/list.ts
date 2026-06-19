@@ -14,7 +14,7 @@ import {
 import type {
   ShippingRateInput,
 } from "./types";
-import { isSaleActive } from "@/lib/utils/sale";
+
 /* =========================================================
    LIST PRODUCTS
 ========================================================= */
@@ -149,62 +149,17 @@ export async function listProductsService(
            NO VARIANTS
         ===================== */
 if (!hasVariants) {
-  const saleActive =
-    isSaleActive(
-      product.sale_enabled,
-      product.sale_price,
-      product.price,
-      product.sale_start,
-      product.sale_end
-    );
-
   return {
     ...product,
-
     variants: [],
-
     min_price: null,
-
     max_price: null,
-
-    sale_price:
-      saleActive
-        ? product.sale_price
-        : null,
-
-    final_price:
-      saleActive
-        ? Number(product.sale_price)
-        : Number(product.price),
-
     shipping_rates:
       shippingMap.get(
         product.id
       ) ?? [],
   };
 }
-        console.log(
-  "🧪 [PRODUCT_SALE_CHECK]",
-  {
-    productId: product.id,
-
-    price: product.price,
-
-    sale_price:
-      product.sale_price,
-
-    sale_enabled:
-      product.sale_enabled,
-
-    sale_start:
-      product.sale_start,
-
-    sale_end:
-      product.sale_end,
-
-    saleActive,
-  }
-);
         
         /* =====================
    LOAD VARIANTS
