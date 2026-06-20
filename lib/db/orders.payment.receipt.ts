@@ -436,3 +436,25 @@ export async function linkReceiptSettlement(
     }
   );
 }
+export async function linkReceiptSettlementByIds(input: {
+  paymentIntentId: string;
+  escrowId: string;
+  sellerCreditId: string;
+}): Promise<void> {
+  return withTransaction(async (client) => {
+    console.log(
+      "[PAYMENT][RECEIPT_LINK] START",
+      input
+    );
+
+    await linkReceiptSettlement(
+      client,
+      input
+    );
+
+    console.log(
+      "[PAYMENT][RECEIPT_LINK] DONE",
+      input
+    );
+  });
+}
