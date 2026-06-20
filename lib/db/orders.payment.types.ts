@@ -7,6 +7,8 @@ import type {
   PiPayload,
 } from "@/lib/payments/types";
 
+import type { PoolClient } from "pg";
+
 /* =========================================================
    RE-EXPORT CORE TYPES
 ========================================================= */
@@ -18,6 +20,30 @@ export type {
   ShippingSnapshot,
   RpcPayload,
   PiPayload,
+};
+
+/* =========================================================
+   EXISTING ORDER
+========================================================= */
+
+export type ExistingOrderRow = {
+  id: string;
+};
+
+/* =========================================================
+   ALREADY PAID RESULT
+========================================================= */
+
+export type AlreadyPaidResult = {
+  ok: boolean;
+  already: boolean;
+
+  orderId: string | null;
+
+  buyerId: string;
+  sellerId: string;
+
+  amount: number;
 };
 
 /* =========================================================
@@ -35,54 +61,34 @@ export type ReceiptVerificationRow = {
 };
 
 /* =========================================================
-   EXISTING ORDER LOOKUP
+   SHIPPING SNAPSHOT
 ========================================================= */
 
-export type ExistingOrderRow = {
-  id: string;
+export type PricingSnapshotItem = {
+  product_id: string;
+  variant_id: string | null;
+
+  quantity: number;
+
+  unit_price: number;
+  subtotal: number;
 };
 
-/* =========================================================
-   FINALIZE RESULT
-========================================================= */
+export type PricingSnapshot = {
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
 
-export type FinalizedOrderResult = {
-  ok: boolean;
-  already: boolean;
-
-  orderId: string | null;
-
-  buyerId: string;
-  sellerId: string;
-
-  amount: number;
+  items: PricingSnapshotItem[];
 };
-
-/* =========================================================
-   SHIPPING SNAPSHOT PARSED
-========================================================= */
 
 export type ParsedShippingSnapshot = {
   shipping: ShippingSnapshot;
-  pricing: {
-    subtotal: number;
-    shipping_fee: number;
-    total: number;
-
-    items: Array<{
-      product_id: string;
-      variant_id: string | null;
-
-      quantity: number;
-
-      unit_price: number;
-      subtotal: number;
-    }>;
-  };
+  pricing: PricingSnapshot;
 };
 
 /* =========================================================
-   STRICT PAYMENT VALIDATION INPUT
+   STRICT PAYMENT VALIDATION
 ========================================================= */
 
 export type StrictPaymentValidationInput = {
@@ -100,20 +106,76 @@ export type StrictPaymentValidationInput = {
 };
 
 /* =========================================================
-   RECEIPT UPSERT INPUT
+   FINALIZE VALIDATION
 ========================================================= */
 
-export type UpsertReceiptInput = {
+export type ValidateFinalizePaymentInput = {
+  client: PoolClient;
+
   paymentIntentId: string;
+
+  txid: string;
+
+  verifiedAmount: number;
+
+  receiverWallet: string;
+
+  rpcPayload: RpcPayload;
+
+  intent: PaymentIntentRow;
+};
+
+export type FinalizeValidationResult = {
+  shipping: ShippingSnapshot;
+
+  pricing: PricingSnapshot;
+
+  expectedAmount: number;
+};
+
+/* =========================================================
+   FINALIZE INTENT
+========================================================= */
+
+export type FinalizeIntentInput = {
+  client: PoolClient;
+
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+};
+
+/* =========================================================
+   FIND EXISTING ORDER
+========================================================= */
+
+export type FindExistingOrderInput = {
+  piPaymentId: string;
+
+  buyerId: string;
+  sellerId: string;
+
+  amount: number;
+};
+
+/* =========================================================
+   PAYMENT RECEIPT UPSERT
+========================================================= */
+
+export type UpsertPaymentReceiptInput = {
+  client: PoolClient;
+
+  paymentIntentId: string;
+
   orderId: string;
+
+  buyerId: string;
 
   expectedAmount: number;
   verifiedAmount: number;
 
   piPaymentId: string;
   txid: string;
-
-  buyerId: string;
 
   receiverWallet: string;
 
@@ -122,11 +184,14 @@ export type UpsertReceiptInput = {
 };
 
 /* =========================================================
-   PI PAYMENTS UPSERT INPUT
+   PI PAYMENTS UPSERT
 ========================================================= */
 
-export type UpsertPiPaymentsInput = {
+export type UpsertPiPaymentInput = {
+  client: PoolClient;
+
   paymentIntentId: string;
+
   orderId: string;
 
   buyerId: string;
@@ -146,11 +211,11 @@ export type UpsertPiPaymentsInput = {
   rpcPayload: RpcPayload;
 };
 
-export type ExistingOrderRow = {
-  id: string;
-};
+/* =========================================================
+   FINALIZED ORDER RESULT
+========================================================= */
 
-export type AlreadyPaidResult = {
+export type FinalizedOrderResult = {
   ok: boolean;
   already: boolean;
 
@@ -161,59 +226,3 @@ export type AlreadyPaidResult = {
 
   amount: number;
 };
-
-export type FinalizeIntentInput = {
-  paymentIntentId: string;
-  piPaymentId: string;
-  txid: string;
-};
-
-export type FindExistingOrderInput = {
-  piPaymentId: string;
-
-  buyerId: string;
-  sellerId: string;
-
-  amount: number;
-};
-export type UpsertPiPaymentInput = {
-  paymentIntentId: string;
-
-  orderId: string;
-
-  buyerId: string;
-
-  piPaymentId: string;
-  txid: string;
-
-  expectedAmount: number;
-  verifiedAmount: number;
-
-  receiverWallet: string;
-
-  country: string | null;
-  zone: string | null;
-
-  piPayload: PiPayload;
-  rpcPayload: RpcPayload;
-};
-
-export type UpsertPaymentReceiptInput = {
-  paymentIntentId: string;
-
-  orderId: string;
-
-  buyerId: string;
-
-  expectedAmount: number;
-  verifiedAmount: number;
-
-  piPaymentId: string;
-  txid: string;
-
-  receiverWallet: string;
-
-  piPayload: PiPayload;
-  rpcPayload: RpcPayload;
-};
-
