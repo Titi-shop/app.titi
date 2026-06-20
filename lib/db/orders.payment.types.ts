@@ -179,7 +179,8 @@ export type UpsertPaymentReceiptInput = {
   paymentIntentId: string;
 
   orderId: string;
-
+  escrowId?: string | null;
+  sellerCreditId?: string | null;
   buyerId: string;
 
   expectedAmount: number;
