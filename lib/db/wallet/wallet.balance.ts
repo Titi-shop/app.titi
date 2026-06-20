@@ -139,6 +139,7 @@ export async function creditWallet(
         params.userId,
         client
       );
+      const rs =
       await client.query(
         `
         UPDATE wallets
@@ -161,6 +162,13 @@ export async function creditWallet(
         ]
       );
     }
+    if (rs.rowCount !== 1) {
+  throw new Error(
+    "WALLET_CREDIT_FAILED"
+
+  );
+
+}
   );
 }
 /* =====================================================
@@ -184,7 +192,8 @@ export async function debitWallet(
       await params.client.query<WalletRow>(
         `
         SELECT
-          balance
+  balance,
+  available_balance
         FROM wallets
         WHERE user_id = $1
         LIMIT 1
@@ -197,6 +206,19 @@ export async function debitWallet(
         "WALLET_NOT_FOUND"
       );
     }
+    const available =
+  toNumberSafe(
+    rows[0].available_balance,
+    "available_balance"
+  );
+
+if (
+  available < params.amount
+) {
+  throw new Error(
+    "INSUFFICIENT_AVAILABLE_BALANCE"
+  );
+}
     const balance =
       toNumberSafe(
         rows[0].balance,
@@ -212,16 +234,13 @@ export async function debitWallet(
     await params.client.query(
       `
       UPDATE wallets
-      SET
-        balance =
-          balance - $1,
-        available_balance =
-          available_balance - $1,
-        wallet_version =
-          wallet_version + 1,
-        updated_at =
-          NOW()
-      WHERE user_id = $2
+SET
+  balance = balance - $1,
+  available_balance = available_balance - $1,
+  wallet_version = wallet_version + 1,
+  updated_at = NOW()
+WHERE user_id = $2
+  AND available_balance >= $1
       `,
       [
         params.amount,
