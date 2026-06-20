@@ -213,25 +213,22 @@ console.log(
       `
       UPDATE seller_credits
 
-      SET
-        status = 'AVAILABLE',
-        
-available_amount =
-  available_amount + frozen_amount,
+SET
+  status = 'AVAILABLE',
 
-frozen_amount = 0,
-  
-        released_at =
-          NOW(),
+  available_amount =
+    available_amount + amount,
 
-        updated_at =
-          NOW(),
+  frozen_amount =
+    frozen_amount - amount,
 
-        ledger_version =
-          ledger_version + 1
+  released_at = NOW(),
+  updated_at = NOW(),
+  ledger_version = ledger_version + 1
 
-      WHERE escrow_id = $1
-        AND status = 'FROZEN'
+WHERE escrow_id = $1
+  AND status = 'FROZEN'
+  AND frozen_amount >= amount
       `,
       [
         escrow.id,
