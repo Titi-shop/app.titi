@@ -156,7 +156,14 @@ FOR UPDATE
     let totalQuantity = 0;
 
     const orderItems: OrderItemInternal[] = [];
+const subtotal =
+  Number(input.pricing.subtotal);
 
+const shippingFee =
+  Number(input.pricing.shipping_fee);
+
+const total =
+  Number(input.pricing.total);
     for (const item of items) {
       if (!isUUID(item.product_id)) {
         throw new Error("INVALID_PRODUCT_ID");
@@ -181,6 +188,48 @@ if (
 if (!p.is_active || p.deleted_at) {
   throw new Error("PRODUCT_NOT_AVAILABLE");
 }
+
+/* =========================================
+   VALIDATE VARIANT
+========================================= */
+
+if (item.variant_id) {
+  const v = variantMap.get(
+    item.variant_id
+  );
+
+  if (!v) {
+    throw new Error(
+      "INVALID_VARIANT"
+    );
+  }
+
+  if (v.product_id !== p.id) {
+    throw new Error(
+      "VARIANT_PRODUCT_MISMATCH"
+    );
+  }
+
+  if (!v.is_active) {
+    throw new Error(
+      "VARIANT_DISABLED"
+    );
+  }
+
+  if (
+    v.stock !== null &&
+    Number(v.stock) < qty
+  ) {
+    throw new Error(
+      "OUT_OF_STOCK"
+    );
+  }
+}
+
+/* =========================================
+   PRICE FROM PAYMENT INTENT
+========================================= */
+
 const pricingItem =
   input.pricing.items.find(
     (x) =>
@@ -188,6 +237,18 @@ const pricingItem =
       (x.variant_id ?? null) ===
         (item.variant_id ?? null)
   );
+
+if (!pricingItem) {
+  throw new Error(
+    "PRICING_ITEM_NOT_FOUND"
+  );
+}
+
+const price =
+  Number(pricingItem.unit_price);
+
+const lineTotal =
+  Number(pricingItem.subtotal);
 
 if (!pricingItem) {
   throw new Error(
@@ -215,11 +276,11 @@ const lineTotal =
 });
 
       console.log("🧾 [ORDER][ITEM]", {
-        productId: p.id,
-        qty,
-        price,
-        total,
-      });
+  productId: p.id,
+  qty,
+  price,
+  total: lineTotal,
+});
     }
 
     /* =========================================================
