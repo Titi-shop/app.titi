@@ -89,66 +89,37 @@ const withdrawWallet =
   =================================================== */
 
   return withTransaction(
-    async (
-      client
-    ) => {
-
-      const withdrawalId =
-        randomUUID();
-
-      /* ===============================================
-         DEBIT WALLET
-      =============================================== */
-
-      await debitWallet({
-        client:
-          client as WalletClient,
-
-        userId:
-          params.userId,
-
-        amount:
-          params.amount,
-      });
-
-      /* ===============================================
-         INSERT WITHDRAWAL
-      =============================================== */
-
-      const withdrawRs =
-  await client.query(
-    `
-    INSERT INTO wallet_withdrawals (
-      id,
-      user_id,
-      amount,
-      currency,
-      withdraw_wallet,
-      status,
-      requested_at
-    )
-    VALUES (
-      $1,$2,$3,
-      'PI',
-      $4,
-      'PENDING',
-      NOW()
-    )
-    RETURNING id
-    `,
-    [
-      withdrawalId,
+  async (client) => {
+    await ensureWallet(
       params.userId,
-      params.amount,
-      withdrawWallet,
-    ]
-  );
+      client
+    );
 
-if (withdrawRs.rowCount !== 1) {
-  throw new Error(
-    "WITHDRAWAL_CREATE_FAILED"
-  );
-}
+    const rs =
+      await client.query(
+        `
+        UPDATE wallets
+        SET
+          balance = balance + $1,
+          available_balance = available_balance + $1,
+          wallet_version = wallet_version + 1,
+          last_credit_at = NOW(),
+          updated_at = NOW()
+        WHERE user_id = $2
+        `,
+        [
+          params.amount,
+          params.userId,
+        ]
+      );
+
+    if (rs.rowCount !== 1) {
+      throw new Error(
+        "WALLET_CREDIT_FAILED"
+      );
+    }
+  }
+);
           
 
       /* ===============================================
