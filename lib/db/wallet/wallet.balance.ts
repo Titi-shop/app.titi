@@ -134,12 +134,13 @@ export async function creditWallet(
      INTERNAL TRANSACTION
   =============================================== */
   return withTransaction(
-    async (client) => {
-      await ensureWallet(
-        params.userId,
-        client
-      );
-      const rs =
+  async (client) => {
+    await ensureWallet(
+      params.userId,
+      client
+    );
+
+    const rs =
       await client.query(
         `
         UPDATE wallets
@@ -161,16 +162,14 @@ export async function creditWallet(
           params.userId,
         ]
       );
-    }
+
     if (rs.rowCount !== 1) {
-  throw new Error(
-    "WALLET_CREDIT_FAILED"
-
-  );
-
-}
-  );
-}
+      throw new Error(
+        "WALLET_CREDIT_FAILED"
+      );
+    }
+  }
+);
 /* =====================================================
    DEBIT WALLET
 ===================================================== */
@@ -231,24 +230,29 @@ if (
         "INSUFFICIENT_BALANCE"
       );
     }
-    await params.client.query(
-      `
-      UPDATE wallets
-SET
-  balance = balance - $1,
-  available_balance = available_balance - $1,
-  wallet_version = wallet_version + 1,
-  updated_at = NOW()
-WHERE user_id = $2
-  AND available_balance >= $1
-      `,
-      [
-        params.amount,
-        params.userId,
-      ]
-    );
-    return;
-  }
+    const rs =
+  await params.client.query(
+    `
+    UPDATE wallets
+    SET
+      balance = balance - $1,
+      available_balance = available_balance - $1,
+      wallet_version = wallet_version + 1,
+      updated_at = NOW()
+    WHERE user_id = $2
+      AND available_balance >= $1
+    `,
+    [
+      params.amount,
+      params.userId,
+    ]
+  );
+
+if (rs.rowCount !== 1) {
+  throw new Error(
+    "WALLET_DEBIT_FAILED"
+  );
+}
   /* ===============================================
      INTERNAL TRANSACTION
   =============================================== */
