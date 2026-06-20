@@ -286,30 +286,32 @@ export async function creditSeller(
     =================================================== */
 
     await createSettlementJournalOnce({
-      ownerId:
-        input.sellerId,
+  ownerId: input.sellerId,
+  ownerType: "SELLER",
 
-      ownerType:
-        "SELLER",
+  refId: creditId,
+  refTable: "seller_credits",
 
-      refId:
-        creditId,
+  entryType: "SELLER_CREDIT",
+  direction: "CREDIT",
 
-      refTable:
-        "seller_credits",
+  amount: input.amount,
 
-      entryType:
-        "SELLER_CREDIT",
+  note: "Seller escrow balance frozen",
 
-      direction:
-        "CREDIT",
+  eventHash: auditHash,
 
-      amount:
-        input.amount,
+  metadata: {
+    escrowId: input.escrowId,
+    paymentIntentId: input.paymentIntentId,
+    orderId: input.orderId,
+    piPaymentId: input.piPaymentId,
+    sellerId: input.sellerId,
+    amount: input.amount,
+  },
 
-      note:
-        "Seller escrow balance frozen",
-    });
+  createdBy: "settlement.credit",
+});
 
     console.log(
       "[SETTLEMENT][CREDIT] JOURNAL_DONE",
