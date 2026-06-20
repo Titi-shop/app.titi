@@ -14,7 +14,7 @@ export {
   upsertPaymentReceipt,
   linkReceiptSettlement,
   linkReceiptSettlementByIds,
-} from "@/lid/db/orders.payment.receipt";
+} from "@/lib/db/orders.payment.receipt";
 
 import {
   upsertPiPayment,
