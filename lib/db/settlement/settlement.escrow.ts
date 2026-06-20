@@ -30,14 +30,7 @@ import {
 export async function createEscrow(
   input: CreateEscrowInput
 ): Promise<string> {
-const journalHash = makeEventHash({
-  escrowId,
-  paymentIntentId: input.paymentIntentId,
-  buyerId: input.buyerId,
-  sellerId: input.sellerId,
-  amount: input.amount,
-  txid: input.txid,
-});
+
   const existed =
     await query<{ id: string }>(
       `
@@ -55,25 +48,18 @@ const journalHash = makeEventHash({
     );
 
   let escrowId: string;
-
   if (existed.rows.length) {
-
     escrowId =
       existed.rows[0].id;
-
   } else {
 
     escrowId =
       randomUUID();
-
     await query(
       `
       INSERT INTO escrow_entries (
-
         id,
-
         payment_intent_id,
-
         order_id,
 
         buyer_id,
@@ -146,7 +132,32 @@ const journalHash = makeEventHash({
       ]
     );
   }
+const journalHash = makeEventHash({
+  type: "ESCROW_HOLD",
 
+  escrowId,
+
+  paymentIntentId:
+    input.paymentIntentId,
+
+  orderId:
+    input.orderId,
+
+  buyerId:
+    input.buyerId,
+
+  sellerId:
+    input.sellerId,
+
+  amount:
+    input.amount,
+
+  txid:
+    input.txid,
+
+  piPaymentId:
+    input.piPaymentId,
+});
   /* ===================================================
      EVENT
   =================================================== */
