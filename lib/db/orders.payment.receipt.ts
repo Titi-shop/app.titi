@@ -46,7 +46,7 @@ export async function upsertPaymentReceipt(
   try {
   await client.query(
     `
-    INSERT INTO payment_receipts
+    INSERT INTO payment_receipts(
       payment_intent_id,
       user_id,
       order_id,
@@ -370,8 +370,7 @@ if (
   throw new Error(
     "RECEIPT_AMOUNT_MISMATCH"
   );
-  ]
-);
+}
 
 logReceipt(
   "UPSERT_SUCCESS",
