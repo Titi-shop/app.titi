@@ -145,3 +145,75 @@ export type UpsertPiPaymentsInput = {
   piPayload: PiPayload;
   rpcPayload: RpcPayload;
 };
+
+export type ExistingOrderRow = {
+  id: string;
+};
+
+export type AlreadyPaidResult = {
+  ok: boolean;
+  already: boolean;
+
+  orderId: string | null;
+
+  buyerId: string;
+  sellerId: string;
+
+  amount: number;
+};
+
+export type FinalizeIntentInput = {
+  paymentIntentId: string;
+  piPaymentId: string;
+  txid: string;
+};
+
+export type FindExistingOrderInput = {
+  piPaymentId: string;
+
+  buyerId: string;
+  sellerId: string;
+
+  amount: number;
+};
+export type UpsertPiPaymentInput = {
+  paymentIntentId: string;
+
+  orderId: string;
+
+  buyerId: string;
+
+  piPaymentId: string;
+  txid: string;
+
+  expectedAmount: number;
+  verifiedAmount: number;
+
+  receiverWallet: string;
+
+  country: string | null;
+  zone: string | null;
+
+  piPayload: PiPayload;
+  rpcPayload: RpcPayload;
+};
+
+export type UpsertPaymentReceiptInput = {
+  paymentIntentId: string;
+
+  orderId: string;
+
+  buyerId: string;
+
+  expectedAmount: number;
+  verifiedAmount: number;
+
+  piPaymentId: string;
+  txid: string;
+
+  receiverWallet: string;
+
+  piPayload: PiPayload;
+  rpcPayload: RpcPayload;
+};
+
