@@ -140,7 +140,7 @@ const withdrawWallet =
       withdrawalId,
       params.userId,
       params.amount,
-      params.withdrawWallet,
+      withdrawWallet,
     ]
   );
 
