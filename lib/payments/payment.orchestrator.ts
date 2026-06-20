@@ -20,6 +20,7 @@ import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import {
   finalizePaidOrderFromIntent,
   FinalizePaidOrderResult,
+  linkReceiptSettlement,
 } from "@/lib/db/orders.payment";
 
 import {
@@ -29,9 +30,6 @@ import {
   linkOrder,
   creditSeller,
 } from "@/lib/db/settlement";
-import {
-  linkReceiptSettlement,
-} from "@/lib/db/orders.payment.receipt";
 
 import { piCompletePayment } from "@/lib/pi/client";
 
