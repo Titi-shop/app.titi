@@ -295,7 +295,6 @@ await markPiVerified(
 );
 
 if (rpcVerified.confirmed) {
-
   await markRpcVerified(
     escrowId
   );
@@ -306,14 +305,15 @@ await linkOrder(
   paid.orderId
 );
 
-await creditSeller({
-  escrowId,
-  sellerId: paid.sellerId,
-  amount: paid.amount,
-  paymentIntentId,
-  orderId: paid.orderId,
-  piPaymentId,
-});
+const creditId =
+  await creditSeller({
+    escrowId,
+    sellerId: paid.sellerId,
+    amount: paid.amount,
+    paymentIntentId,
+    orderId: paid.orderId,
+    piPaymentId,
+  });
     await auditFinalizeDone(paymentIntentId, {
       source: "ledger",
       orderId: paid.orderId,
