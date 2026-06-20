@@ -284,8 +284,7 @@ export async function creditSeller(
     /* ===================================================
        JOURNAL
     =================================================== */
-
-    await createSettlementJournalOnce({
+await createSettlementJournalOnce({
   ownerId: input.sellerId,
   ownerType: "SELLER",
 
@@ -310,9 +309,8 @@ export async function creditSeller(
     amount: input.amount,
   },
 
-  createdBy: "settlement.credit",
+  createdBy: input.sellerId,
 });
-
     console.log(
       "[SETTLEMENT][CREDIT] JOURNAL_DONE",
       {
