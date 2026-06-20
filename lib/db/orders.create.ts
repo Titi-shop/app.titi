@@ -249,18 +249,6 @@ const price =
 
 const lineTotal =
   Number(pricingItem.subtotal);
-
-if (!pricingItem) {
-  throw new Error(
-    "PRICING_ITEM_NOT_FOUND"
-  );
-}
-
-const price =
-  Number(pricingItem.unit_price);
-
-const lineTotal =
-  Number(pricingItem.subtotal);
       totalQuantity += qty;
       orderItems.push({
   product: {
