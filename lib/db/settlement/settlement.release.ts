@@ -253,18 +253,9 @@ if (
   sellerCreditUpdate.rowCount !== 1
 ) {
 
-  console.warn(
-    "[SETTLEMENT][RELEASE] CREDIT_ALREADY_RELEASED",
-    {
-      escrowId:
-        escrow.id,
-
-      affected:
-        sellerCreditUpdate.rowCount,
-    }
+  throw new Error(
+    "SELLER_CREDIT_RELEASE_FAILED"
   );
-
-  return;
 }
 
   /* ===================================================
@@ -372,7 +363,11 @@ if (
         walletUpdate.rowCount,
     }
   );
-
+if (walletUpdate.rowCount !== 1) {
+  throw new Error(
+    "WALLET_CREDIT_FAILED"
+  );
+}
   /* ===================================================
      5. JOURNAL
   =================================================== */
