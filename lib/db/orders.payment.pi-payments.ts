@@ -61,6 +61,11 @@ logPiPayment(
 );
 
 if (!paymentIntentId) {
+  logPiPaymentFail(
+    "PAYMENT_INTENT_ID_REQUIRED",
+    {}
+  );
+
   throw new Error(
     "PAYMENT_INTENT_ID_REQUIRED"
   );
@@ -121,7 +126,25 @@ if (
     "RPC_RECEIVER_MISMATCH"
   );
 }
-  try {
+  logPiPayment(
+  "UPSERT_PAYLOAD",
+  {
+    paymentIntentId,
+    orderId,
+    buyerId,
+    expectedAmount,
+    verifiedAmount,
+    txid,
+    ledger:
+      rpcPayload.ledger,
+    txStatus:
+      rpcPayload.txStatus,
+    chainReference:
+      rpcPayload.chainReference,
+    receiverWallet,
+  }
+);
+  const result =
   await client.query(
     `
     INSERT INTO pi_payments (
@@ -363,41 +386,36 @@ if (
     ]
   );
   logPiPayment(
-
+  "UPSERT_SUCCESS",
+  {
+    paymentIntentId,
+    orderId,
+    piPaymentId,
+    txid,
+    rowCount:
+      result.rowCount,
+  }
+);
+  logPiPayment(
     "UPSERT_SUCCESS",
-
     {
-
       paymentIntentId,
-
       orderId,
-
       piPaymentId,
-
       txid,
-
     }
-
   );
-
 } catch (error) {
-
   logPiPaymentFail(
-
     "UPSERT_FAILED",
 
     {
 
       paymentIntentId,
-
       orderId,
-
       piPaymentId,
-
       txid,
-
       error:
-
         error instanceof Error
 
           ? error.message
