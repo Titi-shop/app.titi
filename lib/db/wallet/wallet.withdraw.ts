@@ -61,7 +61,11 @@ export async function createWalletWithdrawal(
     );
   }
 
-  if (params.amount > 1000000) {
+  if (
+  Number.isNaN(params.amount) ||
+  params.amount <= 0 ||
+  params.amount > 1000000
+) {
   throw new Error(
     "INVALID_AMOUNT"
   );
@@ -76,7 +80,10 @@ export async function createWalletWithdrawal(
       "INVALID_WITHDRAW_WALLET"
     );
   }
-
+const withdrawWallet =
+  params.withdrawWallet
+    .trim()
+    .toLowerCase();
   /* ===================================================
      TX
   =================================================== */
