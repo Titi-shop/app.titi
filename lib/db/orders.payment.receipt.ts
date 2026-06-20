@@ -106,7 +106,7 @@ export async function upsertPaymentReceipt(
       $25,
       $26,$27,
       $28,$29,
-      $30,$
+      $30,$31,
       now(),now(),now(),now()
     )
     ON CONFLICT (pi_payment_id)
@@ -150,17 +150,19 @@ export async function upsertPaymentReceipt(
       updated_at = now()
     `,
     [
-      paymentIntentId,
-      buyerId,
-      orderId,
-      escrowId ?? null,
-      piPaymentId,
-      piPayload.user_uid ?? null,
-      txid,
+  paymentIntentId,
+  buyerId,
+  orderId,
+  escrowId ?? null,
+  sellerCreditId ?? null,
 
-      expectedAmount,
-      verifiedAmount,
-      "PI",
+  piPaymentId,
+  piPayload.user_uid ?? null,
+  txid,
+
+  expectedAmount,
+  verifiedAmount,
+  "PI",
 
       piPayload.from_address ?? null,
       piPayload.to_address ?? receiverWallet,
