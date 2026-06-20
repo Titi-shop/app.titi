@@ -10,10 +10,11 @@ import {
   validateFinalizePayment,
 } from "@/lib/db/orders.payment.validate";
 
-import {
+export {
   upsertPaymentReceipt,
   linkReceiptSettlement,
-} from "@/lib/db/orders.payment.receipt";
+  linkReceiptSettlementByIds,
+} from "@/lid/db/orders.payment.receipt";
 
 import {
   upsertPiPayment,
