@@ -6,6 +6,8 @@ import type {
   RpcPayload,
   ShippingSnapshot,
   StrictPaymentValidationInput,
+  ValidateFinalizePaymentInput,
+  FinalizeValidationResult,
 } from "./orders.payment.types";
 function logValidation(
   event: string,
@@ -515,4 +517,117 @@ export async function validateStrictPayment(
       txid,
     }
   );
+}
+/* =========================================================
+   FINALIZE VALIDATION
+========================================================= */
+
+export async function validateFinalizePayment(
+  input: ValidateFinalizePaymentInput
+): Promise<FinalizeValidationResult> {
+  const {
+    client,
+    paymentIntentId,
+    verifiedAmount,
+    receiverWallet,
+    txid,
+    rpcPayload,
+    intent,
+  } = input;
+
+  logValidation(
+    "FINALIZE_START",
+    {
+      paymentIntentId,
+      txid,
+      verifiedAmount,
+    }
+  );
+
+  const {
+    shipping,
+    pricing,
+  } = parseShippingSnapshot(
+    intent.shipping_snapshot
+  );
+
+  await validateShippingSnapshot(
+    paymentIntentId,
+    shipping,
+    client
+  );
+
+  const expectedAmount =
+    toNumber(
+      intent.total_amount
+    );
+
+  const pricingTotal =
+    Number(
+      pricing.total
+    );
+
+  if (
+    !isSameAmount(
+      pricingTotal,
+      expectedAmount
+    )
+  ) {
+    logValidationFail(
+      "PRICING_TOTAL_MISMATCH",
+      {
+        paymentIntentId,
+        pricingTotal,
+        expectedAmount,
+      }
+    );
+
+    await auditManualReview(
+      paymentIntentId,
+      "PRICING_TOTAL_MISMATCH",
+      {
+        pricingTotal,
+        expectedAmount,
+      },
+      client
+    );
+
+    throw new Error(
+      "PRICING_TOTAL_MISMATCH"
+    );
+  }
+
+  await validateStrictPayment(
+    {
+      paymentIntentId,
+
+      expectedAmount,
+      verifiedAmount,
+
+      merchantWallet:
+        intent.merchant_wallet,
+
+      receiverWallet,
+
+      txid,
+
+      rpcPayload,
+    },
+    client
+  );
+
+  logValidation(
+    "FINALIZE_OK",
+    {
+      paymentIntentId,
+      expectedAmount,
+      verifiedAmount,
+    }
+  );
+
+  return {
+    shipping,
+    pricing,
+    expectedAmount,
+  };
 }
