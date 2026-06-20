@@ -1,4 +1,4 @@
-import { withTransaction } from "@/lib/db";
+import type { PoolClient } from "pg";
 
 import type {
   ExistingOrderRow,
