@@ -135,7 +135,30 @@ if (
     ===================================================== */
 
     const expectedAmount = toNumber(intent.total_amount);
+const pricingTotal = Number(
+  pricing.total
+);
 
+if (
+  !isSameAmount(
+    pricingTotal,
+    expectedAmount
+  )
+) {
+  await auditManualReview(
+    paymentIntentId,
+    "PRICING_TOTAL_MISMATCH",
+    {
+      pricingTotal,
+      expectedAmount,
+    },
+    client
+  );
+
+  throw new Error(
+    "PRICING_TOTAL_MISMATCH"
+  );
+}
     if (!isSameAmount(expectedAmount, verifiedAmount)) {
       await auditManualReview(paymentIntentId, "AMOUNT_MISMATCH", {
         expectedAmount,
@@ -145,15 +168,136 @@ if (
     }
 
     if (
-      String(intent.merchant_wallet || "").trim().toLowerCase() !==
-      String(receiverWallet || "").trim().toLowerCase()
-    ) {
+  String(intent.merchant_wallet || "").trim().toLowerCase() !==
+  String(receiverWallet || "").trim().toLowerCase()
+) {
+  await auditManualReview(
+    paymentIntentId,
+    "RECEIVER_MISMATCH",
+    {
+      expected: intent.merchant_wallet,
+      got: receiverWallet,
+    },
+    client
+  );
+
+  throw new Error("RECEIVER_MISMATCH");
+}
+    if (!txid) {
+  await auditManualReview(
+    paymentIntentId,
+    "TXID_MISSING",
+    {},
+    client
+  );
+
+  throw new Error(
+    "TXID_MISSING"
+  );
+}
+
+if (
+  rpcPayload?.chainReference &&
+  rpcPayload.chainReference !== txid
+) {
+  await auditManualReview(
+    paymentIntentId,
+    "TXID_MISMATCH",
+    {
+      txid,
+      chainReference:
+        rpcPayload.chainReference,
+    },
+    client
+  );
+
+  throw new Error(
+    "TXID_MISMATCH"
+  );
+}
+  throw new Error(
+    "RPC_NOT_CONFIRMED"
+  );
+}
+
+if (
+  rpcPayload?.txStatus !==
+  "SUCCESS"
+) {
+  throw new Error(
+    "RPC_TX_FAILED"
+  );
+}
+
+if (
+  rpcPayload?.reason &&
+  rpcPayload.reason !== "NONE"
+) {
+  throw new Error(
+    "RPC_REASON_FAILED"
+  );
+}
+
+if (
+  !rpcPayload?.ledger
+) {
+  throw new Error(
+    "RPC_LEDGER_MISSING"
+  );
+}
+    {
       await auditManualReview(paymentIntentId, "RECEIVER_MISMATCH", {
         expected: intent.merchant_wallet,
         got: receiverWallet,
       });
       throw new Error("RECEIVER_MISMATCH");
     }
+  if (!rpcPayload?.confirmed) {
+  await auditManualReview(
+    paymentIntentId,
+    "RPC_NOT_CONFIRMED",
+    rpcPayload,
+    client
+  );
+
+  throw new Error("RPC_NOT_CONFIRMED");
+}
+
+if (rpcPayload?.txStatus !== "SUCCESS") {
+  await auditManualReview(
+    paymentIntentId,
+    "RPC_TX_FAILED",
+    rpcPayload,
+    client
+  );
+
+  throw new Error("RPC_TX_FAILED");
+}
+
+if (
+  rpcPayload?.reason &&
+  rpcPayload.reason !== "NONE"
+) {
+  await auditManualReview(
+    paymentIntentId,
+    "RPC_REASON_FAILED",
+    rpcPayload,
+    client
+  );
+
+  throw new Error("RPC_REASON_FAILED");
+}
+
+if (!rpcPayload?.ledger) {
+  await auditManualReview(
+    paymentIntentId,
+    "RPC_LEDGER_MISSING",
+    rpcPayload,
+    client
+  );
+
+  throw new Error("RPC_LEDGER_MISSING");
+}
 const existingOrder =
   await client.query<{
     id: string;
@@ -545,7 +689,46 @@ await writePaymentAudit({
     paymentIntentId,
   ]
 );
-    
+    const receiptCheck =
+  await client.query(
+    `
+    SELECT
+      verification_status,
+      verify_source,
+      rpc_confirmed,
+      rpc_tx_status,
+      rpc_reason
+    FROM payment_receipts
+    WHERE payment_intent_id = $1
+    LIMIT 1
+    `,
+    [paymentIntentId]
+  );
+
+const receipt =
+  receiptCheck.rows[0];
+
+if (!receipt) {
+  throw new Error(
+    "RECEIPT_NOT_FOUND"
+  );
+}
+
+if (
+  receipt.verification_status !==
+    "completed" ||
+  receipt.verify_source !==
+    "DUAL_AUDIT" ||
+  !receipt.rpc_confirmed ||
+  receipt.rpc_tx_status !==
+    "SUCCESS" ||
+  receipt.rpc_reason !==
+    "NONE"
+) {
+  throw new Error(
+    "RECEIPT_NOT_VERIFIED"
+  );
+}
     /* =====================================================
    7. UPSERT PI PAYMENTS (FIXED FULL)
 ===================================================== */
