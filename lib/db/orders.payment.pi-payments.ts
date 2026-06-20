@@ -3,7 +3,25 @@ import type { PoolClient } from "pg";
 import type {
   UpsertPiPaymentInput,
 } from "./orders.payment.types";
+function logPiPayment(
+  event: string,
+  payload: Record<string, unknown>
+): void {
+  console.log(
+    `[PAYMENT][PI_PAYMENTS] ${event}`,
+    payload
+  );
+}
 
+function logPiPaymentFail(
+  event: string,
+  payload: Record<string, unknown>
+): void {
+  console.error(
+    `[PAYMENT][PI_PAYMENTS][FAIL] ${event}`,
+    payload
+  );
+}
 export async function upsertPiPayment(
   client: PoolClient,
   input: UpsertPiPaymentInput
@@ -28,7 +46,82 @@ export async function upsertPiPayment(
     piPayload,
     rpcPayload,
   } = input;
+logPiPayment(
+  "UPSERT_START",
+  {
+    paymentIntentId,
+    orderId,
+    buyerId,
+    piPaymentId,
+    txid,
+    expectedAmount,
+    verifiedAmount,
+    receiverWallet,
+  }
+);
 
+if (!paymentIntentId) {
+  throw new Error(
+    "PAYMENT_INTENT_ID_REQUIRED"
+  );
+}
+
+if (!orderId) {
+  throw new Error(
+    "ORDER_ID_REQUIRED"
+  );
+}
+
+if (!buyerId) {
+  throw new Error(
+    "BUYER_ID_REQUIRED"
+  );
+}
+
+if (!piPaymentId) {
+  throw new Error(
+    "PI_PAYMENT_ID_REQUIRED"
+  );
+}
+
+if (!txid) {
+  throw new Error(
+    "TXID_REQUIRED"
+  );
+}
+  if (
+  rpcPayload.chainReference &&
+  rpcPayload.chainReference !== txid
+) {
+  throw new Error(
+    "CHAIN_REFERENCE_MISMATCH"
+  );
+}
+
+if (
+  rpcPayload.amount != null &&
+  Number(rpcPayload.amount) !==
+    Number(verifiedAmount)
+) {
+  throw new Error(
+    "RPC_AMOUNT_MISMATCH"
+  );
+}
+
+if (
+  rpcPayload.receiver &&
+  rpcPayload.receiver
+    .trim()
+    .toLowerCase() !==
+    receiverWallet
+      .trim()
+      .toLowerCase()
+) {
+  throw new Error(
+    "RPC_RECEIVER_MISMATCH"
+  );
+}
+  try {
   await client.query(
     `
     INSERT INTO pi_payments (
@@ -269,4 +362,53 @@ export async function upsertPiPayment(
       new Date(),
     ]
   );
+  logPiPayment(
+
+    "UPSERT_SUCCESS",
+
+    {
+
+      paymentIntentId,
+
+      orderId,
+
+      piPaymentId,
+
+      txid,
+
+    }
+
+  );
+
+} catch (error) {
+
+  logPiPaymentFail(
+
+    "UPSERT_FAILED",
+
+    {
+
+      paymentIntentId,
+
+      orderId,
+
+      piPaymentId,
+
+      txid,
+
+      error:
+
+        error instanceof Error
+
+          ? error.message
+
+          : String(error),
+
+    }
+
+  );
+
+  throw error;
+
+}
 }
