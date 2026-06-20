@@ -28,9 +28,8 @@ export async function upsertPaymentReceipt(
 ): Promise<void> {
   const {
     paymentIntentId,
-    orderId,
     buyerId,
-
+   orderId,
     expectedAmount,
     verifiedAmount,
 
@@ -38,7 +37,8 @@ export async function upsertPaymentReceipt(
     txid,
 
     receiverWallet,
-
+    escrowId,
+    sellerCreditId,
     piPayload,
     rpcPayload,
   } = input;
@@ -153,8 +153,7 @@ export async function upsertPaymentReceipt(
       paymentIntentId,
       buyerId,
       orderId,
-      null,
-
+      escrowId ?? null,
       piPaymentId,
       piPayload.user_uid ?? null,
       txid,
