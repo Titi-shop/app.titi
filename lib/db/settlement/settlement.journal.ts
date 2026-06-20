@@ -134,77 +134,94 @@ params: {
   /* ===================================================
      INSERT JOURNAL
   =================================================== */
-await db.query(
-  `
-  INSERT INTO wallet_journal (
+try {
 
-    id,
-    owner_id,
-    owner_type,
-    ref_id,
-    ref_table,
-    entry_type,
-    direction,
-    amount,
-    currency,
-    note,
-    metadata,
-    event_hash,
-    created_by,
-    created_at
+  await db.query(
+    `
+    INSERT INTO wallet_journal (
 
-  )
-  VALUES (
+      id,
+      owner_id,
+      owner_type,
+      ref_id,
+      ref_table,
+      entry_type,
+      direction,
+      amount,
+      currency,
+      note,
+      metadata,
+      event_hash,
+      created_by,
+      created_at
 
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7,
-    $8,
-    'PI',
-    $9,
-    $10,
-    $11,
-    $12,
-    NOW()
-  )
-  `,
-  [
-    randomUUID(),
-    params.ownerId,
-    params.ownerType,
-    params.refId,
-    params.refTable,
-    params.entryType,
-    params.direction,
-    params.amount,
-    params.note ?? null,
-    JSON.stringify(
-      params.metadata ??
-      {}
-    ),
+    )
+    VALUES (
 
-    params.eventHash ??
-      null,
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      'PI',
+      $9,
+      $10,
+      $11,
+      $12,
+      NOW()
+    )
+    `,
+    [
+      randomUUID(),
+      params.ownerId,
+      params.ownerType,
+      params.refId,
+      params.refTable,
+      params.entryType,
+      params.direction,
+      params.amount,
+      params.note ?? null,
 
-    params.createdBy ??
-      null,
-  ]
-);
+      JSON.stringify(
+        params.metadata ?? {}
+      ),
+      params.eventHash ?? null,
+      params.createdBy ?? null,
+    ]
+  );
+
   console.log(
     "[SETTLEMENT][JOURNAL] DONE",
     {
-      ownerId:
-        params.ownerId,
-
-      refId:
-        params.refId,
-
-      entryType:
-        params.entryType,
+      ownerId: params.ownerId,
+      refId: params.refId,
+      entryType: params.entryType,
     }
   );
+
+} catch (error) {
+  console.error(
+    "[SETTLEMENT][JOURNAL][INSERT_FAILED]",
+    {
+      ownerId: params.ownerId,
+      refId: params.refId,
+      entryType: params.entryType,
+      eventHash: params.eventHash,
+      metadata:
+        params.metadata,
+      error:
+        error instanceof Error
+          ? {
+              message:
+                error.message,
+              stack:
+                error.stack,
+            }
+          : error,
+    }
+  );
+  throw error;
 }
