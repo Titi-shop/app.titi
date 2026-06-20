@@ -73,7 +73,14 @@ try {
 
 const shipping: ShippingSnapshot =
   rawShipping?.buyer_shipping ?? rawShipping ?? {};
+const pricing =
+  rawShipping?.pricing_snapshot;
 
+if (!pricing) {
+  throw new Error(
+    "PRICING_SNAPSHOT_MISSING"
+  );
+}
 if (
   !shipping.name ||
   !shipping.phone ||
@@ -207,7 +214,7 @@ const createdOrder = await createOrder({
 
   piPaymentId,
   txid,
-  idempotencyKey: paymentIntentId, // hoặc intent.id
+  idempotencyKey: paymentIntentId,
 
   country: intent.country,
   zone: intent.zone,
@@ -215,18 +222,63 @@ const createdOrder = await createOrder({
   shipping: {
     name: shipping.name ?? "",
     phone: shipping.phone ?? "",
-    address_line: shipping.address_line ?? "",
+    address_line:
+      shipping.address_line ?? "",
     ward: shipping.ward ?? null,
-    district: shipping.district ?? null,
+    district:
+      shipping.district ?? null,
     region: shipping.region ?? null,
-    postal_code: shipping.postal_code ?? null,
+    postal_code:
+      shipping.postal_code ?? null,
+  },
+
+  pricing: {
+    subtotal: Number(
+      pricing.subtotal
+    ),
+
+    shipping_fee: Number(
+      pricing.shipping_fee
+    ),
+
+    total: Number(
+      pricing.total
+    ),
+
+    items: pricing.items.map(
+      (item: any) => ({
+        product_id:
+          item.product_id,
+
+        variant_id:
+          item.variant_id ?? null,
+
+        quantity:
+          item.quantity,
+
+        unit_price:
+          Number(
+            item.unit_price
+          ),
+
+        subtotal:
+          Number(
+            item.subtotal
+          ),
+      })
+    ),
   },
 
   items: [
     {
-      product_id: intent.product_id,
-      variant_id: intent.variant_id,
-      quantity: intent.quantity,
+      product_id:
+        intent.product_id,
+
+      variant_id:
+        intent.variant_id,
+
+      quantity:
+        intent.quantity,
     },
   ],
 });
