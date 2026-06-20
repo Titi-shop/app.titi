@@ -164,12 +164,14 @@ export async function creditWallet(
       );
 
     if (rs.rowCount !== 1) {
-      throw new Error(
-        "WALLET_CREDIT_FAILED"
-      );
-    }
-  }
-);
+  throw new Error(
+    "WALLET_DEBIT_FAILED"
+  );
+}
+
+return;
+}
+    };
 /* =====================================================
    DEBIT WALLET
 ===================================================== */
