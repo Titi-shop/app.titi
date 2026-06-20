@@ -400,3 +400,39 @@ catch (error) {
   throw error;
 }
 }
+export async function linkReceiptSettlement(
+  client: PoolClient,
+  input: {
+    paymentIntentId: string;
+    escrowId: string;
+    sellerCreditId: string;
+  }
+): Promise<void> {
+  await client.query(
+    `
+    UPDATE payment_receipts
+    SET
+      escrow_id = $2,
+      seller_credit_id = $3,
+      updated_at = NOW()
+    WHERE payment_intent_id = $1
+    `,
+    [
+      input.paymentIntentId,
+      input.escrowId,
+      input.sellerCreditId,
+    ]
+  );
+
+  console.log(
+    "[PAYMENT][RECEIPT_LINKED]",
+    {
+      paymentIntentId:
+        input.paymentIntentId,
+      escrowId:
+        input.escrowId,
+      sellerCreditId:
+        input.sellerCreditId,
+    }
+  );
+}
