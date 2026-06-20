@@ -328,11 +328,16 @@ async function safeLedger(
         piPaymentId,
       });
 
-    await linkReceiptSettlement({
+    await withTransaction(async (client) => {
+  await linkReceiptSettlement(
+    client,
+    {
       paymentIntentId,
       escrowId,
       sellerCreditId: creditId,
-    });
+    }
+  );
+});
 
     await auditFinalizeDone(
       paymentIntentId,
