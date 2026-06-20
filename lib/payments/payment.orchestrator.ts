@@ -281,6 +281,9 @@ async function safeLedger(
 
       return false;
     }
+console.log(
+  "[PAYMENT][LEDGER] CREATE_ESCROW_START"
+);
 
     const escrowId =
   await createEscrow({
@@ -292,6 +295,11 @@ async function safeLedger(
     txid,
     piPaymentId,
   });
+    console.log(
+  "[PAYMENT][LEDGER] CREATE_ESCROW_DONE",
+  { escrowId }
+
+);
     await withTransaction(async (client) => {
   await linkReceiptSettlement(
     client,
