@@ -1,4 +1,4 @@
-import type { PoolClient } from "pg";
+import { withTransaction } from "@/lib/db";
 
 import type {
   UpsertPaymentReceiptInput,
