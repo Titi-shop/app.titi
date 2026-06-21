@@ -45,7 +45,7 @@ export async function getVariantsByProductId(
       "INVALID_PRODUCT_ID"
     );
   }
-
+const t0 = performance.now();
   const result =
   await query<ProductVariantDB>(
     `
