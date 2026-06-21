@@ -196,3 +196,29 @@ export async function getWalletWithdrawals(): Promise<
 
   return rs.rows;
 }
+export async function approveWalletWithdrawal(
+  withdrawalId: string,
+  adminId: string
+): Promise<void> {
+  const rs = await query(
+    `
+    UPDATE wallet_withdrawals
+    SET
+      status = 'APPROVED',
+      approved_by = $2,
+      approved_at = NOW()
+    WHERE id = $1
+      AND status = 'PENDING'
+    `,
+    [
+      withdrawalId,
+      adminId,
+    ]
+  );
+
+  if (rs.rowCount !== 1) {
+    throw new Error(
+      "WITHDRAWAL_NOT_FOUND"
+    );
+  }
+}
