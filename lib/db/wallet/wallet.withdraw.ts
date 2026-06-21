@@ -30,15 +30,23 @@ import type {
 type CreateWalletWithdrawalInput =
   {
     userId: string;
-
     amount: number;
-
     withdrawWallet: string;
   };
 
 type WithdrawalRow = {
   id: string;
 };
+type WalletWithdrawalRow = {
+  id: string;
+  user_id: string;
+  amount: string;
+  currency: string;
+  withdraw_wallet: string;
+  status: string;
+  requested_at: string;
+};
+
 
 /* =====================================================
    CREATE WITHDRAWAL
@@ -131,6 +139,16 @@ if (withdrawRs.rowCount !== 1) {
     "WITHDRAWAL_CREATE_FAILED"
   );
 }
+      type WalletWithdrawalRow = {
+  id: string;
+  user_id: string;
+  amount: string;
+  currency: string;
+  withdraw_wallet: string;
+  status: string;
+  requested_at: string;
+};
+
 
       /* ===============================================
          DONE
@@ -143,3 +161,32 @@ if (withdrawRs.rowCount !== 1) {
     }
   );
 }
+
+export async function getWalletWithdrawals(): Promise<
+  WalletWithdrawalRow[]
+> {
+  const res = await withTransaction(
+    async (client) => {
+      const rs =
+        await client.query<WalletWithdrawalRow>(
+          `
+          SELECT
+            id,
+            user_id,
+            amount,
+            currency,
+            withdraw_wallet,
+            status,
+            requested_at
+          FROM wallet_withdrawals
+          ORDER BY requested_at DESC
+          `
+        );
+
+      return rs.rows;
+    }
+  );
+
+  return res;
+}
+
