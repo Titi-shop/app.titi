@@ -78,18 +78,13 @@ export type WithdrawSellerInput = {
 
 export type EscrowReleaseRow = {
   id: string;
-
   order_id: string;
-
+  payment_intent_id: string | null;
   seller_id: string;
-
   amount: string;
-
   status: string;
-
   release_status: string;
-
-  release_after: string | null;
+  release_after: Date | null;
 };
 
 /* =========================================================
