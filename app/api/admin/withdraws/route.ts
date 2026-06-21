@@ -27,18 +27,19 @@ export async function GET() {
        ADMIN GUARD
     ========================= */
 
-    vlog("GUARD_START");
-
-    const admin =
+    const auth =
       await requireAdmin();
 
-    vlog(
-      "GUARD_OK",
-      admin
-    );
+    vlog("GUARD_RESULT", {
+      ok: auth.ok,
+    });
+
+    if (!auth.ok) {
+      return auth.response;
+    }
 
     /* =========================
-       LOAD DATA
+       LOAD WITHDRAWALS
     ========================= */
 
     vlog(
@@ -56,25 +57,15 @@ export async function GET() {
       }
     );
 
-    if (rows.length > 0) {
-      vlog(
-        "FIRST_ROW",
-        rows[0]
-      );
-    }
-
     /* =========================
        RESPONSE
     ========================= */
-
-    vlog(
-      "SUCCESS_RESPONSE"
-    );
 
     return NextResponse.json({
       success: true,
       rows,
     });
+
   } catch (error) {
     console.error(
       "[ADMIN_WITHDRAWS_API][ERROR]",
@@ -84,12 +75,10 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "FORBIDDEN",
+          "WITHDRAW_LIST_FAILED",
       },
       {
-        status: 403,
+        status: 500,
       }
     );
   }
