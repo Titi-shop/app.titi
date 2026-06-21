@@ -8,8 +8,9 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 type Row = {
   id: string;
   user_id: string;
-  wallet_address: string;
   amount: string;
+  currency: string;
+  withdraw_wallet: string;
   status: string;
   requested_at: string;
 };
