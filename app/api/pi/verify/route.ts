@@ -97,6 +97,7 @@ const piRes = await fetch("https://api.minepi.com/v2/me", {
     username,
     wallet_address,
     role,
+    is_admin: !!dbUser.is_admin,
   },
 });
 
