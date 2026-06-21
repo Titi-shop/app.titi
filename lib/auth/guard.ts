@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "./getUserFromBearer";
-import { getUserRoleByUserId } from "@/lib/db/users";
+import { getUserRoleByUserId,getUserAdminFlag } from "@/lib/db/users";
 
 type Role = "admin" | "seller" | "customer";
 
@@ -107,19 +107,31 @@ export async function requireCustomer(): Promise<GuardResult> {
 }
 /* ================= ADMIN ================= */
 export async function requireAdmin(): Promise<GuardResult> {
-  const auth = await requireAuth();
+  const auth =
+    await requireAuth();
 
   if (!auth.ok) {
     return auth;
   }
 
-  if (auth.role !== "admin") {
+  const isAdmin =
+    await getUserAdminFlag(
+      auth.userId
+    );
+
+  if (!isAdmin) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      ),
+      response:
+        NextResponse.json(
+          {
+            error:
+              "FORBIDDEN",
+          },
+          {
+            status: 403,
+          }
+        ),
     };
   }
 
