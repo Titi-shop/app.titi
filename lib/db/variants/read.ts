@@ -59,7 +59,12 @@ export async function getVariantsByProductId(
     `,
     [productId]
   );
+console.log(
+    "⏱️ SQL getVariantsByProduct:",
+    productId,
+    performance.now() - t0
 
+  );
 /* ===== LOG DB RAW ===== */
 console.log(
   "🧪 VARIANT_DB_ROWS",
