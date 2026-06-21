@@ -4,53 +4,40 @@ import { query } from "@/lib/db";
 import AdminWithdrawTable from "./AdminWithdrawTable";
 
 export default async function AdminPage() {
-  const auth = await getUserFromBearer();
-
-  if (!auth) {
-    redirect("/");
-  }
-
-  const userRes = await query(
-  `
-  SELECT is_admin
-  FROM users
-  WHERE id = $1
-  LIMIT 1
-  `,
-  [auth.userId]
-);
-
-if (!userRes.rows[0]?.is_admin) {
-  redirect("/");
-}
-console.log(
-  "[ADMIN]",
-  userRes.rows[0]
-);
-  const withdraws = await query(
-    `
-    SELECT
-      id,
-      user_id,
-      wallet_address,
-      amount,
-      status,
-      created_at
-    FROM withdrawal_requests
-    ORDER BY created_at DESC
-    LIMIT 100
-    `
-  );
-
   return (
     <main className="p-4">
-      <h1 className="text-2xl font-bold mb-4">
+      <h1 className="text-2xl font-bold">
         Admin Dashboard
       </h1>
 
-      <AdminWithdrawTable
-        rows={withdraws.rows}
-      />
+      <div className="mt-6 grid gap-4">
+        <div className="rounded-xl border p-4">
+          <h2 className="font-semibold">
+            Withdraw Requests
+          </h2>
+          <p className="text-sm opacity-70">
+            Coming soon
+          </p>
+        </div>
+
+        <div className="rounded-xl border p-4">
+          <h2 className="font-semibold">
+            Orders
+          </h2>
+          <p className="text-sm opacity-70">
+            Coming soon
+          </p>
+        </div>
+
+        <div className="rounded-xl border p-4">
+          <h2 className="font-semibold">
+            Sellers
+          </h2>
+          <p className="text-sm opacity-70">
+            Coming soon
+          </p>
+        </div>
+      </div>
     </main>
   );
 }
