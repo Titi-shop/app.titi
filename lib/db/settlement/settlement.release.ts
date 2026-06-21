@@ -45,25 +45,21 @@ export async function findReleasableEscrows(
     await client.query<EscrowReleaseRow>(
       `
       SELECT
-        id,
-        order_id,
-        seller_id,
-        amount,
-        status,
-        release_status,
-        release_after
-
-      FROM escrow_entries
+  id,
+  order_id,
+  payment_intent_id,
+  seller_id,
+  amount,
+  status,
+  release_status,
+  release_after
+FROM escrow_entries
 
       WHERE
         release_status = 'HOLD'
-
         AND status = 'PAID'
-
         AND release_after IS NOT NULL
-
         AND release_after <= NOW()
-
       FOR UPDATE SKIP LOCKED
       `
     );
@@ -428,7 +424,47 @@ if (walletUpdate.rowCount !== 1) {
         escrow.order_id,
     }
   );
+/* ===================================================
+   8. FINALIZE PAYMENT INTENT
+=================================================== */
 
+if (escrow.payment_intent_id) {
+
+  console.log(
+    "[SETTLEMENT][RELEASE] PAYMENT_INTENT_SETTLE_START",
+    {
+      paymentIntentId:
+        escrow.payment_intent_id,
+    }
+  );
+
+  const intentUpdate =
+    await client.query(
+      `
+      UPDATE payment_intents
+      SET
+        settlement_state = 'SETTLED',
+        settled_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+        AND settlement_state <> 'SETTLED'
+      `,
+      [
+        escrow.payment_intent_id,
+      ]
+    );
+
+  console.log(
+    "[SETTLEMENT][RELEASE] PAYMENT_INTENT_SETTLE_DONE",
+    {
+      paymentIntentId:
+        escrow.payment_intent_id,
+
+      affected:
+        intentUpdate.rowCount,
+    }
+  );
+}
   const orderUpdate =
     await client.query(
       `
