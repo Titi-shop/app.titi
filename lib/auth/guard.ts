@@ -105,3 +105,23 @@ export async function requireCustomer(): Promise<GuardResult> {
 
   return auth;
 }
+/* ================= ADMIN ================= */
+export async function requireAdmin(): Promise<GuardResult> {
+  const auth = await requireAuth();
+
+  if (!auth.ok) {
+    return auth;
+  }
+
+  if (auth.role !== "admin") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return auth;
+}
