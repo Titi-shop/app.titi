@@ -55,3 +55,20 @@ export async function upsertUserFromPi(
 
   return res.rows[0];
 }
+export async function getUserAdminFlag(
+  userId: string
+): Promise<boolean> {
+  const res = await query(
+    `
+    SELECT is_admin
+    FROM users
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return (
+    res.rows[0]?.is_admin === true
+  );
+}
