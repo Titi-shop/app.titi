@@ -15,10 +15,36 @@ type Row = {
 };
 
 export default function AdminWithdrawTable() {
-  const { t } = useTranslation();
-   const { user, loading, piReady } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } =
+  useTranslation();
+
+const {
+  user,
+  loading: authLoading,
+  piReady,
+} = useAuth();
+
+const [rows, setRows] =
+  useState<Row[]>([]);
+
+const [loading, setLoading] =
+  useState(true);
+} = useAuth();
+  useEffect(() => {
+  if (
+    authLoading ||
+    !piReady ||
+    !user
+  ) {
+    return;
+  }
+
+  void loadWithdraws();
+}, [
+  authLoading,
+  piReady,
+  user,
+]);
 
   useEffect(() => {
     void loadWithdraws();
