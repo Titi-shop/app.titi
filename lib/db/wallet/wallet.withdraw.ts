@@ -284,7 +284,7 @@ export async function markWithdrawalProcessing(
   piPaymentMemo?: string,
   piUid?: string,
   blockchainNetwork?: string
-): Promise<void>
+): Promise<void> {
   vlog("MARK_PROCESSING_START", {
     withdrawalId,
     piPaymentId,
@@ -294,17 +294,17 @@ export async function markWithdrawalProcessing(
   `
   UPDATE wallet_withdrawals
   SET
-    status = 'PROCESSING',
-    pi_payment_id = $2,
-     pi_uid = $3,
-    pi_payment_memo = $4
+  status = 'PROCESSING',
+  pi_payment_id = $2,
+  pi_uid = $3,
+  pi_payment_memo = $4
   WHERE id = $1
     AND status = 'APPROVED'
   `,
   [
-    withdrawalId,
-    piPaymentId,
-    piUid,
+  withdrawalId,
+  piPaymentId,
+  piUid,
   piPaymentMemo,
 ]
 );
