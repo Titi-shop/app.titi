@@ -308,6 +308,39 @@ export async function completeA2UPayment(
   );
 }
 /* =====================================================
+   CANCEL PAYMENT
+===================================================== */
+
+export async function cancelA2UPayment(
+  paymentId: string
+): Promise<void> {
+  vlog(
+    "CANCEL_START",
+    {
+      paymentId,
+    }
+  );
+
+  await piRequest(
+    `/v2/payments/${paymentId}/cancel`,
+    {
+      method: "POST",
+
+      headers: {
+        Authorization:
+          `Key ${PI_KEY}`,
+      },
+    }
+  );
+
+  vlog(
+    "CANCEL_SUCCESS",
+    {
+      paymentId,
+    }
+  );
+}
+/* =====================================================
    DEBUG PAYMENT
 ===================================================== */
 
