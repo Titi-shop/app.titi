@@ -72,3 +72,29 @@ export async function getUserAdminFlag(
     res.rows[0]?.is_admin === true
   );
 }
+/* ================= USER BY UUID ================= */
+
+export async function getUserById(
+  userId: string
+): Promise<{
+  id: string;
+  pi_uid: string | null;
+  username: string | null;
+} | null> {
+  const res = await query(
+    `
+    SELECT
+      id,
+      pi_uid,
+      username
+    FROM users
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return (
+    res.rows[0] ?? null
+  );
+}
