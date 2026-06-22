@@ -126,21 +126,25 @@ export async function piGetMe(
   }
 
   const data =
-    await piRequest<any>(
-      "/me",
-      {
-        method: "GET",
-        headers: {
-          Authorization:
-            `Bearer ${token}`,
-        },
-      }
-    );
-
-  console.log(
-    "[PI_CLIENT][ME_RESPONSE]",
-    data
+  await piRequest<PiUserMe>(
+    "/v2/me",
+    {
+      method: "GET",
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+    }
   );
+
+console.log(
+  "[PI_CLIENT][ME_RESPONSE]",
+  {
+    uid: data?.uid,
+    username:
+      data?.username,
+  }
+);
 
   if (!data?.uid) {
     throw new Error(
@@ -165,9 +169,12 @@ export async function piGetPayment(
   }
 console.log(
   "[PI_CLIENT][GET_PAYMENT_URL]",
-  `${PI_API}/payments/${id}`
+  `${PI_API}/v2/payments/${id}`
 );
-  const data = await piRequest<PiPaymentData>(`/payments/${id}`, {
+
+const data =
+  await piRequest<PiPaymentData>(
+    `/v2/payments/${id}`, {
     method: "GET",
     headers: {
       Authorization: `Key ${PI_KEY}`,
@@ -202,7 +209,8 @@ export async function piApprovePayment(
     throw new Error("MISSING_PI_PAYMENT_ID");
   }
 
-  await piRequest<unknown>(`/payments/${id}/approve`, {
+  await piRequest<unknown>(
+  `/v2/payments/${id}/approve`, {
     method: "POST",
     headers: {
       Authorization: `Key ${PI_KEY}`,
@@ -235,7 +243,8 @@ export async function piCompletePayment(
     throw new Error("MISSING_TXID");
   }
 
-  const res = await fetch(`${PI_API}/payments/${id}/complete`, {
+  const res = await fetch(
+  `${PI_API}/v2/payments/${id}/complete`, {
     method: "POST",
     headers: {
       Authorization: `Key ${PI_KEY}`,
