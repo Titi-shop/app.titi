@@ -62,7 +62,10 @@ type WalletWithdrawalRow = {
   blockchain_memo: string | null;
   blockchain_fee: string | null;
   pi_payment_memo: string | null;
-
+blockchain_from_address: string | null;
+blockchain_to_address: string | null;
+blockchain_network: string | null;
+pi_uid: string | null;
   paid_at: string | null;
   completed_at: string | null;
   fail_reason: string | null;
