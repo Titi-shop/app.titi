@@ -152,17 +152,20 @@ export async function POST(
     ===================== */
 
     const piPaymentId =
-      `TEMP_${Date.now()}`;
+  await createA2UPayment({
+    uid: withdrawal.user_id,
+    amount: Number(withdrawal.amount),
+    memo: `Withdraw ${withdrawal.id}`,
+    metadata: {
+      withdrawal_id:
+        withdrawal.id,
+    },
+  });
 
-    vlog(
-      "MARK_PROCESSING_START",
-      {
-        withdrawalId:
-          withdrawal.id,
-        piPaymentId,
-      }
-    );
-
+await markWithdrawalProcessing(
+  withdrawal.id,
+  piPaymentId
+);
     await markWithdrawalProcessing(
       withdrawal.id,
       piPaymentId
