@@ -343,24 +343,25 @@ blockchainFromAddress,
   const rs = await query(
   `
   UPDATE wallet_withdrawals
-SET
-  status = 'COMPLETED',
+  SET
+    status = 'COMPLETED',
 
-  blockchain_txid = $2,
-  txid = $2,
+    blockchain_txid = $2,
+    txid = $2,
 
-  blockchain_ledger = $3,
-  blockchain_memo = $4,
-  blockchain_fee = $5,
+    blockchain_ledger = $3,
+    blockchain_memo = $4,
+    blockchain_fee = $5,
 
-  blockchain_from_address = $6,
-  blockchain_to_address = $7,
-  blockchain_network = $8,
+    blockchain_from_address = $6,
+    blockchain_to_address = $7,
+    blockchain_network = $8,
 
-  paid_at = NOW(),
-  completed_at = NOW()
-WHERE id = $1
-  AND status = 'PROCESSING'
+    paid_at = NOW(),
+    completed_at = NOW()
+
+  WHERE id = $1
+    AND status = 'PROCESSING'
   `,
   [
     withdrawalId,
@@ -368,6 +369,9 @@ WHERE id = $1
     blockchainLedger,
     blockchainMemo,
     blockchainFee,
+    blockchainFromAddress,
+    blockchainToAddress,
+    blockchainNetwork,
   ]
 );
 
