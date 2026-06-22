@@ -57,6 +57,12 @@ type WalletWithdrawalRow = {
 
   pi_payment_id: string | null;
   blockchain_txid: string | null;
+
+  blockchain_ledger: number | null;
+  blockchain_memo: string | null;
+  blockchain_fee: string | null;
+  pi_payment_memo: string | null;
+
   paid_at: string | null;
   completed_at: string | null;
   fail_reason: string | null;
@@ -186,6 +192,12 @@ export async function getWalletWithdrawals(): Promise<
   requested_at,
   pi_payment_id,
   blockchain_txid,
+
+  blockchain_ledger,
+  blockchain_memo,
+  blockchain_fee,
+  pi_payment_memo,
+
   paid_at,
   completed_at,
   fail_reason,
@@ -279,8 +291,9 @@ export async function markWithdrawalProcessing(
     `
     UPDATE wallet_withdrawals
     SET
-      status = 'PROCESSING',
-      pi_payment_id = $2
+  status='PROCESSING',
+  pi_payment_id=$2,
+  pi_payment_memo=$3
     WHERE id = $1
       AND status = 'APPROVED'
     `,
@@ -307,6 +320,10 @@ export async function markWithdrawalCompleted(
   vlog("MARK_COMPLETED_START", {
     withdrawalId,
     blockchainTxid,
+    blockchain_txid,
+blockchain_ledger,
+blockchain_memo,
+blockchain_fee,
   });
 
   const rs = await query(
