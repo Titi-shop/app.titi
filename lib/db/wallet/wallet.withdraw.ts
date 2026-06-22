@@ -484,3 +484,44 @@ export async function getProcessingWithdrawals(): Promise<
 
   return rs.rows;
 }
+export async function retryWithdrawal(
+  withdrawalId: string
+): Promise<void> {
+  console.log(
+    "[WALLET_WITHDRAW][RETRY_START]",
+    withdrawalId
+  );
+
+  const result =
+    await query(
+      `
+      UPDATE wallet_withdrawals
+      SET
+        status = 'APPROVED',
+        fail_reason = NULL,
+        pi_payment_id = NULL,
+        blockchain_txid = NULL,
+        paid_at = NULL,
+        completed_at = NULL
+      WHERE id = $1
+      AND status = 'FAILED'
+      `,
+      [withdrawalId]
+    );
+
+  console.log(
+    "[WALLET_WITHDRAW][RETRY_RESULT]",
+    {
+      rowCount:
+        result.rowCount,
+    }
+  );
+
+  if (
+    result.rowCount !== 1
+  ) {
+    throw new Error(
+      "WITHDRAWAL_RETRY_FAILED"
+    );
+  }
+}
