@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^13.3.0",
     "@supabase/supabase-js": "^2.39.0",
     "@vercel/blob": "^2.0.0",
     "@vercel/kv": "latest",
