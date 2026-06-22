@@ -281,6 +281,8 @@ export async function approveWalletWithdrawal(
 export async function markWithdrawalProcessing(
   withdrawalId: string,
   piPaymentId: string,
+  piPaymentMemo: string,
+  piUid: string,
   piPaymentMemo: string
 ): Promise<void> {
   vlog("MARK_PROCESSING_START", {
@@ -294,15 +296,17 @@ export async function markWithdrawalProcessing(
   SET
     status = 'PROCESSING',
     pi_payment_id = $2,
-    pi_payment_memo = $3
+     pi_uid = $3,
+    pi_payment_memo = $4
   WHERE id = $1
     AND status = 'APPROVED'
   `,
   [
     withdrawalId,
     piPaymentId,
-    piPaymentMemo,
-  ]
+    piUid,
+  piPaymentMemo,
+]
 );
 
   vlog("MARK_PROCESSING_RESULT", {
@@ -318,9 +322,13 @@ export async function markWithdrawalProcessing(
 export async function markWithdrawalCompleted(
   withdrawalId: string,
   blockchainTxid: string,
-  blockchainLedger: number | null,
-  blockchainMemo: string | null,
-  blockchainFee: string | null
+  blockchainLedger?: number,
+  blockchainMemo?: string,
+  blockchainFee?: string,
+  blockchainFromAddress?: string,
+  blockchainToAddress?: string,
+  blockchainNetwork?: string
+)
 ): Promise<void> {
   vlog("MARK_COMPLETED_START", {
   withdrawalId,
@@ -328,22 +336,32 @@ export async function markWithdrawalCompleted(
   blockchainLedger,
   blockchainMemo,
   blockchainFee,
+blockchainFromAddress,
+    blockchainToAddress,
+    blockchainNetwork
 });
 
   const rs = await query(
   `
   UPDATE wallet_withdrawals
-  SET
-    status = 'COMPLETED',
-    blockchain_txid = $2,
-    txid = $2,
-    blockchain_ledger = $3,
-    blockchain_memo = $4,
-    blockchain_fee = $5,
-    paid_at = NOW(),
-    completed_at = NOW()
-  WHERE id = $1
-    AND status = 'PROCESSING'
+SET
+  status = 'COMPLETED',
+
+  blockchain_txid = $2,
+  txid = $2,
+
+  blockchain_ledger = $3,
+  blockchain_memo = $4,
+  blockchain_fee = $5,
+
+  blockchain_from_address = $6,
+  blockchain_to_address = $7,
+  blockchain_network = $8,
+
+  paid_at = NOW(),
+  completed_at = NOW()
+WHERE id = $1
+  AND status = 'PROCESSING'
   `,
   [
     withdrawalId,
