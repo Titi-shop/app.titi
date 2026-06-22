@@ -352,12 +352,20 @@ export async function submitA2UPayment(
     );
 
     return {
-    txid:
-      payment.transaction.txid,
-    ledger: null,
-    memo: payment.memo ?? null,
-    fee: null,
-  };
+  txid,
+  ledger: submitResult.ledger,
+  fee: submitResult.fee_charged,
+  memo: submitResult.memo,
+
+  fromAddress:
+    payment.from_address,
+
+  toAddress:
+    payment.to_address,
+
+  network:
+    payment.network,
+};
 }
 
   const keypair =
