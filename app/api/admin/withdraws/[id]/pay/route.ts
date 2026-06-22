@@ -5,7 +5,9 @@ import {
 import {
   requireAdmin,
 } from "@/lib/auth/guard";
-
+import {
+  getUserById,
+} from "@/lib/db/users";
 import {
   getWalletWithdrawalById,
   markWithdrawalProcessing,
