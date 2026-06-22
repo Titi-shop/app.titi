@@ -334,7 +334,29 @@ export async function submitA2UPayment(
     "SUBMIT_PAYMENT",
     payment
   );
+vlog(
+  "SUBMIT_ADDRESSES",
+  {
+    from:
+      payment.from_address,
+    to:
+      payment.to_address,
+    network:
+      payment.network,
+  }
+);
 
+const walletPublicKey =
+  StellarSdk.Keypair
+    .fromSecret(
+      PI_SEED
+    )
+    .publicKey();
+
+vlog(
+  "WALLET_PUBLIC",
+  walletPublicKey
+);
   if (
     payment.transaction?.txid
   ) {
