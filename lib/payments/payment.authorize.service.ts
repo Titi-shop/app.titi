@@ -174,16 +174,40 @@ export async function piAuthorizePayment({
   }
 
   /* =====================================================
-     6. PI VERIFY USER
-  ===================================================== */
+   6. PI VERIFY USER
+===================================================== */
 
-  vlog("PI_VERIFY_START");
+vlog("PI_VERIFY_START");
 
-  const me = {
-  uid: intent.buyer_id,
+const user =
+  await getUserById(
+    userId
+  );
+
+if (!user) {
+  throw new Error(
+    "USER_NOT_FOUND"
+  );
+}
+
+if (!user.pi_uid) {
+  throw new Error(
+    "PI_UID_MISSING"
+  );
+}
+
+const me = {
+  uid: user.pi_uid,
 };
 
-vlog("PI_USER_BYPASS", me);
+vlog(
+  "PI_USER_BYPASS",
+  {
+    userId,
+    piUid:
+      user.pi_uid,
+  }
+);
 
   /* =====================================================
      7. FETCH PI PAYMENT
