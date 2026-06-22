@@ -163,14 +163,20 @@ export async function piGetPayment(
   if (!id) {
     throw new Error("MISSING_PI_PAYMENT_ID");
   }
-
+console.log(
+  "[PI_CLIENT][GET_PAYMENT_URL]",
+  `${PI_API}/payments/${id}`
+);
   const data = await piRequest<PiPaymentData>(`/payments/${id}`, {
     method: "GET",
     headers: {
       Authorization: `Key ${PI_KEY}`,
     },
   });
-
+console.log(
+  "[PI_CLIENT][PAYMENT_RESPONSE]",
+  data
+);
   if (!data?.identifier) {
     throw new Error("PI_PAYMENT_FETCH_FAILED");
   }
