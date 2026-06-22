@@ -225,13 +225,13 @@ vlog(
   }
 );
 
-const submitResult =
+const tx =
   await submitA2UPayment(
     piPaymentId
   );
-const txid =
-  submitResult.txid;
 
+const txid =
+  tx.txid;
 vlog(
   "SUBMIT_DONE",
   {
