@@ -121,7 +121,54 @@ export default function AdminWithdrawTable() {
     );
   }
 }
+async function handleApprove(
+  withdrawalId: string
+) {
+  try {
+    console.log(
+      "[ADMIN_APPROVE][START]",
+      { withdrawalId }
+    );
 
+    const res =
+      await apiAuthFetch(
+        `/api/admin/withdraws/${withdrawalId}/approve`,
+        {
+          method: "POST",
+        }
+      );
+
+    const data =
+      await res.json();
+
+    console.log(
+      "[ADMIN_APPROVE][RESULT]",
+      data
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        data?.error ??
+        "APPROVE_FAILED"
+      );
+    }
+
+    await loadWithdraws();
+
+    alert(
+      "Withdrawal approved"
+    );
+  } catch (err) {
+    console.error(
+      "[ADMIN_APPROVE][ERROR]",
+      err
+    );
+
+    alert(
+      "Approve failed"
+    );
+  }
+}
 async function handlePay(
   withdrawalId: string
 ) {
@@ -189,6 +236,44 @@ async function handlePay(
     );
   }
 }
+  async function handleRetry(
+  withdrawalId: string
+) {
+  try {
+    const res =
+      await apiAuthFetch(
+        `/api/admin/withdraws/${withdrawalId}/retry`,
+        {
+          method: "POST",
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data?.error ??
+          "RETRY_FAILED"
+      );
+    }
+
+    await loadWithdraws();
+
+    alert(
+      "Withdrawal moved back to APPROVED"
+    );
+  } catch (err) {
+    console.error(
+      "[ADMIN_RETRY][ERROR]",
+      err
+    );
+
+    alert(
+      "Retry failed"
+    );
+  }
+}
   async function handleSync(
   withdrawalId: string
 ) {
@@ -246,54 +331,8 @@ async function handlePay(
     );
   }
 }
-  async function handleApprove(
-  withdrawalId: string
-) {
-  try {
-    console.log(
-      "[ADMIN_APPROVE][START]",
-      { withdrawalId }
-    );
-
-    const res =
-      await apiAuthFetch(
-        `/api/admin/withdraws/${withdrawalId}/approve`,
-        {
-          method: "POST",
-        }
-      );
-
-    const data =
-      await res.json();
-
-    console.log(
-      "[ADMIN_APPROVE][RESULT]",
-      data
-    );
-
-    if (!res.ok) {
-      throw new Error(
-        data?.error ??
-        "APPROVE_FAILED"
-      );
-    }
-
-    await loadWithdraws();
-
-    alert(
-      "Withdrawal approved"
-    );
-  } catch (err) {
-    console.error(
-      "[ADMIN_APPROVE][ERROR]",
-      err
-    );
-
-    alert(
-      "Approve failed"
-    );
-  }
-}
+  
+  
   return (
     <div className="space-y-4">
       {rows.map((row) => (
@@ -385,6 +424,26 @@ async function handlePay(
   "
 >
   Pay
+</button>
+            <button
+  onClick={() =>
+    void handleRetry(
+      row.id
+    )
+  }
+  disabled={
+    row.status !==
+    "FAILED"
+  }
+  className="
+    rounded-lg
+    border
+    px-3
+    py-2
+    text-sm
+  "
+>
+  Retry
 </button>
 <button
   onClick={() =>
