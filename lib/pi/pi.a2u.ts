@@ -95,7 +95,12 @@ export type A2UPayment =
       _link?: string;
     };
   };
-
+export type A2USubmitResult = {
+  txid: string;
+  ledger: number | null;
+  memo: string | null;
+  fee: string | null;
+};
 /* =====================================================
    INTERNAL REQUEST
 ===================================================== */
@@ -318,7 +323,7 @@ export async function completeA2UPayment(
 
 export async function submitA2UPayment(
   paymentId: string
-): Promise<string> {
+): Promise<A2USubmitResult> {
 
   vlog(
     "SUBMIT_START",
@@ -336,8 +341,8 @@ export async function submitA2UPayment(
   );
 
   if (
-    payment.transaction?.txid
-  ) {
+  payment.transaction?.txid
+) {
     vlog(
       "SUBMIT_ALREADY_EXISTS",
       {
@@ -346,10 +351,14 @@ export async function submitA2UPayment(
       }
     );
 
-    return payment
-      .transaction
-      .txid;
-  }
+    return {
+    txid:
+      payment.transaction.txid,
+    ledger: null,
+    memo: payment.memo ?? null,
+    fee: null,
+  };
+}
 
   const keypair =
     StellarSdk.Keypair.fromSecret(
