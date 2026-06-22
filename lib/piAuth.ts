@@ -136,6 +136,16 @@ export async function getPiAccessToken(
   }
 );
 
+
+console.log(
+  "[PI_AUTH][USER]",
+  auth.user
+);
+
+console.log(
+  "[PI_AUTH][TOKEN]",
+  auth.accessToken?.slice(0, 20)
+);
       if (!auth || !auth.accessToken) {
         throw new Error("PI_AUTH_FAILED");
       }
