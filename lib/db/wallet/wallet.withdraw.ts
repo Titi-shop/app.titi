@@ -200,6 +200,14 @@ export async function approveWalletWithdrawal(
   withdrawalId: string,
   adminId: string
 ): Promise<void> {
+  vlog(
+    "APPROVE_START",
+    {
+      withdrawalId,
+      adminId,
+    }
+  );
+
   const rs = await query(
     `
     UPDATE wallet_withdrawals
@@ -216,11 +224,33 @@ export async function approveWalletWithdrawal(
     ]
   );
 
+  vlog(
+    "APPROVE_RESULT",
+    {
+      rowCount:
+        rs.rowCount,
+    }
+  );
+
   if (rs.rowCount !== 1) {
+    vlog(
+      "APPROVE_NOT_FOUND",
+      {
+        withdrawalId,
+      }
+    );
+
     throw new Error(
       "WITHDRAWAL_NOT_FOUND"
     );
   }
+
+  vlog(
+    "APPROVE_DONE",
+    {
+      withdrawalId,
+    }
+  );
 }
 export async function markWithdrawalProcessing(
   withdrawalId: string,
