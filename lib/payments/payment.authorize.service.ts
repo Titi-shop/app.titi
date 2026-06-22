@@ -16,6 +16,9 @@ import {
 import type {
   PaymentIntentStatus,
 } from "@/lib/payments/types";
+import {
+  getUserById,
+} from "@/lib/db/users";
 /* =========================================================
    HELPERS
 ========================================================= */
