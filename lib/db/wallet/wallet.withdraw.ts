@@ -54,6 +54,13 @@ type WalletWithdrawalRow = {
   withdraw_wallet: string;
   status: string;
   requested_at: string;
+
+  pi_payment_id: string | null;
+  blockchain_txid: string | null;
+  paid_at: string | null;
+  completed_at: string | null;
+  fail_reason: string | null;
+  retry_count: number | null;
 };
 
 
@@ -376,7 +383,13 @@ export async function getWalletWithdrawalById(
         currency,
         withdraw_wallet,
         status,
-        requested_at
+        requested_at,
+        pi_payment_id,
+blockchain_txid,
+paid_at,
+completed_at,
+fail_reason,
+retry_count
       FROM wallet_withdrawals
       WHERE id = $1
       LIMIT 1
