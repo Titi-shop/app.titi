@@ -72,7 +72,7 @@ export type A2UPayment =
     user_uid: string;
     amount: number;
     memo: string;
-
+    network?: string;
     metadata?: Record<
       string,
       unknown
@@ -355,23 +355,20 @@ export async function submitA2UPayment(
   );
 
   return {
-    txid:
-      payment.transaction.txid,
-
-    ledger: null,
-    memo:
-      payment.memo ?? null,
-    fee: null,
-
-    fromAddress:
-      payment.from_address,
-
-    toAddress:
-      payment.to_address,
-
-    network:
-      "Pi Testnet",
-  };
+  txid:
+    payment.transaction.txid,
+  ledger: null,
+  memo:
+    payment.memo ?? null,
+  fee: null,
+  fromAddress:
+    payment.from_address,
+  toAddress:
+    payment.to_address,
+  network:
+    payment.network ??
+    "Pi Testnet",
+};
 }
 
   const keypair =
