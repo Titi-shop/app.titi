@@ -197,13 +197,33 @@ vlog(
     piPaymentId,
   }
 );
-    vlog(
+    /* =====================
+   MARK PROCESSING
+===================== */
+await markWithdrawalProcessing(
+  withdrawal.id,
+  piPaymentId
+);
+vlog(
+  "MARK_PROCESSING_DONE",
+  {
+    withdrawalId:
+      withdrawal.id,
+    piPaymentId,
+  }
+);
+/* =====================
+   SUBMIT TX
+===================== */
+
+vlog(
   "SUBMIT_START",
   {
     piPaymentId,
   }
 );
-    const txid =
+
+const txid =
   await submitA2UPayment(
     piPaymentId
   );
