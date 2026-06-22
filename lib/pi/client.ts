@@ -5,6 +5,10 @@
 ========================================================= */
 
 const PI_API = process.env.PI_API_URL;
+console.log(
+  "[PI_CLIENT][ENV_PI_API_URL]",
+  process.env.PI_API_URL
+);
 const PI_KEY = process.env.PI_API_KEY;
 
 if (!PI_API) {
