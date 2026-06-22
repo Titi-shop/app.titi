@@ -90,25 +90,42 @@ async function piRequest<T>(
    VERIFY PI USER TOKEN
 ========================================================= */
 
-export async function piGetMe(bearerToken: string): Promise<PiUserMe> {
-  const token = bearerToken.replace("Bearer ", "").trim();
+export async function piGetMe(
+  bearerToken: string
+): Promise<PiUserMe> {
+  const token =
+    bearerToken
+      .replace("Bearer ", "")
+      .trim();
 
   if (!token) {
-    throw new Error("MISSING_PI_BEARER");
+    throw new Error(
+      "MISSING_PI_BEARER"
+    );
   }
 
-  const data = await piRequest<PiUserMe>("/me", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const data =
+    await piRequest<any>(
+      "/me",
+      {
+        method: "GET",
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  console.log(
+    "[PI_CLIENT][ME_RESPONSE]",
+    data
+  );
 
   if (!data?.uid) {
-    throw new Error("INVALID_PI_USER");
+    throw new Error(
+      "INVALID_PI_USER"
+    );
   }
-
-  console.log("🟢 [PI CLIENT] ME_OK", data.uid);
 
   return data;
 }
