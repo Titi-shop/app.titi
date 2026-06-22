@@ -153,10 +153,23 @@ export async function POST(
        by real A2U)
     ===================== */
 
-    const piPaymentId =
+    const user =
+  await getUserById(
+    withdrawal.user_id
+  );
+
+if (!user?.pi_uid) {
+  throw new Error(
+    "USER_PI_UID_MISSING"
+  );
+}
+
+const piPaymentId =
   await createA2UPayment({
-    uid: withdrawal.user_id,
-    amount: Number(withdrawal.amount),
+    uid: user.pi_uid,
+    amount: Number(
+      withdrawal.amount
+    ),
     memo: `Withdraw ${withdrawal.id}`,
     metadata: {
       withdrawal_id:
