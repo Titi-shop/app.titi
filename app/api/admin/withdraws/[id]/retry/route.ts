@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth/guard";
 import {
-  getWithdrawalById,
+  getWalletWithdrawalById,
   retryWithdrawal,
 } from "@/lib/db/wallet/wallet.withdraw";
 export async function POST(
