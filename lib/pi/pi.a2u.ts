@@ -334,29 +334,7 @@ export async function submitA2UPayment(
     "SUBMIT_PAYMENT",
     payment
   );
-vlog(
-  "SUBMIT_ADDRESSES",
-  {
-    from:
-      payment.from_address,
-    to:
-      payment.to_address,
-    network:
-      payment.network,
-  }
-);
 
-const walletPublicKey =
-  StellarSdk.Keypair
-    .fromSecret(
-      PI_SEED
-    )
-    .publicKey();
-
-vlog(
-  "WALLET_PUBLIC",
-  walletPublicKey
-);
   if (
     payment.transaction?.txid
   ) {
@@ -373,9 +351,105 @@ vlog(
       .txid;
   }
 
-  throw new Error(
-    "SUBMIT_NOT_IMPLEMENTED"
+  const keypair =
+    StellarSdk.Keypair.fromSecret(
+      PI_SEED
+    );
+
+  vlog(
+    "WALLET_PUBLIC",
+    keypair.publicKey()
   );
+
+  const server =
+    new StellarSdk.Horizon.Server(
+      "https://api.testnet.minepi.com"
+    );
+
+  const account =
+    await server.loadAccount(
+      keypair.publicKey()
+    );
+
+  vlog(
+    "ACCOUNT_LOADED",
+    {
+      accountId:
+        account.accountId(),
+    }
+  );
+
+  const fee =
+    await server.fetchBaseFee();
+
+  vlog(
+    "BASE_FEE",
+    fee
+  );
+
+  const tx =
+    new StellarSdk.TransactionBuilder(
+      account,
+      {
+        fee:
+          fee.toString(),
+        networkPassphrase:
+          "Pi Testnet",
+      }
+    )
+      .addOperation(
+        StellarSdk.Operation.payment(
+          {
+            destination:
+              payment.to_address!,
+            asset:
+              StellarSdk.Asset.native(),
+            amount:
+              String(
+                payment.amount
+              ),
+          }
+        )
+      )
+      .addMemo(
+        StellarSdk.Memo.text(
+          payment.identifier
+        )
+      )
+      .setTimeout(
+        180
+      )
+      .build();
+
+  tx.sign(
+    keypair
+  );
+
+  vlog(
+    "TX_SIGNED"
+  );
+
+  const submitResult =
+    await server.submitTransaction(
+      tx
+    );
+
+  vlog(
+    "TX_SUBMITTED",
+    submitResult
+  );
+
+  const txid =
+    String(
+      submitResult.id
+    );
+
+  vlog(
+    "TXID",
+    txid
+  );
+
+  return txid;
 }
 /* =====================================================
    CANCEL PAYMENT
