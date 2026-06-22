@@ -444,3 +444,43 @@ export async function getWithdrawalByPaymentId(
 
   return rs.rows[0] ?? null;
 }
+export async function getProcessingWithdrawals(): Promise<
+  WalletWithdrawalRow[]
+> {
+  vlog(
+    "GET_PROCESSING_START"
+  );
+
+  const rs =
+    await query<WalletWithdrawalRow>(
+      `
+      SELECT
+        id,
+        user_id,
+        amount,
+        currency,
+        withdraw_wallet,
+        status,
+        requested_at,
+        pi_payment_id,
+        blockchain_txid,
+        paid_at,
+        completed_at,
+        fail_reason,
+        retry_count
+      FROM wallet_withdrawals
+      WHERE status = 'PROCESSING'
+      ORDER BY requested_at ASC
+      `
+    );
+
+  vlog(
+    "GET_PROCESSING_DONE",
+    {
+      count:
+        rs.rows.length,
+    }
+  );
+
+  return rs.rows;
+}
