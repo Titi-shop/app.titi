@@ -165,7 +165,14 @@ if (!user?.pi_uid) {
     "USER_PI_UID_MISSING"
   );
 }
-
+vlog(
+  "A2U_USER",
+  {
+    userId: user.id,
+    piUid: user.pi_uid,
+    username: user.username,
+  }
+);
 const piPaymentId =
   await createA2UPayment({
     uid: user.pi_uid,
@@ -178,7 +185,14 @@ const piPaymentId =
         withdrawal.id,
     },
   });
-
+vlog(
+  "A2U_PAYMENT_CREATED",
+  {
+    withdrawalId:
+      withdrawal.id,
+    piPaymentId,
+  }
+);
 await markWithdrawalProcessing(
   withdrawal.id,
   piPaymentId
