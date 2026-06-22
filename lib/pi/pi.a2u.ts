@@ -29,7 +29,23 @@ if (!PI_KEY) {
     "MISSING_PI_API_KEY"
   );
 }
+const PI_SEED =
+  process.env
+    .PI_WALLET_PRIVATE_SEED;
 
+vlog(
+  "ENV_CHECK",
+  {
+    hasApiUrl:
+      !!PI_API,
+    hasApiKey:
+      !!PI_KEY,
+    hasWalletSeed:
+      !!PI_SEED,
+    apiUrl:
+      PI_API,
+  }
+);
 /* =====================================================
    TYPES
 ===================================================== */
@@ -290,4 +306,33 @@ export async function completeA2UPayment(
       paymentId,
     }
   );
+}
+/* =====================================================
+   DEBUG PAYMENT
+===================================================== */
+
+export async function debugA2UPayment(
+  paymentId: string
+): Promise<A2UPayment> {
+
+  vlog(
+    "DEBUG_PAYMENT_START",
+    paymentId
+  );
+
+  const payment =
+    await getA2UPayment(
+      paymentId
+    );
+
+  vlog(
+    "DEBUG_PAYMENT_RESULT",
+    JSON.stringify(
+      payment,
+      null,
+      2
+    )
+  );
+
+  return payment;
 }
