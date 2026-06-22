@@ -189,6 +189,54 @@ async function handlePay(
     );
   }
 }
+  async function handleApprove(
+  withdrawalId: string
+) {
+  try {
+    console.log(
+      "[ADMIN_APPROVE][START]",
+      { withdrawalId }
+    );
+
+    const res =
+      await apiAuthFetch(
+        `/api/admin/withdraws/${withdrawalId}/approve`,
+        {
+          method: "POST",
+        }
+      );
+
+    const data =
+      await res.json();
+
+    console.log(
+      "[ADMIN_APPROVE][RESULT]",
+      data
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        data?.error ??
+        "APPROVE_FAILED"
+      );
+    }
+
+    await loadWithdraws();
+
+    alert(
+      "Withdrawal approved"
+    );
+  } catch (err) {
+    console.error(
+      "[ADMIN_APPROVE][ERROR]",
+      err
+    );
+
+    alert(
+      "Approve failed"
+    );
+  }
+}
   return (
     <div className="space-y-4">
       {rows.map((row) => (
@@ -240,23 +288,36 @@ async function handlePay(
           </div>
 
           <div className="mt-4 flex gap-2">
-            <button
-              className="
-                rounded-lg
-                border
-                px-3
-                py-2
-                text-sm
-              "
-            >
-              Details
-            </button>
+           <button
+  onClick={() =>
+    void handleApprove(
+      row.id
+    )
+  }
+  disabled={
+    row.status !==
+    "PENDING"
+  }
+  className="
+    rounded-lg
+    border
+    px-3
+    py-2
+    text-sm
+  "
+>
+  Approve
+</button>
 
-            <button
+<button
   onClick={() =>
     void handlePay(
       row.id
     )
+  }
+  disabled={
+    row.status !==
+    "APPROVED"
   }
   className="
     rounded-lg
