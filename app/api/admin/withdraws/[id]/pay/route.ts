@@ -203,6 +203,7 @@ vlog(
 await markWithdrawalProcessing(
   withdrawal.id,
   piPaymentId,
+  user.pi_uid,
   `Withdraw ${withdrawal.id}`
 );
 vlog(
@@ -237,24 +238,27 @@ vlog(
     txid,
   }
 );
-    await completeA2UPayment(
+await completeA2UPayment(
   piPaymentId,
-  txid
+  tx.txid
 );
-
-vlog(
+    vlog(
   "COMPLETE_DONE",
   {
     piPaymentId,
     txid,
   }
 );
+
 await markWithdrawalCompleted(
   withdrawal.id,
-  submitResult.txid,
-  submitResult.ledger,
-  submitResult.memo,
-  submitResult.fee
+  tx.txid,
+  tx.ledger,
+  tx.memo,
+  tx.fee,
+  tx.fromAddress,
+  tx.toAddress,
+  tx.network
 );
 
 vlog(
