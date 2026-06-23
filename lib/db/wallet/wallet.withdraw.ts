@@ -280,7 +280,37 @@ export async function approveWalletWithdrawal(
         ),
         client
       );
+await createWalletJournal({
+  client,
 
+  ownerId:
+    withdrawal.user_id,
+
+  ownerType:
+    "SELLER",
+
+  refId:
+    withdrawalId,
+
+  refTable:
+    "wallet_withdrawals",
+
+  entryType:
+    "SELLER_WITHDRAW",
+
+  direction:
+    "DEBIT",
+
+  amount:
+    Number(withdrawal.amount),
+
+  note:
+    "Withdraw reserved",
+
+  metadata: {
+    stage: "APPROVED",
+  },
+});
       const rs =
         await client.query(
           `
@@ -401,7 +431,40 @@ export async function markWithdrawalCompleted(
         ),
         client
       );
+await createWalletJournal({
+  client,
 
+  ownerId:
+    withdrawal.user_id,
+
+  ownerType:
+    "SELLER",
+
+  refId:
+    withdrawalId,
+
+  refTable:
+    "wallet_withdrawals",
+
+  entryType:
+    "SELLER_WITHDRAW",
+
+  direction:
+    "DEBIT",
+
+  amount:
+    Number(withdrawal.amount),
+
+  note:
+    "Withdraw completed",
+
+  metadata: {
+    txid:
+      blockchainTxid,
+    ledger:
+      blockchainLedger,
+  },
+});
       const rs =
         await client.query(
           `
@@ -498,7 +561,37 @@ export async function markWithdrawalFailed(
         ),
         client
       );
+await createWalletJournal({
+  client,
 
+  ownerId:
+    withdrawal.user_id,
+
+  ownerType:
+    "SELLER",
+
+  refId:
+    withdrawalId,
+
+  refTable:
+    "wallet_withdrawals",
+
+  entryType:
+    "SELLER_WITHDRAW_REVERT",
+
+  direction:
+    "CREDIT",
+
+  amount:
+    Number(withdrawal.amount),
+
+  note:
+    "Withdraw reverted",
+
+  metadata: {
+    stage: "FAILED",
+  },
+});
       const rs =
         await client.query(
           `
