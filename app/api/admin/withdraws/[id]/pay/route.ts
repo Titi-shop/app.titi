@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import {
   createA2UPayment,
   submitA2UPayment,
@@ -305,6 +306,15 @@ const rpc =
     withdrawal.id,
     txid
   );
+    const verificationHash =
+  crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify(
+        rpc.raw ?? {}
+      )
+    )
+    .digest("hex");
 const raw =
   rpc.raw as RpcRawTransaction | null;
 vlog(
@@ -350,7 +360,7 @@ console.log(
 
   senderMatch: true,
 
-  verificationHash: null,
+  verificationHash,
 
   ledger: rpc.ledger,
 
