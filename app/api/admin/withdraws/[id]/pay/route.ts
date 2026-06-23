@@ -16,7 +16,9 @@ import {
   markWithdrawalCompleted,
   markWithdrawalFailed,
 } from "@/lib/db/wallet/wallet.withdraw";
-
+import {
+  verifyA2UWithdrawal,
+} from "@/lib/payments/a2u.rpc.verify";
 export const runtime = "nodejs";
 export const dynamic =
   "force-dynamic";
@@ -268,6 +270,31 @@ const tx =
 
 const txid =
   tx.txid;
+    vlog(
+  "RPC_VERIFY_START",
+  {
+    withdrawalId:
+      withdrawal.id,
+    txid,
+  }
+);
+
+const rpc =
+  await verifyA2UWithdrawal(
+    withdrawal.id,
+    txid
+  );
+
+vlog(
+  "RPC_VERIFY_RESULT",
+  rpc
+);
+
+if (!rpc.verified) {
+  throw new Error(
+    `RPC_VERIFY_FAILED:${rpc.reason}`
+  );
+}
 vlog(
   "SUBMIT_DONE",
   {
@@ -276,7 +303,7 @@ vlog(
 );
 await completeA2UPayment(
   piPaymentId,
-  tx.txid
+  txid
 );
     vlog(
   "COMPLETE_DONE",
@@ -288,12 +315,16 @@ await completeA2UPayment(
 
 await markWithdrawalCompleted(
   withdrawal.id,
-  tx.txid,
-  tx.ledger,
-  tx.memo,
+  txid,
+  rpc.ledger ??
+    tx.ledger,
+  rpc.memo ??
+    tx.memo,
   tx.fee,
-  tx.fromAddress,
-  tx.toAddress,
+  rpc.sender ??
+    tx.fromAddress,
+  rpc.receiver ??
+    tx.toAddress,
   tx.network
 );
 
