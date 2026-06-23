@@ -321,7 +321,7 @@ const rpc =
     )
     .digest("hex");
 const raw =
-  rpc.raw as RpcRawTransaction | null;
+  rpc.raw as RpcRawTransaction;
 vlog(
   "RPC_VERIFY_RESULT",
   rpc
@@ -335,8 +335,7 @@ console.log(
   "[DEBUG_RPC_RAW_TYPE]",
   typeof rpc.raw
 );
-    const raw =
-  rpc.raw as RpcRawTransaction;
+    
     await insertA2URpcLog({
   withdrawalId: withdrawal.id,
   piPaymentId,
