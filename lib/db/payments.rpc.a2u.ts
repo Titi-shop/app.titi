@@ -35,6 +35,21 @@ export type InsertA2URpcLogInput = {
   amountFound: boolean;
 
   payload: unknown;
+  stage: string;
+reason: string;
+expectedAmount: number | null;
+expectedReceiver: string | null;
+amountMatch: boolean | null;
+receiverMatch: boolean | null;
+senderMatch: boolean | null;
+verificationHash: string | null;
+confirmed: boolean;
+feeStroops: number | null;
+latestLedger: number | null;
+oldestLedger: number | null;
+applicationOrder: number | null;
+sourceAccount: string | null;
+memoType: string | null;
 };
 
 function log(
@@ -58,41 +73,60 @@ export async function insertA2URpcLog(
   await query(
     `
     INSERT INTO rpc_verification_logs (
-      withdrawal_id,
-      pi_payment_id,
+  withdrawal_id,
+  pi_payment_id,
 
-      txid,
-      verified,
+  txid,
+  verified,
 
-      amount,
+  stage,
+  reason,
 
-      sender,
-      receiver,
+  amount,
+  expected_amount,
 
-      ledger,
+  sender,
+  receiver,
+  expected_receiver,
 
-      memo,
+  amount_match,
+  receiver_match,
+  sender_match,
 
-      tx_status,
-      chain_reference,
+  verification_hash,
 
-      created_at_chain,
+  ledger,
 
-      rpc_reachable,
+  tx_status,
+  chain_reference,
 
-      parse_layer,
+  rpc_reachable,
+  confirmed,
 
-      has_meta,
-      has_events,
+  parse_layer,
 
-      sender_found,
-      receiver_found,
-      amount_found,
+  has_meta,
+  has_events,
 
-      payload,
+  sender_found,
+  receiver_found,
+  amount_found,
 
-      created_at,
-      updated_at
+  fee_stroops,
+  latest_ledger,
+  oldest_ledger,
+  application_order,
+  source_account,
+  memo_type,
+
+  memo,
+  created_at_chain,
+
+  payload,
+
+  created_at,
+  updated_at
+
     )
     VALUES (
       $1,$2,
