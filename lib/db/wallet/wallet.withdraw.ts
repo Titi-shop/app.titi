@@ -229,55 +229,79 @@ export async function approveWalletWithdrawal(
   withdrawalId: string,
   adminId: string
 ): Promise<void> {
-  vlog(
-    "APPROVE_START",
-    {
-      withdrawalId,
-      adminId,
-    }
-  );
 
-  const rs = await query(
-    `
-    UPDATE wallet_withdrawals
-    SET
-      status = 'APPROVED',
-      approved_by = $2,
-      approved_at = NOW()
-    WHERE id = $1
-      AND status = 'PENDING'
-    `,
-    [
-      withdrawalId,
-      adminId,
-    ]
-  );
+  await withTransaction(
+    async (client) => {
 
-  vlog(
-    "APPROVE_RESULT",
-    {
-      rowCount:
-        rs.rowCount,
-    }
-  );
+      const withdrawalRs =
+        await client.query<{
+          user_id: string;
+          amount: string;
+          status: string;
+        }>(
+          `
+          SELECT
+            user_id,
+            amount,
+            status
+          FROM wallet_withdrawals
+          WHERE id = $1
+          FOR UPDATE
+          `,
+          [withdrawalId]
+        );
 
-  if (rs.rowCount !== 1) {
-    vlog(
-      "APPROVE_NOT_FOUND",
-      {
-        withdrawalId,
+      if (
+        withdrawalRs.rowCount !== 1
+      ) {
+        throw new Error(
+          "WITHDRAWAL_NOT_FOUND"
+        );
       }
-    );
 
-    throw new Error(
-      "WITHDRAWAL_NOT_FOUND"
-    );
-  }
+      const withdrawal =
+        withdrawalRs.rows[0];
 
-  vlog(
-    "APPROVE_DONE",
-    {
-      withdrawalId,
+      if (
+        withdrawal.status !==
+        "PENDING"
+      ) {
+        throw new Error(
+          "INVALID_STATUS"
+        );
+      }
+
+      await reserveWalletBalance(
+        withdrawal.user_id,
+        Number(
+          withdrawal.amount
+        ),
+        client
+      );
+
+      const rs =
+        await client.query(
+          `
+          UPDATE wallet_withdrawals
+          SET
+            status = 'APPROVED',
+            approved_by = $2,
+            approved_at = NOW()
+          WHERE id = $1
+          `,
+          [
+            withdrawalId,
+            adminId,
+          ]
+        );
+
+      if (
+        rs.rowCount !== 1
+      ) {
+        throw new Error(
+          "WITHDRAWAL_APPROVE_FAILED"
+        );
+      }
     }
   );
 }
@@ -323,27 +347,46 @@ export async function markWithdrawalProcessing(
   }
 }
 export async function markWithdrawalCompleted(
-  withdrawalId: string,
-  blockchainTxid: string,
-  blockchainLedger?: number,
-  blockchainMemo?: string,
-  blockchainFee?: string,
-  blockchainFromAddress?: string,
-  blockchainToAddress?: string,
-  blockchainNetwork?: string
-): Promise<void> {
-  vlog("MARK_COMPLETED_START", {
-  withdrawalId,
-  blockchainTxid,
-  blockchainLedger,
-  blockchainMemo,
-  blockchainFee,
-blockchainFromAddress,
-    blockchainToAddress,
-    blockchainNetwork
-});
+  await withTransaction(
+  async (client) => {
 
-  const rs = await query(
+    const withdrawalRs =
+      await client.query<{
+        user_id: string;
+        amount: string;
+      }>(
+        `
+        SELECT
+          user_id,
+          amount
+        FROM wallet_withdrawals
+        WHERE id = $1
+        FOR UPDATE
+        `,
+        [withdrawalId]
+      );
+
+    if (
+      withdrawalRs.rowCount !== 1
+    ) {
+      throw new Error(
+        "WITHDRAWAL_NOT_FOUND"
+      );
+    }
+
+    const withdrawal =
+      withdrawalRs.rows[0];
+
+    await finalizeReservedBalance(
+      withdrawal.user_id,
+      Number(
+        withdrawal.amount
+      ),
+      client
+    );
+
+    const rs =
+      await client.query(
   `
   UPDATE wallet_withdrawals
   SET
@@ -378,50 +421,88 @@ blockchainFromAddress,
   ]
 );
 
-  vlog("MARK_COMPLETED_RESULT", {
-    rowCount: rs.rowCount,
-  });
-
-  if (rs.rowCount !== 1) {
-    throw new Error(
-      "WITHDRAWAL_COMPLETE_FAILED"
-    );
-  }
+if (
+  rs.rowCount !== 1
+) {
+  throw new Error(
+    "WITHDRAWAL_COMPLETE_FAILED"
+  );
 }
+
+}
+);
 export async function markWithdrawalFailed(
   withdrawalId: string,
   reason: string
 ): Promise<void> {
-  vlog("MARK_FAILED_START", {
-    withdrawalId,
-    reason,
-  });
 
-  const rs = await query(
-    `
-    UPDATE wallet_withdrawals
-    SET
-      status = 'FAILED',
-      fail_reason = $2,
-      retry_count =
-        COALESCE(retry_count,0)+1
-    WHERE id = $1
-    `,
-    [
-      withdrawalId,
-      reason,
-    ]
+  await withTransaction(
+    async (client) => {
+
+      const withdrawalRs =
+        await client.query<{
+          user_id: string;
+          amount: string;
+        }>(
+          `
+          SELECT
+            user_id,
+            amount
+          FROM wallet_withdrawals
+          WHERE id = $1
+          FOR UPDATE
+          `,
+          [withdrawalId]
+        );
+
+      if (
+        withdrawalRs.rowCount !== 1
+      ) {
+        throw new Error(
+          "WITHDRAWAL_NOT_FOUND"
+        );
+      }
+
+      const withdrawal =
+        withdrawalRs.rows[0];
+
+      await releaseReservedBalance(
+        withdrawal.user_id,
+        Number(
+          withdrawal.amount
+        ),
+        client
+      );
+
+      const rs =
+        await client.query(
+          `
+          UPDATE wallet_withdrawals
+          SET
+            status = 'FAILED',
+            fail_reason = $2,
+            retry_count =
+              COALESCE(
+                retry_count,
+                0
+              ) + 1
+          WHERE id = $1
+          `,
+          [
+            withdrawalId,
+            reason,
+          ]
+        );
+
+      if (
+        rs.rowCount !== 1
+      ) {
+        throw new Error(
+          "WITHDRAWAL_FAIL_UPDATE_FAILED"
+        );
+      }
+    }
   );
-
-  vlog("MARK_FAILED_RESULT", {
-    rowCount: rs.rowCount,
-  });
-
-  if (rs.rowCount !== 1) {
-    throw new Error(
-      "WITHDRAWAL_FAIL_UPDATE_FAILED"
-    );
-  }
 }
 export async function getWalletWithdrawalById(
   withdrawalId: string
