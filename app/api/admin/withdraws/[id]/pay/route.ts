@@ -305,7 +305,8 @@ const rpc =
     withdrawal.id,
     txid
   );
-
+const raw =
+  rpc.raw as RpcRawTransaction | null;
 vlog(
   "RPC_VERIFY_RESULT",
   rpc
