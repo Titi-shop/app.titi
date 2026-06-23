@@ -42,12 +42,18 @@ export type A2URpcVerifyResult = {
   parseLayer: string | null;
   hasMeta: boolean;
   hasEvents: boolean;
-
+feeStroops: number | null;
+latestLedger: number | null;
+oldestLedger: number | null;
+applicationOrder: number | null;
+sourceAccount: string | null;
+memoType: string | null;
   senderFound: boolean;
   receiverFound: boolean;
   amountFound: boolean;
 
   raw: unknown;
+  
 };
 
 export async function verifyA2UWithdrawal(
@@ -98,7 +104,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+    feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -163,7 +194,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -203,7 +259,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -253,7 +334,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -298,7 +404,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -343,7 +474,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -388,7 +544,32 @@ export async function verifyA2UWithdrawal(
     senderFound: false,
     receiverFound: false,
     amountFound: false,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
     raw: null,
   };
 }
@@ -436,7 +617,32 @@ export async function verifyA2UWithdrawal(
 
   amountFound:
     rpc.debug.amountFound,
+feeStroops:
 
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.fee ?? null,
+  latestLedger:
+    Number(raw?.latestLedger)
+      || null,
+  oldestLedger:
+    Number(raw?.oldestLedger)
+      || null,
+  applicationOrder:
+    Number(raw?.applicationOrder)
+      || null,
+  sourceAccount:
+
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.source_account
+      ?? rpc.sender,
+  memoType:
+    (
+      raw?.envelopeJson as any
+    )?.tx?.tx?.memo
+      ? "text"
+      : null,
   raw: rpc.raw,
 };
 }
