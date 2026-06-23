@@ -281,35 +281,30 @@ export async function approveWalletWithdrawal(
         client
       );
 await createWalletJournal({
-  client,
+  ownerId: withdrawal.user_id,
+  ownerType: "SELLER",
 
-  ownerId:
-    withdrawal.user_id,
+  refId: withdrawalId,
+  refTable: "wallet_withdrawals",
 
-  ownerType:
-    "SELLER",
+  entryType: "SELLER_WITHDRAW",
+  direction: "DEBIT",
 
-  refId:
-    withdrawalId,
+  amount: Number(withdrawal.amount),
 
-  refTable:
-    "wallet_withdrawals",
-
-  entryType:
-    "SELLER_WITHDRAW",
-
-  direction:
-    "DEBIT",
-
-  amount:
-    Number(withdrawal.amount),
-
-  note:
-    "Withdraw reserved",
+  note: "Withdraw reserved",
 
   metadata: {
     stage: "APPROVED",
   },
+
+  eventHash: createHash("sha256")
+    .update(
+      `${withdrawalId}:WITHDRAW_RESERVED`
+    )
+    .digest("hex"),
+
+  client,
 });
       const rs =
         await client.query(
@@ -432,38 +427,31 @@ export async function markWithdrawalCompleted(
         client
       );
 await createWalletJournal({
-  client,
+  ownerId: withdrawal.user_id,
+  ownerType: "SELLER",
 
-  ownerId:
-    withdrawal.user_id,
+  refId: withdrawalId,
+  refTable: "wallet_withdrawals",
 
-  ownerType:
-    "SELLER",
+  entryType: "SELLER_WITHDRAW",
+  direction: "DEBIT",
 
-  refId:
-    withdrawalId,
+  amount: Number(withdrawal.amount),
 
-  refTable:
-    "wallet_withdrawals",
-
-  entryType:
-    "SELLER_WITHDRAW",
-
-  direction:
-    "DEBIT",
-
-  amount:
-    Number(withdrawal.amount),
-
-  note:
-    "Withdraw completed",
+  note: "Withdraw completed",
 
   metadata: {
-    txid:
-      blockchainTxid,
-    ledger:
-      blockchainLedger,
+    txid: blockchainTxid,
+    ledger: blockchainLedger,
   },
+
+  eventHash: createHash("sha256")
+    .update(
+      `${withdrawalId}:WITHDRAW_COMPLETED`
+    )
+    .digest("hex"),
+
+  client,
 });
       const rs =
         await client.query(
