@@ -19,6 +19,9 @@ import {
 import {
   verifyA2UWithdrawal,
 } from "@/lib/payments/a2u.rpc.verify";
+import {
+  insertA2URpcLog,
+} from "@/lib/db/payments.rpc.a2u";
 export const runtime = "nodejs";
 export const dynamic =
   "force-dynamic";
@@ -288,6 +291,74 @@ const rpc =
 vlog(
   "RPC_VERIFY_RESULT",
   rpc
+);
+    await insertA2URpcLog({
+  withdrawalId:
+    withdrawal.id,
+
+  piPaymentId,
+
+  txid,
+
+  verified:
+    rpc.verified,
+
+  amount:
+    rpc.amount,
+
+  sender:
+    rpc.sender,
+
+  receiver:
+    rpc.receiver,
+
+  ledger:
+    rpc.ledger,
+
+  memo:
+    rpc.memo,
+
+  txStatus:
+    rpc.txStatus,
+
+  chainReference:
+    rpc.chainReference,
+
+  createdAt:
+    rpc.createdAt,
+
+  rpcReachable:
+    rpc.rpcReachable,
+
+  parseLayer:
+    rpc.parseLayer,
+
+  hasMeta:
+    rpc.hasMeta,
+
+  hasEvents:
+    rpc.hasEvents,
+
+  senderFound:
+    rpc.senderFound,
+
+  receiverFound:
+    rpc.receiverFound,
+
+  amountFound:
+    rpc.amountFound,
+
+  payload:
+    rpc.raw,
+});
+
+vlog(
+  "RPC_LOG_SAVED",
+  {
+    withdrawalId:
+      withdrawal.id,
+    txid,
+  }
 );
 
 if (!rpc.verified) {
