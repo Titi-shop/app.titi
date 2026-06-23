@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   createA2UPayment,
   submitA2UPayment,
+  completeA2UPayment,
 } from "@/lib/pi/pi.a2u";
 import {
   requireAdmin,
@@ -12,6 +13,8 @@ import {
 import {
   getWalletWithdrawalById,
   markWithdrawalProcessing,
+  markWithdrawalCompleted,
+  markWithdrawalFailed,
 } from "@/lib/db/wallet/wallet.withdraw";
 
 export const runtime = "nodejs";
@@ -235,12 +238,34 @@ vlog(
     txid,
   }
 );
+await completeA2UPayment(
+  piPaymentId,
+  tx.txid
+);
+    vlog(
+  "COMPLETE_DONE",
+  {
+    piPaymentId,
+    txid,
+  }
+);
+
+await markWithdrawalCompleted(
+  withdrawal.id,
+  tx.txid,
+  tx.ledger,
+  tx.memo,
+  tx.fee,
+  tx.fromAddress,
+  tx.toAddress,
+  tx.network
+);
+
 vlog(
-  "WAITING_VERIFY",
+  "MARK_COMPLETED_DONE",
   {
     withdrawalId:
       withdrawal.id,
-    piPaymentId,
     txid,
   }
 );
@@ -259,7 +284,7 @@ vlog(
     piPaymentId,
   txid,
   status:
-    "PROCESSING",
+    "COMPLETED",
 });
   } catch (error) {
     console.error(
