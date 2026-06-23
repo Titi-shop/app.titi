@@ -140,7 +140,7 @@ export default function AccountPage() {
               >
                 {t.i_agree}{" "}
                 <a
-                  href="https://app.titi.onl/terms-of-service"
+                  href="/terms-of-service"
                   target="_blank"
                   className="text-orange-600 underline font-medium"
                 >
@@ -148,7 +148,7 @@ export default function AccountPage() {
                 </a>{" "}
                 {t.and}{" "}
                 <a
-                  href="https://app.titi.onl/privacy-policy"
+                  href="/privacy-policy"
                   target="_blank"
                   className="text-orange-600 underline font-medium"
                 >
