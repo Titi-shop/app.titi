@@ -292,6 +292,15 @@ vlog(
   "RPC_VERIFY_RESULT",
   rpc
 );
+    console.log(
+  "[DEBUG_RPC_RAW_EXISTS]",
+  !!rpc.raw
+);
+
+console.log(
+  "[DEBUG_RPC_RAW_TYPE]",
+  typeof rpc.raw
+);
     await insertA2URpcLog({
   withdrawalId: withdrawal.id,
   piPaymentId,
