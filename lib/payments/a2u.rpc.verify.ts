@@ -66,22 +66,42 @@ export async function verifyA2UWithdrawal(
   );
 
   if (!withdrawal) {
-    return {
-      verified: false,
+    if (!withdrawal) {
+  return {
+    verified: false,
 
-      stage: "WITHDRAWAL_NOT_FOUND",
-      reason: "WITHDRAWAL_NOT_FOUND",
-      txid,
-      amount: null,
-      sender: null,
-      receiver: null,
-      ledger: null,
-      confirmed: false,
-      memo: null,
-      rpcReachable: false,
-      raw: null,
-    };
-  }
+    stage: "WITHDRAWAL_NOT_FOUND",
+    reason: "WITHDRAWAL_NOT_FOUND",
+
+    txid,
+
+    amount: null,
+    sender: null,
+    receiver: null,
+
+    ledger: null,
+
+    confirmed: false,
+    memo: null,
+
+    rpcReachable: false,
+
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
+
+    parseLayer: null,
+
+    hasMeta: false,
+    hasEvents: false,
+
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   const rpc =
     await getRpcTransaction(
@@ -120,31 +140,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        rpc.confirmed,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        false,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   if (!rpc.confirmed) {
     return {
@@ -158,31 +180,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        false,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        true,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   const expectedAmount =
     Number(
@@ -206,31 +230,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        rpc.confirmed,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        true,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   if (
     rpc.sender
@@ -249,31 +275,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        rpc.confirmed,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        true,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   if (
     rpc.receiver
@@ -292,31 +320,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        rpc.confirmed,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        true,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
   if (
     withdrawal.pi_payment_id &&
@@ -335,31 +365,33 @@ export async function verifyA2UWithdrawal(
 
       txid,
 
-      amount:
-        rpc.amount,
+    amount: null,
+    sender: null,
+    receiver: null,
 
-      sender:
-        rpc.sender,
+    ledger: null,
 
-      receiver:
-        rpc.receiver,
+    confirmed: false,
+    memo: null,
 
-      ledger:
-        rpc.ledger,
+    rpcReachable: false,
 
-      confirmed:
-        rpc.confirmed,
+    txStatus: null,
+    chainReference: null,
+    createdAt: null,
 
-      memo:
-        rpc.memo,
+    parseLayer: null,
 
-      rpcReachable:
-        true,
+    hasMeta: false,
+    hasEvents: false,
 
-      raw:
-        rpc.raw,
-    };
-  }
+    senderFound: false,
+    receiverFound: false,
+    amountFound: false,
+
+    raw: null,
+  };
+}
 
     return {
   verified: true,
