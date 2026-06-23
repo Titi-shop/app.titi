@@ -57,7 +57,7 @@ export async function insertA2URpcLog(
 
   await query(
     `
-    INSERT INTO a2u_rpc_logs (
+    INSERT INTO rpc_verification_logs (
       withdrawal_id,
       pi_payment_id,
 
