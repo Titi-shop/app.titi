@@ -108,7 +108,39 @@ export async function POST(
       await getWalletWithdrawalById(
         id
       );
+if (
+  withdrawal.status ===
+  "PROCESSING"
+) {
+  return NextResponse.json(
+    {
+      error:
+        "WITHDRAWAL_ALREADY_PROCESSING",
+      pi_payment_id:
+        withdrawal.pi_payment_id,
+    },
+    {
+      status: 409,
+    }
+  );
+}
 
+if (
+  withdrawal.status ===
+  "COMPLETED"
+) {
+  return NextResponse.json(
+    {
+      error:
+        "WITHDRAWAL_ALREADY_COMPLETED",
+      blockchain_txid:
+        withdrawal.blockchain_txid,
+    },
+    {
+      status: 409,
+    }
+  );
+}
     vlog(
       "LOAD_WITHDRAWAL_RESULT",
       withdrawal
@@ -131,9 +163,13 @@ export async function POST(
     ===================== */
 
     if (
-      withdrawal.status !==
-      "APPROVED"
-    ) {
+  ![
+    "APPROVED",
+    "FAILED",
+  ].includes(
+    withdrawal.status
+  )
+){
       vlog(
         "INVALID_STATUS",
         {
