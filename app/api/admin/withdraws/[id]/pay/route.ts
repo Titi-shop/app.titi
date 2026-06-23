@@ -342,35 +342,33 @@ vlog(
   amountFound: rpc.amountFound,
 
   feeStroops:
-    Number(
-      (payload as any)?.resultJson?.fee_charged
-    ) || null,
+  Number(
+    (rpc.raw as any)?.resultJson?.fee_charged
+  ) || null,
 
-  latestLedger:
-    Number(
-      (payload as any)?.latestLedger
-    ) || null,
+latestLedger:
+  Number(
+    (rpc.raw as any)?.latestLedger
+  ) || null,
 
-  oldestLedger:
-    Number(
-      (payload as any)?.oldestLedger
-    ) || null,
+oldestLedger:
+  Number(
+    (rpc.raw as any)?.oldestLedger
+  ) || null,
 
-  applicationOrder:
-    Number(
-      (payload as any)?.applicationOrder
-    ) || null,
+applicationOrder:
+  Number(
+    (rpc.raw as any)?.applicationOrder
+  ) || null,
 
-  sourceAccount:
-    (payload as any)?.envelopeJson
-      ?.tx?.tx?.source_account ??
-    rpc.sender,
+sourceAccount:
+  (rpc.raw as any)?.envelopeJson
+    ?.tx?.tx?.source_account ??
+  rpc.sender,
 
-  memoType:
-    (payload as any)?.envelopeJson
-      ?.tx?.tx?.memo?.text
-      ? "text"
-      : null,
+memoType:
+  (rpc.raw as any)?.memo_type ??
+  null,
 
   memo: rpc.memo,
   createdAt: rpc.createdAt,
