@@ -78,9 +78,40 @@ export async function POST() {
         }
 
         const payment =
-          await getA2UPayment(
-            withdrawal.pi_payment_id
-          );
+  await getA2UPayment(
+    withdrawal.pi_payment_id
+  );
+
+vlog(
+  "PAYMENT_SNAPSHOT",
+  {
+    withdrawalId:
+      withdrawal.id,
+
+    paymentId:
+      withdrawal.pi_payment_id,
+
+    developerCompleted:
+      payment.status
+        ?.developer_completed,
+
+    transactionVerified:
+      payment.status
+        ?.transaction_verified,
+
+    cancelled:
+      payment.status
+        ?.cancelled,
+
+    userCancelled:
+      payment.status
+        ?.user_cancelled,
+
+    transaction:
+      payment.transaction ??
+      null,
+  }
+);
 
         if (
           payment.status
@@ -125,12 +156,32 @@ export async function POST() {
           continue;
         }
 
-        results.push({
-          withdrawalId:
-            withdrawal.id,
-          status:
-            "STILL_PROCESSING",
-        });
+        vlog(
+  "STILL_PROCESSING_REASON",
+  {
+    withdrawalId:
+      withdrawal.id,
+
+    developerCompleted:
+      payment.status
+        ?.developer_completed,
+
+    transactionVerified:
+      payment.status
+        ?.transaction_verified,
+
+    transaction:
+      payment.transaction ??
+      null,
+  }
+);
+
+results.push({
+  withdrawalId:
+    withdrawal.id,
+  status:
+    "STILL_PROCESSING",
+});
       } catch (error) {
         console.error(
           "[ADMIN_SYNC_ALL][ITEM_ERROR]",
