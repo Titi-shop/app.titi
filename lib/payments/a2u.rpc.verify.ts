@@ -2,7 +2,9 @@ import { getRpcTransaction } from "@/lib/rpc/client";
 import {
   getWalletWithdrawalById,
 } from "@/lib/db/wallet/wallet.withdraw";
-
+import {
+  insertA2URpcLog,
+} from "@/lib/db/payments.rpc.a2u";
 const APP_MERCHANT_WALLET =
   process.env.PI_MERCHANT_WALLET?.trim() ?? "";
 
