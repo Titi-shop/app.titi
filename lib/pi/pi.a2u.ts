@@ -11,7 +11,9 @@ import {
   markWithdrawalProcessing,
   markWithdrawalFailed,
 } from "@/lib/db/wallet/wallet.withdraw";
-
+import {
+  getVerifiedRpcByWithdrawalId,
+} from "@/lib/db/payments.rpc.a2u";
 import {
   getUserById,
 } from "@/lib/db/users";
@@ -490,32 +492,48 @@ if (!rpc.verified) {
     `RPC_VERIFY_FAILED:${rpc.reason}`
   );
 }
+const verifiedLog =
+  await getVerifiedRpcByWithdrawalId(
+    withdrawalId
+  );
 
+if (!verifiedLog) {
+  throw new Error(
+    "RPC_LOG_NOT_FOUND"
+  );
+}
 await markWithdrawalCompleted(
   withdrawalId,
-  txid,
-  rpc.ledger ?? undefined,
-  rpc.memo ?? undefined,
+  verifiedLog.txid,
+  verifiedLog.ledger ??
+    undefined,
+  verifiedLog.memo ??
+    undefined,
   undefined,
-  rpc.sender ?? undefined,
-  rpc.receiver ?? undefined,
-  undefined
+  verifiedLog.sender ??
+    undefined,
+  verifiedLog.receiver ??
+    undefined,
+  verifiedLog.network ??
+    undefined
 );
 
 return {
-  txid,
+  txid:
+    verifiedLog.txid,
   ledger:
-    rpc.ledger,
+    verifiedLog.ledger,
   memo:
-    rpc.memo,
+    verifiedLog.memo,
   fee: null,
   fromAddress:
-    rpc.sender ??
+    verifiedLog.sender ??
     undefined,
   toAddress:
-    rpc.receiver ??
+    verifiedLog.receiver ??
     undefined,
   network:
+    verifiedLog.network ??
     "Pi Testnet",
 };
 }
