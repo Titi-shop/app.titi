@@ -77,7 +77,106 @@ export async function insertA2URpcLog(
     txid: input.txid,
   });
 
+log("INSERT_START", {
+  withdrawalId: input.withdrawalId,
+  txid: input.txid,
+});
+  const values = [
+  input.withdrawalId,
+  input.piPaymentId,
 
+  input.txid,
+  input.verified,
+
+  input.stage,
+  input.reason,
+
+  input.amount,
+  input.expectedAmount,
+
+  input.sender,
+  input.receiver,
+  input.expectedReceiver,
+  input.expectedSender,
+
+  input.amountMatch,
+  input.receiverMatch,
+  input.senderMatch,
+
+  input.expectedMemo,
+  input.memoMatch,
+  input.memoFound,
+
+  input.network,
+
+  input.verificationVersion,
+  input.verificationMethod,
+
+  input.verificationHash,
+
+  input.ledger,
+  input.txStatus,
+  input.chainReference,
+
+  input.rpcReachable,
+  input.confirmed,
+
+  input.parseLayer,
+
+  input.hasMeta,
+  input.hasEvents,
+
+  input.senderFound,
+  input.receiverFound,
+  input.amountFound,
+
+  input.feeStroops,
+  input.latestLedger,
+  input.oldestLedger,
+  input.applicationOrder,
+
+  input.sourceAccount,
+  input.memoType,
+
+  input.memo,
+
+  input.expectedMemo,
+  input.memoMatch,
+  input.memoFound,
+
+  input.network,
+
+  input.verificationVersion,
+  input.verificationMethod,
+
+  input.createdAt,
+
+  JSON.stringify(input.payload ?? {}),
+
+  input.feePi,
+
+  input.chainPaymentAmount,
+  input.chainEventAmount,
+
+  input.senderBalanceDelta,
+  input.receiverBalanceDelta,
+
+  input.chainAmountConsensus,
+
+  JSON.stringify(
+    input.verificationSnapshot ?? {}
+  ),
+];
+
+console.log(
+  "[RPC_VALUES_LENGTH]",
+  values.length
+);
+
+console.log(
+  "[RPC_VALUES]",
+  values
+);
   await query(
   `
   INSERT INTO rpc_verification_logs (
