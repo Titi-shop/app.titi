@@ -172,6 +172,7 @@ const memoMatch =
     ? true
     : rpc.memo ===
       withdrawal.pi_payment_id;
+  );
 const raw =
   rpc.raw as
     | Record<
