@@ -142,12 +142,17 @@ const memoMatch =
       "WITHDRAWAL_NOT_FOUND"
     );
   }
+const rpc =
+  await getRpcTransaction(
+    txid
+  );
 
-  const rpc =
-    await getRpcTransaction(
-      txid
-    );
-  const amountMatch =
+const expectedAmount =
+  Number(
+    withdrawal.amount
+  );
+
+const amountMatch =
   rpc.amount !== null &&
   Math.abs(
     rpc.amount -
@@ -161,6 +166,12 @@ const senderMatch =
 const receiverMatch =
   rpc.receiver?.toLowerCase() ===
   withdrawal.withdraw_wallet.toLowerCase();
+
+const memoMatch =
+  !withdrawal.pi_payment_id
+    ? true
+    : rpc.memo ===
+      withdrawal.pi_payment_id;
 const raw =
   rpc.raw as
     | Record<
