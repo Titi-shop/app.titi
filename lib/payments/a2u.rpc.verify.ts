@@ -314,11 +314,6 @@ let chainAmountConsensus:
       "TX_NOT_CONFIRMED"
     );
   }
-
-  const expectedAmount =
-    Number(
-      withdrawal.amount
-    );
 console.log(
   "[VERIFY_AMOUNT_CHECK]",
   {
