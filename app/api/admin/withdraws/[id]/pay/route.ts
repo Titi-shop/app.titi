@@ -267,9 +267,6 @@ const tx =
 
 const txid =
   tx.txid;
-);
-
-
 
 if (!rpc.verified) {
   throw new Error(
