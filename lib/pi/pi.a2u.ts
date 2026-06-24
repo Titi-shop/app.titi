@@ -584,70 +584,76 @@ export async function debugA2UPayment(
 export async function payWithdrawal(
   withdrawalId: string
 ) {
-  const withdrawal =
-    await getWalletWithdrawalById(
-      withdrawalId
-    );
+  let processingStarted =
+    false;
 
-  if (!withdrawal) {
-    throw new Error(
-      "WITHDRAWAL_NOT_FOUND"
-    );
-  }
+  try {
+    const withdrawal =
+      await getWalletWithdrawalById(
+        withdrawalId
+      );
 
-  if (
-    withdrawal.status ===
-    "PROCESSING"
-  ) {
-    throw new Error(
-      "WITHDRAWAL_ALREADY_PROCESSING"
-    );
-  }
+    if (!withdrawal) {
+      throw new Error(
+        "WITHDRAWAL_NOT_FOUND"
+      );
+    }
 
-  if (
-    withdrawal.status ===
-    "COMPLETED"
-  ) {
-    throw new Error(
-      "WITHDRAWAL_ALREADY_COMPLETED"
-    );
-  }
+    if (
+      withdrawal.status ===
+      "PROCESSING"
+    ) {
+      throw new Error(
+        "WITHDRAWAL_ALREADY_PROCESSING"
+      );
+    }
 
-  if (
-    !["APPROVED", "FAILED"]
-      .includes(
+    if (
+      withdrawal.status ===
+      "COMPLETED"
+    ) {
+      throw new Error(
+        "WITHDRAWAL_ALREADY_COMPLETED"
+      );
+    }
+
+    if (
+      ![
+        "APPROVED",
+        "FAILED",
+      ].includes(
         withdrawal.status
       )
-  ) {
-    throw new Error(
-      "INVALID_STATUS"
-    );
-  }
+    ) {
+      throw new Error(
+        "INVALID_STATUS"
+      );
+    }
 
-  const user =
-    await getUserById(
-      withdrawal.user_id
-    );
+    const user =
+      await getUserById(
+        withdrawal.user_id
+      );
 
-  if (!user?.pi_uid) {
-    throw new Error(
-      "USER_PI_UID_MISSING"
-    );
-  }
+    if (!user?.pi_uid) {
+      throw new Error(
+        "USER_PI_UID_MISSING"
+      );
+    }
 
-  const piPaymentId =
-    await createA2UPayment({
-      uid: user.pi_uid,
-      amount: Number(
-        withdrawal.amount
-      ),
-      memo:
-        `Withdraw ${withdrawal.id}`,
-      metadata: {
-        withdrawal_id:
-          withdrawal.id,
-      },
-    });
+    const piPaymentId =
+      await createA2UPayment({
+        uid: user.pi_uid,
+        amount: Number(
+          withdrawal.amount
+        ),
+        memo:
+          `Withdraw ${withdrawal.id}`,
+        metadata: {
+          withdrawal_id:
+            withdrawal.id,
+        },
+      });
 
     await markWithdrawalProcessing(
       withdrawal.id,
@@ -656,7 +662,8 @@ export async function payWithdrawal(
       user.pi_uid
     );
 
-    processingStarted = true;
+    processingStarted =
+      true;
 
     const tx =
       await submitA2UPayment(
