@@ -649,37 +649,46 @@ export async function payWithdrawal(
       },
     });
 
-  await markWithdrawalProcessing(
-    withdrawal.id,
-    piPaymentId,
-    `Withdraw ${withdrawal.id}`,
-    user.pi_uid
-  );
-
-  const tx =
-    await submitA2UPayment(
+    await markWithdrawalProcessing(
       withdrawal.id,
-      piPaymentId
+      piPaymentId,
+      `Withdraw ${withdrawal.id}`,
+      user.pi_uid
     );
 
-  await completeA2UPayment(
-    piPaymentId,
-    tx.txid
-  );
+    processingStarted = true;
 
-  return {
-    withdrawalId:
-      withdrawal.id,
-    piPaymentId,
-    txid: tx.txid,
-  };
-}
-catch (error) {
-   if (processingStarted) {
-      await markWithdrawalFailed(
-         withdrawalId,
-         String(error)
+    const tx =
+      await submitA2UPayment(
+        withdrawal.id,
+        piPaymentId
       );
-   }
-   throw error;
+
+    await completeA2UPayment(
+      piPaymentId,
+      tx.txid
+    );
+
+    return {
+      withdrawalId:
+        withdrawal.id,
+      piPaymentId,
+      txid: tx.txid,
+    };
+
+  } catch (error) {
+
+    if (
+      processingStarted
+    ) {
+      await markWithdrawalFailed(
+        withdrawalId,
+        error instanceof Error
+          ? error.message
+          : String(error)
+      );
+    }
+
+    throw error;
+  }
 }
