@@ -217,7 +217,7 @@ verification_snapshot,
     memo_type,
     memo,
     created_at_chain,
-    payload,
+    payload
   )
   VALUES (
   $1,$2,
@@ -242,8 +242,10 @@ verification_snapshot,
   $44::jsonb,
   $45,$46,$47,$48,
   $49::jsonb
+  )
+  `,
+  values
 );
-values
   log("INSERT_DONE", {
     txid: input.txid,
   });
