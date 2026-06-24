@@ -6,10 +6,6 @@ import {
 } from "@/lib/payments/a2u.rpc.verify";
 
 import {
-  insertA2URpcLog,
-} from "@/lib/db/payments.rpc.a2u";
-
-import {
   markWithdrawalCompleted,
 } from "@/lib/db/wallet/wallet.withdraw";
 import * as StellarSdk
