@@ -481,27 +481,25 @@ const txid =
     submitResult.id
   );
 
-const rpc =
-  await verifyA2UWithdrawal(
-    withdrawalId,
-    txid
-  );
+await verifyA2UWithdrawal(
+  withdrawalId,
+  txid
+);
 
-if (!rpc.verified) {
-  throw new Error(
-    `RPC_VERIFY_FAILED:${rpc.reason}`
-  );
-}
 const verifiedLog =
   await getVerifiedRpcByWithdrawalId(
     withdrawalId
   );
-
+vlog(
+  "RPC_LOG_VERIFIED",
+  verifiedLog
+);
 if (!verifiedLog) {
   throw new Error(
     "RPC_LOG_NOT_FOUND"
   );
 }
+
 await markWithdrawalCompleted(
   withdrawalId,
   verifiedLog.txid,
