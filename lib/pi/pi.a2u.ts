@@ -1,6 +1,17 @@
 // =====================================================
 // lib/pi/pi.a2u.ts
 // =====================================================
+import {
+  verifyA2UWithdrawal,
+} from "@/lib/payments/a2u.rpc.verify";
+
+import {
+  insertA2URpcLog,
+} from "@/lib/db/payments.rpc.a2u";
+
+import {
+  markWithdrawalCompleted,
+} from "@/lib/db/wallet/wallet.withdraw";
 import * as StellarSdk
   from "@stellar/stellar-sdk";
 const PI_API =
@@ -325,6 +336,7 @@ export async function completeA2UPayment(
 ===================================================== */
 
 export async function submitA2UPayment(
+  withdrawalId: string,
   paymentId: string
 ): Promise<A2USubmitResult> {
 
@@ -491,6 +503,31 @@ export async function submitA2UPayment(
   network:
     "Pi Testnet",
 };
+  const rpc =
+  await verifyA2UWithdrawal(
+    withdrawalId,
+    txid
+  );
+
+vlog(
+  "RPC_VERIFY_RESULT",
+  rpc
+);
+  if (!rpc.verified) {
+  throw new Error(
+    `RPC_VERIFY_FAILED:${rpc.reason}`
+  );
+}
+  await markWithdrawalCompleted(
+  withdrawalId,
+  txid,
+  rpc.ledger ?? undefined,
+  rpc.memo ?? undefined,
+  undefined,
+  rpc.sender ?? undefined,
+  rpc.receiver ?? undefined,
+  undefined
+);
 }
 /* =====================================================
    CANCEL PAYMENT
