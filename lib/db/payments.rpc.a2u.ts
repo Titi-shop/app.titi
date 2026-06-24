@@ -3,42 +3,49 @@ import { query } from "@/lib/db";
 export type InsertA2URpcLogInput = {
   withdrawalId: string;
   piPaymentId: string | null;
-
   txid: string;
-
   verified: boolean;
-
   amount: number | null;
 
   sender: string | null;
   receiver: string | null;
 
   ledger: number | null;
-
   memo: string | null;
-
   txStatus: string | null;
-
   chainReference: string | null;
-
   createdAt: string | null;
-
   rpcReachable: boolean;
-
   parseLayer: string | null;
-
   hasMeta: boolean;
   hasEvents: boolean;
-
   senderFound: boolean;
   receiverFound: boolean;
   amountFound: boolean;
-
   payload: unknown;
   stage: string;
 reason: string;
 expectedAmount: number | null;
 expectedReceiver: string | null;
+  expectedSender: string | null;
+expectedMemo: string | null;
+memoMatch: boolean | null;
+memoFound: boolean | null;
+network: string | null;
+verificationVersion: number | null;
+verificationMethod: string | null;
+feePi: number | null;
+verificationSnapshot: unknown;
+chainPaymentAmount:
+  number | null;
+chainEventAmount:
+  number | null;
+senderBalanceDelta:
+  number | null;
+receiverBalanceDelta:
+  number | null;
+chainAmountConsensus:
+  boolean | null;
 amountMatch: boolean | null;
 receiverMatch: boolean | null;
 senderMatch: boolean | null;
@@ -88,10 +95,20 @@ export async function insertA2URpcLog(
     sender,
     receiver,
     expected_receiver,
+expected_sender,
 
-    amount_match,
-    receiver_match,
-    sender_match,
+amount_match,
+receiver_match,
+sender_match,
+
+expected_memo,
+memo_match,
+memo_found,
+
+network,
+
+verification_version,
+verification_method,
 
     verification_hash,
 
@@ -113,13 +130,19 @@ export async function insertA2URpcLog(
     amount_found,
 
     fee_stroops,
-    latest_ledger,
-    oldest_ledger,
-    application_order,
+fee_pi,
 
+latest_ledger,
+oldest_ledger,
+application_order,
+chain_payment_amount,
+chain_event_amount,
+sender_balance_delta,
+receiver_balance_delta,
+chain_amount_consensus,
+verification_snapshot,
     source_account,
     memo_type,
-
     memo,
     created_at_chain,
 
@@ -137,21 +160,19 @@ export async function insertA2URpcLog(
 
     $7,$8,
 
-    $9,$10,$11,
+   $9,$10,$11,$12,
 
-    $12,$13,$14,
+$13,$14,$15,
 
-    $15,
+$16,$17,$18,
 
-    $16,
+$19,
 
-    $17,$18,
+$20,
 
-    $19,$20,
+$21,$22,
 
-    $21,
-
-    $22,$23,
+    $23,
 
     $24,$25,$26,
 
@@ -161,7 +182,7 @@ export async function insertA2URpcLog(
 
     $33,$34,
 
-    $35::jsonb,
+    $35,$36,$37,$38,$39::jsonb,
 
     NOW(),
     NOW()
@@ -183,7 +204,8 @@ export async function insertA2URpcLog(
 
     expected_receiver =
       EXCLUDED.expected_receiver,
-
+expected_sender =
+  EXCLUDED.expected_sender,
     amount_match =
       EXCLUDED.amount_match,
 
@@ -192,7 +214,24 @@ export async function insertA2URpcLog(
 
     sender_match =
       EXCLUDED.sender_match,
+expected_memo =
+  EXCLUDED.expected_memo,
 
+memo_match =
+  EXCLUDED.memo_match,
+
+memo_found =
+  EXCLUDED.memo_found,
+
+network =
+  EXCLUDED.network,
+
+verification_version =
+  EXCLUDED.verification_version,
+
+verification_method =
+  EXCLUDED.verification_method,
+  
     verification_hash =
       EXCLUDED.verification_hash,
 
@@ -230,7 +269,8 @@ export async function insertA2URpcLog(
 
     fee_stroops =
       EXCLUDED.fee_stroops,
-
+     fee_pi =
+       EXCLUDED.fee_pi,
     latest_ledger =
       EXCLUDED.latest_ledger,
 
@@ -239,7 +279,23 @@ export async function insertA2URpcLog(
 
     application_order =
       EXCLUDED.application_order,
+chain_payment_amount =
+  EXCLUDED.chain_payment_amount,
 
+chain_event_amount =
+  EXCLUDED.chain_event_amount,
+
+sender_balance_delta =
+  EXCLUDED.sender_balance_delta,
+
+receiver_balance_delta =
+  EXCLUDED.receiver_balance_delta,
+
+chain_amount_consensus =
+  EXCLUDED.chain_amount_consensus,
+
+verification_snapshot =
+  EXCLUDED.verification_snapshot,
     source_account =
       EXCLUDED.source_account,
 
@@ -306,11 +362,36 @@ export async function insertA2URpcLog(
     input.memoType,
 
     input.memo,
-    input.createdAt,
 
-    JSON.stringify(
-      input.payload ?? {}
-    ),
+input.expectedMemo,
+input.memoMatch,
+input.memoFound,
+
+input.network,
+
+input.verificationVersion,
+input.verificationMethod,
+
+input.createdAt,
+
+JSON.stringify(
+  input.payload ?? {}
+),
+
+input.feePi,
+
+input.chainPaymentAmount,
+input.chainEventAmount,
+
+input.senderBalanceDelta,
+input.receiverBalanceDelta,
+
+input.chainAmountConsensus,
+
+JSON.stringify(
+  input.verificationSnapshot ??
+    {}
+),
   ]
 );
 
