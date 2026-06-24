@@ -576,6 +576,11 @@ await createWalletJournal({
 
   note:
     "Withdraw reverted",
+  eventHash: createHash("sha256")
+  .update(
+    `${withdrawalId}:WITHDRAW_FAILED`
+  )
+  .digest("hex"),
 
   metadata: {
     stage: "FAILED",
@@ -741,7 +746,14 @@ export async function retryWithdrawal(
         pi_payment_id = NULL,
         blockchain_txid = NULL,
         paid_at = NULL,
-        completed_at = NULL
+        completed_at = NULL,
+        blockchain_ledger = NULL,
+blockchain_memo = NULL,
+blockchain_fee = NULL,
+blockchain_from_address = NULL,
+blockchain_to_address = NULL,
+blockchain_network = NULL,
+pi_payment_memo = NULL
       WHERE id = $1
       AND status = 'FAILED'
       `,
