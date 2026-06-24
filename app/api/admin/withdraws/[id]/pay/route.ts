@@ -435,7 +435,6 @@ console.log(
 
   expectedReceiver:
     withdrawal.withdraw_wallet,
-    expectedSender,
   amountMatch:
   rpc.amount !== null &&
   Number(
@@ -507,26 +506,16 @@ memoType:
         : null,
 
   memo: rpc.memo,
-
 network,
-
 expectedSender,
-
 expectedMemo,
-
 memoMatch,
-
 memoFound,
-
 verificationVersion:
   1,
-
 verificationMethod,
-
 feePi,
-
 verificationSnapshot,
-
 chainPaymentAmount:
   null,
 
