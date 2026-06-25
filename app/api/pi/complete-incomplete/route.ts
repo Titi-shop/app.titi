@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     });
 
     const res = await fetch(
-      `${PI_API}/payments/${paymentId}/complete`,
+  `${PI_API}/v2/payments/${paymentId}/complete`,
       {
         method: "POST",
         headers: {
