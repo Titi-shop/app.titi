@@ -1,7 +1,7 @@
 // =====================================================
 // lib/db/settlement/settlement.escrow.ts
 // =====================================================
-
+import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import {
   query,
 } from "@/lib/db";
@@ -304,7 +304,8 @@ export async function releaseEscrow(
    PI VERIFIED
 ===================================================== */
 
-export async function markPiVerified(
+export async function markRpcVerified(
+  paymentIntentId: string,
   escrowId: string
 ): Promise<void> {
 
@@ -329,7 +330,20 @@ export async function markPiVerified(
 export async function markRpcVerified(
   escrowId: string
 ): Promise<void> {
+const rpc =
+  await getRpcVerificationLog(paymentIntentId);
 
+if (!rpc) {
+  throw new Error("RPC_LOG_NOT_FOUND");
+}
+
+if (!rpc.confirmed) {
+  throw new Error("RPC_NOT_CONFIRMED");
+}
+
+if (rpc.txStatus !== "SUCCESS") {
+  throw new Error("RPC_TX_FAILED");
+}
   await createSettlementEventOnce({
     escrowId,
 
