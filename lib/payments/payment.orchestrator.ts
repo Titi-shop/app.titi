@@ -78,8 +78,7 @@ function successResult(
 async function safeAuditRpc(
   paymentIntentId: string,
   piPaymentId: string,
-  txid: string,
-  source: string
+  txid: string
 ): Promise<RpcAuditResult> {
   console.log("[PAYMENT][RPC_VERIFY] START", {
     paymentIntentId,
@@ -242,8 +241,7 @@ export async function runPaymentSettlement({
   const rpcVerified = await safeAuditRpc(
   paymentIntentId,
   piPaymentId,
-  txid,
-  source
+  txid
 );
     if (!rpcVerified.ok) {
   console.error(
@@ -282,14 +280,14 @@ export async function runPaymentSettlement({
     });
 
     return failResult(
-      piVerified.verifiedAmount,
-      rpcVerified.ok,
-      source
-    );
+  rpcVerified.amount ?? 0,
+  rpcVerified.ok,
+  source
+);
   }
   return successResult(
   null,
-  piVerified.verifiedAmount,
+  rpcVerified.amount ?? 0,
   rpcVerified.ok,
   source
 );
@@ -301,14 +299,6 @@ export async function runPaymentSettlement({
     error: e,
   });
 
-  try {
-
-    } catch (auditError) {
-     console.error(
-     "[PAYMENT][AUDIT_FATAL]",
-     auditError
-     );
-     }
   return failResult(0, false, source);
 }
 }
