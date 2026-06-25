@@ -6,7 +6,6 @@ import {
 
 import {
   auditDuplicateSubmit,
-  auditFinalizeDone,
   auditManualReview,
   auditPiCompleted,
   auditPiVerified,
@@ -20,16 +19,7 @@ import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
 import {
   finalizePaidOrderFromIntent,
   FinalizePaidOrderResult,
-  linkReceiptSettlementByIds,
 } from "@/lib/db/orders.payment";
-
-import {
-  createEscrow,
-  markPiVerified,
-  markRpcVerified,
-  linkOrder,
-  creditSeller,
-} from "@/lib/db/settlement";
 
 import { piCompletePayment } from "@/lib/pi/client";
 
