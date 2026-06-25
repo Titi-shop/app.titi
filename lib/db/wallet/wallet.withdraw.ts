@@ -467,13 +467,13 @@ blockchain_network = $8,
           `,
           [
             withdrawalId,
-            rpc.txid
-rpc.ledger
-rpc.memo
+            rpc.txid,
+rpc.ledger,
+rpc.memo,
       null,
-rpc.sender
-rpc.receiver
-rpc.network
+rpc.sender,
+rpc.receiver,
+rpc.network,
           ]
         );
 
