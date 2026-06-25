@@ -72,48 +72,6 @@ function successResult(
 }
 
 /* =========================================================
-   SAFE RPC VERIFY
-========================================================= */
-
-async function safeAuditRpc(
-  paymentIntentId: string,
-  piPaymentId: string,
-  txid: string
-): Promise<RpcAuditResult> {
-  console.log("[PAYMENT][RPC_VERIFY] START", {
-    paymentIntentId,
-    txid,
-  });
-
-  try {
-  const rpc = await verifyRpcPaymentForReconcile({
-    paymentIntentId,
-    piPaymentId,
-    txid,
-  });
-
-  console.log("[PAYMENT][RPC_VERIFY] RESULT", {
-    paymentIntentId,
-    ok: rpc.ok,
-    reason: rpc.reason,
-    amount: rpc.amount,
-    confirmed: rpc.confirmed,
-    ledger: rpc.ledger,
-    sender: rpc.sender,
-    receiver: rpc.receiver,
-    txStatus: rpc.txStatus,
-    chainReference: rpc.chainReference,
-  });
-
-  return rpc;
-} catch (e) {
-  console.error("[PAYMENT][RPC_VERIFY] EXCEPTION", e);
-
-  return emptyRpc();
-}
-}
-
-/* =========================================================
    SAFE PI COMPLETE
 ========================================================= */
 
@@ -233,11 +191,6 @@ export async function runPaymentSettlement({
      4. VERIFY RPC
   ===================================================== */
 
-  const rpcVerified = await safeAuditRpc(
-  paymentIntentId,
-  piPaymentId,
-  txid
-);
     if (!rpcVerified.ok) {
   console.error(
     "[PAYMENT][SETTLEMENT] RPC_VERIFY_FAILED",
