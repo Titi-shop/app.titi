@@ -182,7 +182,6 @@ if (
       processing_locked_at,
 
       pi_raw_payload,
-      rpc_raw_payload,
       complete_raw_payload,
 
       completed_at,
@@ -200,7 +199,7 @@ if (
       $19,$20,$21,
       $22,$23,
       $24,$25,$26,
-      $27,$28,$29
+      $27,$28
     )
     ON CONFLICT (pi_payment_id)
     DO UPDATE SET
@@ -283,12 +282,6 @@ if (
           pi_payments.pi_raw_payload
         ),
 
-      rpc_raw_payload =
-        COALESCE(
-          EXCLUDED.rpc_raw_payload,
-          pi_payments.rpc_raw_payload
-        ),
-
       complete_raw_payload =
         COALESCE(
           EXCLUDED.complete_raw_payload,
@@ -367,19 +360,17 @@ if (
 
       new Date(),
 
-      JSON.stringify(
-        piPayload
-      ),
+      JSON.stringify(piPayload),
 
-      JSON.stringify(
-        rpcPayload
-      ),
+JSON.stringify({
+  finalized: true,
 
-      JSON.stringify({
-        pi: piPayload,
-        rpc: rpcPayload,
-        finalized: true,
-      }),
+  rpcVerified: rpcPayload.ok,
+  rpcConfirmed: rpcPayload.confirmed,
+  rpcLedger: rpcPayload.ledger,
+  rpcStatus: rpcPayload.txStatus,
+  rpcReason: rpcPayload.reason,
+}),
 
       new Date(),
       new Date(),
