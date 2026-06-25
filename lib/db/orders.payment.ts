@@ -218,7 +218,6 @@ const rpcPayload =
     verifiedAmount,
     receiverWallet,
     piPayload,
-    rpcPayload,
   }
 );
 
