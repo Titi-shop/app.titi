@@ -555,3 +555,7 @@ memo: rpcTx.memo ?? null,
   memo: rpcTx.memo ?? null,
 };
 }
+export async function getRpcVerificationByPaymentIntent(
+  paymentIntentId: string
+)
+}
