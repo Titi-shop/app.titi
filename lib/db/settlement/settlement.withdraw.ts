@@ -25,7 +25,21 @@ import {
 export async function withdrawSeller(
   input: WithdrawSellerInput
 ): Promise<void> {
+if (!input.sellerCreditId) {
+  throw new Error("SELLER_CREDIT_ID_REQUIRED");
+}
 
+if (!input.sellerId) {
+  throw new Error("SELLER_ID_REQUIRED");
+}
+
+if (!input.withdrawWallet) {
+  throw new Error("WITHDRAW_WALLET_REQUIRED");
+}
+
+if (input.amount <= 0) {
+  throw new Error("INVALID_WITHDRAW_AMOUNT");
+}
   /* ===================================================
      1. LOAD CREDIT
   =================================================== */
@@ -41,11 +55,8 @@ export async function withdrawSeller(
         available_amount,
         withdrawn_amount,
         withdraw_count
-
       FROM seller_credits
-
       WHERE id = $1
-
       LIMIT 1
       `,
       [
@@ -77,9 +88,9 @@ export async function withdrawSeller(
      2. CREATE WITHDRAWAL
   =================================================== */
 
-  await query(
-    `
-    INSERT INTO seller_withdrawals (
+  const insertResult = await query(
+  `
+  INSERT INTO seller_withdrawals(
 
       id,
 
@@ -133,14 +144,16 @@ export async function withdrawSeller(
         null,
     ]
   );
-
+if (insertResult.rowCount !== 1) {
+  throw new Error("WITHDRAW_CREATE_FAILED");
+}
   /* ===================================================
      3. UPDATE CREDIT
   =================================================== */
 
-  await query(
-    `
-    UPDATE seller_credits
+  const updateResult = await query(
+  `
+  UPDATE seller_credits
 
     SET
 
@@ -187,7 +200,9 @@ export async function withdrawSeller(
         null,
     ]
   );
-
+if (updateResult.rowCount !== 1) {
+  throw new Error("SELLER_CREDIT_UPDATE_FAILED");
+}
   /* ===================================================
      4. JOURNAL
   =================================================== */
