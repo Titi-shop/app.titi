@@ -22,7 +22,9 @@ import {
 import {
   createWalletJournal,
 } from "./wallet.journal";
-
+import {
+  getVerifiedRpcByWithdrawalId,
+} from "@/lib/db/payments.rpc.a2u";
 import type {
   WalletClient,
 } from "./wallet.types";
@@ -357,14 +359,7 @@ export async function markWithdrawalProcessing(
   }
 }
 export async function markWithdrawalCompleted(
-  withdrawalId: string,
-  blockchainTxid: string,
-  blockchainLedger?: number,
-  blockchainMemo?: string,
-  blockchainFee?: string,
-  blockchainFromAddress?: string,
-  blockchainToAddress?: string,
-  blockchainNetwork?: string
+  withdrawalId: string
 ): Promise<void> {
 
   vlog("MARK_COMPLETED_START", {
@@ -401,7 +396,22 @@ export async function markWithdrawalCompleted(
 
       const withdrawal =
         withdrawalRs.rows[0];
+const rpc =
+  await getVerifiedRpcByWithdrawalId(
+    withdrawalId
+  );
 
+if (!rpc) {
+  throw new Error(
+    "RPC_LOG_NOT_FOUND"
+  );
+}
+
+if (!rpc.settlement_ready) {
+  throw new Error(
+    "RPC_SETTLEMENT_NOT_READY"
+  );
+}
       await finalizeReservedBalance(
         withdrawal.user_id,
         Number(
@@ -418,15 +428,12 @@ await createWalletJournal({
 
   entryType: "SELLER_WITHDRAW",
   direction: "DEBIT",
-
   amount: Number(withdrawal.amount),
-
   note: "Withdraw completed",
-
   metadata: {
-    txid: blockchainTxid,
-    ledger: blockchainLedger,
-  },
+    txid: rpc.txid,
+    ledger: rpc.ledger,
+},
 
   eventHash: createHash("sha256")
     .update(
@@ -443,8 +450,7 @@ await createWalletJournal({
           SET
             status = 'COMPLETED',
 
-            blockchain_txid = $2,
-            txid = $2,
+            rpc.txid
 
             blockchain_ledger = $3,
             blockchain_memo = $4,
@@ -462,13 +468,12 @@ await createWalletJournal({
           `,
           [
             withdrawalId,
-            blockchainTxid,
-            blockchainLedger,
-            blockchainMemo,
-            blockchainFee,
-            blockchainFromAddress,
-            blockchainToAddress,
-            blockchainNetwork,
+            rpc.txid
+rpc.ledger
+rpc.memo
+rpc.sender
+rpc.receiver
+rpc.network
           ]
         );
 
@@ -486,9 +491,9 @@ await createWalletJournal({
     "MARK_COMPLETED_DONE",
     {
       withdrawalId,
-      blockchainTxid,
+      txid: rpc.txid,
     }
-  );
+);
 }
 export async function markWithdrawalFailed(
   withdrawalId: string,
