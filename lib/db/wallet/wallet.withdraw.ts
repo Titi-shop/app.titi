@@ -75,6 +75,7 @@ pi_uid: string | null;
   completed_at: string | null;
   fail_reason: string | null;
   retry_count: number | null;
+  settlement_ready: boolean;
 };
 
 
