@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg"
-
+import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import type {
   UpsertPiPaymentInput,
 } from "./orders.payment.types";
@@ -44,7 +44,6 @@ export async function upsertPiPayment(
     zone,
 
     piPayload,
-    rpcPayload,
   } = input;
 logPiPayment(
   "UPSERT_START",
@@ -59,7 +58,12 @@ logPiPayment(
     receiverWallet,
   }
 );
+const rpcPayload =
+  await getRpcVerificationLog(paymentIntentId);
 
+if (!rpcPayload) {
+  throw new Error("RPC_LOG_NOT_FOUND");
+}
 if (!paymentIntentId) {
   logPiPaymentFail(
     "PAYMENT_INTENT_ID_REQUIRED",
