@@ -278,8 +278,11 @@ vlog("INSERT_PREPARE", {
 export async function getPaymentIntent(
   id: string
 ): Promise<PaymentIntentRow | null> {
+  vlog("GET_START", {
+    paymentIntentId: id,
+  });
   const res =
-  await query<PaymentIntentRow>(
+    await query<PaymentIntentRow>(
     `
     SELECT *
     FROM payment_intents
@@ -289,5 +292,16 @@ export async function getPaymentIntent(
     [id]
   );
 
-  return res.rows[0] ?? null;
-}
+vlog("GET_RESULT", {
+  found: res.rows.length > 0,
+  paymentIntentId: id,
+  status: res.rows[0]?.status ?? null,
+  settlementState:
+    res.rows[0]?.settlement_state ?? null,
+  paymentState:
+    res.rows[0]?.payment_state ?? null,
+  providerStatus:
+    res.rows[0]?.provider_status ?? null,
+});
+
+return res.rows[0] ?? null;
