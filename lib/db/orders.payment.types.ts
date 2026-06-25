@@ -218,7 +218,6 @@ export type UpsertPiPaymentInput = {
   zone: string | null;
 
   piPayload: PiPayload;
-  rpcPayload: RpcPayload;
 };
 
 /* =========================================================
