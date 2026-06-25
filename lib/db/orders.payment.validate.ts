@@ -1,9 +1,8 @@
 import { auditManualReview } from "@/lib/db/payments.audit";
-
+import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import type { PoolClient } from "pg";
 
 import type {
-  RpcPayload,
   ShippingSnapshot,
   StrictPaymentValidationInput,
   ValidateFinalizePaymentInput,
@@ -268,14 +267,13 @@ export async function validateStrictPayment(
   client: PoolClient
 ): Promise<void> {
   const {
+    client,
     paymentIntentId,
-    expectedAmount,
     verifiedAmount,
-    merchantWallet,
     receiverWallet,
     txid,
-    rpcPayload,
-  } = input;
+    intent,
+} = input;
 
   logValidation(
     "START",
@@ -543,7 +541,12 @@ export async function validateFinalizePayment(
       verifiedAmount,
     }
   );
+const rpcPayload =
+    await getRpcVerificationLog(paymentIntentId);
 
+if (!rpcPayload) {
+    throw new Error("RPC_LOG_NOT_FOUND");
+}
   const {
     shipping,
     pricing,
