@@ -260,13 +260,11 @@ async function safeCompletePi(
 /* =========================================================
    SAFE LEDGER PIPELINE
 ========================================================= */
-
 async function safeLedger(
   paid: FinalizePaidOrderResult,
   paymentIntentId: string,
   piPaymentId: string,
-  txid: string,
-  rpcVerified: RpcAuditResult
+  txid: string
 ): Promise<boolean> {
   try {
     if (!paid.orderId) {
@@ -313,9 +311,10 @@ async function safeLedger(
 
     await markPiVerified(escrowId);
 
-    if (rpcVerified.confirmed) {
-      await markRpcVerified(escrowId);
-    }
+await markRpcVerified(
+  paymentIntentId,
+  escrowId
+);
 
     await linkOrder(
       escrowId,
@@ -709,8 +708,7 @@ const ledgerOk = await safeLedger(
   paid,
   paymentIntentId,
   piPaymentId,
-  txid,
-  rpcVerified
+  txid
 );
 
 if (!ledgerOk) {
