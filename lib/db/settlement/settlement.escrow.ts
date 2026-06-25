@@ -327,6 +327,7 @@ export async function markPiVerified(
 ===================================================== */
 
 export async function markRpcVerified(
+  paymentIntentId: string,
   escrowId: string
 ): Promise<void> {
 const rpc =
@@ -340,7 +341,7 @@ if (!rpc.confirmed) {
   throw new Error("RPC_NOT_CONFIRMED");
 }
 
-if (rpc.txStatus !== "SUCCESS") {
+if (rpc.txstatus !== "SUCCESS") {
   throw new Error("RPC_TX_FAILED");
 }
   await createSettlementEventOnce({
