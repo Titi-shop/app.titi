@@ -99,33 +99,31 @@ async function safeAuditRpc(
   });
 
   try {
-    const rpc = await verifyRpcPaymentForReconcile({
-  paymentIntentId,
-  piPaymentId,
-  txid,
-});
+  const rpc = await verifyRpcPaymentForReconcile({
+    paymentIntentId,
+    piPaymentId,
+    txid,
+  });
 
-    console.log("[PAYMENT][RPC_VERIFY] RESULT", {
-  paymentIntentId,
-  ok: rpc.ok,
-  reason: rpc.reason,
-  amount: rpc.amount,
-  confirmed: rpc.confirmed,
-  ledger: rpc.ledger,
-  sender: rpc.sender,
-  receiver: rpc.receiver,
-  txStatus: rpc.txStatus,
-  chainReference: rpc.chainReference,
-});
+  console.log("[PAYMENT][RPC_VERIFY] RESULT", {
+    paymentIntentId,
+    ok: rpc.ok,
+    reason: rpc.reason,
+    amount: rpc.amount,
+    confirmed: rpc.confirmed,
+    ledger: rpc.ledger,
+    sender: rpc.sender,
+    receiver: rpc.receiver,
+    txStatus: rpc.txStatus,
+    chainReference: rpc.chainReference,
+  });
 
-    await auditRpcFailed(paymentIntentId, {
-      source,
-      txid,
-      reason: "RPC_EXCEPTION",
-    });
+  return rpc;
+} catch (e) {
+  console.error("[PAYMENT][RPC_VERIFY] EXCEPTION", e);
 
-    return emptyRpc();
-  }
+  return emptyRpc();
+}
 }
 
 /* =========================================================
