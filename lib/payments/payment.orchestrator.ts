@@ -16,11 +16,6 @@ import {
 
 import { verifyPiPaymentForReconcile } from "@/lib/db/payments.verify";
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
-import {
-  finalizePaidOrderFromIntent,
-  FinalizePaidOrderResult,
-} from "@/lib/db/orders.payment";
-
 import { piCompletePayment } from "@/lib/pi/client";
 
 import type {
