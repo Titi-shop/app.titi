@@ -1,7 +1,7 @@
 // =====================================================
 // lib/db/settlement/settlement.release.ts
 // =====================================================
-
+import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import type {
   EscrowReleaseRow,
   ReleaseEscrowFlowInput,
@@ -86,7 +86,26 @@ export async function releaseEscrowFlow(
     client,
     escrow,
   } = input;
+if (!escrow.payment_intent_id) {
+  throw new Error("PAYMENT_INTENT_ID_REQUIRED");
+}
 
+const rpc =
+  await getRpcVerificationLog(
+    escrow.payment_intent_id
+  );
+
+if (!rpc) {
+  throw new Error("RPC_LOG_NOT_FOUND");
+}
+
+if (!rpc.confirmed) {
+  throw new Error("RPC_NOT_CONFIRMED");
+}
+
+if (rpc.txStatus !== "SUCCESS") {
+  throw new Error("RPC_TX_FAILED");
+}
   console.log(
     "[SETTLEMENT][RELEASE] FLOW_START",
     {
@@ -105,7 +124,7 @@ export async function releaseEscrowFlow(
   );
 
   const amount =
-    Number(escrow.amount);
+  Number(rpc.amount);
 
   if (
     Number.isNaN(amount) ||
