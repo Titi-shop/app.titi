@@ -190,9 +190,7 @@ export type UpsertPaymentReceiptInput = {
   txid: string;
 
   receiverWallet: string;
-
   piPayload: PiPayload;
-  rpcPayload: RpcPayload;
 };
 
 /* =========================================================
