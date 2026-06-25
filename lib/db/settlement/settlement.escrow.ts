@@ -304,8 +304,7 @@ export async function releaseEscrow(
    PI VERIFIED
 ===================================================== */
 
-export async function markRpcVerified(
-  paymentIntentId: string,
+export async function markPiVerified(
   escrowId: string
 ): Promise<void> {
 
