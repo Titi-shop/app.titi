@@ -503,26 +503,21 @@ if (!verifiedLog.settlement_ready) {
     throw new Error("RPC_SETTLEMENT_NOT_READY");
 }
 
-await markWithdrawalCompleted(
-    withdrawalId
-);
+const completed =
+    await getWalletWithdrawalById(
+        withdrawalId
+    );
 return {
-  txid:
-    verifiedLog.txid,
-  ledger:
-    verifiedLog.ledger,
-  memo:
-    verifiedLog.memo,
-  fee: null,
-  fromAddress:
-    verifiedLog.sender ??
-    undefined,
-  toAddress:
-    verifiedLog.receiver ??
-    undefined,
-  network:
-    verifiedLog.network ??
-    "Pi Testnet",
+    txid: completed.blockchain_txid,
+    ledger: completed.blockchain_ledger,
+    memo: completed.blockchain_memo,
+    fromAddress:
+        completed.blockchain_from_address,
+    toAddress:
+        completed.blockchain_to_address,
+    network:
+        completed.blockchain_network,
+    fee: null,
 };
 }
 /* =====================================================
