@@ -470,6 +470,7 @@ blockchain_network = $8,
             rpc.txid
 rpc.ledger
 rpc.memo
+      null,
 rpc.sender
 rpc.receiver
 rpc.network
