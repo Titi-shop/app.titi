@@ -29,7 +29,9 @@ import {
 import {
   finalizePaymentIntent,
 } from "@/lib/db/orders.payment.intent";
-
+import {
+  createEscrow,
+} from "@/lib/db/settlement";
 import type {
   FinalizePaidOrderParams,
   FinalizePaidOrderResult,
@@ -298,6 +300,15 @@ await auditFinalizeDone(
     txid,
   }
 );
+    const escrowId = await createEscrow({
+  paymentIntentId,
+  orderId,
+  buyerId: intent.buyer_id,
+  sellerId: intent.seller_id,
+  amount: expectedAmount,
+  txid,
+  piPaymentId,
+});
     return {
       ok: true,
       already: false,
