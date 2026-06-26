@@ -33,6 +33,7 @@ import {
   createEscrow,
   markPiVerified,
   markRpcVerified,
+  linkOrder,
 } from "@/lib/db/settlement";
 import type {
   FinalizePaidOrderParams,
@@ -319,6 +320,10 @@ await markPiVerified(
 await markRpcVerified(
   paymentIntentId,
   escrowId
+);
+    await linkOrder(
+  escrowId,
+  orderId
 );
     return {
       ok: true,
