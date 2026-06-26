@@ -209,6 +209,12 @@ const rpcVerified =
       paymentIntentId,
     });
     
+  return failResult(
+    rpcVerified.amount ?? 0,
+    rpcVerified.ok
+  );
+}
+
 const finalized =
   await finalizePaidOrderFromIntent({
     paymentIntentId,
@@ -221,18 +227,12 @@ const finalized =
     piPayload:
       rpcVerified.payload,
   });
-    
-    return failResult(
-  rpcVerified.amount ?? 0,
-  rpcVerified.ok
-);
-  }
-  return successResult(
+
+return successResult(
   finalized.orderId,
   finalized.amount,
   rpcVerified.ok
 );
-
   } catch (e) {
 
   console.error("[PAYMENT][SETTLEMENT][FATAL]", {
