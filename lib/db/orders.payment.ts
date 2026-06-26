@@ -293,7 +293,8 @@ await auditPaymentIntentFinalized(
     orderId,
     piPaymentId,
     txid,
-  }
+  },
+  client
 );
 console.log("[STEP] auditFinalizeDone");
 await auditFinalizeDone(
