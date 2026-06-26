@@ -441,7 +441,7 @@ export const auditPaymentIntentFinalized = async (
     },
     db
   );
-}
+
 
   console.log("[AUDIT] PAYMENT_INTENT_FINALIZED DONE");
 };
