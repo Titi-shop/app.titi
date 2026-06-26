@@ -31,6 +31,8 @@ import {
 } from "@/lib/db/orders.payment.intent";
 import {
   createEscrow,
+  markPiVerified,
+  markRpcVerified,
 } from "@/lib/db/settlement";
 import type {
   FinalizePaidOrderParams,
@@ -305,10 +307,19 @@ await auditFinalizeDone(
   orderId,
   buyerId: intent.buyer_id,
   sellerId: intent.seller_id,
-  amount: expectedAmount,
+  amount: verifiedAmount,
   txid,
   piPaymentId,
 });
+
+await markPiVerified(
+  escrowId
+);
+
+await markRpcVerified(
+  paymentIntentId,
+  escrowId
+);
     return {
       ok: true,
       already: false,
