@@ -302,6 +302,7 @@ export async function releaseEscrow(
 ===================================================== */
 
 export async function markPiVerified(
+  client: PoolClient,
   escrowId: string
 ): Promise<void> {
 
@@ -324,6 +325,7 @@ export async function markPiVerified(
 ===================================================== */
 
 export async function markRpcVerified(
+  client: PoolClient,
   paymentIntentId: string,
   escrowId: string
 ): Promise<void> {
@@ -360,6 +362,7 @@ if (rpc.txStatus !== "SUCCESS") {
 ===================================================== */
 
 export async function linkOrder(
+  client: PoolClient,
   escrowId: string,
   orderId: string
 ): Promise<void> {
@@ -379,5 +382,6 @@ export async function linkOrder(
     metadata: {
       orderId,
     },
+    client
   });
 }
