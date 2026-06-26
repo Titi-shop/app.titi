@@ -5,7 +5,9 @@ import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import {
   writePaymentAudit,
 } from "@/lib/db/payments.audit";
-
+import {
+  getPaymentIntent,
+} from "@/lib/db/payments.intent";
 import {
   validateFinalizePayment,
 } from "@/lib/db/orders.payment.validate";
