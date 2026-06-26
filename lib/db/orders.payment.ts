@@ -326,16 +326,19 @@ await auditFinalizeDone(
 );
 console.log("[STEP] markPiVerified");
 await markPiVerified(
+  client,
   escrowId
 );
 console.log("[STEP] markRpcVerified");
 await markRpcVerified(
+  client,
   paymentIntentId,
   escrowId
 );
 console.log("[STEP] linkOrder");
     await linkOrder(
-  escrowId,
+  client,
+   escrowId,
   orderId
 );
     console.log("[STEP] creditSeller");
