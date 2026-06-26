@@ -331,7 +331,63 @@ async function handlePay(
     );
   }
 }
-  
+  async function handleResume(
+  withdrawalId: string
+) {
+  try {
+    console.log(
+      "[ADMIN_RESUME][START]",
+      {
+        withdrawalId,
+      }
+    );
+
+    const res =
+      await apiAuthFetch(
+        `/api/admin/withdraws/${withdrawalId}/resume`,
+        {
+          method: "POST",
+        }
+      );
+
+    console.log(
+      "[ADMIN_RESUME][HTTP]",
+      {
+        status: res.status,
+      }
+    );
+
+    const data =
+      await res.json();
+
+    console.log(
+      "[ADMIN_RESUME][RESPONSE]",
+      data
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        data?.error ??
+          "RESUME_FAILED"
+      );
+    }
+
+    await loadWithdraws();
+
+    alert(
+      "Withdrawal resumed"
+    );
+  } catch (err) {
+    console.error(
+      "[ADMIN_RESUME][ERROR]",
+      err
+    );
+
+    alert(
+      "Resume failed"
+    );
+  }
+}
   
   return (
     <div className="space-y-4">
@@ -466,6 +522,26 @@ async function handlePay(
   "
 >
   Sync
+</button>
+            <button
+  onClick={() =>
+    void handleResume(
+      row.id
+    )
+  }
+  disabled={
+    row.status !==
+    "PROCESSING"
+  }
+  className="
+    rounded-lg
+    border
+    px-3
+    py-2
+    text-sm
+  "
+>
+  Resume
 </button>
             <button
               className="
