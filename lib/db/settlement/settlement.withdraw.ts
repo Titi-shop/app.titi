@@ -13,10 +13,17 @@ import {
 import type {
   WithdrawSellerInput,
 } from "@/lib/payments/types";
-
 import {
   createSettlementJournalOnce,
 } from "./settlement.journal";
+
+import {
+  createSettlementEventOnce,
+} from "./settlement.event";
+
+import {
+  makeEventHash,
+} from "./settlement.utils";
 
 /* =====================================================
    SELLER WITHDRAW
@@ -190,6 +197,7 @@ if (insertResult.rowCount !== 1) {
         NOW()
 
     WHERE id = $1
+  AND available_amount >= $2
     `,
     [
       input.sellerCreditId,
@@ -203,10 +211,35 @@ if (insertResult.rowCount !== 1) {
 if (updateResult.rowCount !== 1) {
   throw new Error("SELLER_CREDIT_UPDATE_FAILED");
 }
+  const walletUpdate = await query(
+  `
+  UPDATE wallets
+  SET
+    balance = balance - $1,
+    available_balance = available_balance - $1,
+    wallet_version = wallet_version + 1,
+    updated_at = NOW()
+  WHERE user_id = $2
+    AND available_balance >= $1
+  `,
+  [
+    input.amount,
+    input.sellerId,
+  ]
+);
+
+if (walletUpdate.rowCount !== 1) {
+  throw new Error("WALLET_DEBIT_FAILED");
+}
   /* ===================================================
      4. JOURNAL
   =================================================== */
-
+const eventHash = makeEventHash({
+  sellerCreditId: input.sellerCreditId,
+  sellerId: input.sellerId,
+  amount: input.amount,
+  txid: input.txid,
+});
   await createSettlementJournalOnce({
     ownerId:
       input.sellerId,
@@ -231,5 +264,30 @@ if (updateResult.rowCount !== 1) {
 
     note:
       "Seller withdrawal processed",
+    eventHash,
+
+metadata: {
+  sellerId: input.sellerId,
+  sellerCreditId: input.sellerCreditId,
+  amount: input.amount,
+  withdrawWallet: input.withdrawWallet,
+  txid: input.txid,
+},
+
+createdBy: input.sellerId,
   });
+  
+  await createSettlementEventOnce({
+  type: "SELLER_WITHDRAWN",
+  source: "wallet",
+  reason: "SELLER_WITHDRAW",
+
+  metadata: {
+    sellerId: input.sellerId,
+    sellerCreditId: input.sellerCreditId,
+    amount: input.amount,
+    withdrawWallet: input.withdrawWallet,
+    txid: input.txid,
+  },
+});
 }
