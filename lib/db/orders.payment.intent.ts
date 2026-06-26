@@ -111,12 +111,20 @@ export async function finalizePaymentIntent(
       ]
     );
 
-  if (!result.rowCount) {
-    console.log(
-      "[PAYMENT][FINALIZE] ALREADY_PAID",
-      {
-        paymentIntentId,
-      }
-    );
-  }
+  if (result.rowCount) {
+  console.log(
+    "[PAYMENT][FINALIZE] UPDATED",
+    {
+      paymentIntentId,
+      piPaymentId,
+      txid,
+    }
+  );
+} else {
+  console.log(
+    "[PAYMENT][FINALIZE] ALREADY_PAID",
+    {
+      paymentIntentId,
+    }
+  );
 }
