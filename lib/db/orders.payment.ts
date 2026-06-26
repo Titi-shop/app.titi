@@ -35,7 +35,6 @@ import {
   markRpcVerified,
   linkOrder,
   creditSeller,
-  linkReceiptSettlementByIds,
 } from "@/lib/db/settlement";
 import type {
   FinalizePaidOrderParams,
@@ -286,6 +285,7 @@ await finalizePaymentIntent(
 console.log(
   "[PAYMENT][FINALIZE_INTENT_DONE]"
 );
+console.log("[STEP] auditPaymentIntentFinalized");
 await auditPaymentIntentFinalized(
   paymentIntentId,
   {
@@ -295,7 +295,7 @@ await auditPaymentIntentFinalized(
     txid,
   }
 );
-
+console.log("[STEP] auditFinalizeDone");
 await auditFinalizeDone(
   paymentIntentId,
   {
@@ -305,6 +305,7 @@ await auditFinalizeDone(
     txid,
   }
 );
+    console.log("[STEP] createEscrow");
     const escrowId = await createEscrow({
   paymentIntentId,
   orderId,
@@ -314,19 +315,21 @@ await auditFinalizeDone(
   txid,
   piPaymentId,
 });
-
+console.log("[STEP] markPiVerified");
 await markPiVerified(
   escrowId
 );
-
+console.log("[STEP] markRpcVerified");
 await markRpcVerified(
   paymentIntentId,
   escrowId
 );
+console.log("[STEP] linkOrder");
     await linkOrder(
   escrowId,
   orderId
 );
+    console.log("[STEP] creditSeller");
     const sellerCreditId = await creditSeller({
   escrowId,
   sellerId: intent.seller_id,
@@ -335,6 +338,7 @@ await markRpcVerified(
   orderId,
   piPaymentId,
 });
+    console.log("[STEP] receiptLink");
     await linkReceiptSettlementByIds({
   paymentIntentId,
   escrowId,
