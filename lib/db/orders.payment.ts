@@ -4,6 +4,8 @@ import { createOrder } from "@/lib/db/orders.create";
 import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import {
   writePaymentAudit,
+  auditPaymentReceiptCreated,
+  auditPiPaymentCreated,
 } from "@/lib/db/payments.audit";
 import {
   getPaymentIntent,
