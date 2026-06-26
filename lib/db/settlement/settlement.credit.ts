@@ -1,6 +1,7 @@
 // =====================================================
 // lib/db/settlement/settlement.credit.ts
 // =====================================================
+import type { PoolClient } from "pg";
 import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import {
   query,
@@ -31,7 +32,8 @@ import {
 ===================================================== */
 
 export async function creditSeller(
-  input: CreditSellerInput
+    client: PoolClient,
+    input: CreditSellerInput
 ): Promise<string> {
 const rpc =
   await getRpcVerificationLog(
@@ -137,7 +139,7 @@ if (rpc.txStatus !== "SUCCESS") {
       }
     );
 
-    await query(
+    await client.query(
       `
       INSERT INTO seller_credits (
 
@@ -287,7 +289,9 @@ withdrawn_amount,
 
       metadata:
         input,
-    });
+    },
+      client                             
+     );
 
     console.log(
       "[SETTLEMENT][CREDIT] EVENT_DONE",
@@ -324,7 +328,9 @@ await createSettlementJournalOnce({
   },
 
   createdBy: input.sellerId,
-});
+},
+     client                         
+  );
     console.log(
       "[SETTLEMENT][CREDIT] JOURNAL_DONE",
       {
