@@ -75,7 +75,7 @@ export type RpcVerificationRow = {
   receiver_match: boolean | null;
   memo_match: boolean | null;
   chain_amount_consensus: boolean | null;
-  settlement_ready: boolean;
+
 };
 
 function log(
@@ -332,7 +332,6 @@ export async function getVerifiedRpcByWithdrawalId(
   receiver_match,
   memo_match,
   chain_amount_consensus,
-  settlement_ready,
   verified,
   stage
     FROM rpc_verification_logs
