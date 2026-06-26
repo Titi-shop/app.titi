@@ -306,18 +306,15 @@ export async function markPiVerified(
   escrowId: string
 ): Promise<void> {
 
-  await createSettlementEventOnce({
+  await createSettlementEventOnce(
+  {
     escrowId,
-
-    type:
-      "PI_VERIFIED",
-
-    source:
-      "pi_api",
-
-    reason:
-      "PI_PAYMENT_VERIFIED",
-  });
+    type: "PI_VERIFIED",
+    source: "pi_api",
+    reason: "PI_PAYMENT_VERIFIED",
+  },
+  client
+);
 }
 
 /* =====================================================
@@ -343,18 +340,15 @@ if (!rpc.confirmed) {
 if (rpc.txStatus !== "SUCCESS") {
   throw new Error("RPC_TX_FAILED");
 }
-  await createSettlementEventOnce({
+  await createSettlementEventOnce(
+  {
     escrowId,
-
-    type:
-      "RPC_VERIFIED",
-
-    source:
-      "rpc",
-
-    reason:
-      "CHAIN_TX_VERIFIED",
-  });
+    type: "RPC_VERIFIED",
+    source: "rpc",
+    reason: "CHAIN_TX_VERIFIED",
+  },
+  client
+);
 }
 
 /* =====================================================
