@@ -316,32 +316,39 @@ export const auditPiCompleted = (
     newSettlementState: "PI_COMPLETED",
   });
 
-export const auditFinalizeDone = (
+export const auditFinalizeDone = async (
   paymentIntentId: string,
   params: {
     source?: string;
     orderId?: string | null;
     escrowId?: string | null;
     piPaymentId?: string | null;
-    txid?: string | null;
-  }
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    eventCode: "ORDER_FINALIZED",
-    stage: "FINALIZE",
-    actorType: "system",
+    txid?: string |null;
+  },
+  db?: Pool | PoolClient
+): Promise<void> => {
+  await writePaymentAudit(
+    {
+      paymentIntentId,
+      eventCode: "ORDER_FINALIZED",
+      stage: "FINALIZE",
+      actorType: "system",
 
-    source: params.source,
+      source: params.source,
 
-    orderId: params.orderId,
-    escrowId: params.escrowId,
-    piPaymentId: params.piPaymentId,
-    txid: params.txid,
+      orderId: params.orderId,
+      escrowId: params.escrowId,
+      piPaymentId: params.piPaymentId,
+      txid: params.txid,
 
-    newPaymentStatus: "paid",
-    newSettlementState: "ORDER_FINALIZED",
-  });
+      newPaymentStatus: "paid",
+      newSettlementState: "ORDER_FINALIZED",
+    },
+    db
+  );
+
+  console.log("[AUDIT] ORDER_FINALIZED DONE");
+};
 
 export const auditManualReview = (
   paymentIntentId: string,
@@ -369,52 +376,66 @@ export const auditDuplicateSubmit = (
     actorType: "system",
     payload,
   });
-export const auditPaymentReceiptCreated = (
+export const auditPaymentReceiptCreated = async (
   paymentIntentId: string,
   params: {
     source?: string;
     orderId: string;
     piPaymentId: string;
     txid: string;
-  }
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    eventCode: "PAYMENT_RECEIPT_CREATED",
-    stage: "FINALIZE",
-    actorType: "system",
+  },
+  db?: Pool | PoolClient
+): Promise<void> => {
+  await writePaymentAudit(
+    {
+      paymentIntentId,
+      eventCode: "PAYMENT_RECEIPT_CREATED",
+      stage: "FINALIZE",
+      actorType: "system",
 
-    source: params.source,
+      source: params.source,
 
-    orderId: params.orderId,
-    piPaymentId: params.piPaymentId,
-    txid: params.txid,
+      orderId: params.orderId,
+      piPaymentId: params.piPaymentId,
+      txid: params.txid,
 
-    newSettlementState: "PAYMENT_RECEIPT_CREATED",
-  });
-export const auditPiPaymentCreated = (
+      newSettlementState: "PAYMENT_RECEIPT_CREATED",
+    },
+    db
+  );
+
+  console.log("[AUDIT] PAYMENT_RECEIPT_CREATED DONE");
+};
+export const auditPiPaymentCreated = async (
   paymentIntentId: string,
   params: {
     source?: string;
     orderId: string;
     piPaymentId: string;
     txid: string;
-  }
-) =>
-  writePaymentAudit({
-    paymentIntentId,
-    eventCode: "PI_PAYMENT_CREATED",
-    stage: "FINALIZE",
-    actorType: "system",
+  },
+  db?: Pool | PoolClient
+): Promise<void> => {
+  await writePaymentAudit(
+    {
+      paymentIntentId,
+      eventCode: "PI_PAYMENT_CREATED",
+      stage: "FINALIZE",
+      actorType: "system",
 
-    source: params.source,
+      source: params.source,
 
-    orderId: params.orderId,
-    piPaymentId: params.piPaymentId,
-    txid: params.txid,
+      orderId: params.orderId,
+      piPaymentId: params.piPaymentId,
+      txid: params.txid,
 
-    newSettlementState: "PI_PAYMENT_CREATED",
-  });
+      newSettlementState: "PI_PAYMENT_CREATED",
+    },
+    db
+  );
+
+  console.log("[AUDIT] PI_PAYMENT_CREATED DONE");
+};
 export const auditPaymentIntentFinalized = async (
   paymentIntentId: string,
   params: {
