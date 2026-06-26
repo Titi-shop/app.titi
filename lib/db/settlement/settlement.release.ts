@@ -98,7 +98,9 @@ const rpc =
 if (!rpc) {
   throw new Error("RPC_LOG_NOT_FOUND");
 }
-
+if (!rpc.verified) {
+  throw new Error("RPC_NOT_VERIFIED");
+}
 if (!rpc.confirmed) {
   throw new Error("RPC_NOT_CONFIRMED");
 }
@@ -123,13 +125,11 @@ if (rpc.txStatus !== "SUCCESS") {
     }
   );
 
-  const amount =
-  Number(rpc.amount);
+  const amount = Number(escrow.amount);
 
-  if (
-    Number.isNaN(amount) ||
-    amount <= 0
-  ) {
+if (Number.isNaN(amount) || amount <= 0) {
+  throw new Error("INVALID_ESCROW_AMOUNT");
+}
 
     console.error(
       "[SETTLEMENT][RELEASE] INVALID_AMOUNT",
