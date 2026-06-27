@@ -6,7 +6,7 @@ import {
 
 import {
   approveWalletWithdrawal,
-} from "@/lib/db/wallet/wallet.withdraw";
+} from "@/lib/db/wallet/wallet.withdraw.approve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
