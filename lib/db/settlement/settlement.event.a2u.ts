@@ -44,27 +44,14 @@ export type WithdrawalSettlementEventInput =
    EVENTS
 ===================================================== */
 
-export const WithdrawalSettlementEvents = {
-
-  WITHDRAW_APPROVED:
-    "WITHDRAW_APPROVED",
-
-  WITHDRAW_PROCESSING:
-    "WITHDRAW_PROCESSING",
-
-  JOURNAL_CREATED:
-    "JOURNAL_CREATED",
-
-  WITHDRAW_COMPLETED:
-    "WITHDRAW_COMPLETED",
-
-  BALANCE_RELEASED:
-    "BALANCE_RELEASED",
-
-  JOURNAL_REVERTED:
-    "JOURNAL_REVERTED",
-
-} as const;
+export enum WithdrawalSettlementEvents {
+  WITHDRAW_APPROVED = "WITHDRAW_APPROVED",
+  WITHDRAW_PROCESSING = "WITHDRAW_PROCESSING",
+  JOURNAL_CREATED = "JOURNAL_CREATED",
+  WITHDRAW_COMPLETED = "WITHDRAW_COMPLETED",
+  BALANCE_RELEASED = "BALANCE_RELEASED",
+  JOURNAL_REVERTED = "JOURNAL_REVERTED",
+}
 /* =====================================================
    LOG
 ===================================================== */
