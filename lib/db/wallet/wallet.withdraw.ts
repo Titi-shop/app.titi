@@ -511,10 +511,7 @@ export async function markWithdrawalFailed(
           `,
           [withdrawalId]
         );
-      vlog("MARK_COMPLETED_DONE", {
-  withdrawalId,
-  txid: rpc.txid,
-});
+      
       if (
         withdrawalRs.rowCount !== 1
       ) {
