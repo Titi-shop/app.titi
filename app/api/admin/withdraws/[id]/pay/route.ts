@@ -43,7 +43,10 @@ export async function POST(
 
     const result =
       await payWithdrawal(id);
-
+console.log(
+  "[ADMIN_PAY_WITHDRAW][RESULT]",
+  result
+);
     return NextResponse.json({
       success: true,
       ...result,
