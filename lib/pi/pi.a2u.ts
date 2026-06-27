@@ -480,44 +480,32 @@ const txid =
   String(
     submitResult.id
   );
-
-await verifyA2UWithdrawal(
-  withdrawalId,
-  txid
-);
+await verifyA2UWithdrawal(withdrawalId, txid);
 
 const verifiedLog =
-  await getVerifiedRpcByWithdrawalId(
-    withdrawalId
-  );
-  
-vlog(
-  "RPC_LOG_VERIFIED",
-  verifiedLog
-);
+  await getVerifiedRpcByWithdrawalId(withdrawalId);
+
 if (!verifiedLog) {
-    throw new Error("RPC_LOG_NOT_FOUND");
+  throw new Error("RPC_LOG_NOT_FOUND");
 }
 
-if (!verifiedLog.settlement_ready) {
-    throw new Error("RPC_SETTLEMENT_NOT_READY");
-}
+await markWithdrawalCompleted(withdrawalId);
 
 const completed =
-    await getWalletWithdrawalById(
-        withdrawalId
-    );
+  await getWalletWithdrawalById(withdrawalId);
+
+if (!completed?.blockchain_txid) {
+  throw new Error("WITHDRAWAL_COMPLETE_FAILED");
+}
+
 return {
-    txid: completed.blockchain_txid,
-    ledger: completed.blockchain_ledger,
-    memo: completed.blockchain_memo,
-    fromAddress:
-        completed.blockchain_from_address,
-    toAddress:
-        completed.blockchain_to_address,
-    network:
-        completed.blockchain_network,
-    fee: null,
+  txid: completed.blockchain_txid,
+  ledger: completed.blockchain_ledger,
+  memo: completed.blockchain_memo,
+  fromAddress: completed.blockchain_from_address,
+  toAddress: completed.blockchain_to_address,
+  network: completed.blockchain_network,
+  fee: null,
 };
 }
 /* =====================================================
