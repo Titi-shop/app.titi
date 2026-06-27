@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guard";
 import {
   getWalletWithdrawalById,
-  retryWithdrawal,
 } from "@/lib/db/wallet/wallet.withdraw";
+import {
+  retryWithdrawal,
+} from "@/lib/db/wallet/wallet.withdraw.retry";
 export async function POST(
   _req: Request,
   context: {
