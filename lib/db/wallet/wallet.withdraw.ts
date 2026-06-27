@@ -339,63 +339,7 @@ await createWalletJournal({
     }
   );
 }
-export async function markWithdrawalProcessing(
-  withdrawalId: string,
-  piPaymentId: string,
-  piPaymentMemo?: string,
-  piUid?: string,
-  blockchainNetwork?: string
-): Promise<void> {
-  vlog("MARK_PROCESSING_START", {
-    withdrawalId,
-    piPaymentId,
-  });
 
-  const rs = await query(
-  `
-  UPDATE wallet_withdrawals
-  SET
-  status = 'PROCESSING',
-  pi_payment_id = $2,
-  pi_uid = $3,
-  pi_payment_memo = $4
-  WHERE id = $1
-    AND status = 'APPROVED'
-  `,
-  [
-  withdrawalId,
-  piPaymentId,
-  piUid,
-  piPaymentMemo,
-]
-);
-
-  vlog("MARK_PROCESSING_RESULT", {
-    rowCount: rs.rowCount,
-  });
-
-  if (rs.rowCount !== 1) {
-    throw new Error(
-      "WITHDRAWAL_PROCESSING_FAILED"
-    );
-  }
-}
-await createWithdrawalSettlementEventOnce({
-    withdrawalId,
-
-    eventType:
-        WithdrawalSettlementEvents.WITHDRAW_PROCESSING,
-
-    source:
-        "wallet.withdraw",
-
-    reason:
-        "Developer started blockchain payment",
-
-    metadata: {
-        piPaymentId,
-    },
-});
 export async function markWithdrawalCompleted(
   withdrawalId: string
 ): Promise<void> {
