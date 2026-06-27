@@ -136,17 +136,18 @@ await verifyWithdrawalRpc(
   tx.txid
 );
 
-await markWithdrawalCompleted(
-  withdrawal.id
-);
+await markWithdrawalCompleted(withdrawal.id);
+log("AFTER_MARK_COMPLETED");
 
-    return {
-      withdrawalId:
-        withdrawal.id,
-      piPaymentId,
-      txid:
-        tx.txid,
-    };
+    const result = {
+  withdrawalId: withdrawal.id,
+  piPaymentId,
+  txid: tx.txid,
+};
+
+log("RETURN", result);
+
+return result;
   }
   catch (error) {
 
