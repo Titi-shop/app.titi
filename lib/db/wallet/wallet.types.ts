@@ -17,7 +17,6 @@ export type OrderRow = {
 export type JournalDirection =
   | "CREDIT"
   | "DEBIT";
-
 export type JournalEntryType =
   | "ESCROW_HOLD"
   | "BUYER_REFUND"
@@ -123,10 +122,11 @@ export type WalletApiResponse = {
   transactions:
     WalletTransaction[];
 };
-
 export type WalletWithdrawalStatus =
   | "PENDING"
-  | "SENT"
+  | "APPROVED"
+  | "PROCESSING"
+  | "COMPLETED"
   | "FAILED"
   | "CANCELLED";
 
