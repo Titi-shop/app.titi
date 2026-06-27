@@ -1,14 +1,4 @@
 
-
-import {
-  createWalletJournal,
-} from "./wallet.journal";
-import {
-  getVerifiedRpcByWithdrawalId,
-} from "@/lib/db/payments.rpc.a2u";
-import type {
-  WalletClient,
-} from "./wallet.types";
 function vlog(
   step: string,
   data?: unknown
