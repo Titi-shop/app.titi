@@ -12,7 +12,6 @@ import {
 import {
   getWalletWithdrawalById,
   markWithdrawalCompleted,
-  markWithdrawalFailed,
 } from "@/lib/db/wallet/wallet.withdraw";
 import {
   markWithdrawalFailed,
