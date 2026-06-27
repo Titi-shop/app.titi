@@ -12,7 +12,10 @@ import {
   query,
   withTransaction,
 } from "@/lib/db";
-
+import {
+  createWithdrawalSettlementEventOnce,
+  WithdrawalSettlementEvents,
+} from "@/lib/db/settlement/withdrawal.settlement.event";
 import {
   reserveWalletBalance,
   releaseReservedBalance,
@@ -292,6 +295,24 @@ await createWalletJournal({
 
   client,
 });
+      await createWithdrawalSettlementEventOnce(
+  {
+    withdrawalId,
+
+    eventType:
+      WithdrawalSettlementEvents.WITHDRAW_APPROVED,
+
+    source:
+      "wallet.withdraw",
+
+    reason:
+      "Withdrawal approved",
+
+    metadata: {},
+  },
+
+  client
+);
       const rs =
         await client.query(
           `
@@ -359,6 +380,22 @@ export async function markWithdrawalProcessing(
     );
   }
 }
+await createWithdrawalSettlementEventOnce({
+    withdrawalId,
+
+    eventType:
+        WithdrawalSettlementEvents.WITHDRAW_PROCESSING,
+
+    source:
+        "wallet.withdraw",
+
+    reason:
+        "Developer started blockchain payment",
+
+    metadata: {
+        piPaymentId,
+    },
+});
 export async function markWithdrawalCompleted(
   withdrawalId: string
 ): Promise<void> {
@@ -438,6 +475,25 @@ await createWalletJournal({
 
   client,
 });
+      await createWithdrawalSettlementEventOnce(
+{
+    withdrawalId,
+
+    eventType:
+        WithdrawalSettlementEvents.JOURNAL_CREATED,
+
+    source:
+        "wallet.journal",
+
+    reason:
+        "Wallet journal created",
+
+    metadata: {
+        txid: rpc.txid,
+    },
+},
+client
+);
       vlog("JOURNAL_DONE");
       const rs =
         await client.query(
@@ -448,7 +504,6 @@ await createWalletJournal({
 
 blockchain_txid = $2,
 txid = $2,
-
 blockchain_ledger = $3,
 blockchain_memo = $4,
 blockchain_fee = $5,
@@ -473,6 +528,26 @@ rpc.receiver,
 rpc.network,
           ]
         );
+      await createWithdrawalSettlementEventOnce(
+{
+    withdrawalId,
+
+    eventType:
+        WithdrawalSettlementEvents.WITHDRAW_COMPLETED,
+
+    source:
+        "wallet.withdraw",
+
+    reason:
+        "Withdrawal completed",
+
+    metadata: {
+        txid: rpc.txid,
+        ledger: rpc.ledger,
+    },
+},
+client
+);
 vlog("UPDATE_DONE", {
   rowCount: rs.rowCount,
 });
@@ -530,6 +605,23 @@ export async function markWithdrawalFailed(
         ),
         client
       );
+      await createWithdrawalSettlementEventOnce(
+{
+    withdrawalId,
+
+    eventType:
+        WithdrawalSettlementEvents.BALANCE_RELEASED,
+
+    source:
+        "wallet.balance",
+
+    reason:
+        "Reserved balance released",
+
+    metadata: {},
+},
+client
+);
 await createWalletJournal({
   client,
 
@@ -566,6 +658,23 @@ await createWalletJournal({
     stage: "FAILED",
   },
 });
+      await createWithdrawalSettlementEventOnce(
+{
+    withdrawalId,
+
+    eventType:
+        WithdrawalSettlementEvents.JOURNAL_REVERTED,
+
+    source:
+        "wallet.journal",
+
+    reason:
+        "Withdraw journal reverted",
+
+    metadata: {},
+},
+client
+);
       const rs =
         await client.query(
           `
