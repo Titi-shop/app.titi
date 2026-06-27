@@ -362,7 +362,16 @@ export async function markWithdrawalProcessing(
 export async function markWithdrawalCompleted(
   withdrawalId: string
 ): Promise<void> {
+let rpc =
+  await getVerifiedRpcByWithdrawalId(
+    withdrawalId
+  );
 
+if (!rpc) {
+  throw new Error(
+    "RPC_LOG_NOT_FOUND"
+  );
+}
   vlog("MARK_COMPLETED_START", {
   withdrawalId,
 });
@@ -396,17 +405,6 @@ export async function markWithdrawalCompleted(
 
       const withdrawal =
         withdrawalRs.rows[0];
-const rpc =
-  await getVerifiedRpcByWithdrawalId(
-    withdrawalId
-  );
-
-if (!rpc) {
-  throw new Error(
-    "RPC_LOG_NOT_FOUND"
-  );
-}
-
       await finalizeReservedBalance(
         withdrawal.user_id,
         Number(
@@ -508,7 +506,13 @@ export async function markWithdrawalFailed(
           `,
           [withdrawalId]
         );
-
+vlog(
+  "MARK_COMPLETED_DONE",
+  {
+    withdrawalId,
+    txid: rpc.txid,
+  }
+);
       if (
         withdrawalRs.rowCount !== 1
       ) {
@@ -592,13 +596,6 @@ await createWalletJournal({
       }
     }
   );
-  vlog(
-  "MARK_COMPLETED_DONE",
-  {
-    withdrawalId,
-    txid: rpc.txid,
-  }
-);
 }
 export async function getWalletWithdrawalById(
   withdrawalId: string
