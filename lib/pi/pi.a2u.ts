@@ -377,10 +377,11 @@ export async function submitA2UPayment(
     payment.memo ?? null,
   fee: null,
   fromAddress:
-    payment.from_address,
+    payment.from_address ?? null,
   toAddress:
-    payment.to_address,
-  
+    payment.to_address ?? null,
+  network:
+    payment.network ?? null,
 };
 }
 
