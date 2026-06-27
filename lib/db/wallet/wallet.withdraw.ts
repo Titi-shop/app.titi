@@ -1,26 +1,4 @@
 
-// =====================================================
-// lib/db/wallet/wallet.withdraw.ts
-// =====================================================
-
-import {
-  randomUUID,
-  createHash,
-} from "crypto";
-
-import {
-  query,
-  withTransaction,
-} from "@/lib/db";
-import {
-  createWithdrawalSettlementEventOnce,
-  WithdrawalSettlementEvents,
-} from "@/lib/db/settlement/settlement.event.a2u";
-import {
-  reserveWalletBalance,
-  releaseReservedBalance,
-  finalizeReservedBalance,
-} from "./wallet.balance";
 
 import {
   createWalletJournal,
