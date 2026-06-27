@@ -5,7 +5,9 @@
 import {
   getUserById,
 } from "@/lib/db/users";
-
+import {
+  verifyWithdrawalRpc,
+} from "@/lib/db/payments.rpc.a2u";
 import {
   getWalletWithdrawalById,
   markWithdrawalProcessing,
@@ -124,10 +126,19 @@ export async function payWithdrawal(
     piPaymentId
   );
 
-    await completeA2UPayment(
-      piPaymentId,
-      tx.txid
-    );
+await completeA2UPayment(
+  piPaymentId,
+  tx.txid
+);
+
+await verifyWithdrawalRpc(
+  withdrawal.id,
+  tx.txid
+);
+
+await markWithdrawalCompleted(
+  withdrawal.id
+);
 
     return {
       withdrawalId:
