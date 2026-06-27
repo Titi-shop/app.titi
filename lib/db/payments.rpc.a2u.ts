@@ -1,6 +1,8 @@
 import { query } from "@/lib/db";
 import { getRpcTransaction } from "@/lib/rpc/client";
-
+import {
+  upsertWithdrawalReceipt,
+} from "@/lib/db/wallet/wallet.withdraw.receipt";
 import {
   getWalletWithdrawalById,
 } from "@/lib/db/wallet/wallet.withdraw";
