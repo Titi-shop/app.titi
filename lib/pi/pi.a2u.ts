@@ -683,7 +683,7 @@ export async function payWithdrawal(
       piPaymentId,
       txid: tx.txid,
     };
-
+  }
   catch (error) {
   const originalError = error;
 
