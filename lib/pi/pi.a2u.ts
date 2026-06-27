@@ -684,19 +684,25 @@ export async function payWithdrawal(
       txid: tx.txid,
     };
 
-  } catch (error) {
+  catch (error) {
+  const originalError = error;
 
-    if (
-      processingStarted
-    ) {
+  if (processingStarted) {
+    try {
       await markWithdrawalFailed(
         withdrawalId,
-        error instanceof Error
-          ? error.message
-          : String(error)
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError)
+      );
+    } catch (rollbackError) {
+      console.error(
+        "[ROLLBACK_FAILED]",
+        rollbackError
       );
     }
-
-    throw error;
   }
+
+  throw originalError;
+}
 }
