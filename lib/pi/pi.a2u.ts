@@ -39,6 +39,19 @@ if (!PI_SEED) {
     "MISSING_PI_WALLET_PRIVATE_SEED"
   );
 }
+const PI_HORIZON =
+  process.env.PI_HORIZON_URL;
+
+const PI_NETWORK_PASSPHRASE =
+  process.env.PI_NETWORK_PASSPHRASE;
+
+if (!PI_HORIZON) {
+  throw new Error("MISSING_PI_HORIZON_URL");
+}
+
+if (!PI_NETWORK_PASSPHRASE) {
+  throw new Error("MISSING_PI_NETWORK_PASSPHRASE");
+}
 vlog(
   "ENV_CHECK",
   {
@@ -382,11 +395,6 @@ export async function submitA2UPayment(
     keypair.publicKey()
   );
 
-  const server =
-    new StellarSdk.Horizon.Server(
-      "https://api.testnet.minepi.com"
-    );
-
   const account =
     await server.loadAccount(
       keypair.publicKey()
@@ -414,8 +422,7 @@ export async function submitA2UPayment(
       {
         fee:
           fee.toString(),
-        networkPassphrase:
-          "Pi Testnet",
+        
       }
     )
       .addOperation(
@@ -476,6 +483,7 @@ return {
     payment.network ??
     "Pi Testnet",
 };
+}
 /* =====================================================
    CANCEL PAYMENT
 ===================================================== */
