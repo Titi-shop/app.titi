@@ -483,13 +483,7 @@ rpc.network,
     }
   );
 
-  vlog(
-    "MARK_COMPLETED_DONE",
-    {
-      withdrawalId,
-      txid: rpc.txid,
-    }
-);
+  
 }
 export async function markWithdrawalFailed(
   withdrawalId: string,
@@ -598,6 +592,13 @@ await createWalletJournal({
       }
     }
   );
+  vlog(
+  "MARK_COMPLETED_DONE",
+  {
+    withdrawalId,
+    txid: rpc.txid,
+  }
+);
 }
 export async function getWalletWithdrawalById(
   withdrawalId: string
