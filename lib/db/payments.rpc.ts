@@ -133,7 +133,77 @@ async function insertRpcLog(
     reason: input.reason,
   });
 
-  await query(
+  const values = [
+  input.paymentIntentId,
+  input.piPaymentId,
+  input.txid,
+  input.verified,
+  input.stage,
+  input.reason,
+  input.amount,
+  input.expectedAmount,
+
+  input.sender,
+  input.receiver,
+  input.expectedReceiver,
+
+  input.amountMatch,
+  input.receiverMatch,
+  input.senderMatch,
+
+  input.mismatchReason,
+  input.fraudReason,
+
+  input.verificationHash,
+  input.ledger,
+  input.txStatus,
+  input.chainReference,
+
+  JSON.stringify(input.payload ?? {}),
+
+  input.rpcReachable,
+  input.expectedSender,
+  input.expectedMemo,
+  input.memoMatch,
+  input.memoFound,
+  input.network,
+  input.verificationVersion,
+  input.verificationMethod,
+  JSON.stringify(input.verificationSnapshot ?? {}),
+
+  input.feeStroops,
+  input.feePi,
+  input.latestLedger,
+  input.oldestLedger,
+  input.applicationOrder,
+
+  input.successful,
+  input.operationCount,
+
+  input.sourceAccount,
+  input.memoType,
+
+  input.chainPaymentAmount,
+  input.chainEventAmount,
+  input.senderBalanceDelta,
+  input.receiverBalanceDelta,
+  input.chainAmountConsensus,
+
+  input.confirmed,
+  input.parseLayer,
+  input.hasMeta,
+  input.hasEvents,
+  input.senderFound,
+  input.receiverFound,
+  input.amountFound,
+  input.createdAt,
+  input.memo,
+];
+
+console.log("[VALUES_LENGTH]", values.length);
+console.log(values);
+
+await query(
   `
   INSERT INTO rpc_verification_logs (
     payment_intent_id,
@@ -276,74 +346,7 @@ $44,$45,$46,$47,$48,$49,$50,$51,$52,$53
     created_at_chain = EXCLUDED.created_at_chain,
 memo = EXCLUDED.memo,
 updated_at = now()
-  `,
-  [
-    
-  input.paymentIntentId,
-  input.piPaymentId,
-  input.txid,
-  input.verified,
-  input.stage,
-  input.reason,
-  input.amount,
-  input.expectedAmount,
-
-  input.sender,
-  input.receiver,
-  input.expectedReceiver,
-  input.amountMatch,
-  input.receiverMatch,
-  input.senderMatch,
-  input.mismatchReason,
-  input.fraudReason,
-
-  input.verificationHash,
-  input.ledger,
-  input.txStatus,
-  input.chainReference,
-  JSON.stringify(input.payload ?? {}),
-  input.rpcReachable,
-  input.confirmed,
-  input.parseLayer,
-  input.hasMeta,
-  input.hasEvents,
-  input.senderFound,
-input.receiverFound,
-input.amountFound,
-input.createdAt,
-input.memo,
-    input.expectedSender,
-input.expectedMemo,
-
-input.memoMatch,
-input.memoFound,
-
-input.network,
-
-input.verificationVersion,
-input.verificationMethod,
-
-JSON.stringify(
-  input.verificationSnapshot ?? {}
-),
-
-input.feeStroops,
-input.feePi,
-input.latestLedger,
-input.oldestLedger,
-input.applicationOrder,
-
-input.successful,
-input.operationCount,
-input.sourceAccount,
-input.memoType,
-input.chainPaymentAmount,
-input.chainEventAmount,
-input.senderBalanceDelta,
-input.receiverBalanceDelta,
-input.chainAmountConsensus,
-]
-
+values
 );
 }
 /* =========================================================
