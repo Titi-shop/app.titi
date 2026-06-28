@@ -85,12 +85,20 @@ export type RpcVerifyResult = {
 export type ParsedRpcTransaction = {
   hash: string;
 
-  ledger: number |null;
+  ledger: number | null;
 
   amount: number | null;
+
   chainPaymentAmount: number | null;
+  chainEventAmount: number | null;
+
+  chainAmountConsensus: boolean | null;
+
   sender: string | null;
   receiver: string | null;
+
+  senderBalanceDelta: number | null;
+  receiverBalanceDelta: number | null;
 
   memo: string | null;
   memoType: string | null;
@@ -115,6 +123,8 @@ export type ParsedRpcTransaction = {
 
   sourceAccount: string | null;
 
+  network: string | null;
+
   raw: unknown;
 
   debug: {
@@ -128,5 +138,4 @@ export type ParsedRpcTransaction = {
     hasEvents: boolean;
   };
 };
-  
 
