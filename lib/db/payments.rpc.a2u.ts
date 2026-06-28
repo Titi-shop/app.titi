@@ -410,8 +410,8 @@ if (!memoMatch) {
   memoMatch,
   memoFound: rpc.memo !== null,
 
-  network: withdrawal.blockchain_network ?? "Pi Testnet",
-
+  network:
+  rpc.network,
   verificationVersion: 1,
   verificationMethod: "RPC",
 
