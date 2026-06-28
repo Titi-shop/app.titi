@@ -95,8 +95,6 @@ function sameAmount(a: number, b: number): boolean {
     return null;
   }
 
-  return stroops / 10_000_000;
-}
 function buildVerificationHash(input: {
   paymentIntentId: string;
   txid: string;
