@@ -61,6 +61,8 @@ feeStroops: number | null;
 latestLedger: number | null;
 oldestLedger: number | null;
 applicationOrder: number | null;
+operationCount: number | null;
+successful: boolean;
 sourceAccount: string | null;
 memoType: string | null;
 };
@@ -247,6 +249,8 @@ verification_method,
     receiver_found,
     amount_found,
     fee_stroops,
+    successful,
+operationCount,
 fee_pi,
 latest_ledger,
 oldest_ledger,
@@ -283,9 +287,9 @@ verification_snapshot,
   $35,$36,
   $37,$38,$39,
   $40,$41,$42,$43,
-  $44::jsonb,
-  $45,$46,$47,$48,
-  $49::jsonb
+  $44,$45,$46::jsonb,
+  $47,$48,
+  $49,$50,$51::jsonb
   )
   `,
   values
