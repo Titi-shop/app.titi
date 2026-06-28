@@ -100,7 +100,7 @@ export async function upsertWithdrawalReceipt(
       $9,
 
       'completed',
-      'RPC',
+      'RPC_NODE',
 
       $10,
       $11,
