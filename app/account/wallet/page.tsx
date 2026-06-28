@@ -38,21 +38,25 @@ export default function WalletPage() {
 
   const {
 
-    loading,
+  loading,
 
-    refreshing,
+  refreshing,
 
-    balance,
+  balance,
 
-    transactions,
+  wallets,
 
-    totalIn,
+  defaultWallet,
 
-    totalOut,
+  transactions,
 
-    refresh,
+  totalIn,
 
-  } = useWallet();
+  totalOut,
+
+  refresh,
+
+} = useWallet();
 
   /* ===================================================
      MODAL
@@ -94,13 +98,19 @@ export default function WalletPage() {
 
 <WalletHero
   balance={balance.balance}
-  defaultWallet={defaultWallet}
   refreshing={refreshing}
-  defaultWallet={{
-    address: "GABCD...XYZ123",
-    network: "PI",
-    is_verified: true,
-  }}
+  defaultWallet={
+    defaultWallet
+      ? {
+          address:
+            defaultWallet.address,
+          network:
+            defaultWallet.network,
+          is_verified:
+            defaultWallet.isVerified,
+        }
+      : null
+  }
   onRefresh={() => {
     void refresh();
   }}
@@ -132,19 +142,15 @@ export default function WalletPage() {
 
       {/* WITHDRAW MODAL */}
 
-      <WalletWithdrawModal
-        open={
-          withdrawOpen
-        }
-        onClose={() => {
-          setWithdrawOpen(
-            false
-          );
-        }}
-        onSuccess={
-          refresh
-        }
-      />
+    <WalletWithdrawModal
+  open={withdrawOpen}
+  wallets={wallets}
+  defaultWallet={defaultWallet}
+  onClose={() => {
+    setWithdrawOpen(false);
+  }}
+  onSuccess={refresh}
+/>
     </>
   );
 }
