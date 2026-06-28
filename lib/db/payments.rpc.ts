@@ -67,34 +67,6 @@ function sameAmount(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.0000001;
 }
 
-  const first =
-    operations[0] as
-      | Record<string, unknown>
-      | undefined;
-
-  const body =
-    first?.body as
-      | Record<string, unknown>
-      | undefined;
-
-  const payment =
-    body?.payment as
-      | Record<string, unknown>
-      | undefined;
-
-  const amount =
-    payment?.amount;
-
-  if (typeof amount !== "string") {
-    return null;
-  }
-
-  const stroops = Number(amount);
-
-  if (!Number.isFinite(stroops)) {
-    return null;
-  }
-
 function buildVerificationHash(input: {
   paymentIntentId: string;
   txid: string;
