@@ -3,15 +3,17 @@
 // =====================================================
 import type {
   JournalEntryType,
-} from "@/lib/db/wallet/wallet.types";
+} from "./wallet.types";
 /* =====================================================
    LABELS
 ===================================================== */
 export const ENTRY_LABELS:
-  Record<
-    JournalEntryType,
-    string
-  > = {
+  Partial<
+    Record<
+        JournalEntryType,
+        string
+    >
+> = {
   ESCROW_HOLD:
     "Escrow Hold",
   BUYER_REFUND:
