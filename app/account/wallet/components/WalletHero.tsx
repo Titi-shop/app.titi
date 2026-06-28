@@ -14,8 +14,10 @@ import {
 
 import WalletActions
   from "./WalletActions";
+
 import WalletDefaultAddress
   from "./WalletDefaultAddress";
+
 import {
   formatPi,
 } from "../wallet.utils";
@@ -26,14 +28,19 @@ import {
 
 type Props = {
   balance: number;
+
   refreshing: boolean;
+
   defaultWallet?: {
     address: string;
-    verified: boolean;
+    network: string;
+    is_verified: boolean;
   } | null;
 
   onRefresh: () => void;
+
   onWithdraw: () => void;
+
   onWalletClick?: () => void;
 };
 
@@ -56,83 +63,144 @@ export default function WalletHero({
   return (
     <section
       className="
-        relative overflow-hidden
+        relative
+        overflow-hidden
         rounded-b-[2.5rem]
-        border-b border-orange-500/10
+        border-b
+        border-orange-500/10
         bg-gradient-to-br
         from-orange-500
         via-orange-500
         to-amber-500
-        px-5 pb-8 pt-8
+        px-5
+        pb-8
+        pt-8
         text-white
         shadow-xl
       "
     >
 
-      {/* glow */}
+      {/* Glow */}
 
       <div
         className="
-          absolute -right-10 -top-10
-          h-40 w-40 rounded-full
-          bg-white/10 blur-3xl
+          absolute
+          -right-10
+          -top-10
+          h-40
+          w-40
+          rounded-full
+          bg-white/10
+          blur-3xl
         "
       />
 
       <div
         className="
-          absolute bottom-0 left-0
-          h-32 w-32 rounded-full
-          bg-yellow-300/10 blur-3xl
+          absolute
+          bottom-0
+          left-0
+          h-32
+          w-32
+          rounded-full
+          bg-yellow-300/10
+          blur-3xl
         "
       />
 
-      {/* TOP */}
+      <div className="relative z-10">
 
- <div
-  className="
-    relative z-10 flex items-start
-    justify-between gap-4
-  "
->
+        {/* TOP */}
 
-  <div>
+        <div
+          className="
+            flex
+            items-start
+            justify-between
+            gap-4
+          "
+        >
 
-    <p className="text-sm text-white/80">
-      {t.wallet_balance ??
-        "Wallet Balance"}
-    </p>
+          <div>
 
-    <h1
-      className="
-        mt-3 text-4xl
-        font-black tracking-tight
-      "
-    >
-      π {formatPi(balance)}
-    </h1>
+            <p
+              className="
+                text-sm
+                text-white/80
+              "
+            >
+              {t.wallet_balance ??
+                "Wallet Balance"}
+            </p>
 
-  </div>
+            <h1
+              className="
+                mt-3
+                text-4xl
+                font-black
+                tracking-tight
+              "
+            >
+              π {formatPi(balance)}
+            </h1>
 
-  <WalletDefaultAddress
-    wallet={
-      defaultWallet
-        ? {
-            address: defaultWallet.address,
-            network: "PI",
-            is_verified: defaultWallet.verified,
+          </div>
+
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="
+              flex
+              h-11
+              w-11
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-white/20
+              bg-white/10
+              backdrop-blur-md
+              transition-all
+              duration-200
+              active:scale-95
+            "
+          >
+
+            <RefreshCcw
+              size={18}
+              className={
+                refreshing
+                  ? "animate-spin"
+                  : ""
+              }
+            />
+
+          </button>
+
+        </div>
+
+        {/* DEFAULT WALLET */}
+
+        <WalletDefaultAddress
+          wallet={
+            defaultWallet ??
+            null
           }
-        : null
-    }
-    onClick={onWalletClick}
-  />
+          onClick={
+            onWalletClick
+          }
+        />
 
-</div>
+        {/* ACTIONS */}
 
-<WalletActions
-  onWithdraw={onWithdraw}
-/>
+        <WalletActions
+          onWithdraw={
+            onWithdraw
+          }
+        />
 
-</section>
+      </div>
+
+    </section>
   );
 }
