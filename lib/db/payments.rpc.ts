@@ -346,7 +346,8 @@ $44,$45,$46,$47,$48,$49,$50,$51,$52,$53
     created_at_chain = EXCLUDED.created_at_chain,
 memo = EXCLUDED.memo,
 updated_at = now()
-values
+`,
+  values
 );
 }
 /* =========================================================
