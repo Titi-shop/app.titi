@@ -710,9 +710,7 @@ network:
   rpcTx.network,
 
 verificationVersion: 1,
-
 verificationMethod: "RPC",
-
 verificationSnapshot: {
   amountMatch,
   receiverMatch,
@@ -745,7 +743,8 @@ sourceAccount:
 memoType:
   rpcTx.memoType,
 
-chainPaymentAmount: null,
+chainPaymentAmount:
+    rpcTx.chainPaymentAmount,
 chainEventAmount: rpcTx.chainEventAmount,
 
 senderBalanceDelta: null,
