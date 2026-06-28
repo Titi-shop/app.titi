@@ -92,20 +92,20 @@ export default function WalletPage() {
 
         {/* HERO */}
 
-   <WalletHero
+<WalletHero
   balance={balance}
   refreshing={refreshing}
   defaultWallet={{
     address: "GABCD...XYZ123",
-    verified: true,
+    network: "PI",
+    is_verified: true,
   }}
   onRefresh={() => {
     void refresh();
   }}
   onWalletClick={() => {
     // TODO:
-    // Mở trang quản lý ví
-    // hoặc Bottom Sheet
+    // router.push("/account/wallet/addresses");
   }}
   onWithdraw={() => {
     setWithdrawOpen(true);
