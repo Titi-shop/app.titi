@@ -80,7 +80,16 @@ export default function WalletWithdrawModal({
     error,
     setError,
   ] = useState("");
-
+  const [
+  walletSheetOpen,
+  setWalletSheetOpen,
+] = useState(false);
+  
+useEffect(() => {
+  if (open) {
+    setSelectedWallet(defaultWallet);
+  }
+}, [open, defaultWallet]);
   /* ===================================================
      HIDE
   =================================================== */
@@ -174,7 +183,8 @@ export default function WalletWithdrawModal({
     try {
 
       setLoading(true);
-
+setAmount("");
+setSelectedWallet(defaultWallet);
       setError("");
 
       const parsedAmount =
