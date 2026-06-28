@@ -12,15 +12,19 @@ import {
   useTranslationClient as useTranslation,
 } from "@/app/lib/i18n/client";
 
+import type {
+  WalletAddress,
+} from "../wallet.types";
+
+import {
+  formatPi,
+} from "../wallet.utils";
+
 import WalletActions
   from "./WalletActions";
 
 import WalletDefaultAddress
   from "./WalletDefaultAddress";
-
-import {
-  formatPi,
-} from "../wallet.utils";
 
 /* =====================================================
    TYPES
@@ -31,11 +35,8 @@ type Props = {
 
   refreshing: boolean;
 
-  defaultWallet?: {
-    address: string;
-    network: string;
-    is_verified: boolean;
-  } | null;
+  defaultWallet?:
+    WalletAddress | null;
 
   onRefresh: () => void;
 
@@ -61,6 +62,7 @@ export default function WalletHero({
     useTranslation();
 
   return (
+
     <section
       className="
         relative
@@ -108,9 +110,14 @@ export default function WalletHero({
         "
       />
 
-      <div className="relative z-10">
+      <div
+        className="
+          relative
+          z-10
+        "
+      >
 
-        {/* TOP */}
+        {/* HEADER */}
 
         <div
           className="
@@ -161,7 +168,6 @@ export default function WalletHero({
               bg-white/10
               backdrop-blur-md
               transition-all
-              duration-200
               active:scale-95
             "
           >
@@ -183,8 +189,16 @@ export default function WalletHero({
 
         <WalletDefaultAddress
           wallet={
-            defaultWallet ??
-            null
+            defaultWallet
+              ? {
+                  address:
+                    defaultWallet.address,
+                  network:
+                    defaultWallet.network,
+                  is_verified:
+                    defaultWallet.isVerified,
+                }
+              : null
           }
           onClick={
             onWalletClick
@@ -202,5 +216,7 @@ export default function WalletHero({
       </div>
 
     </section>
+
   );
+
 }
