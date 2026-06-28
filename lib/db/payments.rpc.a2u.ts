@@ -172,9 +172,11 @@ export async function insertA2URpcLog(
   input.receiverFound,          // $32
   input.amountFound,            // $33
 
-  input.feeStroops,             // $34
-  input.feePi,                  // $35
-
+  input.feeStroops,
+  input.successful,
+  input.operationCount,
+  input.feePi,
+                 
   input.latestLedger,           // $36
   input.oldestLedger,           // $37
 
@@ -250,7 +252,7 @@ verification_method,
     amount_found,
     fee_stroops,
     successful,
-operationCount,
+operation_count,
 fee_pi,
 latest_ledger,
 oldest_ledger,
