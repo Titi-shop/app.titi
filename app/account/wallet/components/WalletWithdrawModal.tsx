@@ -9,7 +9,10 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   useTranslationClient as useTranslation,
@@ -18,9 +21,16 @@ import {
 import {
   createWithdraw,
 } from "../wallet.withdraw";
+
 import type {
-  WalletAddressDto,
-} from "../wallet-address.api";
+  WalletAddress,
+} from "../wallet.types";
+
+import WalletAddressCard
+  from "./WalletAddressCard";
+
+import WalletAddressSheet
+  from "./WalletAddressSheet";
 
 /* =====================================================
    TYPES
@@ -31,14 +41,7 @@ type Props = {
   onClose: () => void;
   onSuccess: () => Promise<void>;
   wallets: WalletAddress[];
-defaultWallet: WalletAddress | null;
-};
-export type WalletAddressDto = {
-  id: string;
-  address: string;
-  network: string;
-  is_verified: boolean;
-  is_default: boolean;
+  defaultWallet: WalletAddress | null;
 };
 
 /* =====================================================
@@ -62,11 +65,6 @@ export default function WalletWithdrawModal({
   ] = useState("");
 
   const [
-  selectedWallet,
-  setSelectedWallet,
-] = useState<WalletAddress | null>(null);
-
-  const [
     loading,
     setLoading,
   ] = useState(false);
@@ -75,16 +73,42 @@ export default function WalletWithdrawModal({
     error,
     setError,
   ] = useState("");
+
   const [
-  walletSheetOpen,
-  setWalletSheetOpen,
-] = useState(false);
-  
-useEffect(() => {
-  if (open) {
-    setSelectedWallet(defaultWallet);
-  }
-}, [open, defaultWallet]);
+    selectedWallet,
+    setSelectedWallet,
+  ] = useState<WalletAddress | null>(
+    null
+  );
+
+  const [
+    walletSheetOpen,
+    setWalletSheetOpen,
+  ] = useState(false);
+
+  /* ===================================================
+     RESET
+  =================================================== */
+
+  useEffect(() => {
+
+    if (!open) {
+      return;
+    }
+
+    setAmount("");
+
+    setError("");
+
+    setSelectedWallet(
+      defaultWallet
+    );
+
+  }, [
+    open,
+    defaultWallet,
+  ]);
+
   /* ===================================================
      HIDE
   =================================================== */
@@ -94,76 +118,54 @@ useEffect(() => {
   }
 
   /* ===================================================
-     GET ERROR MESSAGE
+     ERROR MESSAGE
   =================================================== */
 
   function getErrorMessage(
-    errorCode?: string
+    code?: string
   ) {
 
-    switch (
-      errorCode
-    ) {
+    switch (code) {
 
-      case
-        "INVALID_AMOUNT":
+      case "INVALID_AMOUNT":
 
         return (
-          t
-            .wallet_invalid_amount ??
+          t.wallet_invalid_amount ??
           "Invalid amount"
         );
 
-      case
-        "INVALID_WALLET":
+      case "INVALID_WALLET":
 
         return (
-          t
-            .wallet_invalid_wallet ??
-          "Invalid wallet address"
+          t.wallet_invalid_wallet ??
+          "Invalid wallet"
         );
 
-      case
-        "INSUFFICIENT_BALANCE":
+      case "INSUFFICIENT_BALANCE":
 
         return (
-          t
-            .wallet_insufficient_balance ??
+          t.wallet_insufficient_balance ??
           "Insufficient balance"
         );
 
-      case
-        "WITHDRAW_DISABLED":
+      case "WITHDRAW_DISABLED":
 
         return (
-          t
-            .wallet_withdraw_disabled ??
-          "Withdraw is disabled"
+          t.wallet_withdraw_disabled ??
+          "Withdraw disabled"
         );
 
-      case
-        "INVALID_ADDRESS":
+      case "NETWORK_ERROR":
 
         return (
-          t
-            .wallet_invalid_address ??
-          "Invalid wallet address"
-        );
-
-      case
-        "NETWORK_ERROR":
-
-        return (
-          t
-            .wallet_network_error ??
+          t.wallet_network_error ??
           "Network error"
         );
 
       default:
 
         return (
-          t
-            .wallet_withdraw_failed ??
+          t.wallet_withdraw_failed ??
           "Withdraw failed"
         );
     }
@@ -175,50 +177,54 @@ useEffect(() => {
 
   async function handleSubmit() {
 
+    setError("");
+
+    const parsedAmount =
+      Number(amount);
+
+    if (
+      Number.isNaN(
+        parsedAmount
+      ) ||
+      parsedAmount <= 0
+    ) {
+
+      setError(
+        getErrorMessage(
+          "INVALID_AMOUNT"
+        )
+      );
+
+      return;
+    }
+
+    if (
+      !selectedWallet
+    ) {
+
+      setError(
+        getErrorMessage(
+          "INVALID_WALLET"
+        )
+      );
+
+      return;
+    }
+
     try {
 
       setLoading(true);
-setAmount("");
-setSelectedWallet(defaultWallet);
-      setError("");
-
-      const parsedAmount =
-        Number(amount);
-
-      if (
-        Number.isNaN(
-          parsedAmount
-        ) ||
-        parsedAmount <= 0
-      ) {
-
-        setError(
-          t
-            .wallet_invalid_amount ??
-          "Invalid amount"
-        );
-
-        return;
-      }
-
-      if (
-        !selectedWallet?.id
-      ) {
-
-        setError(
-          t
-            .wallet_address_required ??
-          "Wallet address required"
-        );
-
-        return;
-      }
 
       const result =
         await createWithdraw({
-  amount: parsedAmount,
-  walletAddressId: selectedWallet.id,
-});
+
+          amount:
+            parsedAmount,
+
+          walletAddressId:
+            selectedWallet.id,
+
+        });
 
       if (
         !result.success
@@ -233,29 +239,24 @@ setSelectedWallet(defaultWallet);
         return;
       }
 
-      setAmount("");
       await onSuccess();
 
       onClose();
 
-    } catch {
-
-      setError(
-        t
-          .wallet_withdraw_failed ??
-        "Withdraw failed"
-      );
-
     } finally {
 
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
+
   }
 
   /* ===================================================
      UI
   =================================================== */
 
+  
   return (
     <div
       className="
@@ -271,9 +272,19 @@ setSelectedWallet(defaultWallet);
       <button
         type="button"
         onClick={onClose}
-        className="
-          absolute inset-0
-        "
+        className="absolute inset-0"
+      />
+
+      {/* ADDRESS SHEET */}
+
+      <WalletAddressSheet
+        open={walletSheetOpen}
+        wallets={wallets}
+        selected={selectedWallet}
+        onSelect={setSelectedWallet}
+        onClose={() => {
+          setWalletSheetOpen(false);
+        }}
       />
 
       {/* SHEET */}
@@ -283,9 +294,9 @@ setSelectedWallet(defaultWallet);
           relative z-10
           w-full
           rounded-t-[2rem]
-          bg-[var(--card-bg)]
           border-t
           border-[var(--nav-border)]
+          bg-[var(--card-bg)]
           p-5
           pb-[calc(env(safe-area-inset-bottom)+90px)]
           shadow-2xl
@@ -296,8 +307,10 @@ setSelectedWallet(defaultWallet);
 
         <div
           className="
-            mx-auto mb-6
-            h-1.5 w-14
+            mx-auto
+            mb-6
+            h-1.5
+            w-14
             rounded-full
             bg-[var(--nav-border)]
           "
@@ -309,8 +322,11 @@ setSelectedWallet(defaultWallet);
 
           <div
             className="
-              flex h-14 w-14
-              items-center justify-center
+              flex
+              h-14
+              w-14
+              items-center
+              justify-center
               rounded-2xl
               bg-primary/10
               text-primary
@@ -323,7 +339,8 @@ setSelectedWallet(defaultWallet);
 
             <h2
               className="
-                text-xl font-bold
+                text-xl
+                font-bold
                 text-[var(--foreground)]
               "
             >
@@ -333,12 +350,12 @@ setSelectedWallet(defaultWallet);
 
             <p
               className="
-                mt-1 text-sm
+                mt-1
+                text-sm
                 text-[var(--text-muted)]
               "
             >
-              {t
-                .wallet_withdraw_description ??
+              {t.wallet_withdraw_description ??
                 "Withdraw PI to another wallet"}
             </p>
 
@@ -357,7 +374,8 @@ setSelectedWallet(defaultWallet);
               border
               border-red-500/20
               bg-red-500/10
-              px-4 py-3
+              px-4
+              py-3
               text-sm
               font-medium
               text-red-500
@@ -365,6 +383,7 @@ setSelectedWallet(defaultWallet);
           >
             {error}
           </div>
+
         )}
 
         {/* WALLET */}
@@ -379,23 +398,22 @@ setSelectedWallet(defaultWallet);
               text-[var(--foreground)]
             "
           >
-            {t
-              .wallet_address ??
+            {t.wallet_address ??
               "Wallet Address"}
           </p>
 
-         <WalletAddressCard
-    wallet={selectedWallet}
-    onClick={()=>{
-        setWalletSheetOpen(true);
-    }}
-/>
+          <WalletAddressCard
+            wallet={selectedWallet}
+            onClick={() => {
+              setWalletSheetOpen(true);
+            }}
+          />
 
         </div>
 
         {/* AMOUNT */}
 
-        <div className="mt-5">
+        <div className="mt-6">
 
           <p
             className="
@@ -405,29 +423,7 @@ setSelectedWallet(defaultWallet);
               text-[var(--foreground)]
             "
           >
-            <WalletAddressSheet
-
-    wallets={wallets}
-
-    selected={selectedWallet}
-
-    onSelect={(wallet)=>{
-
-        setSelectedWallet(wallet);
-
-    }}
-
-    open={walletSheetOpen}
-
-    onClose={()=>{
-
-        setWalletSheetOpen(false);
-
-    }}
-
-/>
-            {t
-              .wallet_amount ??
+            {t.wallet_amount ??
               "Amount"}
           </p>
 
@@ -446,40 +442,42 @@ setSelectedWallet(defaultWallet);
               border
               border-[var(--nav-border)]
               bg-[var(--background)]
-              px-4 py-3.5
+              px-4
+              py-3.5
               text-sm
               text-[var(--foreground)]
               outline-none
               transition-all
               placeholder:text-[var(--text-muted)]
-              focus:border-[var(--color-primary)]
+              focus:border-primary
               focus:ring-2
-              focus:ring-[var(--color-primary)]/10
+              focus:ring-primary/10
             "
           />
 
         </div>
-      <div
-  className="
-    mt-4
-    rounded-xl
-    border
-    border-yellow-500/20
-    bg-yellow-500/10
-    p-3
-    text-xs
-    text-yellow-600
-  "
->
-  Withdrawal requests are reviewed manually.
-  Funds are not transferred instantly.
-</div>
+
+        {/* NOTICE */}
+
+        <div
+          className="
+            mt-5
+            rounded-2xl
+            border
+            border-yellow-500/20
+            bg-yellow-500/10
+            p-3
+            text-xs
+            text-yellow-600
+          "
+        >
+          Withdrawal requests are reviewed manually.
+          Funds are not transferred instantly.
+        </div>
 
         {/* ACTIONS */}
 
         <div className="mt-6 flex gap-3">
-
-          {/* CANCEL */}
 
           <button
             type="button"
@@ -500,21 +498,19 @@ setSelectedWallet(defaultWallet);
               disabled:opacity-60
             "
           >
-            {t
-              .common_cancel ??
+            {t.common_cancel ??
               "Cancel"}
           </button>
-          
-          {/* SUBMIT */}
 
           <button
             type="button"
-            disabled={loading}
             onClick={() => {
               void handleSubmit();
             }}
+            disabled={loading}
             className="
-              flex flex-1
+              flex
+              flex-1
               items-center
               justify-center
               gap-2
@@ -539,13 +535,11 @@ setSelectedWallet(defaultWallet);
 
             {loading
               ? (
-                t
-                  .common_processing ??
+                t.common_processing ??
                 "Processing..."
               )
               : (
-                t
-                  .wallet_withdraw ??
+                t.wallet_withdraw ??
                 "Withdraw"
               )}
 
@@ -557,4 +551,6 @@ setSelectedWallet(defaultWallet);
 
     </div>
   );
+
 }
+    
