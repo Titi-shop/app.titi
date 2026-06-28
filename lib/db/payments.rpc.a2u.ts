@@ -409,12 +409,11 @@ if (!memoMatch) {
   expectedMemo: withdrawal.pi_payment_id,
   memoMatch,
   memoFound: rpc.memo !== null,
-
-  network:
-  rpc.network,
+  operationCount: rpc.operationCount,
+  network: rpc.network,
   verificationVersion: 1,
   verificationMethod: "RPC",
-
+  successful:rpc.successful,
   verificationHash: rpc.hash,
 
   ledger: rpc.ledger,
