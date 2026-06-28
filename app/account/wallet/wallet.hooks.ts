@@ -42,44 +42,55 @@ export function useWallet() {
   /* ===================================================
      SWR
   =================================================== */
-const {
-  data,
-  error,
-  isLoading,
-  mutate,
-} = useSWR(
-  authLoading
-    ? null
-    : "wallet",
 
-  fetchWallet,
+  const {
+    data,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(
+    authLoading
+      ? null
+      : "wallet",
 
-  {
-    ...WALLET_SWR_CONFIG,
+    fetchWallet,
 
-    shouldRetryOnError:
-      true,
+    {
+      ...WALLET_SWR_CONFIG,
 
-    errorRetryCount:
-      3,
+      shouldRetryOnError:
+        true,
 
-    errorRetryInterval:
-      2000,
-  }
-);
-  
+      errorRetryCount:
+        3,
+
+      errorRetryInterval:
+        2000,
+    }
+  );
+
   /* ===================================================
-     DATA
+     BALANCE
   =================================================== */
 
   const balance =
     useMemo(() => {
 
-      return Number(
-        data?.balance ?? 0
+      return (
+        data?.balance ??
+        {
+          balance: 0,
+          availableBalance: 0,
+          pendingBalance: 0,
+          frozenBalance: 0,
+        }
       );
 
     }, [data]);
+
+  /* ===================================================
+     TRANSACTIONS
+  =================================================== */
 
   const transactions =
     useMemo(() => {
@@ -87,6 +98,30 @@ const {
       return (
         data?.transactions ??
         []
+      );
+
+    }, [data]);
+
+  /* ===================================================
+     WALLETS
+  =================================================== */
+
+  const wallets =
+    useMemo(() => {
+
+      return (
+        data?.wallets ??
+        []
+      );
+
+    }, [data]);
+
+  const defaultWallet =
+    useMemo(() => {
+
+      return (
+        data?.defaultWallet ??
+        null
       );
 
     }, [data]);
@@ -108,12 +143,11 @@ const {
         )
         .reduce(
           (
-            acc,
+            total,
             item
           ) =>
-            acc +
+            total +
             item.amount,
-
           0
         );
 
@@ -132,12 +166,11 @@ const {
         )
         .reduce(
           (
-            acc,
+            total,
             item
           ) =>
-            acc +
+            total +
             item.amount,
-
           0
         );
 
@@ -168,7 +201,9 @@ const {
       setRefreshing(
         false
       );
+
     }
+
   }
 
   /* ===================================================
@@ -178,8 +213,11 @@ const {
   return {
 
     loading:
-  authLoading ||
-  (isLoading && !data),
+      authLoading ||
+      (
+        isLoading &&
+        !data
+      ),
 
     error,
 
@@ -189,10 +227,16 @@ const {
 
     transactions,
 
+    wallets,
+
+    defaultWallet,
+
     totalIn,
 
     totalOut,
 
     refresh,
+
   };
+
 }
