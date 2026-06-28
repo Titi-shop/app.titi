@@ -9,9 +9,17 @@ import {
   Wallet,
 } from "lucide-react";
 
-import {
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
+
+import type {
+  WalletAddress,
+} from "@/lib/db/wallet-addresses";
+
+import WalletAddressCard
+  from "./WalletAddressCard";
+
+import WalletAddressSheet
+  from "./WalletAddressSheet";
 
 import {
   useTranslationClient as useTranslation,
@@ -41,7 +49,9 @@ export default function WalletWithdrawModal({
   open,
   onClose,
   onSuccess,
-}: Props) {
+  wallets,
+  defaultWallet,
+}: Props)
 
   const { t } =
     useTranslation();
