@@ -10,11 +10,6 @@ import {
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
-import WalletAddressCard
-  from "./WalletAddressCard";
-
-import WalletAddressSheet
-  from "./WalletAddressSheet";
 
 import {
   useTranslationClient as useTranslation,
