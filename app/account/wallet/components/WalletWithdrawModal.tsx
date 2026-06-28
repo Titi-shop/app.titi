@@ -27,10 +27,10 @@ import {
 
 type Props = {
   open: boolean;
-
   onClose: () => void;
-
   onSuccess: () => Promise<void>;
+  wallets: WalletAddress[];
+defaultWallet: WalletAddress | null;
 };
 
 /* =====================================================
@@ -52,9 +52,9 @@ export default function WalletWithdrawModal({
   ] = useState("");
 
   const [
-    withdrawWallet,
-    setWithdrawWallet,
-  ] = useState("");
+  selectedWallet,
+  setSelectedWallet,
+] = useState<WalletAddress | null>(null);
 
   const [
     loading,
@@ -182,8 +182,7 @@ export default function WalletWithdrawModal({
       }
 
       if (
-        !withdrawWallet
-          .trim()
+        !selectedWallet?.id
       ) {
 
         setError(
@@ -220,7 +219,7 @@ export default function WalletWithdrawModal({
 
       setAmount("");
 
-      setWithdrawWallet("");
+      setwalletAddressId("");
 
       await onSuccess();
 
@@ -372,38 +371,12 @@ export default function WalletWithdrawModal({
               "Wallet Address"}
           </p>
 
-          <input
-            type="text"
-            value={
-              withdrawWallet
-            }
-            onChange={(e) => {
-              setWithdrawWallet(
-                e.target.value
-              );
-            }}
-            placeholder={
-              t
-                .wallet_address_placeholder ??
-              "Pi Wallet Address"
-            }
-            className="
-              w-full
-              rounded-2xl
-              border
-              border-[var(--nav-border)]
-              bg-[var(--background)]
-              px-4 py-3.5
-              text-sm
-              text-[var(--foreground)]
-              outline-none
-              transition-all
-              placeholder:text-[var(--text-muted)]
-              focus:border-[var(--color-primary)]
-              focus:ring-2
-              focus:ring-[var(--color-primary)]/10
-            "
-          />
+         <WalletAddressCard
+    wallet={selectedWallet}
+    onClick={()=>{
+        setWalletSheetOpen(true);
+    }}
+/>
 
         </div>
 
@@ -419,6 +392,27 @@ export default function WalletWithdrawModal({
               text-[var(--foreground)]
             "
           >
+            <WalletAddressSheet
+
+    wallets={wallets}
+
+    selected={selectedWallet}
+
+    onSelect={(wallet)=>{
+
+        setSelectedWallet(wallet);
+
+    }}
+
+    open={walletSheetOpen}
+
+    onClose={()=>{
+
+        setWalletSheetOpen(false);
+
+    }}
+
+/>
             {t
               .wallet_amount ??
               "Amount"}
