@@ -554,6 +554,8 @@ return {
   operationCount,
   chainPaymentAmount,
   chainEventAmount,
+senderBalanceDelta,
+receiverBalanceDelta,
   sourceAccount,
   network,
   raw: result,
