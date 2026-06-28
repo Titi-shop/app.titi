@@ -61,13 +61,6 @@ if (!walletAddressId) {
   };
 }
 
-    return {
-      success: false,
-      error:
-        "INVALID_WALLET",
-    };
-  }
-
   try {
 
     /* =================================================
