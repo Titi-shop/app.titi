@@ -6,20 +6,10 @@ import {
   apiAuthFetch,
 } from "@/lib/api/apiAuthFetch";
 
-/* =====================================================
-   TYPES
-===================================================== */
-
-export type WithdrawPayload = {
-  amount: number;
-  walletAddressId: string;
-};
-
-export type WithdrawResponse = {
-  success: boolean;
-  withdrawalId?: string;
-  error?: string;
-};
+import type {
+  WithdrawPayload,
+  WithdrawResponse,
+} from "./wallet.types";
 
 /* =====================================================
    CREATE WITHDRAW
@@ -52,14 +42,19 @@ export async function createWithdraw(
   =================================================== */
 
   const walletAddressId =
-  payload.walletAddressId.trim();
+    payload.walletAddressId
+      .trim();
 
-if (!walletAddressId) {
-  return {
-    success: false,
-    error: "INVALID_WALLET",
-  };
-}
+  if (
+    !walletAddressId
+  ) {
+
+    return {
+      success: false,
+      error:
+        "INVALID_WALLET",
+    };
+  }
 
   try {
 
@@ -78,15 +73,18 @@ if (!walletAddressId) {
               "application/json",
           },
 
-          body: JSON.stringify({
-  amount: payload.amount,
-  walletAddressId,
-}),
+          body:
+            JSON.stringify({
+              amount:
+                payload.amount,
+
+              walletAddressId,
+            }),
         }
       );
 
     /* =================================================
-       PARSE
+       PARSE RESPONSE
     ================================================= */
 
     const json:
@@ -136,6 +134,7 @@ if (!walletAddressId) {
     ================================================= */
 
     return {
+
       success: true,
 
       withdrawalId:
@@ -148,7 +147,9 @@ if (!walletAddressId) {
   } catch {
 
     return {
+
       success: false,
+
       error:
         "NETWORK_ERROR",
     };
