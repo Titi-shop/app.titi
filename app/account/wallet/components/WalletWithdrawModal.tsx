@@ -10,11 +10,6 @@ import {
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
-
-import type {
-  WalletAddress,
-} from "@/lib/db/wallet-addresses";
-
 import WalletAddressCard
   from "./WalletAddressCard";
 
@@ -28,6 +23,9 @@ import {
 import {
   createWithdraw,
 } from "../wallet.withdraw";
+import type {
+  WalletAddressDto,
+} from "../wallet-address.api";
 
 /* =====================================================
    TYPES
@@ -40,6 +38,13 @@ type Props = {
   wallets: WalletAddress[];
 defaultWallet: WalletAddress | null;
 };
+export type WalletAddressDto = {
+  id: string;
+  address: string;
+  network: string;
+  is_verified: boolean;
+  is_default: boolean;
+};
 
 /* =====================================================
    COMPONENT
@@ -51,7 +56,7 @@ export default function WalletWithdrawModal({
   onSuccess,
   wallets,
   defaultWallet,
-}: Props)
+}: Props) {
 
   const { t } =
     useTranslation();
@@ -206,13 +211,9 @@ export default function WalletWithdrawModal({
 
       const result =
         await createWithdraw({
-          amount:
-            parsedAmount,
-
-          withdrawWallet:
-            withdrawWallet
-              .trim(),
-        });
+  amount: parsedAmount,
+  walletAddressId: selectedWallet.id,
+});
 
       if (
         !result.success
@@ -228,9 +229,6 @@ export default function WalletWithdrawModal({
       }
 
       setAmount("");
-
-      setwalletAddressId("");
-
       await onSuccess();
 
       onClose();
