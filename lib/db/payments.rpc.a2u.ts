@@ -84,6 +84,8 @@ export type RpcVerificationRow = {
   tx_status: string | null;
 reason: string | null;
 confirmed: boolean;
+  successful: boolean;
+operationCount: number | null;
 chain_reference: string | null;
 verification_hash: string | null;
 payload: unknown;
@@ -551,6 +553,28 @@ export async function getVerifiedRpcByWithdrawalId(
   memo_match,
   chain_amount_consensus,
   verified,
+  tx_status,
+reason,
+confirmed,
+chain_reference,
+verification_hash,
+payload,
+rpc_reachable,
+created_at_chain,
+parse_layer,
+verification_version,
+verification_method,
+expected_sender,
+expected_receiver,
+expected_memo,
+memo_found,
+source_account,
+memo_type,
+fee_stroops,
+fee_pi,
+latest_ledger,
+oldest_ledger,
+application_order,
   stage
     FROM rpc_verification_logs
     WHERE withdrawal_id = $1
