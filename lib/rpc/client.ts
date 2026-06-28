@@ -407,6 +407,18 @@ const network =
     );
 const operations = asArr(innerTx.operations);
 const operationCount = operations.length;
+    const firstOperation = asObj(
+  operations[0]
+);
+
+const paymentBody = asObj(
+  asObj(firstOperation.body).payment
+);
+
+const chainPaymentAmount =
+  normalizeAmount(
+    num(paymentBody.amount)
+  );
     const memoObj = asObj(
       innerTx.memo
     );
@@ -532,6 +544,7 @@ return {
   oldestLedger,
   applicationOrder,
   operationCount,
+  chainPaymentAmount,
   sourceAccount,
   network,
   raw: result,
