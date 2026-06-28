@@ -453,7 +453,7 @@ const expectedAmount =
   memo: rpcTx.memo,
 });
 log("CHAIN_PAYMENT_AMOUNT", {
-  chainPaymentAmount,
+  chainPaymentAmount: rpcTx.chainPaymentAmount,
 });
   log("RPC_TRACE", {
     rpcReachable: rpcTx.rpcReachable,
