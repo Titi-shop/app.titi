@@ -14,7 +14,8 @@ import {
 
 import WalletActions
   from "./WalletActions";
-
+import WalletDefaultAddress
+  from "./WalletDefaultAddress";
 import {
   formatPi,
 } from "../wallet.utils";
@@ -112,7 +113,22 @@ export default function WalletHero({
           </h1>
 
         </div>
+{/* DEFAULT WALLET */}
 
+<WalletDefaultAddress
+  wallet={
+    defaultWallet
+      ? {
+          address:
+            defaultWallet.address,
+          network: "PI",
+          is_verified:
+            defaultWallet.verified,
+        }
+      : null
+  }
+  onClick={onWalletClick}
+/>
         {/* DEFAULT WALLET */}
 
 <button
