@@ -66,33 +66,6 @@ function normalizeWallet(value: string | null): string {
 function sameAmount(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.0000001;
 }
-function getChainPaymentAmount(
-  raw: unknown
-): number | null {
-  const obj =
-    raw as Record<string, unknown>;
-
-  const envelope =
-    obj.envelopeJson as
-      | Record<string, unknown>
-      | undefined;
-
-  const tx =
-    envelope?.tx as
-      | Record<string, unknown>
-      | undefined;
-
-  const inner =
-    tx?.tx as
-      | Record<string, unknown>
-      | undefined;
-
-  const operations =
-    inner?.operations;
-
-  if (!Array.isArray(operations)) {
-    return null;
-  }
 
   const first =
     operations[0] as
@@ -498,10 +471,6 @@ const expectedAmount =
   ===================================================== */
 
   const rpcTx = await getRpcTransaction(txid);
-const chainPaymentAmount =
-  getChainPaymentAmount(
-    rpcTx.raw
-  );
   log("RPC_RAW_RESULT", {
   confirmed: rpcTx.confirmed,
   amount: rpcTx.amount,
