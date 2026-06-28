@@ -433,33 +433,33 @@ if (!memoMatch) {
   receiverFound: rpc.debug.receiverFound,
   amountFound: rpc.debug.amountFound,
 
-  feeStroops: null,
-  feePi: null,
+  feeStroops: rpc.feeStroops,
+feePi: rpc.feePi,
 
-  latestLedger: null,
-  oldestLedger: null,
-  applicationOrder: null,
+latestLedger: rpc.latestLedger,
+oldestLedger: rpc.oldestLedger,
+applicationOrder: rpc.applicationOrder,
 
-  chainPaymentAmount: null,
-  chainEventAmount: null,
-  senderBalanceDelta: null,
-  receiverBalanceDelta: null,
-  chainAmountConsensus: null,
+chainPaymentAmount: null,
+chainEventAmount: null,
+senderBalanceDelta: null,
+receiverBalanceDelta: null,
+chainAmountConsensus: null,
 
-  verificationSnapshot: {
-    amountMatch,
-    senderMatch,
-    receiverMatch,
-    memoMatch,
-  },
+verificationSnapshot: {
+  amountMatch,
+  senderMatch,
+ receiverMatch,
+  memoMatch,
+},
 
-  sourceAccount: rpc.sender,
-  memoType: rpc.memo ? "text" : null,
+sourceAccount: rpc.sourceAccount,
+memoType: rpc.memoType,
 
-  memo: rpc.memo,
-  createdAt: rpc.createdAt,
+memo: rpc.memo,
+createdAt: rpc.createdAt,
 
-  payload: rpc.raw,
+payload: rpc.raw,
 });
   const verified =
   await getVerifiedRpcByWithdrawalId(
