@@ -5,31 +5,14 @@ import {
   apiAuthFetch,
 } from "@/lib/api/apiAuthFetch";
 import type {
-  JournalDirection,
-  JournalEntryType,
-} from "@/app/account/wallet/wallet.types";
+  WalletResponse,
+  WalletTransaction,
+  WalletAddress,
+  WalletBalance,
+} from "./wallet.types";
 import {
   toSafeNumber,
 } from "./wallet.utils";
-/* =====================================================
-   TYPES
-===================================================== */
-export type WalletTransaction =
-  {
-    id: string;
-    direction:
-      JournalDirection;
-    amount: number;
-    entry_type:
-      JournalEntryType;
-    created_at: string;
-  };
-export type WalletResponse =
-  {
-    balance: number;
-    transactions:
-      WalletTransaction[];
-  };
 /* =====================================================
    FETCH WALLET
 ===================================================== */
@@ -129,5 +112,11 @@ export async function fetchWallet():
         data.balance
       ),
     transactions,
+    availableBalance,
+pendingBalance,
+frozenBalance,
+
+wallets,
+defaultWallet,
   };
 }
