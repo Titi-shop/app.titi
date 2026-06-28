@@ -387,9 +387,6 @@ const oldestLedger =
 const applicationOrder =
   num(result.applicationOrder);
 
-const operationCount =
-  num(result.operationCount);
-
 const network =
   str(result.network) ??
   "Pi Testnet";
@@ -408,7 +405,8 @@ const network =
     const innerTx = asObj(
       envelopeTx.tx
     );
-
+const operations = asArr(innerTx.operations);
+const operationCount = operations.length;
     const memoObj = asObj(
       innerTx.memo
     );
