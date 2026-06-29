@@ -58,9 +58,18 @@ export async function upsertUserFromPi(
 export async function getUserAdminFlag(
   userId: string
 ): Promise<boolean> {
+
+  console.log(
+    "[GET_ADMIN_FLAG]",
+    userId
+  );
+
   const res = await query(
     `
-    SELECT is_admin
+    SELECT
+      id,
+      role,
+      is_admin
     FROM users
     WHERE id = $1
     LIMIT 1
@@ -68,9 +77,12 @@ export async function getUserAdminFlag(
     [userId]
   );
 
-  return (
-    res.rows[0]?.is_admin === true
+  console.log(
+    "[GET_ADMIN_RESULT]",
+    res.rows[0]
   );
+
+  return res.rows[0]?.is_admin === true;
 }
 /* ================= USER BY UUID ================= */
 
