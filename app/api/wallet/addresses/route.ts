@@ -107,6 +107,28 @@ export async function POST(
         }
       );
     }
+    /* ===================================================
+   VALIDATE PI ADDRESS
+=================================================== */
+
+const piWalletRegex =
+  /^G[A-Z2-7]{55}$/;
+
+if (
+  !piWalletRegex.test(
+    address
+  )
+) {
+  return NextResponse.json(
+    {
+      error:
+        "INVALID_ADDRESS",
+    },
+    {
+      status: 400,
+    }
+  );
+}
     const walletRecord =
   await getWalletRecordByUserId(
     auth.userId
