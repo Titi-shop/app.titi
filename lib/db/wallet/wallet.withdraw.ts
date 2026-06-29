@@ -36,12 +36,12 @@ function vlog(
    TYPES
 ===================================================== */
 
-type CreateWalletWithdrawalInput =
-  {
-    userId: string;
-    amount: number;
-    withdrawWallet: string;
-  };
+type CreateWalletWithdrawalInput = {
+  userId: string;
+  amount: number;
+  walletAddressId: string;
+  withdrawWallet: string;
+};
 
 type WithdrawalRow = {
   id: string;
@@ -135,29 +135,31 @@ export async function createWalletWithdrawal(
   await client.query(
     `
     INSERT INTO wallet_withdrawals (
-      id,
-      user_id,
-      amount,
-      currency,
-      withdraw_wallet,
-      status,
-      requested_at
-    )
+  id,
+  user_id,
+  amount,
+  currency,
+  wallet_address_id,
+  withdraw_wallet,
+  status,
+  requested_at
+)
     VALUES (
-      $1,$2,$3,
-      'PI',
-      $4,
-      'PENDING',
-      NOW()
-    )
+  $1,$2,$3,
+  'PI',
+  $4,
+  $5,
+  'PENDING',
+  NOW()
+)
     RETURNING id
-    `,
-    [
-      withdrawalId,
-      params.userId,
-      params.amount,
-      params.withdrawWallet,
-    ]
+    `,[
+  withdrawalId,
+  params.userId,
+  params.amount,
+  params.walletAddressId,
+  params.withdrawWallet,
+]
   );
 
 if (withdrawRs.rowCount !== 1) {
