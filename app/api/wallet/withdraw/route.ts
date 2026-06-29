@@ -14,6 +14,9 @@ import {
 import {
   createWalletWithdrawal,
 } from "@/lib/db/wallet/wallet.withdraw";
+import {
+  getWalletAddressById,
+} from "@/lib/db/wallet-addresses";
 
 export const runtime =
   "nodejs";
@@ -24,7 +27,7 @@ export const runtime =
 
 type RequestBody = {
   amount?: unknown;
-  withdrawWallet?: unknown;
+  walletAddressId?: unknown;
 };
 
 /* =====================================================
@@ -119,27 +122,37 @@ export async function POST(
        WALLET
     ================================================= */
 
-    const withdrawWallet =
-      typeof data.withdrawWallet ===
-      "string"
-        ? data.withdrawWallet
-            .trim()
-        : "";
+    const walletAddressId =
+  typeof data.walletAddressId === "string"
+    ? data.walletAddressId.trim()
+    : "";
 
-    if (
-      !withdrawWallet
-    ) {
-
-      return NextResponse.json(
-        {
-          error:
-            "INVALID_WALLET",
-        },
-        {
-          status: 400,
-        }
-      );
+if (!walletAddressId) {
+  return NextResponse.json(
+    {
+      error: "INVALID_WALLET",
+    },
+    {
+      status: 400,
     }
+  );
+}
+    const wallet =
+  await getWalletAddressById(
+    userId,
+    walletAddressId
+  );
+
+if (!wallet) {
+  return NextResponse.json(
+    {
+      error: "INVALID_WALLET",
+    },
+    {
+      status: 400,
+    }
+  );
+}
 
     /* =================================================
        CREATE
