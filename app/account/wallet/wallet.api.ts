@@ -177,71 +177,76 @@ const addressResponse =
         : [];
 
   /* ===================================================
-     WALLETS
-  =================================================== */
+   WALLETS
+=================================================== */
 
-  const addressData =
+const addressData =
   typeof addressJson === "object" &&
   addressJson !== null
-    ? addressJson as Record<string, unknown>
+    ? (addressJson as Record<string, unknown>)
     : {};
 
 const wallets: WalletAddress[] =
   Array.isArray(addressData.wallets)
-    ? ...
+    ? addressData.wallets
+        .map((item) => {
+
+          if (
+            typeof item !== "object" ||
+            item === null
+          ) {
+            return null;
+          }
+
+          const wallet =
+            item as Record<
+              string,
+              unknown
+            >;
+
+          return {
+
+            id:
+              String(
+                wallet.id ?? ""
+              ),
+
+            address:
+              String(
+                wallet.address ?? ""
+              ),
+
+            network:
+              String(
+                wallet.network ?? ""
+              ),
+
+            label:
+              typeof wallet.label ===
+              "string"
+                ? wallet.label
+                : null,
+
+            isDefault:
+              Boolean(
+                wallet.is_default
+              ),
+
+            isVerified:
+              Boolean(
+                wallet.is_verified
+              ),
+
+          };
+
+        })
+        .filter(
+          (
+            item
+          ): item is WalletAddress =>
+            item !== null
+        )
     : [];
-
-              const wallet =
-                item as Record<
-                  string,
-                  unknown
-                >;
-
-              return {
-
-                id:
-                  String(
-                    wallet.id ?? ""
-                  ),
-
-                address:
-                  String(
-                    wallet.address ??
-                      ""
-                  ),
-
-                network:
-                  String(
-                    wallet.network ??
-                      ""
-                  ),
-
-                label:
-                  typeof wallet.label ===
-                  "string"
-                    ? wallet.label
-                    : null,
-
-                isDefault:
-                  Boolean(
-                    wallet.is_default
-                  ),
-
-                isVerified:
-                  Boolean(
-                    wallet.is_verified
-                  ),
-
-              };
-
-            })
-            .filter(
-              (
-                item
-              ): item is WalletAddress =>
-                item !== null
-            )
-        : [];
 
   /* ===================================================
      DEFAULT WALLET
