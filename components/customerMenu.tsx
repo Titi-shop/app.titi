@@ -220,32 +220,6 @@ export default function CustomerMenu() {
   ),
   path: "/customer/address",
 },
-
-{
-  label: t.support ?? "Support",
-  icon: (active) => (
-    <HelpCircle size={22} color={active ? "#f97316" : "currentColor"} />
-  ),
-},
-     ...(user?.is_admin
-  ? [
-      {
-        label: "Admin",
-        icon: (active: boolean) => (
-          <User
-            size={22}
-            color={
-              active
-                ? "#f97316"
-                : "currentColor"
-            }
-          />
-        ),
-        path: "/admin",
-      },
-    ]
-  : []),
-
 {
   label: isSeller
     ? t.seller_center || "Seller Center"
