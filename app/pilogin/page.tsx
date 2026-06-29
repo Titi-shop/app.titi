@@ -88,35 +88,35 @@ export default function PiLoginPage() {
   return (
 
     <main
-      className="
-        flex
-        min-h-screen
-        items-center
-        justify-center
-        px-5
-      "
-      style={{
-        background:
-          "var(--background)",
-      }}
-    >
-
-      <div
-        className="
-          w-full
-          max-w-md
-          rounded-3xl
-          border
-          p-8
-          shadow-sm
-        "
-        style={{
-          background:
-            "var(--card-bg)",
-          borderColor:
-            "var(--border-color)",
-        }}
-      >
+  className="
+    fixed
+    inset-0
+    flex
+    items-center
+    justify-center
+    overflow-hidden
+    px-5
+  "
+  style={{
+    background: "var(--background)",
+    paddingTop: "env(safe-area-inset-top)",
+    paddingBottom: "env(safe-area-inset-bottom)",
+  }}
+>
+   <div
+  className="
+    w-full
+    max-w-md
+    rounded-3xl
+    border
+    p-8
+    shadow-sm
+  "
+  style={{
+    background: "var(--card-bg)",
+    borderColor: "var(--border-color)",
+  }}
+>
 
         {/* LOGO */}
 
@@ -183,7 +183,7 @@ export default function PiLoginPage() {
             {t.i_agree}{" "}
 
             <a
-              href="https://www.termsfeed.com/live/32e8bf86-ceaf-4eb6-990e-cd1fa0b0775e"
+              href="/terms-of-service"
               target="_blank"
               className="
                 font-medium
@@ -201,7 +201,7 @@ export default function PiLoginPage() {
             {" "}
 
             <a
-              href="https://www.termsfeed.com/live/8e33a9fd-71e7-4536-8033-9c8b329f3f25"
+              href="/privacy-policy"
               target="_blank"
               className="
                 font-medium
