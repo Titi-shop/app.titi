@@ -497,3 +497,24 @@ export async function finalizeReservedBalance(
     }
   );
 }
+export async function getWalletRecordByUserId(
+  userId: string,
+  client?: WalletClient
+) {
+  const db = getDb(client);
+
+  await ensureWallet(userId, client);
+
+  const { rows } =
+    await db.query(
+      `
+      SELECT *
+      FROM wallets
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+  return rows[0] ?? null;
+}
