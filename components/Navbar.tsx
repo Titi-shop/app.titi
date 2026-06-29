@@ -12,7 +12,7 @@ import {
 import { useMemo, useEffect, useState } from "react";
 import {
   useAuth,
-} from "@/app/context/AuthContext";
+} from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { availableLanguages } from "@/app/lib/i18n";
 import { useCart } from "@/app/context/CartContext";
