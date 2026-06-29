@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/guard";
 
 import {
-  getWalletAddressesByUserId,
+  getWalletAddressesByUser,
   createWalletAddress,
 } from "@/lib/db/wallet-addresses";
 
