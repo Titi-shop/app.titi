@@ -34,10 +34,10 @@ export async function GET() {
       return auth.response;
     }
 
-    const wallets =
-      await getWalletAddressesByUserId(
-        auth.userId
-      );
+   const wallets =
+  await getWalletAddressesByUser(
+    auth.userId
+  );
 
     return NextResponse.json({
       wallets,
