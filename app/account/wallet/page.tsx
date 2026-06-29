@@ -6,7 +6,9 @@
 
 export const dynamic =
   "force-dynamic";
-
+import {
+  useRouter,
+} from "next/navigation";
 import {
   useState,
 } from "react";
@@ -57,7 +59,8 @@ export default function WalletPage() {
   refresh,
 
 } = useWallet();
-
+const router =
+  useRouter();
   /* ===================================================
      MODAL
   =================================================== */
@@ -115,12 +118,10 @@ export default function WalletPage() {
     void refresh();
   }}
   onWalletClick={() => {
-    // TODO:
-    // router.push("/account/wallet/addresses");
-  }}
-  onWithdraw={() => {
-    setWithdrawOpen(true);
-  }}
+  router.push(
+    "/account/wallet/addresses"
+  );
+}}
 />
 
         {/* STATS */}
