@@ -15,7 +15,9 @@ import {
   getWalletAddressesByUser,
   createWalletAddress,
 } from "@/lib/db/wallet-addresses";
-
+import {
+  getWalletRecordByUserId,
+} from "@/lib/db/wallet";
 export const runtime =
   "nodejs";
 
@@ -105,19 +107,32 @@ export async function POST(
         }
       );
     }
+    const walletRecord =
+  await getWalletRecordByUserId(
+    auth.userId
+  );
+
+if (!walletRecord) {
+  return NextResponse.json(
+    {
+      error: "WALLET_NOT_FOUND",
+    },
+    {
+      status: 404,
+    }
+  );
+}
 
     const wallet =
-      await createWalletAddress({
-
-        userId:
-          auth.userId,
-
-        address,
-
-        network:
-          "PI",
-
-      });
+  await createWalletAddress({
+    wallet_id: walletRecord.id,
+    user_id: auth.userId,
+    network: "PI",
+    address,
+    label: null,
+    is_default: true,
+    created_by: auth.userId,
+  });
 
     return NextResponse.json(
       {
