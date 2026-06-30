@@ -21,6 +21,14 @@ export type ChatMessage = {
   content: string;
   created_at: Date;
 };
+export type AdminChatRoom = {
+  room_id: string;
+  room_type: "support" | "seller" | "group";
+  status: "open" | "closed";
+  updated_at: Date;
+  user_id: string;
+  username: string;
+};
 
 /* =========================================================
    GET SUPPORT ROOM BY USER
@@ -217,4 +225,32 @@ export async function isParticipant(
   );
 
   return result.rowCount > 0;
+}
+/* =========================================================
+   GET ADMIN CHAT ROOMS
+========================================================= */
+
+export async function getAdminRooms(): Promise<AdminChatRoom[]> {
+  const result = await query<AdminChatRoom>(
+    `
+      SELECT
+        r.id AS room_id,
+        r.room_type,
+        r.status,
+        r.updated_at,
+        u.id AS user_id,
+        u.username
+      FROM chat_rooms r
+      INNER JOIN chat_participants p
+        ON p.room_id = r.id
+      INNER JOIN users u
+        ON u.id = p.participant_id
+      WHERE
+        p.role = 'user'
+      ORDER BY
+        r.updated_at DESC
+    `
+  );
+
+  return result.rows;
 }
