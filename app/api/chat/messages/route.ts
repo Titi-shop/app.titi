@@ -13,7 +13,6 @@ import {
 
 import {
   createMessage,
-  createSystemWelcomeMessage,
   getMessagesByRoomId,
   getRoomById,
   isParticipant,
