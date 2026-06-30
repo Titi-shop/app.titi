@@ -79,7 +79,12 @@ export default function AdminChatRoomPage() {
     useRef<
       HTMLDivElement | null
     >(null);
-
+const [
+  roomInfo,
+  setRoomInfo,
+] = useState<{
+  username: string;
+} | null>(null);
   /* =====================================================
      AUTH
   ===================================================== */
@@ -114,26 +119,34 @@ export default function AdminChatRoomPage() {
 
   useEffect(() => {
 
-    if (
-      loading ||
-      !piReady ||
-      !user?.is_admin
-    ) {
-      return;
-    }
+  if (
+    loading ||
+    !piReady ||
+    !user?.is_admin ||
+    !roomId
+  ) {
+    return;
+  }
 
-    if (!roomId) {
-      return;
-    }
+  const timer =
+    setInterval(() => {
 
-    void loadMessages();
+      void loadMessages();
 
-  }, [
-    loading,
-    piReady,
-    user,
-    roomId,
-  ]);
+    }, 3000);
+
+  return () => {
+
+    clearInterval(timer);
+
+  };
+
+}, [
+  loading,
+  piReady,
+  user,
+  roomId,
+]);
 
   /* =====================================================
      AUTO SCROLL
@@ -141,9 +154,13 @@ export default function AdminChatRoomPage() {
 
   useEffect(() => {
 
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
+    requestAnimationFrame(() => {
+
+  bottomRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+
+});
 
   }, [
     messages,
@@ -158,9 +175,9 @@ export default function AdminChatRoomPage() {
     try {
 
       const res =
-        await apiAuthFetch(
-          `/api/chat/messages?roomId=${roomId}`
-        );
+  await apiAuthFetch(
+    `/api/admin/chat/messages?roomId=${roomId}`
+  );
 
       const data =
         await res.json();
@@ -213,21 +230,20 @@ export default function AdminChatRoomPage() {
       );
 
       const res =
-        await apiAuthFetch(
-          "/api/chat/messages",
-          {
-            method:
-              "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              roomId,
-              content: input.trim(),
-            }),
-          }
-        );
+  await apiAuthFetch(
+    "/api/admin/chat/messages",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify({
+        roomId,
+        content: input.trim(),
+      }),
+    }
+  );
 
       const data =
         await res.json();
