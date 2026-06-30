@@ -2,12 +2,13 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import {
-  useRouter,
   useParams,
+  useRouter,
 } from "next/navigation";
 
 import {
@@ -18,6 +19,10 @@ import {
   apiAuthFetch,
 } from "@/lib/api/apiAuthFetch";
 
+/* =====================================================
+   TYPES
+===================================================== */
+
 type ChatMessage = {
   id: string;
   room_id: string;
@@ -26,6 +31,10 @@ type ChatMessage = {
   content: string;
   created_at: string;
 };
+
+/* =====================================================
+   PAGE
+===================================================== */
 
 export default function AdminChatRoomPage() {
 
@@ -59,6 +68,17 @@ export default function AdminChatRoomPage() {
     setInput,
   ] =
     useState("");
+
+  const [
+    sending,
+    setSending,
+  ] =
+    useState(false);
+
+  const bottomRef =
+    useRef<
+      HTMLDivElement | null
+    >(null);
 
   /* =====================================================
      AUTH
@@ -115,6 +135,24 @@ export default function AdminChatRoomPage() {
     roomId,
   ]);
 
+  /* =====================================================
+     AUTO SCROLL
+  ===================================================== */
+
+  useEffect(() => {
+
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+
+  }, [
+    messages,
+  ]);
+
+  /* =====================================================
+     LOAD MESSAGES
+  ===================================================== */
+
   async function loadMessages() {
 
     try {
@@ -127,9 +165,12 @@ export default function AdminChatRoomPage() {
       const data =
         await res.json();
 
-      if (
-        !res.ok
-      ) {
+      console.log(
+        "[ADMIN_CHAT][MESSAGES]",
+        data
+      );
+
+      if (!res.ok) {
         return;
       }
 
@@ -144,60 +185,83 @@ export default function AdminChatRoomPage() {
     } catch (err) {
 
       console.error(
-        "[ADMIN_CHAT_ROOM]",
+        "[ADMIN_CHAT]",
         err
       );
+
     }
-  }
-async function handleSend() {
 
-  if (!input.trim()) {
-    return;
   }
 
-  try {
+  /* =====================================================
+     SEND MESSAGE
+  ===================================================== */
 
-    const res =
-      await apiAuthFetch(
-        "/api/chat/messages",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            roomId,
-            content: input,
-          }),
-        }
-      );
+  async function handleSend() {
 
-    const data =
-      await res.json();
-
-    console.log(
-      "[ADMIN_CHAT_ROOM][SEND]",
-      data
-    );
-
-    if (!res.ok) {
+    if (
+      sending ||
+      !input.trim()
+    ) {
       return;
     }
 
-    setInput("");
+    try {
 
-    await loadMessages();
+      setSending(
+        true
+      );
 
-  } catch (err) {
+      const res =
+        await apiAuthFetch(
+          "/api/chat/messages",
+          {
+            method:
+              "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              roomId,
+              content: input.trim(),
+            }),
+          }
+        );
 
-    console.error(
-      err
-    );
+      const data =
+        await res.json();
+
+      console.log(
+        "[ADMIN_CHAT][SEND]",
+        data
+      );
+
+      if (!res.ok) {
+        return;
+      }
+
+      setInput("");
+
+      await loadMessages();
+
+    } catch (err) {
+
+      console.error(
+        "[ADMIN_CHAT][SEND]",
+        err
+      );
+
+    } finally {
+
+      setSending(
+        false
+      );
+
+    }
 
   }
 
-}
   /* =====================================================
      LOADING
   ===================================================== */
@@ -207,8 +271,10 @@ async function handleSend() {
     !piReady
   ) {
     return (
-      <main className="p-4">
+      <main className="p-6">
+
         Loading...
+
       </main>
     );
   }
@@ -218,133 +284,285 @@ async function handleSend() {
   ) {
     return null;
   }
-
-  /* =====================================================
+    /* =====================================================
      PAGE
   ===================================================== */
 
   return (
-    <main className="flex h-[100dvh] flex-col bg-gray-100">
+    <main className="flex h-[100dvh] flex-col overflow-hidden bg-gray-100">
 
-      {/* Header */}
+      {/* ================= HEADER ================= */}
 
-      <header className="border-b bg-white p-4">
+      <header
+        className="
+          sticky
+          top-0
+          z-20
+          border-b
+          bg-white
+          shadow-sm
+        "
+      >
 
-        <button
-          type="button"
-          onClick={() =>
-            router.back()
-          }
-          className="mb-2 text-sm"
-        >
-          ← Quay lại
-        </button>
+        <div className="mx-auto flex max-w-5xl items-center gap-4 p-4">
 
-        <h1 className="text-lg font-semibold">
-          Chat
-        </h1>
+          <button
+            type="button"
+            onClick={() =>
+              router.back()
+            }
+            className="
+              flex
+              h-10
+              w-10
+              items-center
+              justify-center
+              rounded-full
+              bg-gray-100
+              transition
+              hover:bg-gray-200
+            "
+          >
+            ←
+          </button>
+
+          <div
+            className="
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-full
+              bg-blue-600
+              text-lg
+              font-bold
+              text-white
+            "
+          >
+            U
+          </div>
+
+          <div>
+
+            <h1 className="font-semibold">
+              Support Chat
+            </h1>
+
+            <p className="text-sm text-green-600">
+              Online
+            </p>
+
+          </div>
+
+        </div>
 
       </header>
 
-      {/* Messages */}
+      {/* ================= CHAT ================= */}
 
-      <section className="flex-1 overflow-y-auto p-4">
+      <section
+        className="
+          flex-1
+          overflow-y-auto
+          px-4
+          py-6
+          pb-36
+        "
+      >
 
-        {messages.map(
-          (
-            message
-          ) => {
+        <div
+          className="
+            mx-auto
+            flex
+            max-w-5xl
+            flex-col
+            gap-4
+          "
+        >
 
-            const isAdmin =
-              message.sender_id ===
-              user.id;
+          {messages.length === 0 && (
 
-            return (
+            <div
+              className="
+                mt-10
+                text-center
+                text-gray-400
+              "
+            >
+              Chưa có tin nhắn.
+            </div>
 
-              <div
-                key={
-                  message.id
-                }
-                className={`mb-4 flex ${
-                  isAdmin
-                    ? "justify-end"
-                    : "justify-start"
-                }`}
-              >
+          )}
+
+          {messages.map(
+            (
+              message
+            ) => {
+
+              const isAdmin =
+                message.sender_id ===
+                user.id;
+
+              return (
 
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  key={
+                    message.id
+                  }
+                  className={`flex ${
                     isAdmin
-                      ? "bg-blue-600 text-white"
-                      : "bg-white"
+                      ? "justify-end"
+                      : "justify-start"
                   }`}
                 >
 
-                  <div>
-                    {
-                      message.content
-                    }
-                  </div>
-
                   <div
-                    className={`mt-2 text-xs ${
+                    className={`max-w-[80%] rounded-3xl px-5 py-3 shadow ${
                       isAdmin
-                        ? "text-blue-100"
-                        : "text-gray-500"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-900"
                     }`}
                   >
-                    {new Date(
-                      message.created_at
-                    ).toLocaleTimeString()}
+
+                    <div className="whitespace-pre-wrap text-sm">
+
+                      {message.content}
+
+                    </div>
+
+                    <div
+                      className={`mt-2 text-right text-xs ${
+                        isAdmin
+                          ? "text-blue-100"
+                          : "text-gray-500"
+                      }`}
+                    >
+
+                      {new Date(
+                        message.created_at
+                      ).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+
+                    </div>
+
                   </div>
 
                 </div>
 
-              </div>
+              );
 
-            );
+            }
+          )}
 
-          }
-        )}
+          <div ref={bottomRef} />
+
+        </div>
 
       </section>
 
-      {/* Footer */}
+      {/* ================= FOOTER ================= */}
 
-      <footer className="border-t bg-white p-4">
+      <footer
+        className="
+          fixed
+          bottom-16
+          left-0
+          right-0
+          z-30
+          border-t
+          bg-white
+          p-4
+          pb-[max(env(safe-area-inset-bottom),16px)]
+          shadow-lg
+        "
+      >
 
-        <div className="flex gap-3">
+        <div
+          className="
+            mx-auto
+            flex
+            max-w-5xl
+            gap-3
+          "
+        >
 
-         <input
-  value={input}
-  onChange={(e) =>
-    setInput(
-      e.target.value
-    )
-  }
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      void handleSend();
-    }
-  }}
-  placeholder="Nhập tin nhắn..."
-  className="flex-1 rounded-full border px-4 py-3"
-/>
+          <input
+            value={input}
+            onChange={(e) =>
+              setInput(
+                e.target.value
+              )
+            }
+            onKeyDown={(e) => {
 
-  <button
-  type="button"
-  onClick={() => {
-    void handleSend();
-  }}
-  className="rounded-full bg-blue-600 px-6 py-3 text-white"
->
-  Gửi
-</button>
+              if (
+                e.key ===
+                "Enter"
+              ) {
+
+                e.preventDefault();
+
+                void handleSend();
+
+              }
+
+            }}
+            placeholder="Nhập tin nhắn..."
+            className="
+              flex-1
+              rounded-full
+              border
+              border-gray-300
+              bg-gray-50
+              px-5
+              py-3
+              outline-none
+              transition
+              focus:border-blue-500
+              focus:bg-white
+            "
+          />
+
+          <button
+            type="button"
+            disabled={
+              sending
+            }
+            onClick={() => {
+
+              void handleSend();
+
+            }}
+            className="
+              rounded-full
+              bg-blue-600
+              px-7
+              py-3
+              font-semibold
+              text-white
+              transition
+              hover:bg-blue-700
+              disabled:opacity-50
+            "
+          >
+
+            {sending
+              ? "..."
+              : "Gửi"}
+
+          </button>
+
         </div>
 
       </footer>
 
     </main>
   );
+
 }
