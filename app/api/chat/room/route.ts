@@ -13,8 +13,8 @@ import {
 import {
   createSupportRoom,
   getSupportRoomByUserId,
-  markWelcomeSent,
 } from "@/lib/db/chat";
+
 import {
   getChatTemplateByCode,
 } from "@/lib/db/chat_templates";
@@ -42,36 +42,18 @@ export async function GET() {
       );
 
     if (!room) {
+
       room =
         await createSupportRoom(
           auth.userId
         );
-    }
-
-    let welcome = null;
-
-    if (!room.welcome_sent) {
-
-      const template =
-        await getChatTemplateByCode(
-          "support_welcome"
-        );
-
-      if (template) {
-
-        welcome = {
-          title: template.title,
-          content: template.content,
-        };
-
-        await markWelcomeSent(
-          room.id
-        );
-
-        room.welcome_sent = true;
-      }
 
     }
+
+    const welcome =
+      await getChatTemplateByCode(
+        "support_welcome"
+      );
 
     return NextResponse.json({
       room,
