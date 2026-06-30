@@ -752,7 +752,15 @@
   "i_agree": "I agree to the",
   "terms_of_use": "Terms of Service",
   "privacy_policy": "Privacy Policy",
-  "and": "and"
+  "and": "and",
+  "wallet_address": "Wallet Address",
+  "wallet_address_subtitle": "Link your Pi Network wallet.",
+  "pi_wallet_address": "Pi Wallet Address",
+  "wallet_address_hint": "Only Pi Network wallet addresses are supported.",
+  "save_wallet": "Save Wallet",
+  "saving": "Saving...",
+  "wallet_save_failed": "Failed to save wallet."
+
 
 
 
