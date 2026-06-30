@@ -191,23 +191,37 @@ export async function POST(
       );
     }
 
-    const participant =
-      await isParticipant(
-        roomId,
-        auth.userId
-      );
-
-    if (!participant) {
-      return NextResponse.json(
-        {
-          error:
-            "FORBIDDEN",
-        },
-        {
-          status: 403,
-        }
-      );
+    if (!auth.userId) {
+  return NextResponse.json(
+    {
+      error: "FORBIDDEN",
+    },
+    {
+      status: 403,
     }
+  );
+}
+
+if (auth.role !== "admin") {
+
+  const participant =
+    await isParticipant(
+      roomId,
+      auth.userId
+    );
+
+  if (!participant) {
+    return NextResponse.json(
+      {
+        error: "FORBIDDEN",
+      },
+      {
+        status: 403,
+      }
+    );
+  }
+
+}
 console.log(
   "[CHAT][POST] START"
 );
