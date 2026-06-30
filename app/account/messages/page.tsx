@@ -27,6 +27,13 @@ const {
 
 const [roomId, setRoomId] =
   useState<string | null>(null);
+  const [
+  welcome,
+  setWelcome,
+] = useState<{
+  title: string;
+  content: string;
+} | null>(null);
   useEffect(() => {
   if (loading) return;
 
@@ -58,10 +65,19 @@ const [roomId, setRoomId] =
     }
 
     const data =
-      await res.json();
+  await res.json();
 
-    setRoomId(data.room.id);
-await loadMessages(data.room.id);
+setRoomId(
+  data.room.id
+);
+
+setWelcome(
+  data.welcome ?? null
+);
+
+await loadMessages(
+  data.room.id
+);
   } catch (err) {
     console.error(err);
   }
@@ -168,6 +184,35 @@ await loadMessages(data.room.id);
       {/* Messages */}
       <section className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
+         {welcome &&
+  messages.length === 0 && (
+
+  <div
+    className="
+      mb-6
+      rounded-2xl
+      border
+      border-blue-200
+      bg-blue-50
+      p-5
+    "
+  >
+
+    <h2 className="mb-2 text-lg font-semibold">
+
+      {welcome.title}
+
+    </h2>
+
+    <p className="whitespace-pre-wrap text-sm text-gray-700">
+
+      {welcome.content}
+
+    </p>
+
+  </div>
+
+)}
           {messages.map((message) => {
             const isUser =
   message.sender_id === user?.id;
