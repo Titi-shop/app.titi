@@ -315,30 +315,32 @@ async function handleSend() {
 
         <div className="flex gap-3">
 
-          <input
-            value={input}
-            onChange={(
-              e
-            ) =>
-              setInput(
-                e.target
-                  .value
-              )
-            }
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 rounded-full border px-4 py-3"
-          />
+         <input
+  value={input}
+  onChange={(e) =>
+    setInput(
+      e.target.value
+    )
+  }
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void handleSend();
+    }
+  }}
+  placeholder="Nhập tin nhắn..."
+  className="flex-1 rounded-full border px-4 py-3"
+/>
 
-    <button
+  <button
   type="button"
   onClick={() => {
     void handleSend();
   }}
   className="rounded-full bg-blue-600 px-6 py-3 text-white"
 >
-            Gửi
-          </button>
-
+  Gửi
+</button>
         </div>
 
       </footer>
