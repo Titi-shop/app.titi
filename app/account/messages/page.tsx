@@ -1,6 +1,4 @@
 
-Có cách nào file này hiển thị đoạn tin nhắn đó .
-
 "use client";
 import {
   useEffect,
