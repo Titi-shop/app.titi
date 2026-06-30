@@ -13,7 +13,11 @@ import {
 import {
   createSupportRoom,
   getSupportRoomByUserId,
+  markWelcomeSent,
 } from "@/lib/db/chat";
+import {
+  getChatTemplateByCode,
+} from "@/lib/db/chat_templates";
 
 export const runtime = "nodejs";
 
@@ -32,23 +36,35 @@ export async function GET() {
       return auth.response;
     }
 
-    let room =
-      await getSupportRoomByUserId(
-        auth.userId
-      );
+    let welcome = null;
 
-    if (!room) {
+if (!room.welcome_sent) {
 
-      room =
-        await createSupportRoom(
-          auth.userId
-        );
+  const template =
+    await getChatTemplateByCode(
+      "support_welcome"
+    );
 
-    }
+  if (template) {
 
-    return NextResponse.json({
-      room,
-    });
+    welcome = {
+      title: template.title,
+      content: template.content,
+    };
+
+    await markWelcomeSent(
+      room.id
+    );
+
+    room.welcome_sent = true;
+  }
+
+}
+
+return NextResponse.json({
+  room,
+  welcome,
+});
 
   } catch (err) {
 
