@@ -31,7 +31,10 @@ export default function AdminChatPage() {
   } = useAuth();
 
   const router = useRouter();
-
+const [
+  rooms,
+  setRooms,
+] = useState<Room[]>([]);
   /* =====================================================
      AUTH
   ===================================================== */
@@ -150,109 +153,60 @@ useEffect(() => {
   ===================================================== */
 
   return (
-    <main className="flex h-[100dvh] bg-gray-100">
+  <main className="min-h-screen bg-gray-100">
 
-      {/* Sidebar */}
+    <header className="border-b bg-white p-4">
+      <h1 className="text-xl font-bold">
+        Chat Support
+      </h1>
+    </header>
 
-      <aside className="w-72 border-r bg-white">
+    <section className="bg-white">
 
-        <div className="border-b p-4">
-          <h1 className="text-xl font-bold">
-            Chat Support
-          </h1>
-        </div>
+      {rooms.map((room) => (
 
-        <div className="overflow-y-auto">
+        <button
+          key={room.room_id}
+          type="button"
+          onClick={() => {
+            router.push(
+              `/admin/chat/${room.room_id}`
+            );
+          }}
+          className="
+            flex
+            w-full
+            items-center
+            justify-between
+            border-b
+            px-4
+            py-4
+            hover:bg-gray-50
+          "
+        >
 
-          {rooms.map((room) => (
-  <button
-    key={room.room_id}
-    type="button"
-    onClick={() => {
-  router.push(
-    `/admin/chat/${room.room_id}`
-  );
-}}
-    className="
-w-full
-border-b
-px-4
-py-4
-text-left
-transition
-hover:bg-gray-50
-"
-    }`}
-  >
-              <div className="font-medium">
-                {room.username}
-              </div>
+          <div>
 
-              <div className="text-sm text-gray-500">
-                Người dùng
-              </div>
-            </button>
-          ))}
-        </div>
-      </aside>
-     <main className="min-h-screen bg-gray-100">
+            <div className="font-semibold">
+              {room.username}
+            </div>
 
-  <header className="border-b bg-white p-4">
+            <div className="text-sm text-gray-500">
+              Support Chat
+            </div>
 
-    <h1 className="text-xl font-bold">
-      Chat Support
-    </h1>
-
-  </header>
-
-  <section className="bg-white">
-
-    {rooms.map((room) => (
-
-      <button
-        key={room.room_id}
-        type="button"
-        onClick={() => {
-          router.push(
-            `/admin/chat/${room.room_id}`
-          );
-        }}
-        className="
-          flex
-          w-full
-          items-center
-          justify-between
-          border-b
-          px-4
-          py-4
-          hover:bg-gray-50
-        "
-      >
-
-        <div>
-
-          <div className="font-semibold">
-            {room.username}
           </div>
 
-          <div className="text-sm text-gray-500">
-            Support Chat
+          <div className="text-gray-400">
+            →
           </div>
 
-        </div>
+        </button>
 
-        <div className="text-xs text-gray-400">
-          →
-        </div>
+      ))}
 
-      </button>
+    </section>
 
-    ))}
-
-  </section>
-
-</main>
-
-    </main>
-  );
+  </main>
+);
 }
