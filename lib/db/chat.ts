@@ -307,17 +307,26 @@ ORDER BY
   return result.rows;
 }
 /* =========================================================
-   GET CHAT TEMPLATE BY CODE
+   GET CHAT TEMPLATE CONTENT
 ========================================================= */
 
-export async function getChatTemplateByCode(
+export async function getChatTemplateContent(
   code: string
-): Promise<ChatTemplate | null> {
+): Promise<string | null> {
+
+  console.log(
+    "[CHAT_TEMPLATE] START",
+    {
+      code,
+    }
+  );
 
   const result =
-    await query<ChatTemplate>(
+    await query<{
+      content: string;
+    }>(
       `
-        SELECT *
+        SELECT content
         FROM chat_templates
         WHERE
           code = $1
@@ -329,8 +338,25 @@ export async function getChatTemplateByCode(
       ]
     );
 
-  return (
-    result.rows[0] ?? null
+  console.log(
+    "[CHAT_TEMPLATE] ROW_COUNT",
+    result.rowCount
   );
+
+  console.log(
+    "[CHAT_TEMPLATE] ROW",
+    result.rows[0]
+  );
+
+  const content =
+    result.rows[0]?.content ??
+    null;
+
+  console.log(
+    "[CHAT_TEMPLATE] CONTENT",
+    content
+  );
+
+  return content;
 
 }
