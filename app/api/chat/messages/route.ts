@@ -117,9 +117,7 @@ export async function GET(
       messages.length === 0
     ) {
 
-      await createSystemWelcomeMessage(
-        roomId
-      );
+    
 
       messages =
         await getMessagesByRoomId(
