@@ -306,57 +306,47 @@ ORDER BY
 
   return result.rows;
 }
-/* =========================================================
-   GET CHAT TEMPLATE CONTENT
-========================================================= */
+export async function createSystemMessage(
+  roomId: string,
+  content: string
+): Promise<void> {
 
-export async function getChatTemplateContent(
-  code: string
-): Promise<string | null> {
-
-  console.log(
-    "[CHAT_TEMPLATE] START",
-    {
-      code,
-    }
+  await query(
+    `
+      INSERT INTO chat_messages
+      (
+        room_id,
+        sender_id,
+        message_type,
+        content
+      )
+      VALUES
+      (
+        $1,
+        NULL,
+        'text',
+        $2
+      )
+    `,
+    [
+      roomId,
+      content,
+    ]
   );
 
-  const result =
-    await query<{
-      content: string;
-    }>(
-      `
-        SELECT content
-        FROM chat_templates
-        WHERE
-          code = $1
-          AND is_active = TRUE
-        LIMIT 1
-      `,
-      [
-        code,
-      ]
-    );
-
-  console.log(
-    "[CHAT_TEMPLATE] ROW_COUNT",
-    result.rowCount
+  await query(
+    `
+      UPDATE chat_rooms
+      SET
+        last_message = $2,
+        last_message_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+    `,
+    [
+      roomId,
+      content,
+    ]
   );
-
-  console.log(
-    "[CHAT_TEMPLATE] ROW",
-    result.rows[0]
-  );
-
-  const content =
-    result.rows[0]?.content ??
-    null;
-
-  console.log(
-    "[CHAT_TEMPLATE] CONTENT",
-    content
-  );
-
-  return content;
 
 }
