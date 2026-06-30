@@ -805,7 +805,10 @@
   "wallet_save_failed": "Không thể lưu địa chỉ ví.",
   "wallet_select": "Chọn ví",
   "wallet_verified": "Đã xác minh",
-  "wallet_unverified": "Chưa xác minh"
+  "wallet_unverified": "Chưa xác minh",
+
+  "wallet_default": "Ví mặc định",
+  "wallet_not_linked": "Chưa liên kết ví",
 
 
 
