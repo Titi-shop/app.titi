@@ -737,7 +737,19 @@
 
   "common_cancel": "取消",
   "common_processing": "处理中...",
-  "sale_date_required": "请选择促销开始和结束时间"
+  "sale_date_required": "请选择促销开始和结束时间",
+  
+  "login_title": "TITI Marketplace",
+  "login_subtitle": "使用您的 Pi Network 帐号登录",
+  "continue_with_pi": "使用 Pi Network 继续",
+  "powered_by_pi": "由 Pi Network 提供支持",
+  "login_not_ready": "Pi Network 尚未准备就绪。",
+  "login_loading": "加载中...",
+  "i_agree": "我同意",
+  "terms_of_use": "服务条款",
+  "privacy_policy": "隐私政策",
+  "and": "和"
+
 
 
 
