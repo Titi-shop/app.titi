@@ -113,26 +113,19 @@ const { t } =
               {t.wallet_address}
             </p>
 
-           <p
-  className="
-    mt-1
-    font-semibold
-  "
+          <p
+  className="mt-1 font-semibold"
   style={{
     color: "var(--text-primary)",
   }}
 >
-
-              {wallet
-                ? formatWalletAddress(
-                    wallet.address
-                  )
-                : (
-    t.wallet_select ??
-    "Select Wallet"
-  )
-
-            </p>
+  {wallet
+    ? formatWalletAddress(wallet.address)
+    : (
+        t.wallet_select ??
+        "Select Wallet"
+      )}
+</p>
 
             {wallet && (
 
