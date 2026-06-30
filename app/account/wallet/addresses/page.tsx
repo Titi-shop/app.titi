@@ -193,7 +193,7 @@ export default function WalletAddressesPage() {
               text-[var(--text-muted)]
             "
           >
-            t.wallet_address_subtitle
+            {t.wallet_address_subtitle}
           </p>
 
         </div>
@@ -240,7 +240,7 @@ export default function WalletAddressesPage() {
             text-[var(--foreground)]
           "
         >
-          t.pi_wallet_address
+          {t.pi_wallet_address}
         </label>
 
         <input
@@ -279,7 +279,7 @@ export default function WalletAddressesPage() {
             text-[var(--text-muted)]
           "
         >
-          t.wallet_address_hint
+          {t.wallet_address_hint}
         </p>
 
         {error && (
@@ -339,8 +339,8 @@ export default function WalletAddressesPage() {
           )}
 
           {loading
-            ? "t.saving..."
-            : "t.save_wallet"}
+            ? "{t.saving...}"
+            : "{t.save_wallet}"}
 
         </button>
 
