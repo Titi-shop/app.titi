@@ -37,7 +37,13 @@ export type AdminChatRoom = {
   user_id: string;
   username: string;
 };
-
+export type SupportChatData = {
+  room: ChatRoom;
+  welcome: {
+    title: string;
+    content: string;
+  } | null;
+};
 /* =========================================================
    GET SUPPORT ROOM BY USER
 ========================================================= */
@@ -306,4 +312,45 @@ export async function markWelcomeSent(
     `,
     [roomId]
   );
+}
+/* =========================================================
+   GET SUPPORT CHAT DATA
+========================================================= */
+
+export async function getSupportChatData(
+  userId: string
+): Promise<SupportChatData> {
+
+  let room =
+    await getSupportRoomByUserId(
+      userId
+    );
+
+  if (!room) {
+
+    room =
+      await createSupportRoom(
+        userId
+      );
+
+  }
+
+  const template =
+    await getChatTemplateByCode(
+      "support_welcome"
+    );
+
+  return {
+    room,
+    welcome:
+      template
+        ? {
+            title:
+              template.title,
+            content:
+              template.content,
+          }
+        : null,
+  };
+
 }
