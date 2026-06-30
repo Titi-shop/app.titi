@@ -185,12 +185,28 @@ export async function createMessage(
     SET
       updated_at = NOW(),
       last_message = $2,
-      last_message_at = NOW()
+      last_message_at = NOW(),
+
+      unread_count_admin =
+        CASE
+          WHEN $3
+          THEN unread_count_admin
+          ELSE unread_count_admin + 1
+        END,
+
+      unread_count_user =
+        CASE
+          WHEN $3
+          THEN unread_count_user + 1
+          ELSE unread_count_user
+        END
+
     WHERE id = $1
   `,
   [
     roomId,
     content,
+    isAdmin,
   ]
 );
 
