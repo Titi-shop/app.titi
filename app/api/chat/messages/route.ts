@@ -19,13 +19,27 @@ export const runtime = "nodejs";
    GET MESSAGES
 ========================================================= */
 
+/* =========================================================
+   GET MESSAGES
+========================================================= */
+
 export async function GET(
   request: NextRequest
 ) {
   try {
-    const auth = await requireAuth();
+    const auth =
+      await requireAuth();
+
+    console.log(
+      "[CHAT][GET][AUTH]",
+      auth
+    );
 
     if (!auth.ok) {
+      console.log(
+        "[CHAT][GET][AUTH_FAIL]"
+      );
+
       return auth.response;
     }
 
@@ -34,10 +48,20 @@ export async function GET(
         "roomId"
       );
 
+    console.log(
+      "[CHAT][GET][ROOM_ID]",
+      roomId
+    );
+
     if (!roomId) {
+      console.log(
+        "[CHAT][GET][INVALID_ROOM_ID]"
+      );
+
       return NextResponse.json(
         {
-          error: "INVALID_ROOM_ID",
+          error:
+            "INVALID_ROOM_ID",
         },
         {
           status: 400,
@@ -46,12 +70,24 @@ export async function GET(
     }
 
     const room =
-      await getRoomById(roomId);
+      await getRoomById(
+        roomId
+      );
+
+    console.log(
+      "[CHAT][GET][ROOM]",
+      room
+    );
 
     if (!room) {
+      console.log(
+        "[CHAT][GET][ROOM_NOT_FOUND]"
+      );
+
       return NextResponse.json(
         {
-          error: "ROOM_NOT_FOUND",
+          error:
+            "ROOM_NOT_FOUND",
         },
         {
           status: 404,
@@ -59,42 +95,80 @@ export async function GET(
       );
     }
 
-    if (!auth.userId) {
-  return NextResponse.json(
-    {
-      error: "FORBIDDEN",
-    },
-    {
-      status: 403,
-    }
-  );
-}
+    console.log(
+      "[CHAT][GET][ROLE]",
+      auth.role
+    );
 
-if (auth.role !== "admin") {
-
-  const participant =
-    await isParticipant(
-      roomId,
+    console.log(
+      "[CHAT][GET][USER_ID]",
       auth.userId
     );
 
-  if (!participant) {
-    return NextResponse.json(
-      {
-        error: "FORBIDDEN",
-      },
-      {
-        status: 403,
-      }
-    );
-  }
+    if (!auth.userId) {
+      console.log(
+        "[CHAT][GET][NO_USER_ID]"
+      );
 
-}
+      return NextResponse.json(
+        {
+          error:
+            "FORBIDDEN",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    if (
+      auth.role !==
+      "admin"
+    ) {
+      console.log(
+        "[CHAT][GET][CHECK_PARTICIPANT]"
+      );
+
+      const participant =
+        await isParticipant(
+          roomId,
+          auth.userId
+        );
+
+      console.log(
+        "[CHAT][GET][PARTICIPANT]",
+        participant
+      );
+
+      if (!participant) {
+        console.log(
+          "[CHAT][GET][FORBIDDEN]"
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "FORBIDDEN",
+          },
+          {
+            status: 403,
+          }
+        );
+      }
+    }
 
     const messages =
       await getMessagesByRoomId(
         roomId
       );
+
+    console.log(
+      "[CHAT][GET][MESSAGES]",
+      {
+        count:
+          messages.length,
+      }
+    );
 
     return NextResponse.json({
       messages,
