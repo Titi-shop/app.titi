@@ -13,8 +13,11 @@ import {
 import {
   createSupportRoom,
   getSupportRoomByUserId,
-  getSupportChatData,
 } from "@/lib/db/chat";
+
+import {
+  getChatTemplateByCode,
+} from "@/lib/db/chat_templates";
 
 export const runtime = "nodejs";
 
