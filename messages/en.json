@@ -741,7 +741,18 @@
 
   "common_cancel": "Cancel",
   "common_processing": "Processing...",
-  "sale_date_required": "Please select sale start and end date"
+  "sale_date_required": "Please select sale start and end date",
+  
+  "login_title": "TITI Marketplace",
+  "login_subtitle": "Sign in with your Pi Network account",
+  "continue_with_pi": "Continue with Pi Network",
+  "powered_by_pi": "Powered by Pi Network",
+  "login_not_ready": "Pi Network is not ready.",
+  "login_loading": "Loading...",
+  "i_agree": "I agree to the",
+  "terms_of_use": "Terms of Service",
+  "privacy_policy": "Privacy Policy",
+  "and": "and"
 
 
 
