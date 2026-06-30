@@ -759,7 +759,10 @@
   "wallet_save_failed": "保存钱包失败。",
   "wallet_select": "选择钱包",
   "wallet_verified": "已验证",
-  "wallet_unverified": "未验证"
+  "wallet_unverified": "未验证",
+
+  "wallet_default": "默认钱包",
+  "wallet_not_linked": "尚未绑定钱包",
 
 
 
