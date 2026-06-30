@@ -36,35 +36,47 @@ export async function GET() {
       return auth.response;
     }
 
+    let room =
+      await getSupportRoomByUserId(
+        auth.userId
+      );
+
+    if (!room) {
+      room =
+        await createSupportRoom(
+          auth.userId
+        );
+    }
+
     let welcome = null;
 
-if (!room.welcome_sent) {
+    if (!room.welcome_sent) {
 
-  const template =
-    await getChatTemplateByCode(
-      "support_welcome"
-    );
+      const template =
+        await getChatTemplateByCode(
+          "support_welcome"
+        );
 
-  if (template) {
+      if (template) {
 
-    welcome = {
-      title: template.title,
-      content: template.content,
-    };
+        welcome = {
+          title: template.title,
+          content: template.content,
+        };
 
-    await markWelcomeSent(
-      room.id
-    );
+        await markWelcomeSent(
+          room.id
+        );
 
-    room.welcome_sent = true;
-  }
+        room.welcome_sent = true;
+      }
 
-}
+    }
 
-return NextResponse.json({
-  room,
-  welcome,
-});
+    return NextResponse.json({
+      room,
+      welcome,
+    });
 
   } catch (err) {
 
