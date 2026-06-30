@@ -350,3 +350,21 @@ export async function createSystemMessage(
   );
 
 }
+export async function getChatTemplateContent(
+  code: string
+): Promise<string | null> {
+
+  const result = await query<{ content: string }>(
+    `
+      SELECT content
+      FROM chat_templates
+      WHERE
+        code = $1
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [code]
+  );
+
+  return result.rows[0]?.content ?? null;
+}
