@@ -86,18 +86,19 @@ const { t } =
 
       {/* SHEET */}
 
-      <div
-        className="
-          absolute
-          bottom-0
-          left-0
-          right-0
-          rounded-t-[2rem]
-          bg-[var(--card-bg)]
-          p-5
-          shadow-2xl
-        "
-      >
+   <div
+  className="
+    absolute
+    bottom-0
+    left-0
+    right-0
+    rounded-t-[2rem]
+    bg-[var(--card-bg)]
+    p-5
+    pb-[calc(env(safe-area-inset-bottom)+72px)]
+    shadow-2xl
+  "
+>
 
         {/* HEADER */}
 
