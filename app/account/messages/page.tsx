@@ -30,25 +30,10 @@ const [roomId, setRoomId] =
   loadRoom();
 }, [loading, user]);
   
-  const messages = useMemo<ChatMessage[]>(
-    () => [
-      {
-        id: "1",
-        sender: "admin",
-        content: "Xin chào 👋 Chào mừng bạn đến với bộ phận hỗ trợ Titi Marketplace.",
-        createdAt: "09:00",
-      },
-      {
-        id: "2",
-        sender: "admin",
-        content: "Bạn cần chúng tôi hỗ trợ vấn đề gì?",
-        createdAt: "09:01",
-      },
-      
-    ],
-    []
-  );
-async function loadRoom() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  
+  async function loadRoom() {
   try {
     const token =
       await getPiAccessToken();
@@ -76,6 +61,26 @@ async function loadRoom() {
   } catch (err) {
     console.error(err);
   }
+}
+  async function loadMessages(roomId: string) {
+  const token = await getPiAccessToken();
+
+  if (!token) return;
+
+  const res = await fetch(
+    `/api/chat/messages?roomId=${roomId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  setMessages(data.messages);
 }
   function handleSend() {
     if (!input.trim()) return;
