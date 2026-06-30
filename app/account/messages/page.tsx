@@ -174,7 +174,8 @@ setMessages(data.messages ?? []);
 
       const isUser =
         message.sender_id === user?.id;
-
+const isSystem =
+  message.sender_id === null;
       return (
         <div
           key={message.id}
