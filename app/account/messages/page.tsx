@@ -1,16 +1,20 @@
-// app/account/messages/page.tsx
 
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import { useAuth } from "@/context/AuthContext";
 
 import { getPiAccessToken } from "@/lib/piAuth";
 type ChatMessage = {
   id: string;
-  sender: "admin" | "user";
+  room_id: string;
+  sender_id: string;
+  message_type: string;
   content: string;
-  createdAt: string;
+  created_at: string;
 };
 
 export default function MessagesPage() {
@@ -31,8 +35,6 @@ const [roomId, setRoomId] =
 }, [loading, user]);
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  
   async function loadRoom() {
   try {
     const token =
@@ -58,6 +60,7 @@ const [roomId, setRoomId] =
       await res.json();
 
     setRoomId(data.room.id);
+await loadMessages(data.room.id);
   } catch (err) {
     console.error(err);
   }
@@ -92,7 +95,7 @@ const [roomId, setRoomId] =
   }
 
   return (
-    <main className="flex h-[100dvh] flex-col bg-gray-100">
+    <main className="flex min-h-[100dvh] flex-col bg-gray-100">
       {/* Header */}
       <header className="sticky top-0 border-b bg-white px-4 py-4">
         <div className="flex items-center gap-3">
@@ -120,7 +123,8 @@ const [roomId, setRoomId] =
       <section className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
           {messages.map((message) => {
-            const isUser = message.sender === "user";
+            const isUser =
+  message.sender_id === user?.id;
 
             return (
               <div
@@ -147,7 +151,9 @@ const [roomId, setRoomId] =
                         : "text-gray-500"
                     }`}
                   >
-                    {message.createdAt}
+                    {new Date(
+  message.created_at
+).toLocaleTimeString()}
                   </div>
                 </div>
               </div>
@@ -157,7 +163,19 @@ const [roomId, setRoomId] =
       </section>
 
       {/* Input */}
-      <footer className="border-t bg-white p-4">
+      <footer
+  className="
+    fixed
+    bottom-16
+    left-0
+    right-0
+    z-50
+    border-t
+    bg-white
+    p-4
+    pb-[max(env(safe-area-inset-bottom),16px)]
+  "
+>
         <div className="mx-auto flex max-w-3xl gap-3">
           <input
             type="text"
