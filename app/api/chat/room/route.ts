@@ -13,17 +13,18 @@ import {
 import {
   createSupportRoom,
   getSupportRoomByUserId,
-} from "@/lib/db/chat";
-
-import {
   getChatTemplateByCode,
-} from "@/lib/db/chat_templates";
+} from "@/lib/db/chat";
 
 export const runtime = "nodejs";
 
 /* =========================================================
    GET SUPPORT ROOM
 ========================================================= */
+
+// =========================================================
+// GET SUPPORT ROOM
+// =========================================================
 
 export async function GET() {
 
@@ -50,14 +51,21 @@ export async function GET() {
 
     }
 
-    const welcome =
+    const template =
       await getChatTemplateByCode(
         "support_welcome"
       );
 
     return NextResponse.json({
       room,
-      welcome,
+      welcome: template
+        ? {
+            id: template.id,
+            code: template.code,
+            title: template.title,
+            content: template.content,
+          }
+        : null,
     });
 
   } catch (err) {
