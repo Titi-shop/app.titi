@@ -64,6 +64,13 @@ export default function AdminChatRoomPage() {
     >([]);
 
   const [
+  roomInfo,
+  setRoomInfo,
+] = useState<{
+  username: string;
+} | null>(null);
+  
+  const [
     input,
     setInput,
   ] =
@@ -79,12 +86,7 @@ export default function AdminChatRoomPage() {
     useRef<
       HTMLDivElement | null
     >(null);
-const [
-  roomInfo,
-  setRoomInfo,
-] = useState<{
-  username: string;
-} | null>(null);
+
   /* =====================================================
      AUTH
   ===================================================== */
@@ -190,7 +192,9 @@ const [
       if (!res.ok) {
         return;
       }
-
+if (data.room) {
+  setRoomInfo(data.room);
+}
       setMessages(
         Array.isArray(
           data.messages
@@ -361,13 +365,14 @@ const [
 
           <div>
 
-            <h1 className="font-semibold">
-              Support Chat
-            </h1>
+          <h1 className="font-semibold">
+  {roomInfo?.username ??
+    "Support Chat"}
+</h1>
 
-            <p className="text-sm text-green-600">
-              Online
-            </p>
+<p className="text-sm text-green-600">
+  Online
+</p>
 
           </div>
 
