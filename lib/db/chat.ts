@@ -275,3 +275,56 @@ ORDER BY
 
   return result.rows;
 }
+/* =========================================================
+   CREATE SYSTEM WELCOME MESSAGE
+========================================================= */
+
+export async function createSystemWelcomeMessage(
+  roomId: string
+): Promise<void> {
+
+  await query(
+    `
+      INSERT INTO chat_messages
+      (
+        room_id,
+        sender_id,
+        message_type,
+        content
+      )
+      VALUES
+      (
+        $1,
+        NULL,
+        'text',
+        $2
+      )
+    `,
+    [
+      roomId,
+      `👋 Xin chào!
+
+Cảm ơn bạn đã liên hệ Titi Marketplace.
+
+Chúng tôi sẽ phản hồi bạn sớm nhất có thể.
+
+Trong lúc chờ, bạn có thể mô tả vấn đề chi tiết để chúng tôi hỗ trợ nhanh hơn.`,
+    ]
+  );
+
+  await query(
+    `
+      UPDATE chat_rooms
+      SET
+        last_message = $2,
+        last_message_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+    `,
+    [
+      roomId,
+      "👋 Xin chào! Cảm ơn bạn đã liên hệ Titi Marketplace.",
+    ]
+  );
+
+}
