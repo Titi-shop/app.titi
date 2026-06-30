@@ -103,7 +103,7 @@ export default function WalletAddressesPage() {
 
         setError(
           json.error ??
-          "Failed to save wallet."
+          "{t.wallet_save_faile}"
         );
 
         return;
@@ -183,7 +183,7 @@ export default function WalletAddressesPage() {
               text-[var(--foreground)]
             "
           >
-            t.wallet_address
+            {t.wallet_address}
           </h1>
 
           <p
