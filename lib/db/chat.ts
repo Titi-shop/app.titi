@@ -291,3 +291,19 @@ ORDER BY
 
   return result.rows;
 }
+/* =========================================================
+   MARK WELCOME SENT
+========================================================= */
+
+export async function markWelcomeSent(
+  roomId: string
+): Promise<void> {
+  await query(
+    `
+      UPDATE chat_rooms
+      SET welcome_sent = TRUE
+      WHERE id = $1
+    `,
+    [roomId]
+  );
+}
