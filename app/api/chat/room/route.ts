@@ -3,11 +3,10 @@
 // =========================================================
 
 import { NextResponse } from "next/server";
-
 import { requireAuth } from "@/lib/auth/guard";
-
 import {
   createSupportRoom,
+  createSystemWelcomeMessage,
   getSupportRoomByUserId,
 } from "@/lib/db/chat";
 
@@ -30,10 +29,17 @@ export async function GET() {
     );
 
     if (!room) {
-      room = await createSupportRoom(
-        auth.userId
-      );
-    }
+
+  room =
+    await createSupportRoom(
+      auth.userId
+    );
+
+  await createSystemWelcomeMessage(
+    room.id
+  );
+
+}
 
     return NextResponse.json({
       room,
