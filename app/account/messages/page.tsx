@@ -1,4 +1,5 @@
 
+
 "use client";
 import {
   useEffect,
@@ -35,26 +36,6 @@ const [roomId, setRoomId] =
 }, [loading, user]);
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const displayMessages =
-  messages.length === 0
-    ? [
-        {
-          id: "welcome",
-          room_id: "",
-          sender_id: "system",
-          message_type: "text",
-          content:
-`👋 Xin chào!
-
-Cảm ơn bạn đã liên hệ Titi Marketplace.
-
-Chúng tôi sẽ phản hồi bạn sớm nhất có thể.
-
-Trong lúc chờ, bạn có thể mô tả vấn đề chi tiết để chúng tôi hỗ trợ nhanh hơn.`,
-          created_at: new Date().toISOString(),
-        },
-      ]
-    : messages;
   async function loadRoom() {
   try {
     const token =
@@ -187,20 +168,16 @@ await loadMessages(data.room.id);
       {/* Messages */}
       <section className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          {displayMessages.map((message) => {
+          {messages.map((message) => {
             const isUser =
   message.sender_id === user?.id;
-const isSystem =
-  message.sender_id === "system";
 
             return (
               <div
                 key={message.id}
                 className={`flex ${
-  isUser
-    ? "justify-end"
-    : "justify-start"
-}`}
+                  isUser ? "justify-end" : "justify-start"
+                }`}
               >
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
