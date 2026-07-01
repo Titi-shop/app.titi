@@ -164,12 +164,17 @@ export default function AdminChatRoomPage() {
     }
 
     const timer =
-      setInterval(() => {
+  setInterval(() => {
 
-        void loadMessages();
+    if (
+      document.visibilityState === "visible"
+    ) {
 
-      }, 2000);
+      void loadMessages();
 
+    }
+
+  }, 2000);
     return () => {
 
       clearInterval(
@@ -207,20 +212,18 @@ export default function AdminChatRoomPage() {
           ? data.messages
           : [];
 
-      setMessages(
-        (prev) => {
+      setMessages((prev) => {
 
-          if (
-            JSON.stringify(prev) ===
-            JSON.stringify(next)
-          ) {
-            return prev;
-          }
+  if (
+    prev.length === next.length &&
+    prev.at(-1)?.id === next.at(-1)?.id
+  ) {
+    return prev;
+  }
 
-          return next;
+  return next;
 
-        }
-      );
+});
 
     } catch (err) {
 
