@@ -95,15 +95,32 @@ setMessages(data.messages ?? []);
 
   const content = input.trim();
 
-  if (!content) {
-    return;
-  }
+if (!content) {
+  return;
+}
 
-  try {
-    console.time("[CHAT][UI] GET_TOKEN");
+const optimisticMessage: ChatMessage = {
+  id: `temp-${Date.now()}`,
+  room_id: roomId,
+  sender_id: user!.id,
+  message_type: "text",
+  content,
+  created_at: new Date().toISOString(),
+};
 
-const token =
-  await getPiAccessToken();
+setInput("");
+
+setMessages((prev) => [
+  ...prev,
+  optimisticMessage,
+]);
+
+try {
+
+  console.time("[CHAT][UI] GET_TOKEN");
+
+  const token =
+    await getPiAccessToken();
 
 console.timeEnd("[CHAT][UI] GET_TOKEN");
 
