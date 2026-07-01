@@ -300,14 +300,18 @@ export async function completeOrderByBuyer(
         rows[0];
 
       if (!order) {
-        return "NOT_FOUND";
+        return {
+  status: "NOT_FOUND",
+};
       }
 
       if (
         order.buyer_id !==
         userId
       ) {
-        return "FORBIDDEN";
+        return {
+  status: "FORBIDDEN",
+};
       }
 
       /* =====================================================
@@ -492,7 +496,9 @@ export async function cancelOrderByBuyer(
         order.fulfillment_status
       )
     ) {
-      return "INVALID_STATUS";
+      return {
+  status: "INVALID_STATUS",
+};
     }
 
     await client.query(
