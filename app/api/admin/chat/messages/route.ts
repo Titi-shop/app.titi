@@ -53,31 +53,15 @@ export async function GET(
       );
     }
 
-    const room =
-      await getRoomById(
-        roomId
-      );
-
-    if (!room) {
-      return NextResponse.json(
-        {
-          error:
-            "ROOM_NOT_FOUND",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
+  
     const messages =
-      await getMessagesByRoomId(
-        roomId
-      );
+  await getMessagesByRoomId(
+    roomId
+  );
 
-    return NextResponse.json({
-      messages,
-    });
+return NextResponse.json({
+  messages,
+});
 
   } catch (err) {
 
