@@ -3,10 +3,10 @@ import { requireAuth } from "@/lib/auth/guard";
 import {
   createSupportRoom,
   getSupportRoomByUserId,
+  getMessagesByRoomId,
 } from "@/lib/db/chat";
 
 export const runtime = "nodejs";
-
 export async function GET() {
   try {
 
@@ -27,13 +27,16 @@ export async function GET() {
           auth.userId
         );
     }
-
+const messages =
+  await getMessagesByRoomId(
+    room.id
+  );
     return NextResponse.json({
-      room,
-    });
+  room,
+  messages,
+});
 
   } catch (err) {
-
     console.error(
       "[CHAT][ROOM]",
       err
