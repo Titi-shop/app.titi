@@ -1,4 +1,7 @@
 import { query, withTransaction } from "@/lib/db";
+import {
+  sendNotification,
+} from "@/lib/services/notifications.service";
 
 /* =====================================================
    TYPES
@@ -242,7 +245,8 @@ export async function createReturn(
     error("INVALID_REASON");
   }
 
-  return withTransaction(async (client) => {
+  const result =
+  await withTransaction(async (client) => {
     const { rows: orderRows } =
       await client.query<DbOrder>(
         `
@@ -418,8 +422,45 @@ export async function createReturn(
       ]
     );
 
-    return returnId;
+    return {
+  returnId,
+  buyerId,
+  sellerId: order.seller_id,
+  orderId,
+};
   });
+   try {
+
+  await sendNotification({
+    userId: result.buyerId,
+    type: "return_created",
+    category: "order",
+    title: "Yêu cầu trả hàng đã được gửi",
+    message:
+      "Yêu cầu trả hàng của bạn đang chờ người bán xử lý.",
+    orderId: result.orderId,
+    priority: "normal",
+  });
+
+  await sendNotification({
+    userId: result.sellerId,
+    type: "return_created",
+    category: "order",
+    title: "Có yêu cầu trả hàng mới",
+    message:
+      "Khách hàng vừa gửi yêu cầu trả hàng cho một đơn hàng.",
+    orderId: result.orderId,
+    priority: "high",
+  });
+
+} catch (err) {
+
+  console.error(
+    "[NOTIFICATION][RETURN_CREATED]",
+    err
+  );
+}
+   return result.returnId;
 }
 
 /* =====================================================
