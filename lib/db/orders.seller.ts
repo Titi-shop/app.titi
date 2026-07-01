@@ -2,7 +2,9 @@ import { query, withTransaction } from "@/lib/db";
 import {
   syncOrderFulfillmentStatus,
 } from "@/lib/db/orders";
-
+import {
+  sendNotification,
+} from "@/lib/services/notifications.service";
 /* =========================================================
    SELLER — ORDER COUNTS
 ========================================================= */
@@ -508,20 +510,23 @@ export async function cancelOrderBySeller(
   sellerMessage?: string | null
 ): Promise<boolean> {
   try {
-    return await withTransaction(async (client) => {
+    const result =
+  await withTransaction(async (client) => {
 
       /* =========================
          1. GET ORDER (ONLY CHECK)
       ========================= */
       const { rows } = await client.query<{
-        seller_id: string;
-        fulfillment_status: string;
-      }>(
+  buyer_id: string;
+  seller_id: string;
+  fulfillment_status: string;
+}>(
         `
         SELECT
-          seller_id,
-          fulfillment_status
-        FROM orders
+  buyer_id,
+  seller_id,
+  fulfillment_status
+      FROM orders
         WHERE id = $1
         LIMIT 1
         `,
@@ -593,13 +598,51 @@ export async function cancelOrderBySeller(
       ========================= */
       await syncOrderFulfillmentStatus(client, orderId);
 
-      console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", {
-        orderId,
-      });
+      console.log(
+  "[ORDER][SELLER][CONFIRM][SUCCESS]",
+  {
+    orderId,
+  }
+);
 
-      return true;
+return {
+  ok: true,
+  buyerId: order.buyer_id,
+};
+    });
+if (result.ok) {
+
+  try {
+
+    await sendNotification({
+      userId: result.buyerId,
+
+      type: "order_confirmed",
+
+      category: "order",
+
+      title: "Đơn hàng đã được xác nhận",
+
+      message:
+        "Người bán đã xác nhận đơn hàng của bạn.",
+
+      orderId,
+
+      priority: "normal",
     });
 
+  } catch (err) {
+
+    console.error(
+      "[NOTIFICATION][ORDER_CONFIRMED]",
+      err
+    );
+
+  }
+
+}
+
+return result.ok;
   } catch (err) {
     console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
       message: err instanceof Error ? err.message : "UNKNOWN",
