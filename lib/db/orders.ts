@@ -36,8 +36,15 @@ export async function syncOrderFulfillmentStatus(
   );
 
   const order = rows[0];
-
   if (!order) return;
+   console.log(
+  "[SYNC][ORDER]",
+  {
+    orderId,
+    paymentStatus: order.payment_status,
+    fulfillmentStatus: order.fulfillment_status,
+  }
+);
 const itemStatusResult =
   await client.query<{
     fulfillment_status: string;
@@ -66,6 +73,15 @@ const totalItems =
     (sum, r) => sum + Number(r.total),
     0
   );
+   console.log(
+  "[SYNC][ITEM_STATUS]",
+  {
+    orderId,
+    totalItems,
+    rows: itemStatusResult.rows,
+    statusMap: Object.fromEntries(statusMap),
+  }
+);
   /* =====================================================
      RULE: ONLY ALLOW PROGRESSION IF PAID
   ===================================================== */
@@ -79,7 +95,20 @@ let nextStatus =
 if (
   totalItems > 0 &&
   (statusMap.get("cancelled") ?? 0) === totalItems
-) {
+) const cancelled =
+  statusMap.get("cancelled") ?? 0;
+
+console.log(
+  "[SYNC][CANCEL_CHECK]",
+  {
+    orderId,
+    cancelled,
+    totalItems,
+    allCancelled:
+      cancelled === totalItems,
+  }
+);
+{
 
   nextStatus = "cancelled";
 
@@ -88,7 +117,13 @@ if (
   /* =====================================================
      STATE MACHINE (SIMPLE + SAFE)
   ===================================================== */
-
+console.log(
+  "[SYNC][BEFORE_SWITCH]",
+  {
+    current: order.fulfillment_status,
+    nextStatus,
+  }
+);
   switch (order.fulfillment_status) {
     case "pending":
       nextStatus = "pending_fulfillment";
