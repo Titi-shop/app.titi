@@ -35,11 +35,13 @@ const [roomId, setRoomId] =
 
   const timer =
     setInterval(() => {
+  if (
+    document.visibilityState === "visible"
+  ) {
+    loadMessages(roomId);
+  }
 
-      loadMessages(roomId);
-
-    }, 2000);
-
+}, 2000);
   return () => {
 
     clearInterval(timer);
@@ -134,7 +136,6 @@ setMessages((old) => {
 
 });
 }
-  console.log("[CHAT][UI] SEND_START");
   async function handleSend() {
   if (!roomId) {
     return;
@@ -168,8 +169,6 @@ try {
 
   const token =
     await getPiAccessToken();
-
-console.timeEnd("[CHAT][UI] GET_TOKEN");
 
     if (!token) {
       return;
