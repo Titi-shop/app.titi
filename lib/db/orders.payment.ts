@@ -429,14 +429,24 @@ await sendNotification({
 });
     }
 
-  } catch (err) {
+ } catch (err) {
 
-    console.error(
-      "[NOTIFICATION][ORDER_CREATED]",
-      err
-    );
+  console.error(
+    "[NOTIFICATION]",
+    err
+  );
 
-  }
+  console.log(
+    "[BUYER]",
+    result.buyerId
+  );
+
+  console.log(
+    "[SELLER]",
+    result.sellerId
+  );
+
+}
 
   return result;
 
