@@ -92,10 +92,7 @@ const totalItems =
 let nextStatus =
   order.fulfillment_status;
 
-if (
-  totalItems > 0 &&
-  (statusMap.get("cancelled") ?? 0) === totalItems
-) const cancelled =
+const cancelled =
   statusMap.get("cancelled") ?? 0;
 
 console.log(
@@ -108,10 +105,34 @@ console.log(
       cancelled === totalItems,
   }
 );
-{
 
-  nextStatus = "cancelled";
+if (
+  totalItems > 0 &&
+  cancelled === totalItems
+) {
 
+  await client.query(
+    `
+    UPDATE orders
+    SET
+      fulfillment_status = 'cancelled',
+      cancelled_at = NOW(),
+      updated_at = NOW()
+    WHERE id = $1
+    `,
+    [orderId]
+  );
+
+  console.log(
+    "[ORDER][FULFILLMENT_SYNC]",
+    {
+      orderId,
+      from: order.fulfillment_status,
+      to: "cancelled",
+    }
+  );
+
+  return;
 }
 
   /* =====================================================
