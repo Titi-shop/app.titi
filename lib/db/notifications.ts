@@ -170,3 +170,28 @@ export async function createNotification(
   return result.rows[0];
 
 }
+/* =========================================================
+   GET USER NOTIFICATIONS
+========================================================= */
+
+export async function getNotificationsByUserId(
+  userId: string
+): Promise<NotificationRow[]> {
+
+  const result =
+    await query<NotificationRow>(
+      `
+      SELECT *
+      FROM notifications
+      WHERE
+        user_id = $1
+        AND deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 50
+      `,
+      [userId]
+    );
+
+  return result.rows;
+
+}
