@@ -196,8 +196,17 @@ export async function POST(
 ) {
   try {
 
+  console.time(
+    "[CHAT][POST] TOTAL"
+  );
+
     const auth =
-      await requireAuth();
+  await requireAuth();
+
+console.timeLog(
+  "[CHAT][POST] TOTAL",
+  "AUTH_DONE"
+);
 
     if (!auth.ok) {
       return auth.response;
@@ -222,7 +231,10 @@ export async function POST(
         }
       | undefined =
       await request.json();
-
+console.timeLog(
+  "[CHAT][POST] TOTAL",
+  "BODY_DONE"
+);
     const roomId =
       String(
         body?.roomId ?? ""
@@ -261,7 +273,10 @@ export async function POST(
       await getRoomById(
         roomId
       );
-
+console.timeLog(
+  "[CHAT][POST] TOTAL",
+  "ROOM_DONE"
+);
     if (!room) {
       return NextResponse.json(
         {
@@ -279,7 +294,10 @@ export async function POST(
         roomId,
         auth.userId
       );
-
+console.timeLog(
+  "[CHAT][POST] TOTAL",
+  "PARTICIPANT_DONE"
+);
     if (!participant) {
       return NextResponse.json(
         {
@@ -291,7 +309,9 @@ export async function POST(
         }
       );
     }
-
+console.log(
+  "[CHAT][POST] CREATE_MESSAGE"
+);
     const message =
       await createMessage(
         roomId,
@@ -299,10 +319,17 @@ export async function POST(
         content,
         false
       );
+console.timeLog(
+  "[CHAT][POST] TOTAL",
+  "MESSAGE_CREATED"
+);
+    console.timeEnd(
+  "[CHAT][POST] TOTAL"
+);
 
-    return NextResponse.json({
-      message,
-    });
+return NextResponse.json({
+  message,
+});
 
   } catch (err) {
 
