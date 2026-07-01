@@ -564,6 +564,40 @@ if (!order) {
 };
       }
     );
+    if (result.success) {
+
+  try {
+
+    await sendNotification({
+      userId: result.sellerId!,
+      type: "order_cancelled",
+      category: "order",
+      title: "Bạn đã hủy đơn hàng",
+      message: "Đơn hàng đã được hủy.",
+      orderId: result.orderId!,
+    });
+
+    await sendNotification({
+      userId: result.buyerId!,
+      type: "order_cancelled",
+      category: "order",
+      title: "Đơn hàng đã bị hủy",
+      message: "Người bán đã hủy đơn hàng.",
+      orderId: result.orderId!,
+      priority: "high",
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[NOTIFICATION][SELLER_CANCEL]",
+      err
+    );
+
+  }
+
+}
+    return result;
   } catch (err) {
     console.error(
       "[ORDER][SELLER][CANCEL][DB_ERROR]",
@@ -578,41 +612,6 @@ if (!order) {
     throw new Error(
       "DB_ERROR"
     );
-    if (result.success) {
-
-  try {
-
-    await sendNotification({
-      userId: result.sellerId!,
-      type: "order_cancelled",
-      category: "order",
-      title: "Bạn đã hủy đơn hàng",
-      message:
-        "Đơn hàng đã được hủy.",
-      orderId: result.orderId!,
-    });
-
-    await sendNotification({
-      userId: result.buyerId!,
-      type: "order_cancelled",
-      category: "order",
-      title: "Đơn hàng đã bị hủy",
-      message:
-        "Người bán đã hủy đơn hàng.",
-      orderId: result.orderId!,
-      priority: "high",
-    });
-
-  } catch (err) {
-
-    console.error(
-      "[NOTIFICATION][SELLER_CANCEL]",
-      err
-    );
-  }
-}
-
-return result.success;
   }
 }
 
