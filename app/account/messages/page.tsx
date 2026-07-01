@@ -214,8 +214,6 @@ const res = await fetch(
 );
 
 console.timeEnd("[CHAT][UI] POST_MESSAGE");
-console.log(
-  "[CHAT][UI] POST_STATUS",
   res.status
 );
     if (!res.ok) {
@@ -264,7 +262,7 @@ setMessages((prev) =>
 
 }
 }
-  console.log("[CHAT][UI] SEND_DONE");
+  
   return (
     <main className="flex min-h-[100dvh] flex-col bg-gray-100">
       {/* Header */}
