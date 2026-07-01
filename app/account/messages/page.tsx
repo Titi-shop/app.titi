@@ -28,6 +28,27 @@ const {
 const [roomId, setRoomId] =
   useState<string | null>(null);
   useEffect(() => {
+
+  if (!roomId) {
+    return;
+  }
+
+  const timer =
+    setInterval(() => {
+
+      loadMessages(roomId);
+
+    }, 2000);
+
+  return () => {
+
+    clearInterval(timer);
+
+  };
+
+}, [roomId]);
+  
+  useEffect(() => {
   if (loading) return;
 
   if (!user) return;
@@ -93,12 +114,23 @@ await loadMessages(data.room.id);
   );
 
   if (!res.ok) return;
-
   const data = await res.json();
-
 console.log("[CHAT]", data);
+const newMessages =
+  data.messages ?? [];
 
-setMessages(data.messages ?? []);
+setMessages((old) => {
+
+  if (
+    JSON.stringify(old) ===
+    JSON.stringify(newMessages)
+  ) {
+    return old;
+  }
+
+  return newMessages;
+
+});
 }
   console.log("[CHAT][UI] SEND_START");
   async function handleSend() {
