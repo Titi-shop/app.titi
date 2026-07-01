@@ -19,14 +19,22 @@ import {
   apiAuthFetch,
 } from "@/lib/api/apiAuthFetch";
 
+/* =====================================================
+   TYPES
+===================================================== */
+
 type ChatMessage = {
   id: string;
   room_id: string;
-  sender_id: string;
+  sender_id: string | null;
   message_type: string;
   content: string;
   created_at: string;
 };
+
+/* =====================================================
+   PAGE
+===================================================== */
 
 export default function AdminChatRoomPage() {
 
@@ -47,6 +55,10 @@ export default function AdminChatRoomPage() {
       params.roomId ?? ""
     );
 
+  /* =====================================================
+     STATE
+  ===================================================== */
+
   const [
     messages,
     setMessages,
@@ -54,26 +66,35 @@ export default function AdminChatRoomPage() {
     useState<
       ChatMessage[]
     >([]);
-const bottomRef =
-  useRef<HTMLDivElement>(null);
 
-function scrollToBottom() {
-
-  bottomRef.current?.scrollIntoView({
-    behavior: "smooth",
-  });
-
-}
-  useEffect(() => {
-
-  scrollToBottom();
-
-}, [messages]);
   const [
     input,
     setInput,
   ] =
     useState("");
+
+  const bottomRef =
+    useRef<HTMLDivElement>(
+      null
+    );
+
+  /* =====================================================
+     SCROLL
+  ===================================================== */
+
+  function scrollToBottom() {
+
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+
+  }
+
+  useEffect(() => {
+
+    scrollToBottom();
+
+  }, [messages]);
 
   /* =====================================================
      AUTH
@@ -91,7 +112,11 @@ function scrollToBottom() {
     if (
       !user?.is_admin
     ) {
-      router.replace("/404");
+
+      router.replace(
+        "/404"
+      );
+
     }
 
   }, [
@@ -102,7 +127,7 @@ function scrollToBottom() {
   ]);
 
   /* =====================================================
-     LOAD
+     FIRST LOAD
   ===================================================== */
 
   useEffect(() => {
@@ -128,6 +153,37 @@ function scrollToBottom() {
     roomId,
   ]);
 
+  /* =====================================================
+     POLLING
+  ===================================================== */
+
+  useEffect(() => {
+
+    if (!roomId) {
+      return;
+    }
+
+    const timer =
+      setInterval(() => {
+
+        void loadMessages();
+
+      }, 2000);
+
+    return () => {
+
+      clearInterval(
+        timer
+      );
+
+    };
+
+  }, [roomId]);
+
+  /* =====================================================
+     LOAD MESSAGES
+  ===================================================== */
+
   async function loadMessages() {
 
     try {
@@ -144,17 +200,32 @@ function scrollToBottom() {
       const data =
         await res.json();
 
-      setMessages(
+      const next =
         Array.isArray(
           data.messages
         )
           ? data.messages
-          : []
+          : [];
+
+      setMessages(
+        (prev) => {
+
+          if (
+            JSON.stringify(prev) ===
+            JSON.stringify(next)
+          ) {
+            return prev;
+          }
+
+          return next;
+
+        }
       );
 
     } catch (err) {
 
       console.error(
+        "[ADMIN CHAT]",
         err
       );
 
@@ -163,7 +234,7 @@ function scrollToBottom() {
   }
 
   /* =====================================================
-     SEND
+     SEND MESSAGE
   ===================================================== */
 
   async function handleSend() {
@@ -177,25 +248,36 @@ function scrollToBottom() {
 
     const optimisticMessage: ChatMessage = {
 
-  id:
-    `temp-${Date.now()}`,
+      id:
+        `temp-${Date.now()}`,
 
-  room_id:
-    roomId,
+      room_id:
+        roomId,
 
-  sender_id:
-    user!.id,
+      sender_id:
+        user!.id,
 
-  message_type:
-    "text",
+      message_type:
+        "text",
 
-  content,
+      content,
 
-  created_at:
-    new Date().toISOString(),
+      created_at:
+        new Date().toISOString(),
 
-};
+    };
+
+    setInput("");
+
+    setMessages(
+      (prev) => [
+        ...prev,
+        optimisticMessage,
+      ]
+    );
+
     try {
+
       const res =
         await apiAuthFetch(
           "/api/admin/chat/messages",
@@ -213,31 +295,54 @@ function scrollToBottom() {
         );
 
       if (!res.ok) {
+
+        setMessages(
+          (prev) =>
+            prev.filter(
+              (m) =>
+                m.id !==
+                optimisticMessage.id
+            )
+        );
+
         return;
+
       }
 
       const data =
-  await res.json();
+        await res.json();
 
-setMessages((prev) =>
+      setMessages(
+        (prev) =>
+          prev.map(
+            (m) =>
+              m.id ===
+              optimisticMessage.id
+                ? data.message
+                : m
+          )
+      );
 
-  prev.map((m) =>
-
-    m.id ===
-    optimisticMessage.id
-      ? data.message
-      : m
-  )
-
-);
     } catch (err) {
+
+      setMessages(
+        (prev) =>
+          prev.filter(
+            (m) =>
+              m.id !==
+              optimisticMessage.id
+          )
+      );
+
       console.error(
+        "[ADMIN CHAT]",
         err
       );
-    }
-  }
 
-  /* =====================================================
+    }
+
+  }
+    /* =====================================================
      LOADING
   ===================================================== */
 
@@ -312,6 +417,10 @@ setMessages((prev) =>
                 message.sender_id ===
                 user?.id;
 
+              const isSystem =
+                message.sender_id ===
+                null;
+
               return (
 
                 <div
@@ -329,14 +438,14 @@ setMessages((prev) =>
                     className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
                       isAdmin
                         ? "bg-blue-600 text-white"
+                        : isSystem
+                        ? "bg-yellow-50 border border-yellow-200 text-gray-900"
                         : "bg-white text-gray-900"
                     }`}
                   >
 
                     <p className="mb-2 whitespace-pre-wrap text-sm">
-
                       {message.content}
-
                     </p>
 
                     <div
@@ -361,7 +470,10 @@ setMessages((prev) =>
 
             }
           )}
-          <div ref={bottomRef} />
+
+          <div
+            ref={bottomRef}
+          />
 
         </div>
 
@@ -415,7 +527,7 @@ setMessages((prev) =>
               void handleSend();
 
             }}
-            className="rounded-full bg-blue-600 px-6 py-3 font-medium text-white"
+            className="rounded-full bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
           >
 
             Gửi
@@ -427,6 +539,7 @@ setMessages((prev) =>
       </footer>
 
     </main>
+
   );
 
 }
