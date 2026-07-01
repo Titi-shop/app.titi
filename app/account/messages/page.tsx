@@ -151,22 +151,26 @@ console.log(
   res.status
 );
     if (!res.ok) {
-      const error = await res.json();
+  const error = await res.json();
 
-      console.error(
-        "[CHAT][SEND]",
-        error
-      );
+  console.error(
+    "[CHAT][SEND]",
+    error
+  );
 
-      return;
-    }
+  return;
+}
 
-    setInput("");
+const data =
+  await res.json();
 
-    console.time("[CHAT][UI] RELOAD_MESSAGES");
-
-await loadMessages(roomId);
-console.timeEnd("[CHAT][UI] RELOAD_MESSAGES");
+setMessages((prev) =>
+  prev.map((m) =>
+    m.id === optimisticMessage.id
+      ? data.message
+      : m
+  )
+);
   } catch (err) {
     console.error(
       "[CHAT][SEND]",
