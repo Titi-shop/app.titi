@@ -21,7 +21,9 @@ import {
   linkReceiptSettlement,
   linkReceiptSettlementByIds,
 } from "@/lib/db/orders.payment.receipt";
-
+import {
+  sendNotification,
+} from "@/lib/services/notifications.service";
 import {
   upsertPiPayment,
 } from "@/lib/db/orders.payment.pi-payments";
@@ -45,7 +47,8 @@ import type {
 export async function finalizePaidOrderFromIntent(
   params: FinalizePaidOrderParams
 ): Promise<FinalizePaidOrderResult> {
-  return withTransaction(async (client) => {
+  const result =
+    await withTransaction(async (client) => {
     const {
   paymentIntentId,
   piPaymentId,
@@ -370,7 +373,53 @@ console.log("[STEP] linkOrder");
       amount:
         verifiedAmount,
     };
-  });
+    });
+
+  try {
+
+    if (
+      result.ok &&
+      !result.already &&
+      result.orderId
+    ) {
+
+      await sendNotification({
+        userId:
+          result.buyerId,
+
+        type:
+          "order_created",
+
+        category:
+          "order",
+
+        title:
+          "Thanh toán thành công",
+
+        message:
+          "Đơn hàng của bạn đã được tạo thành công.",
+
+        orderId:
+          result.orderId,
+
+        priority:
+          "normal",
+      });
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "[NOTIFICATION][ORDER_CREATED]",
+      err
+    );
+
+  }
+
+  return result;
+
+}
 }
 export async function linkReceiptSettlementByIds(input: {
   paymentIntentId: string;
