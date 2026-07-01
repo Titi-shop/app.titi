@@ -2,7 +2,9 @@ import { query, withTransaction } from "@/lib/db";
 import type {
   Order as BuyerOrderRow,
 } from "@/types/orders";
-
+import {
+  sendNotification,
+} from "@/lib/services/notifications.service";
 /* =========================================================
    BUYER — ORDERS LIST
 ========================================================= */
@@ -268,7 +270,8 @@ export async function completeOrderByBuyer(
   | "INVALID_STATUS"
 > {
 
-  return withTransaction(
+  const result =
+  await withTransaction(
     async (client) => {
 
       /* =====================================================
@@ -276,20 +279,22 @@ export async function completeOrderByBuyer(
       ===================================================== */
 
       const { rows } =
-        await client.query<{
-          buyer_id: string;
-          fulfillment_status: string;
-        }>(
-          `
-          SELECT
-            buyer_id,
-            fulfillment_status
-          FROM orders
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [orderId]
-        );
+  await client.query<{
+    buyer_id: string;
+    seller_id: string;
+    fulfillment_status: string;
+  }>(
+    `
+    SELECT
+      buyer_id,
+      seller_id,
+      fulfillment_status
+    FROM orders
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [orderId]
+  );
 
       const order =
         rows[0];
@@ -404,6 +409,7 @@ console.log(
   }
 );
 
+  
       console.log(
         "[ORDER][BUYER][DELIVERED]",
         {
@@ -412,9 +418,48 @@ console.log(
         }
       );
 
-      return "SUCCESS";
+      return {
+  status: "SUCCESS",
+  buyerId: order.buyer_id,
+  sellerId: order.seller_id,
+  orderId,
+};
     }
   );
+  if (result.status === "SUCCESS") {
+
+  try {
+
+    await sendNotification({
+      userId: result.buyerId,
+      type: "order_completed",
+      category: "order",
+      title: "Đã xác nhận nhận hàng",
+      message: "Bạn đã xác nhận nhận hàng thành công.",
+      orderId: result.orderId,
+    });
+
+    await sendNotification({
+      userId: result.sellerId,
+      type: "order_completed",
+      category: "order",
+      title: "Đơn hàng đã hoàn thành",
+      message: "Khách hàng đã xác nhận đã nhận hàng.",
+      orderId: result.orderId,
+      priority: "high",
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[NOTIFICATION][ORDER_COMPLETED]",
+      err
+    );
+
+  }
+
+}
+  return result.status;
 }
 /* =========================================================
    CANCEL ORDER
