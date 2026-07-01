@@ -562,7 +562,7 @@ export async function cancelReturnByBuyer(
 
         await sendNotification({
           userId: result.buyerId!,
-          type: "return_rejected",
+          type: "return_cancelled",
           category: "order",
           title: "Bạn đã hủy yêu cầu trả hàng",
           message:
@@ -572,7 +572,7 @@ export async function cancelReturnByBuyer(
 
         await sendNotification({
           userId: result.sellerId!,
-          type: "return_rejected",
+          type: "return_cancelled",
           category: "order",
           title: "Người mua đã hủy yêu cầu trả hàng",
           message:
