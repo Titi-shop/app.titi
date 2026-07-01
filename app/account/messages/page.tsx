@@ -2,6 +2,7 @@
 "use client";
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -35,6 +36,18 @@ const [roomId, setRoomId] =
 }, [loading, user]);
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const bottomRef =
+  useRef<HTMLDivElement>(null);
+  function scrollToBottom() {
+
+  bottomRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+
+}
+  useEffect(() => {
+  scrollToBottom();
+}, [messages]);
   async function loadRoom() {
   try {
     const token =
@@ -151,7 +164,15 @@ console.log(
   res.status
 );
     if (!res.ok) {
-  const error = await res.json();
+  const error =
+    await res.json();
+  setMessages((prev) =>
+    prev.filter(
+      (m) =>
+        m.id !==
+        optimisticMessage.id
+    )
+  );
 
   console.error(
     "[CHAT][SEND]",
@@ -171,12 +192,22 @@ setMessages((prev) =>
       : m
   )
 );
-  } catch (err) {
-    console.error(
-      "[CHAT][SEND]",
-      err
-    );
-  }
+ } catch (err) {
+
+  setMessages((prev) =>
+    prev.filter(
+      (m) =>
+        m.id !==
+        optimisticMessage.id
+    )
+  );
+
+  console.error(
+    "[CHAT][SEND]",
+    err
+  );
+
+}
 }
   console.log("[CHAT][UI] SEND_DONE");
   return (
@@ -250,7 +281,7 @@ const isSystem =
       );
 
     })}
-
+<div ref={bottomRef} />
   </div>
 </section>
 
