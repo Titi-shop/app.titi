@@ -154,14 +154,15 @@ export async function getMessagesByRoomId(
 ========================================================= */
 
 export async function createMessage(
-  console.time(
-  "[CHAT][DB] CREATE_MESSAGE"
-);
   roomId: string,
   senderId: string,
   content: string,
   isAdmin: boolean
 ): Promise<ChatMessage> {
+
+  console.time(
+    "[CHAT][DB] CREATE_MESSAGE"
+  );
 
   console.log(
     "[CHAT][DB] INSERT MESSAGE",
@@ -171,17 +172,19 @@ export async function createMessage(
       content,
     }
   );
-console.time(
-  "[CHAT][DB] INSERT_MESSAGE"
-);
 
-console.log(
-  "[CHAT][DB] INSERT_START",
-  {
-    roomId,
-    senderId,
-  }
-);
+  console.time(
+    "[CHAT][DB] INSERT_MESSAGE"
+  );
+
+  console.log(
+    "[CHAT][DB] INSERT_START",
+    {
+      roomId,
+      senderId,
+    }
+  );
+
   const result = await query<ChatMessage>(
     `
       INSERT INTO chat_messages
@@ -198,14 +201,6 @@ console.log(
         'text',
         $3
       )
-      console.timeEnd(
-  "[CHAT][DB] INSERT_MESSAGE"
-);
-
-console.log(
-  "[CHAT][DB] INSERT_DONE",
-  result.rows[0]?.id
-);
       RETURNING *
     `,
     [
@@ -214,53 +209,67 @@ console.log(
       content,
     ]
   );
-console.time(
-  "[CHAT][DB] UPDATE_ROOM"
-);
 
-console.log(
-  "[CHAT][DB] UPDATE_ROOM_START"
-);
-  await query(
-  `
-    UPDATE chat_rooms
-    SET
-      updated_at = NOW(),
-      last_message = $2,
-      last_message_at = NOW(),
-
-      unread_count_admin =
-        CASE
-          WHEN $3
-          THEN unread_count_admin
-          ELSE unread_count_admin + 1
-        END,
-
-      unread_count_user =
-        CASE
-          WHEN $3
-          THEN unread_count_user + 1
-          ELSE unread_count_user
-        END
-
-    WHERE id = $1
-  `,
-  [
-    roomId,
-    content,
-    isAdmin,
-  ]
-);
-console.timeEnd(
-  "[CHAT][DB] UPDATE_ROOM"
-);
-
-console.log(
-  "[CHAT][DB] UPDATE_ROOM_DONE"
-);
   console.timeEnd(
-  "[CHAT][DB] CREATE_MESSAGE"
-);
+    "[CHAT][DB] INSERT_MESSAGE"
+  );
+
+  console.log(
+    "[CHAT][DB] INSERT_DONE",
+    result.rows[0]?.id
+  );
+
+  console.time(
+    "[CHAT][DB] UPDATE_ROOM"
+  );
+
+  console.log(
+    "[CHAT][DB] UPDATE_ROOM_START"
+  );
+
+  await query(
+    `
+      UPDATE chat_rooms
+      SET
+        updated_at = NOW(),
+        last_message = $2,
+        last_message_at = NOW(),
+
+        unread_count_admin =
+          CASE
+            WHEN $3
+            THEN unread_count_admin
+            ELSE unread_count_admin + 1
+          END,
+
+        unread_count_user =
+          CASE
+            WHEN $3
+            THEN unread_count_user + 1
+            ELSE unread_count_user
+          END
+
+      WHERE id = $1
+    `,
+    [
+      roomId,
+      content,
+      isAdmin,
+    ]
+  );
+
+  console.timeEnd(
+    "[CHAT][DB] UPDATE_ROOM"
+  );
+
+  console.log(
+    "[CHAT][DB] UPDATE_ROOM_DONE"
+  );
+
+  console.timeEnd(
+    "[CHAT][DB] CREATE_MESSAGE"
+  );
+
   return result.rows[0];
 }
 
