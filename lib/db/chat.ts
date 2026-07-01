@@ -413,3 +413,25 @@ export async function getChatTemplateContent(
 
   return result.rows[0]?.content ?? null;
 }
+export async function getMessagesAfter(
+  roomId: string,
+  createdAt: string
+): Promise<ChatMessage[]> {
+
+  const result = await query<ChatMessage>(
+    `
+      SELECT *
+      FROM chat_messages
+      WHERE
+        room_id = $1
+        AND created_at > $2
+      ORDER BY created_at ASC
+    `,
+    [
+      roomId,
+      createdAt,
+    ]
+  );
+
+  return result.rows;
+}
