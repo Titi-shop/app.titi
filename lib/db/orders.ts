@@ -38,7 +38,34 @@ export async function syncOrderFulfillmentStatus(
   const order = rows[0];
 
   if (!order) return;
+const itemStatusResult =
+  await client.query<{
+    fulfillment_status: string;
+    total: string;
+  }>(
+    `
+    SELECT
+      fulfillment_status,
+      COUNT(*)::int AS total
+    FROM order_items
+    WHERE order_id = $1
+    GROUP BY fulfillment_status
+    `,
+    [orderId]
+  );
 
+const statusMap = new Map(
+  itemStatusResult.rows.map((r) => [
+    r.fulfillment_status,
+    Number(r.total),
+  ])
+);
+
+const totalItems =
+  itemStatusResult.rows.reduce(
+    (sum, r) => sum + Number(r.total),
+    0
+  );
   /* =====================================================
      RULE: ONLY ALLOW PROGRESSION IF PAID
   ===================================================== */
@@ -46,8 +73,17 @@ export async function syncOrderFulfillmentStatus(
   if (order.payment_status !== "paid") {
     return;
   }
+let nextStatus =
+  order.fulfillment_status;
 
-  let nextStatus = order.fulfillment_status;
+if (
+  totalItems > 0 &&
+  (statusMap.get("cancelled") ?? 0) === totalItems
+) {
+
+  nextStatus = "cancelled";
+
+}
 
   /* =====================================================
      STATE MACHINE (SIMPLE + SAFE)
@@ -74,8 +110,14 @@ export async function syncOrderFulfillmentStatus(
       nextStatus = "completed";
       break;
 
-    default:
-      return;
+    case "cancelled":
+  break;
+
+  case "completed":
+  break;
+
+  default:
+  return;
   }
 
   if (nextStatus === order.fulfillment_status) {
