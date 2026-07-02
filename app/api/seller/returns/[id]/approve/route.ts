@@ -4,9 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 
 import {
-  getReturnByIdForSeller,
-  approveReturnBySeller,
-} from "@/lib/db/returns";
+  approveReturn,
+} from "@/lib/services/returns/seller.service";
 
 export const runtime = "nodejs";
 
@@ -42,37 +41,29 @@ export async function POST(
       return errorJson("INVALID_RETURN_ID");
     }
 
-    const existing = await getReturnByIdForSeller(
+    await approveReturn(
       returnId,
       auth.userId
     );
-
-    if (!existing) {
-      return errorJson("NOT_FOUND", 404);
-    }
-
-    if (existing.status !== "pending") {
-      return errorJson("INVALID_STATUS");
-    }
-
-    const updated = await approveReturnBySeller(
-      returnId,
-      auth.userId
-    );
-
-    if (!updated) {
-      return errorJson("UPDATE_FAILED");
-    }
 
     return NextResponse.json({
       success: true,
     });
 
   } catch (error) {
-    console.error("[SELLER_RETURN_APPROVE]", error);
+
+    console.error(
+      "[SELLER_RETURN_APPROVE]",
+      error
+    );
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "INTERNAL_SERVER_ERROR",
+      },
       { status: 500 }
     );
   }
