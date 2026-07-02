@@ -57,15 +57,18 @@ async function lockAndValidateInventory(
   variantId: string | null,
   quantity: number
 ) {
+  // ==============================
+  // PRODUCT VARIANT
+  // ==============================
   if (variantId) {
     const res = await client.query(
       `
       SELECT
-  id,
-  product_id,
-  stock,
-  reserved_stock,
-  is_unlimited
+        id,
+        product_id,
+        stock,
+        reserved_stock,
+        is_unlimited
       FROM product_variants
       WHERE id = $1
         AND product_id = $2
@@ -77,35 +80,42 @@ async function lockAndValidateInventory(
     if (!res.rows.length) {
       throw new Error("VARIANT_NOT_FOUND");
     }
-const variant = res.rows[0];
+
+    const variant = res.rows[0];
+
     const available =
-  Number(variant.stock) -
-  Number(variant.reserved_stock ?? 0);
+      Number(variant.stock) -
+      Number(variant.reserved_stock ?? 0);
 
-if (
-  !variant.is_unlimited &&
-  available < quantity
-) {
-  throw new Error("VARIANT_OUT_OF_STOCK");
-}
+    if (
+      !variant.is_unlimited &&
+      available < quantity
+    ) {
+      throw new Error("VARIANT_OUT_OF_STOCK");
+    }
 
-await client.query(
-  `
-  UPDATE product_variants
-  SET reserved_stock = reserved_stock + $1
-  WHERE id = $2
-  `,
-  [quantity, variantId]
-);
-return;
+    await client.query(
+      `
+      UPDATE product_variants
+      SET reserved_stock = reserved_stock + $1
+      WHERE id = $2
+      `,
+      [quantity, variantId]
+    );
 
+    return;
+  }
+
+  // ==============================
+  // NORMAL PRODUCT
+  // ==============================
   const res = await client.query(
     `
     SELECT
-  id,
-  stock,
-  reserved_stock,
-  is_unlimited
+      id,
+      stock,
+      reserved_stock,
+      is_unlimited
     FROM products
     WHERE id = $1
     FOR UPDATE
@@ -116,25 +126,29 @@ return;
   if (!res.rows.length) {
     throw new Error("PRODUCT_NOT_FOUND");
   }
-const product = res.rows[0];
-  const available =
-  Number(product.stock) -
-  Number(product.reserved_stock ?? 0);
 
-if (
-  !product.is_unlimited &&
-  available < quantity
-) {
-  throw new Error("OUT_OF_STOCK");
+  const product = res.rows[0];
+
+  const available =
+    Number(product.stock) -
+    Number(product.reserved_stock ?? 0);
+
+  if (
+    !product.is_unlimited &&
+    available < quantity
+  ) {
+    throw new Error("OUT_OF_STOCK");
+  }
+
+  await client.query(
+    `
+    UPDATE products
+    SET reserved_stock = reserved_stock + $1
+    WHERE id = $2
+    `,
+    [quantity, productId]
+  );
 }
-    await client.query(
-  `
-  UPDATE products
-  SET reserved_stock = reserved_stock + $1
-  WHERE id = $2
-  `,
-  [quantity, productId]
-);
 
 /* =========================================================
    MAIN
