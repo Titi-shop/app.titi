@@ -77,7 +77,7 @@ async function lockAndValidateInventory(
     if (!res.rows.length) {
       throw new Error("VARIANT_NOT_FOUND");
     }
-
+const variant = res.rows[0];
     const available =
   Number(variant.stock) -
   Number(variant.reserved_stock ?? 0);
@@ -109,7 +109,7 @@ if (
   if (!res.rows.length) {
     throw new Error("PRODUCT_NOT_FOUND");
   }
-
+const product = res.rows[0];
   const available =
   Number(product.stock) -
   Number(product.reserved_stock ?? 0);
