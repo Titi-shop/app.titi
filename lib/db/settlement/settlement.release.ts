@@ -46,7 +46,7 @@ export async function findReleasableEscrows(
   const { rows } =
     await client.query<EscrowReleaseRow>(
       `
-      SELECT
+
   SELECT
   id,
   order_id,
