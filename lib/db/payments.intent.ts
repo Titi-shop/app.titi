@@ -7,6 +7,7 @@ import type {
 import type {
   CreateIntentResult,
   PaymentIntentRow,
+  ExpiredPaymentIntentRow,
 } from "@/lib/payments/types/intent.type";
 /* =========================================================
    GLOBAL WALLET
@@ -441,4 +442,29 @@ export async function releaseReservedStock(
     `,
     [quantity, productId]
   );
+}
+export async function findExpiredPaymentIntents(
+  client: any
+): Promise<ExpiredPaymentIntentRow[]> {
+  const res =
+    await client.query<ExpiredPaymentIntentRow>(
+      `
+      SELECT
+        id,
+        product_id,
+        variant_id,
+        quantity
+      FROM payment_intents
+      WHERE
+        expires_at <= now()
+        AND status IN (
+          'created',
+          'submitted',
+          'authorized'
+        )
+      FOR UPDATE
+      `
+    );
+
+  return res.rows;
 }
