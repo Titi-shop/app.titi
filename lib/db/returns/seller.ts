@@ -144,52 +144,6 @@ export async function getReturnByIdForSeller(
         )
       : [];
 
-  const timelineRaw: (
-    | TimelineItem
-    | false
-  )[] = [
-    {
-      key: "created",
-      label:
-        "Request created",
-      time: ret.created_at,
-    },
-
-    ret.approved_at && {
-      key: "approved",
-      label:
-        "Seller approved",
-      time: ret.approved_at,
-    },
-
-    ret.rejected_at && {
-      key: "rejected",
-      label: "Rejected",
-      time: ret.rejected_at,
-    },
-
-    ret.shipped_back_at && {
-      key: "shipping_back",
-      label:
-        "Buyer shipped back",
-      time: ret.shipped_back_at,
-    },
-
-    ret.received_at && {
-      key: "received",
-      label:
-        "Seller received",
-      time: ret.received_at,
-    },
-
-    ret.refunded_at && {
-      key: "refunded",
-      label:
-        "Refund completed",
-      time: ret.refunded_at,
-    },
-  ];
-
   const timeline =
     timelineRaw.filter(
       (
