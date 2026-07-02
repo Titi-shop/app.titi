@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 
@@ -36,7 +36,34 @@ export default function ReturnCard({ item }: Props) {
   const goShip = () => {
     router.push(`/customer/returns/${item.id}/shipping`);
   };
+const cancelReturn = async () => {
+  try {
+    const res = await apiAuthFetch(
+      `/api/returns/${item.id}/cancel`,
+      {
+        method: "PATCH",
+      }
+    );
 
+    if (!res.ok) {
+      throw new Error("CANCEL_FAILED");
+    }
+
+    router.refresh();
+
+  } catch (err) {
+
+    console.error(
+      "[RETURN][CANCEL]",
+      err
+    );
+
+    alert(
+      t.cancel_failed ??
+      "Cancel failed."
+    );
+  }
+};
   const steps = [
     "pending",
     "approved",
@@ -153,9 +180,12 @@ export default function ReturnCard({ item }: Props) {
           {/* PENDING */}
           {status === "pending" && (
             <>
-              <button className="btn-danger">
-                {t.cancel_return ?? "Cancel Return"}
-              </button>
+              <button
+  onClick={cancelReturn}
+  className="btn-danger"
+>
+  {t.cancel_return ?? "Cancel Return"}
+</button>
             </>
           )}
 
