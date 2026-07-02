@@ -731,229 +731,38 @@ export async function markReturnReceivedBySeller(
               returnId,
             ]
           );
+
           /* ==========================================
-   RESTOCK INVENTORY
-========================================== */
+             UPDATE RETURN
+          ========================================== */
 
-const {
-  rows: returnItems,
-} =
-  await client.query<{
-  product_id: string | null;
-  variant_id: string | null;
-  return_quantity: number;
-  restock: boolean;
-  restocked_at: string | null;
-}>(
-    `
-    SELECT
-      product_id,
-      variant_id,
-      return_quantity,
-      restock
-    FROM return_items
-    WHERE return_id = $1
-    `,
-    [returnId]
-  );
+          const updateRes =
+            await client.query(
+              `
+              UPDATE returns
+              SET
+                status = 'refunded',
+                refunded_at = NOW(),
+                received_at = NOW(),
+                updated_at = NOW()
+              WHERE id = $1
+              `,
+              [returnId]
+            );
 
-for (const item of returnItems) {
+          return {
+            success:
+              updateRes.rowCount > 0,
 
-  if (!item.restock) {
+            buyerId,
 
-    console.log(
-      "[RETURN][RESTOCK][SKIP]",
-      {
-        returnId,
-        productId: item.product_id,
-        variantId: item.variant_id,
-      }
-    );
+            sellerId:
+              ret.seller_id,
 
-    continue;
-  }
-
-  /* =====================================
-     VARIANT PRODUCT
-  ===================================== */
-
-  if (item.variant_id) {
-
-    const variantResult =
-      await client.query(
-        `
-        UPDATE product_variants
-
-        SET
-
-          stock =
-            stock + $1,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $2
-        `,
-        [
-          item.return_quantity,
-          item.variant_id,
-        ]
+            returnId,
+          };
+        }
       );
-
-    console.log(
-      "[RETURN][RESTOCK][VARIANT]",
-      {
-        variantId:
-          item.variant_id,
-
-        affected:
-          variantResult.rowCount,
-
-        quantity:
-          item.return_quantity,
-      }
-    );
-  }
-
-  /* =====================================
-     NORMAL PRODUCT
-  ===================================== */
-
-  else if (
-    item.product_id
-  ) {
-
-    const productResult =
-      await client.query(
-        `
-        UPDATE products
-
-        SET
-
-          stock =
-            stock + $1,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $2
-        `,
-        [
-          item.return_quantity,
-          item.product_id,
-        ]
-      );
-
-    console.log(
-      "[RETURN][RESTOCK][PRODUCT]",
-      {
-        productId:
-          item.product_id,
-
-        affected:
-          productResult.rowCount,
-
-        quantity:
-          item.return_quantity,
-      }
-    );
-  }
-    /* =====================================
-     MARK RESTOCKED
-  ===================================== */
-
-  await client.query(
-    `
-    UPDATE return_items
-
-    SET
-
-      restocked_at =
-        NOW(),
-
-      restocked_by =
-        $2,
-
-      updated_at =
-        NOW()
-
-    WHERE
-
-      return_id = $1
-
-      AND product_id
-        IS NOT DISTINCT FROM $3
-
-      AND variant_id
-        IS NOT DISTINCT FROM $4
-    `,
-    [
-      returnId,
-      sellerId,
-      item.product_id,
-      item.variant_id,
-    ]
-  );
-
-  console.log(
-    "[RETURN][RESTOCK][DONE]",
-    {
-      returnId,
-
-      productId:
-        item.product_id,
-
-      variantId:
-        item.variant_id,
-
-      quantity:
-        item.return_quantity,
-    }
-  );
-
-}
-
-/* ==========================================
-   UPDATE RETURN
-========================================== */
-
-const updateRes =
-  await client.query(
-    `
-    UPDATE returns
-
-    SET
-
-      status =
-        'refunded',
-
-      refunded_at =
-        NOW(),
-
-      received_at =
-        NOW(),
-
-      updated_at =
-        NOW()
-
-    WHERE id = $1
-    `,
-    [returnId]
-  );
-
-return {
-  success:
-    updateRes.rowCount > 0,
-
-  buyerId,
-
-  sellerId:
-    ret.seller_id,
-
-  returnId,
-};
-       }
-    );
 
     /* ==========================================
        NOTIFICATIONS
@@ -984,7 +793,7 @@ return {
         });
 
       } catch (err) {
-      
+
         console.error(
           "[NOTIFICATION][REFUND_COMPLETED]",
           err
@@ -997,7 +806,7 @@ return {
     return result.success;
 
   } catch (error) {
-        }
+
     console.error(
       "[RETURN][RECEIVED]",
       {
