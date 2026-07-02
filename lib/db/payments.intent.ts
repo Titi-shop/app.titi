@@ -61,10 +61,11 @@ async function lockAndValidateInventory(
     const res = await client.query(
       `
       SELECT
-        id,
-        product_id,
-        stock,
-        is_unlimited
+  id,
+  product_id,
+  stock,
+  reserved_stock,
+  is_unlimited
       FROM product_variants
       WHERE id = $1
         AND product_id = $2
@@ -77,15 +78,16 @@ async function lockAndValidateInventory(
       throw new Error("VARIANT_NOT_FOUND");
     }
 
-    const variant = res.rows[0];
+    const available =
+  Number(variant.stock) -
+  Number(variant.reserved_stock ?? 0);
 
-    if (
-      !variant.is_unlimited &&
-      variant.stock !== null &&
-      Number(variant.stock) < quantity
-    ) {
-      throw new Error("VARIANT_OUT_OF_STOCK");
-    }
+if (
+  !variant.is_unlimited &&
+  available < quantity
+) {
+  throw new Error("VARIANT_OUT_OF_STOCK");
+}
 
     return;
   }
@@ -93,9 +95,10 @@ async function lockAndValidateInventory(
   const res = await client.query(
     `
     SELECT
-      id,
-      stock,
-      is_unlimited
+  id,
+  stock,
+  reserved_stock,
+  is_unlimited
     FROM products
     WHERE id = $1
     FOR UPDATE
@@ -107,15 +110,16 @@ async function lockAndValidateInventory(
     throw new Error("PRODUCT_NOT_FOUND");
   }
 
-  const product = res.rows[0];
+  const available =
+  Number(product.stock) -
+  Number(product.reserved_stock ?? 0);
 
-  if (
-    !product.is_unlimited &&
-    product.stock !== null &&
-    Number(product.stock) < quantity
-  ) {
-    throw new Error("OUT_OF_STOCK");
-  }
+if (
+  !product.is_unlimited &&
+  available < quantity
+) {
+  throw new Error("OUT_OF_STOCK");
+}
 }
 /* =========================================================
    MAIN
