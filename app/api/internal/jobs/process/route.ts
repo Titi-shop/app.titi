@@ -3,18 +3,25 @@ import { NextResponse } from "next/server";
 import {
   processEscrowReleaseJob,
 } from "@/lib/services/escrow.release.job";
-
+import {
+  processPaymentIntentExpireJob,
+} from "@/lib/services/payment.intent.expire.job";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-
   try {
-
-    const result =
+    const escrowResult =
       await processEscrowReleaseJob();
 
-    return NextResponse.json(result);
+    const paymentIntentResult =
+      await processPaymentIntentExpireJob();
+
+    return NextResponse.json({
+      success: true,
+      escrow: escrowResult,
+      paymentIntent: paymentIntentResult,
+    });
 
   } catch (error) {
 
