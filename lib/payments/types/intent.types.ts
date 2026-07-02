@@ -256,3 +256,9 @@ export type FinalizePaidOrderResult = {
   sellerId: string;
   amount: number;
 };
+  export type ExpiredPaymentIntentRow = {
+  id: string;
+  product_id: string;
+  variant_id: string | null;
+  quantity: number;
+};
