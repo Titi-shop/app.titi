@@ -984,7 +984,7 @@ return {
         });
 
       } catch (err) {
-      }
+      
         console.error(
           "[NOTIFICATION][REFUND_COMPLETED]",
           err
@@ -997,7 +997,7 @@ return {
     return result.success;
 
   } catch (error) {
-  
+        }
     console.error(
       "[RETURN][RECEIVED]",
       {
