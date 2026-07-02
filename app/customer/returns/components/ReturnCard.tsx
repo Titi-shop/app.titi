@@ -16,7 +16,7 @@ type Props = {
 export default function ReturnCard({ item }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-
+  const [cancelling, setCancelling] = useState(false);
   const config = getStatusConfig(item.status, t as Record<string, string>);
   const Icon = config.icon;
 
@@ -180,11 +180,14 @@ const cancelReturn = async () => {
           {/* PENDING */}
           {status === "pending" && (
             <>
-              <button
+           <button
+  disabled={cancelling}
   onClick={cancelReturn}
   className="btn-danger"
 >
-  {t.cancel_return ?? "Cancel Return"}
+  {cancelling
+    ? "Cancelling..."
+    : (t.cancel_return ?? "Cancel Return")}
 </button>
             </>
           )}
