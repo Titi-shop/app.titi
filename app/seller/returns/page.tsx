@@ -213,65 +213,60 @@ export default function SellerReturnsPage() {
   ===================================================== */
 
   async function handleAction(
-    action: SellerReturnAction
-  ) {
+  action: SellerReturnAction
+) {
+  if (!openId || acting) {
+    return;
+  }
 
-    if (
-      !openId ||
-      acting
-    ) {
+  try {
+    setActing(true);
+
+    const res = await apiAuthFetch(
+      `/api/seller/returns/${openId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const json:
+        | { error?: string }
+        | undefined =
+        await res
+          .json()
+          .catch(() => undefined);
+
+      alert(
+        json?.error ??
+          t.action_failed ??
+          "Action failed"
+      );
+
       return;
     }
 
-    try {
-      setActing(true);
+    await Promise.all([
+      openDetail(openId),
+      load(),
+    ]);
 
-      const res =
-        await apiAuthFetch(
-          `/api/seller/returns/${openId}/${action}`,
-          {
-            method: "POST",
-          }
-        );
+  } catch (error) {
+    console.error(
+      "[SELLER_RETURNS][ACTION]",
+      error
+    );
 
-      if (!res.ok) {
-
-        const json:
-          | {
-              error?: string;
-            }
-          | undefined =
-          await res
-            .json()
-            .catch(
-              () =>
-                undefined
-            );
-
-        alert(
-          json?.error ??
-            t.action_failed ??
-            "Action failed"
-        );
-
-        return;
-      }
-
-      await Promise.all([
-        openDetail(openId),
-        load(),
-      ]);
-
-    } catch (error) {
-      console.error(
-        "[SELLER_RETURNS][ACTION]",
-        error
-      );
-
-    } finally {
-      setActing(false);
-    }
+  } finally {
+    setActing(false);
   }
+}
 
   /* =====================================================
      STATUS
