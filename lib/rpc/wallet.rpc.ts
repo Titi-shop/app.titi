@@ -2,13 +2,25 @@
 // lib/rpc/wallet.rpc.ts
 // =====================================================
 
-const PI_RPC_URL =
-  process.env.PI_RPC_URL?.trim() ||
-  "https://rpc.testnet.minepi.com";
+import * as StellarSdk
+  from "@stellar/stellar-sdk";
+
+/* =====================================================
+   ENV
+===================================================== */
+
+const PI_HORIZON =
+  process.env.PI_HORIZON_URL;
 
 const PI_NETWORK =
   process.env.PI_NETWORK?.trim() ||
   "Pi Testnet";
+
+if (!PI_HORIZON) {
+  throw new Error(
+    "MISSING_PI_HORIZON_URL"
+  );
+}
 
 /* =====================================================
    TYPES
@@ -60,31 +72,74 @@ function err(
    HELPERS
 ===================================================== */
 
-function str(
-  value: unknown
-): string | null {
-
-  return typeof value === "string"
-    ? value.trim()
-    : null;
-
-}
-
-function num(
-  value: unknown
+function parseBalance(
+  balances: unknown
 ): number | null {
 
-  const parsed =
-    Number(value);
+  if (
+    !Array.isArray(
+      balances
+    )
+  ) {
+    return null;
+  }
 
-  return Number.isFinite(parsed)
-    ? parsed
+  const native =
+    balances.find(
+      (item: unknown) => {
+
+        if (
+          typeof item !==
+            "object" ||
+          item === null
+        ) {
+          return false;
+        }
+
+        const assetType =
+          (
+            item as Record<
+              string,
+              unknown
+            >
+          ).asset_type;
+
+        return (
+          assetType ===
+          "native"
+        );
+
+      }
+    );
+
+  if (
+    !native ||
+    typeof native !==
+      "object"
+  ) {
+    return null;
+  }
+
+  const value =
+    Number(
+      (
+        native as Record<
+          string,
+          unknown
+        >
+      ).balance
+    );
+
+  return Number.isFinite(
+    value
+  )
+    ? value
     : null;
 
 }
 
 /* =====================================================
-   VERIFY WALLET
+   VERIFY
 ===================================================== */
 
 export async function verifyPiWallet(
@@ -99,7 +154,8 @@ export async function verifyPiWallet(
   log(
     "VERIFY_START",
     {
-      address: wallet,
+      address:
+        wallet,
     }
   );
 
@@ -127,7 +183,8 @@ export async function verifyPiWallet(
     err(
       "INVALID_FORMAT",
       {
-        address: wallet,
+        address:
+          wallet,
       }
     );
 
@@ -137,143 +194,115 @@ export async function verifyPiWallet(
 
   }
 
-  const controller =
-    new AbortController();
-
-  const timeout =
-    setTimeout(
-      () =>
-        controller.abort(),
-      10000
-    );
-
   const startedAt =
     Date.now();
 
   try {
 
     log(
-      "RPC_REQUEST",
+      "HORIZON_CONNECT",
       {
-        method:
-          "getAccount",
+        horizon:
+          PI_HORIZON,
+      }
+    );
 
-        rpc:
-          PI_RPC_URL,
+    const server =
+      new StellarSdk
+        .Horizon
+        .Server(
+          PI_HORIZON
+        );
 
+    log(
+      "LOAD_ACCOUNT_START",
+      {
         address:
           wallet,
       }
     );
 
-    const response =
-      await fetch(
-        PI_RPC_URL,
-        {
-
-          method:
-            "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          cache:
-            "no-store",
-
-          signal:
-            controller.signal,
-
-          body:
-            JSON.stringify({
-
-              jsonrpc:
-                "2.0",
-
-              id:
-                Date.now(),
-
-              method:
-                "getAccount",
-
-              params: {
-                address:
-                  wallet,
-              },
-
-            }),
-
-        }
+    const account =
+      await server.loadAccount(
+        wallet
       );
 
-    clearTimeout(
-      timeout
-    );
-
     log(
-      "RPC_RESPONSE",
+      "LOAD_ACCOUNT_DONE",
       {
-        status:
-          response.status,
-
-        ok:
-          response.ok,
-
         durationMs:
           Date.now() -
           startedAt,
       }
     );
 
-    if (
-      !response.ok
-    ) {
+    const sequence =
+      account.sequenceNumber();
 
-      err(
-        "HTTP_ERROR",
-        {
-          status:
-            response.status,
-        }
+    const balance =
+      parseBalance(
+        account.balances
       );
 
-      return {
-
-        exists:
-          false,
-
+    log(
+      "VERIFY_SUCCESS",
+      {
         address:
           wallet,
 
-        sequence:
-          null,
+        sequence,
 
-        balance:
-          null,
+        balance,
+      }
+    );
 
-        network:
-          PI_NETWORK,
+    return {
 
-        rpcReachable:
-          false,
+      exists: true,
 
-        raw: {},
+      address:
+        wallet,
 
+      sequence,
+
+      balance,
+
+      network:
+        PI_NETWORK,
+
+      rpcReachable:
+        true,
+
+      raw:
+        {
+          balances:
+            account.balances,
+        },
+
+    };
+
+  } catch (error) {
+
+    const e =
+      error as {
+        response?:
+          {
+            status:
+              number;
+          };
       };
 
-    }
-
-    const json =
-      await response.json();
-
     if (
-      json.error
+      e.response?.status ===
+      404
     ) {
 
-      err(
+      log(
         "ACCOUNT_NOT_FOUND",
-        json.error
+        {
+          address:
+            wallet,
+        }
       );
 
       return {
@@ -296,116 +325,11 @@ export async function verifyPiWallet(
         rpcReachable:
           true,
 
-        raw:
-          json,
+        raw: {},
 
       };
 
     }
-
-    const result =
-      json.result ??
-      {};
-
-    log(
-      "PARSE_START"
-    );
-
-    const sequence =
-      str(
-        result.seqNum
-      ) ??
-      str(
-        result.sequence
-      );
-
-    let balance:
-      number | null =
-      null;
-
-    if (
-
-      Array.isArray(
-        result.balances
-      ) &&
-
-      result.balances.length
-
-    ) {
-
-      balance =
-        num(
-          result
-            .balances[0]
-            ?.balance
-        );
-
-    }
-
-    log(
-      "PARSE_DONE",
-      {
-        sequence,
-
-        balance,
-
-        hasBalances:
-          Array.isArray(
-            result.balances
-          ),
-      }
-    );
-
-    log(
-      "ACCOUNT_FOUND",
-      {
-        address:
-          wallet,
-      }
-    );
-
-    log(
-      "VERIFY_SUCCESS",
-      {
-        address:
-          wallet,
-
-        sequence,
-
-        balance,
-      }
-    );
-
-    return {
-
-      exists:
-        true,
-
-      address:
-        wallet,
-
-      sequence,
-
-      balance,
-
-      network:
-        PI_NETWORK,
-
-      rpcReachable:
-        true,
-
-      raw:
-        result,
-
-    };
-
-  } catch (
-    error
-  ) {
-
-    clearTimeout(
-      timeout
-    );
 
     err(
       "VERIFY_FAILED",
