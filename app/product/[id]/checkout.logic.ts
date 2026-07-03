@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback ,useRef} from "react";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import type {
   ShippingInfo,
   ValidateParams,
@@ -150,20 +150,21 @@ showMessage(
     try {
       const token = await getPiAccessToken();
 
-      const intentRes = await fetch("/api/payments/pi/create-intent", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          product_id: item.id,
-          variant_id: product?.selectedVariant?.id ?? null,
-          quantity,
-          address_id: shipping?.id,
-        
-        }),
-      });
+      const intentRes = await apiAuthFetch(
+  "/api/payments/pi/create-intent",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      product_id: item.id,
+      variant_id: product?.selectedVariant?.id ?? null,
+      quantity,
+      address_id: shipping?.id,
+    }),
+  }
+);
 
       const intentData = await intentRes.json().catch(() => null);
 
@@ -220,19 +221,19 @@ showMessage(
       paymentIntentId,
     });
 
-    const token = await getPiAccessToken();
-
-    const res = await fetch("/api/payments/pi/authorize", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: paymentId,
-      }),
-    });
+    const res = await apiAuthFetch(
+  "/api/payments/pi/authorize",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      payment_intent_id: paymentIntentId,
+      pi_payment_id: paymentId,
+    }),
+  }
+);
 
     const data = await res.json().catch(() => null);
 
@@ -276,20 +277,20 @@ showMessage(
       paymentIntentId,
     });
 
-    const token = await getPiAccessToken();
-
-    const submitRes = await fetch("/api/payments/pi/submit", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: paymentId,
-        txid,
-      }),
-    });
+    const submitRes = await apiAuthFetch(
+  "/api/payments/pi/submit",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      payment_intent_id: paymentIntentId,
+      pi_payment_id: paymentId,
+      txid,
+    }),
+  }
+);
 
     const submitData = await submitRes.json().catch(() => null);
 
