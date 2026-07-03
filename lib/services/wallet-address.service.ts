@@ -107,29 +107,37 @@ log(
 export async function createWalletAddressFlow(
   input: CreateWalletAddressFlowInput
 ) {
-try {
+
+  try {
+
+    log(
+      "CREATE_START",
+      {
+        userId: input.userId,
+      }
+    );
+
+    // Toàn bộ code hiện tại của bạn
+    // từ BODY_PARSE_START
+    // đến CREATE_SUCCESS
+
+    return wallet;
+
   } catch (error) {
-      err(
-        "CREATE_FAILED",
-        {
-          userId:
-            input.userId,
-          error,
-        }
-      );
-      throw error;
+
+    err(
+      "CREATE_FAILED",
+      {
+        userId: input.userId,
+        error,
+      }
+    );
+
+    throw error;
+
   }
+
 }
-  log(
-    "CREATE_START",
-    {
-      userId:
-        input.userId,
-    }
-  );
-log(
-  "BODY_PARSE_START"
-);
   /* ===================================================
      BODY
   =================================================== */
