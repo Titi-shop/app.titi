@@ -148,7 +148,16 @@ log(
     "string"
       ? body.label.trim()
       : null;
+log(
+  "BODY_PARSE_DONE",
+  {
+    hasAddress:
+      !!address,
 
+    hasLabel:
+      !!label,
+  }
+);
   if (!address) {
 
   err(
