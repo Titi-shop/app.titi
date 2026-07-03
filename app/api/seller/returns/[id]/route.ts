@@ -18,8 +18,8 @@ export async function GET(
   }
 
   const data = await getReturnDetail(
-    params.id,
-    auth.userId
+    auth.userId,
+    params.id
   );
 
   return NextResponse.json(data);
@@ -38,8 +38,8 @@ export async function PATCH(
   const body = await req.json();
 
   await updateReturnStatus(
-    params.id,
     auth.userId,
+    params.id,
     body.action
   );
 
