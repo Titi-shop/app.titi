@@ -11,7 +11,7 @@ Truck,
 ShieldCheck,
 } from "lucide-react";
 
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 type SellerReturnAddress = {
 recipient_name: string | null;
@@ -61,16 +61,8 @@ null
 useEffect(() => {
 const load = async () => {
 try {
-const token =
-await getPiAccessToken();
-
-    const res = await fetch(
-  `/api/returns/${returnId}`,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
+const res = await apiAuthFetch(
+  `/api/returns/${returnId}`
 );
 
     if (!res.ok) {
@@ -111,10 +103,6 @@ if (!trackingCode.trim()) {
 
 try {
   setSubmitting(true);
-
-  const token =
-    await getPiAccessToken();
-
   const res = await apiAuthFetch(
   `/api/returns/${returnId}`,
   {
