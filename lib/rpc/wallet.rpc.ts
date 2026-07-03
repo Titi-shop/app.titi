@@ -6,6 +6,10 @@ const PI_RPC_URL =
   process.env.PI_RPC_URL?.trim() ||
   "https://rpc.testnet.minepi.com";
 
+const PI_NETWORK =
+  process.env.PI_NETWORK?.trim() ||
+  "Pi Testnet";
+
 /* =====================================================
    TYPES
 ===================================================== */
@@ -101,66 +105,158 @@ export async function verifyPiWallet(
 
   if (!wallet) {
 
+    err(
+      "EMPTY_ADDRESS"
+    );
+
     throw new Error(
       "INVALID_WALLET_ADDRESS"
     );
 
   }
 
+  const regex =
+    /^G[A-Z2-7]{55}$/;
+
+  if (
+    !regex.test(
+      wallet
+    )
+  ) {
+
+    err(
+      "INVALID_FORMAT",
+      {
+        address: wallet,
+      }
+    );
+
+    throw new Error(
+      "INVALID_WALLET_ADDRESS"
+    );
+
+  }
+
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      10000
+    );
+
+  const startedAt =
+    Date.now();
+
   try {
+
+    log(
+      "RPC_REQUEST",
+      {
+        method:
+          "getAccount",
+
+        rpc:
+          PI_RPC_URL,
+
+        address:
+          wallet,
+      }
+    );
 
     const response =
       await fetch(
         PI_RPC_URL,
         {
-          method: "POST",
+
+          method:
+            "POST",
 
           headers: {
             "Content-Type":
               "application/json",
           },
 
-          cache: "no-store",
+          cache:
+            "no-store",
 
-          body: JSON.stringify({
+          signal:
+            controller.signal,
 
-            jsonrpc: "2.0",
+          body:
+            JSON.stringify({
 
-            id: Date.now(),
+              jsonrpc:
+                "2.0",
 
-            method:
-              "getAccount",
+              id:
+                Date.now(),
 
-            params: {
-              address: wallet,
-            },
+              method:
+                "getAccount",
 
-          }),
+              params: {
+                address:
+                  wallet,
+              },
+
+            }),
 
         }
       );
 
-    if (!response.ok) {
+    clearTimeout(
+      timeout
+    );
+
+    log(
+      "RPC_RESPONSE",
+      {
+        status:
+          response.status,
+
+        ok:
+          response.ok,
+
+        durationMs:
+          Date.now() -
+          startedAt,
+      }
+    );
+
+    if (
+      !response.ok
+    ) {
 
       err(
         "HTTP_ERROR",
-        response.status
+        {
+          status:
+            response.status,
+        }
       );
 
       return {
 
-        exists: false,
+        exists:
+          false,
 
-        address: wallet,
+        address:
+          wallet,
 
-        sequence: null,
+        sequence:
+          null,
 
-        balance: null,
+        balance:
+          null,
 
         network:
-          "Pi Testnet",
+          PI_NETWORK,
 
-        rpcReachable: false,
+        rpcReachable:
+          false,
 
         raw: {},
 
@@ -171,7 +267,9 @@ export async function verifyPiWallet(
     const json =
       await response.json();
 
-    if (json.error) {
+    if (
+      json.error
+    ) {
 
       err(
         "ACCOUNT_NOT_FOUND",
@@ -180,27 +278,38 @@ export async function verifyPiWallet(
 
       return {
 
-        exists: false,
+        exists:
+          false,
 
-        address: wallet,
+        address:
+          wallet,
 
-        sequence: null,
+        sequence:
+          null,
 
-        balance: null,
+        balance:
+          null,
 
         network:
-          "Pi Testnet",
+          PI_NETWORK,
 
-        rpcReachable: true,
+        rpcReachable:
+          true,
 
-        raw: json,
+        raw:
+          json,
 
       };
 
     }
 
     const result =
-      json.result ?? {};
+      json.result ??
+      {};
+
+    log(
+      "PARSE_START"
+    );
 
     const sequence =
       str(
@@ -211,13 +320,17 @@ export async function verifyPiWallet(
       );
 
     let balance:
-      number | null = null;
+      number | null =
+      null;
 
     if (
+
       Array.isArray(
         result.balances
       ) &&
+
       result.balances.length
+
     ) {
 
       balance =
@@ -230,34 +343,69 @@ export async function verifyPiWallet(
     }
 
     log(
+      "PARSE_DONE",
+      {
+        sequence,
+
+        balance,
+
+        hasBalances:
+          Array.isArray(
+            result.balances
+          ),
+      }
+    );
+
+    log(
+      "ACCOUNT_FOUND",
+      {
+        address:
+          wallet,
+      }
+    );
+
+    log(
       "VERIFY_SUCCESS",
       {
-        address: wallet,
+        address:
+          wallet,
+
         sequence,
+
         balance,
       }
     );
 
     return {
 
-      exists: true,
+      exists:
+        true,
 
-      address: wallet,
+      address:
+        wallet,
 
       sequence,
 
       balance,
 
       network:
-        "Pi Testnet",
+        PI_NETWORK,
 
-      rpcReachable: true,
+      rpcReachable:
+        true,
 
-      raw: result,
+      raw:
+        result,
 
     };
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
+
+    clearTimeout(
+      timeout
+    );
 
     err(
       "VERIFY_FAILED",
@@ -266,18 +414,23 @@ export async function verifyPiWallet(
 
     return {
 
-      exists: false,
+      exists:
+        false,
 
-      address: wallet,
+      address:
+        wallet,
 
-      sequence: null,
+      sequence:
+        null,
 
-      balance: null,
+      balance:
+        null,
 
       network:
-        "Pi Testnet",
+        PI_NETWORK,
 
-      rpcReachable: false,
+      rpcReachable:
+        false,
 
       raw: {},
 
