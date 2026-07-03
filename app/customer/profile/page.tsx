@@ -256,20 +256,11 @@ export default function ProfilePage() {
     setError(null);
 
     try {
-      const token =
-        await getPiAccessToken();
+      const formData = new FormData();
 
-      if (!token) return;
+formData.append("file", file);
 
-      const formData =
-        new FormData();
-
-      formData.append(
-        "file",
-        file
-      );
-
-      const res = await apiAuthFetch(
+const res = await apiAuthFetch(
   "/api/uploadAvatar",
   {
     method: "POST",
