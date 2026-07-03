@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import useSWR from "swr";
-
-import { getPiAccessToken } from "@/lib/piAuth";
-
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import type {
   Order,
   OrdersResponse,
@@ -29,19 +27,9 @@ async function safeJson<T>(
 }
 
 async function fetchOrders(): Promise<Order[]> {
-  const token =
-    await getPiAccessToken();
-
-  if (!token) {
-    return [];
-  }
-
-  const res = await fetch(
+  const res = await apiAuthFetch(
     "/api/orders",
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       cache: "no-store",
     }
   );
@@ -58,8 +46,9 @@ async function fetchOrders(): Promise<Order[]> {
   }
 
   if (Array.isArray(data)) {
-  return data as Order[];
+    return data as Order[];
   }
+
   const typed =
     data as OrdersResponse;
 
