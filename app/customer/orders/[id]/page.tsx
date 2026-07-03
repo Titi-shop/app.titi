@@ -6,7 +6,7 @@ import Image from "next/image";
 import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
 
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -57,22 +57,31 @@ interface Order {
    FETCHER
 ===================================================== */
 
-const fetcher = async (url: string): Promise<Order | null> => {
+const fetcher = async (
+  url: string
+): Promise<Order | null> => {
   try {
-    const token = await getPiAccessToken();
-    if (!token) return null;
+    const res = await apiAuthFetch(
+      url,
+      {
+        cache: "no-store",
+      }
+    );
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return null;
+    }
 
     const json = await res.json();
+
     return json?.order ?? null;
+
   } catch (err) {
-    console.error("[ORDER_FETCH_ERROR]", err);
+    console.error(
+      "[ORDER_FETCH_ERROR]",
+      err
+    );
+
     return null;
   }
 };
