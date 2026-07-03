@@ -1,5 +1,6 @@
 import { withTransaction } from "@/lib/db";
 import { sendNotification } from "@/lib/services/notifications.service";
+import { isValidUuid } from "./seller.validator";
 
 
 /* =====================================================
