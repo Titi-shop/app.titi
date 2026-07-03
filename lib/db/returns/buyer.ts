@@ -2,7 +2,10 @@ import { query, withTransaction } from "@/lib/db";
 import {
   sendNotification,
 } from "@/lib/services/notifications.service";
-
+import {
+  isValidUuid,
+  error,
+} from "./buyer.validator";
 /* =====================================================
    TYPES
 ===================================================== */
@@ -36,11 +39,6 @@ type DbReturn = {
 /* =====================================================
    HELPERS
 ===================================================== */
-
-function isValidUuid(value: string): boolean {
-  return /^[0-9a-f-]{36}$/i.test(value);
-}
-
 function toNumberSafe(
   value: unknown,
   field: string
@@ -59,9 +57,7 @@ function toNumberSafe(
   return num;
 }
 
-function error(message: string): never {
-  throw new Error(message);
-}
+
 
 /* =====================================================
    GET RETURNS
