@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import AppLoading from "@/components/AppLoading";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ======================================================
    TYPES
@@ -74,23 +74,12 @@ export default function NotificationsPage() {
         setLoading(true);
         setError("");
 
-        const token =
-          await getPiAccessToken();
-
-        if (!token) {
-          throw new Error("NO_TOKEN");
-        }
-
-        const res = await fetch(
-          "/api/notifications",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-
-            cache: "no-store",
-          }
-        );
+        const res = await apiAuthFetch(
+  "/api/notifications",
+  {
+    cache: "no-store",
+  }
+);
 
         if (!res.ok) {
           throw new Error(
