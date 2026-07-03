@@ -13,10 +13,7 @@ import {
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import {
-  getPiAccessToken,
-  clearPiToken,
-} from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ================= TYPES ================= */
 
@@ -142,37 +139,7 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const token =
-          await getPiAccessToken();
-
-        if (!token) return;
-
-        let res = await fetch(
-          "/api/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (res.status === 401) {
-          clearPiToken();
-
-          const newToken =
-            await getPiAccessToken();
-
-          if (!newToken) return;
-
-          res = await fetch(
-            "/api/profile",
-            {
-              headers: {
-                Authorization: `Bearer ${newToken}`,
-              },
-            }
-          );
-        }
+        const res = await apiAuthFetch("/api/profile");
 
         if (!res.ok) {
           throw new Error();
@@ -302,16 +269,13 @@ export default function ProfilePage() {
         file
       );
 
-      const res = await fetch(
-        "/api/uploadAvatar",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const res = await apiAuthFetch(
+  "/api/uploadAvatar",
+  {
+    method: "POST",
+    body: formData,
+  }
+);
 
       if (!res.ok) {
         throw new Error();
@@ -374,29 +338,13 @@ export default function ProfilePage() {
     if (!file) return;
 
     try {
-      const token =
-        await getPiAccessToken();
-
-      if (!token) return;
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "file",
-        file
-      );
-
-      const res = await fetch(
-        "/api/uploadShopBanner",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const res = await apiAuthFetch(
+  "/api/uploadShopBanner",
+  {
+    method: "POST",
+    body: formData,
+  }
+);
 
       if (!res.ok) {
         throw new Error();
@@ -435,28 +383,17 @@ export default function ProfilePage() {
     setError(null);
 
     try {
-      const token =
-        await getPiAccessToken();
-
-      if (!token) return;
-
-      const res = await fetch(
-        "/api/profile",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify(
-            form
-          ),
-        }
-      );
+      const res = await apiAuthFetch(
+  "/api/profile",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type":
+        "application/json",
+    },
+    body: JSON.stringify(form),
+  }
+);
 
       if (!res.ok) {
         throw new Error();
