@@ -4,7 +4,7 @@
 import { FormEvent, useState } from "react";
 import { toUTCFromInput } from "@/lib/utils/time";
 import { compressImage } from "@/lib/upload/imageUtils";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
@@ -129,28 +129,24 @@ const cardStyle = {
     });
 
   const getSignedUrl = async (): Promise<SignedUrlResponse> => {
-    const token = await getPiAccessToken();
+  const res = await apiAuthFetch("/api/upload-url", {
+    method: "POST",
+  });
 
-    const res = await fetch("/api/upload-url", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ SIGNED URL FAIL:", text);
+    throw new Error("SIGNED_URL_FAILED");
+  }
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ SIGNED URL FAIL:", text);
-      throw new Error("SIGNED_URL_FAILED");
-    }
+  const data: SignedUrlResponse = await res.json();
 
-    const data: SignedUrlResponse = await res.json();
-    if (!data.uploadUrl || !data.publicUrl) {
-      throw new Error("NO_UPLOAD_URL");
-    }
+  if (!data.uploadUrl || !data.publicUrl) {
+    throw new Error("NO_UPLOAD_URL");
+  }
 
-    return data;
-  };
+  return data;
+};
 
   /* =========================
      MAIN IMAGE UPLOAD
