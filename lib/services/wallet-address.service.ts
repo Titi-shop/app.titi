@@ -117,9 +117,123 @@ export async function createWalletAddressFlow(
       }
     );
 
-    // Toàn bộ code hiện tại của bạn
-    // từ BODY_PARSE_START
-    // đến CREATE_SUCCESS
+    log("BODY_PARSE_START");
+
+    const body =
+      input.body as CreateBody;
+
+    const address =
+      typeof body.address === "string"
+        ? body.address.trim()
+        : "";
+
+    const label =
+      typeof body.label === "string"
+        ? body.label.trim()
+        : null;
+
+    log(
+      "BODY_PARSE_DONE",
+      {
+        hasAddress: !!address,
+        hasLabel: !!label,
+      }
+    );
+
+    if (!address) {
+
+      err(
+        "INVALID_ADDRESS",
+        {
+          userId: input.userId,
+        }
+      );
+
+      throw new Error(
+        "INVALID_ADDRESS"
+      );
+
+    }
+
+    log(
+      "INPUT_OK",
+      {
+        addressPrefix:
+          address.substring(0, 8),
+
+        addressLength:
+          address.length,
+      }
+    );
+
+    /* ===============================================
+       RPC (NEXT STEP)
+    =============================================== */
+
+    log(
+      "RPC_VALIDATE_PENDING"
+    );
+
+    /* ===============================================
+       DB
+    =============================================== */
+
+    log(
+      "DB_CREATE_START",
+      {
+        userId:
+          input.userId,
+      }
+    );
+
+    const wallet =
+      await createWalletAddress({
+
+        wallet_id:
+          body.wallet_id,
+
+        user_id:
+          input.userId,
+
+        network:
+          "PI",
+
+        address,
+
+        label,
+
+        is_default:
+          true,
+
+        created_by:
+          input.userId,
+
+      });
+
+    log(
+      "DB_CREATE_DONE",
+      {
+        walletAddressId:
+          wallet.id,
+      }
+    );
+
+    log(
+      "CREATE_SUCCESS",
+      {
+        walletAddressId:
+          wallet.id,
+
+        userId:
+          input.userId,
+
+        validationStatus:
+          wallet.validation_status,
+
+        verified:
+          wallet.is_verified,
+      }
+    );
 
     return wallet;
 
@@ -128,7 +242,9 @@ export async function createWalletAddressFlow(
     err(
       "CREATE_FAILED",
       {
-        userId: input.userId,
+        userId:
+          input.userId,
+
         error,
       }
     );
@@ -136,153 +252,5 @@ export async function createWalletAddressFlow(
     throw error;
 
   }
-
-}
-  /* ===================================================
-     BODY
-  =================================================== */
-
-  const body =
-    input.body as CreateBody;
-
-  const address =
-    typeof body.address ===
-    "string"
-      ? body.address.trim()
-      : "";
-
-  const label =
-    typeof body.label ===
-    "string"
-      ? body.label.trim()
-      : null;
-log(
-  "BODY_PARSE_DONE",
-  {
-    hasAddress:
-      !!address,
-
-    hasLabel:
-      !!label,
-  }
-);
-  if (!address) {
-
-  err(
-    "INVALID_ADDRESS",
-    {
-      userId:
-        input.userId,
-    }
-  );
-
-  throw new Error(
-    "INVALID_ADDRESS"
-  );
-}
-
-  log(
-  "INPUT_OK",
-  {
-    addressPrefix:
-      address.substring(
-        0,
-        8
-      ),
-
-    addressLength:
-      address.length,
-  }
-);
-
-  /* ===================================================
-     RPC VALIDATE
-     (next step)
-  =================================================== */
-
-  log(
-  "RPC_VALIDATE_PENDING"
-);
-
-  /*
-  Sau sẽ thay bằng
-  log("RPC_VALIDATE_START");
-  await validatePiWalletAddress(
-      address
-  );
-
-  log("RPC_VALIDATE_DONE");
-  */
-
-  /* ===================================================
-     DB
-  =================================================== */
-
-  log(
-    "DB_CREATE_START"
-  );
-log(
-  "DB_CREATE_START",
-  {
-    userId:
-      input.userId,
-  }
-);
-  const wallet =
-    await createWalletAddress({
-
-      wallet_id:
-        body.wallet_id,
-
-      user_id:
-        input.userId,
-
-      network:
-        "PI",
-
-      address,
-
-      label,
-
-      is_default:
-        true,
-
-      created_by:
-        input.userId,
-
-    });
-log(
-  "DB_CREATE_DONE",
-  {
-    walletAddressId:
-      wallet.id,
-  }
-);
-  log(
-    "DB_CREATE_DONE",
-    {
-      id:
-        wallet.id,
-    }
-  );
-
-  log(
-  "CREATE_SUCCESS",
-  {
-    walletAddressId:
-      wallet.id,
-
-    userId:
-      input.userId,
-
-    validationStatus:
-      wallet.validation_status,
-
-    verified:
-      wallet.is_verified,
-  }
-);
-
-  return wallet;
 
 }
