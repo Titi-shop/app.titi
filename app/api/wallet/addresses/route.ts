@@ -2,6 +2,8 @@
 // app/api/wallet/addresses/route.ts
 // =====================================================
 
+export const runtime = "nodejs";
+
 import {
   NextRequest,
   NextResponse,
@@ -12,34 +14,82 @@ import {
 } from "@/lib/auth/guard";
 
 import {
-  getWalletAddressesByUser,
-  createWalletAddress,
-} from "@/lib/db/wallet-addresses";
-import {
-  getWalletRecordByUserId,
-} from "@/lib/db/wallet";
-export const runtime =
-  "nodejs";
+  createWalletAddressFlow,
+  listWalletAddressesFlow,
+} from "@/lib/services/wallet-address.service";
+
+/* =====================================================
+   LOG
+===================================================== */
+
+function log(
+  tag: string,
+  data?: unknown
+) {
+  console.log(
+    `[API][WALLET_ADDRESS] ${tag}`,
+    data ?? ""
+  );
+}
+
+function err(
+  tag: string,
+  data?: unknown
+) {
+  console.error(
+    `[API][WALLET_ADDRESS] ${tag}`,
+    data ?? ""
+  );
+}
 
 /* =====================================================
    GET
 ===================================================== */
 
-export async function GET() {
+export async function GET(
+  request: NextRequest
+) {
+
+  log("GET_START");
 
   try {
 
     const auth =
-      await requireAuth();
+      await requireAuth(
+        request
+      );
 
     if (!auth.ok) {
+
+      log("AUTH_FAILED");
+
       return auth.response;
+
     }
 
-   const wallets =
-  await getWalletAddressesByUser(
-    auth.userId
-  );
+    log(
+      "AUTH_SUCCESS",
+      {
+        userId:
+          auth.userId,
+      }
+    );
+
+    const wallets =
+      await listWalletAddressesFlow(
+        auth.userId
+      );
+
+    log(
+      "GET_SUCCESS",
+      {
+        userId:
+          auth.userId,
+
+        total:
+          wallets.length,
+      }
+    );
 
     return NextResponse.json({
       wallets,
@@ -47,14 +97,9 @@ export async function GET() {
 
   } catch (error) {
 
-    console.error(
-      "[WALLET_ADDRESSES][GET_FAILED]",
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "UNKNOWN_ERROR",
-      }
+    err(
+      "GET_FAILED",
+      error
     );
 
     return NextResponse.json(
@@ -66,7 +111,9 @@ export async function GET() {
         status: 500,
       }
     );
+
   }
+
 }
 
 /* =====================================================
@@ -77,103 +124,90 @@ export async function POST(
   request: NextRequest
 ) {
 
+  log("POST_START");
+
   try {
 
     const auth =
-      await requireAuth();
+      await requireAuth(
+        request
+      );
 
     if (!auth.ok) {
+
+      log("AUTH_FAILED");
+
       return auth.response;
+
     }
+
+    log(
+      "AUTH_SUCCESS",
+      {
+        userId:
+          auth.userId,
+      }
+    );
+
+    log(
+      "BODY_START"
+    );
 
     const body =
       await request.json();
 
-    const address =
-      typeof body?.address ===
-      "string"
-        ? body.address.trim()
-        : "";
-
-    if (!address) {
-
-      return NextResponse.json(
-        {
-          error:
-            "INVALID_ADDRESS",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-    /* ===================================================
-   VALIDATE PI ADDRESS
-=================================================== */
-
-const piWalletRegex =
-  /^G[A-Z2-7]{55}$/;
-
-if (
-  !piWalletRegex.test(
-    address
-  )
-) {
-  return NextResponse.json(
-    {
-      error:
-        "INVALID_ADDRESS",
-    },
-    {
-      status: 400,
-    }
-  );
-}
-    const walletRecord =
-  await getWalletRecordByUserId(
-    auth.userId
-  );
-
-if (!walletRecord) {
-  return NextResponse.json(
-    {
-      error: "WALLET_NOT_FOUND",
-    },
-    {
-      status: 404,
-    }
-  );
-}
-
-    const wallet =
-  await createWalletAddress({
-    wallet_id: walletRecord.id,
-    user_id: auth.userId,
-    network: "PI",
-    address,
-    label: null,
-    is_default: true,
-    created_by: auth.userId,
-  });
-
-    return NextResponse.json(
+    log(
+      "BODY_DONE",
       {
-        success: true,
+        hasAddress:
+          typeof body?.address ===
+          "string",
 
-        wallet,
+        hasLabel:
+          typeof body?.label ===
+          "string",
       }
     );
 
+    log(
+      "SERVICE_START"
+    );
+
+    const wallet =
+      await createWalletAddressFlow({
+
+        userId:
+          auth.userId,
+
+        body,
+
+      });
+
+    log(
+      "SERVICE_DONE",
+      {
+        walletAddressId:
+          wallet.id,
+      }
+    );
+
+    log(
+      "POST_SUCCESS"
+    );
+
+    return NextResponse.json({
+
+      success: true,
+
+      wallet,
+
+    });
+
   } catch (error) {
 
-    console.error(
-      "[WALLET_ADDRESSES][POST_FAILED]",
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "UNKNOWN_ERROR",
-      }
+    err(
+      "POST_FAILED",
+      error
     );
 
     return NextResponse.json(
@@ -185,5 +219,7 @@ if (!walletRecord) {
         status: 500,
       }
     );
+
   }
+
 }
