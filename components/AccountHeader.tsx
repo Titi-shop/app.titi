@@ -12,8 +12,7 @@ import { UserCircle } from "lucide-react";
 import useSWR from "swr";
 
 import { useAuth } from "@/context/AuthContext";
-
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
@@ -30,22 +29,9 @@ interface Profile {
    FETCHER
 ========================= */
 
-const fetcher = async (
-  url: string
-) => {
+const fetcher = async (url: string) => {
   try {
-    const token =
-      await getPiAccessToken();
-
-    if (!token) {
-      return null;
-    }
-
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await apiAuthFetch(url);
 
     if (!res.ok) {
       return null;
