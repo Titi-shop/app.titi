@@ -405,13 +405,25 @@ export default function WalletHero({
         <div className="mt-6">
 
           <WalletActions
-            onWithdraw={onWithdraw}
-          />
+  onWithdraw={onWithdraw}
+
+  onAddresses={() => {
+    onWalletClick?.();
+  }}
+
+  onSecurity={() => {
+    window.location.href =
+      "/account/wallet/security";
+  }}
+
+  onHistory={() => {
+    window.location.href =
+      "/account/wallet/history";
+  }}
+/>
 
         </div>
-
       </div>
-
     </section>
 
   );
