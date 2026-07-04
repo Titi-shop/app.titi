@@ -39,9 +39,7 @@ type SetupWalletPinInput = {
 };
 
 type VerifyWalletPinInput = {
-
   userId: string;
-
   pin: string;
 
 };
@@ -49,9 +47,7 @@ type VerifyWalletPinInput = {
 type ChangeWalletPinInput = {
 
   userId: string;
-
   currentPin: string;
-
   newPin: string;
 
 };
@@ -59,9 +55,7 @@ type ChangeWalletPinInput = {
 type VerifyWalletPinResult = {
 
   success: boolean;
-
   locked: boolean;
-
   remainingAttempts: number;
 
 };
@@ -429,9 +423,30 @@ export async function setupWalletPin(
 
     );
 
-  log(
-    "DB_SAVE_PIN_DONE"
+  if (!updated) {
+
+  err(
+    "DB_SAVE_PIN_FAILED"
   );
+
+  throw new Error(
+    "PIN_SAVE_FAILED"
+  );
+
+}
+
+log(
+  "DB_SAVE_PIN_DONE",
+  {
+
+    pinEnabled:
+      updated.pin_enabled,
+
+    hasHash:
+      !!updated.pin_hash,
+
+  }
+);
 
   log(
     "SETUP_PIN_SUCCESS",
@@ -803,14 +818,18 @@ export async function changeWalletPinFlow(
   );
 
   const security =
-    await changeWalletPin(
+  await changeWalletPin({
 
+    user_id:
       input.userId,
 
-      encoded
+    pin_hash:
+      encoded,
 
-    );
+    updated_by:
+      input.userId,
 
+  });
   log(
     "DB_CHANGE_PIN_DONE"
   );
