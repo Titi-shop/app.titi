@@ -129,8 +129,7 @@ const {
       setLoading(false);
 
     }
-  }
-}
+  
   if (authLoading) {
 
   return null;
