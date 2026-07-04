@@ -31,7 +31,12 @@ import WalletAddressCard
 
 import WalletAddressSheet
   from "./WalletAddressSheet";
+import {
+  useRouter,
+} from "next/navigation";
 
+import WalletPinVerifyModal
+  from "./WalletPinVerifyModal";
 /* =====================================================
    TYPES
 ===================================================== */
@@ -85,6 +90,23 @@ export default function WalletWithdrawModal({
     walletSheetOpen,
     setWalletSheetOpen,
   ] = useState(false);
+  const router =
+  useRouter();
+
+const [
+  pinModalOpen,
+  setPinModalOpen,
+] = useState(false);
+
+const [
+  pendingWithdraw,
+  setPendingWithdraw,
+] = useState(false);
+
+const [
+  pinEnabled,
+  setPinEnabled,
+] = useState(false);
 
   /* ===================================================
      RESET
