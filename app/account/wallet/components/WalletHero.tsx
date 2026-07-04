@@ -29,7 +29,9 @@ import {
 
 import WalletActions
   from "./WalletActions";
-
+import {
+  useRouter,
+} from "next/navigation";
 /* =====================================================
    TYPES
 ===================================================== */
@@ -38,14 +40,10 @@ type Props = {
   balance: number;
 
   refreshing: boolean;
-
   defaultWallet?:
     WalletAddress | null;
-
   onRefresh: () => void;
-
   onWithdraw: () => void;
-
   onWalletClick?: () => void;
 };
 
@@ -56,15 +54,10 @@ type Props = {
 export default function WalletHero({
 
   balance,
-
   refreshing,
-
   defaultWallet,
-
   onRefresh,
-
   onWithdraw,
-
   onWalletClick,
 
 }: Props) {
@@ -404,7 +397,7 @@ export default function WalletHero({
 
         <div className="mt-6">
 
-          <WalletActions
+       <WalletActions
   onWithdraw={onWithdraw}
 
   onAddresses={() => {
@@ -412,13 +405,15 @@ export default function WalletHero({
   }}
 
   onSecurity={() => {
-    window.location.href =
-      "/account/wallet/security";
+    router.push(
+      "/account/wallet/security"
+    );
   }}
 
   onHistory={() => {
-    window.location.href =
-      "/account/wallet/history";
+    router.push(
+      "/account/wallet/history"
+    );
   }}
 />
 
