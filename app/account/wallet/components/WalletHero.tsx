@@ -239,7 +239,7 @@ useEffect(() => {
     DEFAULT WALLET
 ====================================== */}
 
-<div className="mt-6">
+<div className="mt-3">
 
   <WalletDefaultAddress
     wallet={
@@ -259,7 +259,7 @@ useEffect(() => {
             ACTIONS
         ====================================== */}
 
-        <div className="mt-6">
+        <div className="mt-3">
 
      <WalletActions
   onWithdraw={onWithdraw}
