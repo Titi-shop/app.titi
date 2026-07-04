@@ -165,17 +165,18 @@ if (!wallet) {
 
 const withdrawal =
   await createWalletWithdrawal({
-
     userId,
-
     amount,
-
     walletAddressId,
-
     withdrawWallet:
       wallet.address,
 
   });
+    if (!withdrawal) {
+  throw new Error(
+    "WITHDRAW_CREATE_FAILED"
+  );
+}
     /* =================================================
        SUCCESS
     ================================================= */
