@@ -30,9 +30,9 @@ import {
 export function useWallet() {
 
   const {
-    loading:
-      authLoading,
-  } = useAuth();
+  user,
+  loading: authLoading,
+} = useAuth();
 
   const [
     refreshing,
@@ -49,9 +49,9 @@ export function useWallet() {
     isLoading,
     mutate,
   } = useSWR(
-    authLoading
-      ? null
-      : "wallet",
+    !user || authLoading
+    ? null
+    : "wallet"
 
     fetchWallet,
 
@@ -213,11 +213,12 @@ export function useWallet() {
   return {
 
     loading:
-      authLoading ||
-      (
+    authLoading ||
+    (!user) ||
+    (
         isLoading &&
         !data
-      ),
+    ),
 
     error,
 
