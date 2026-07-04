@@ -424,7 +424,7 @@ export default function WalletSecurityPage() {
 
         </div>
 
-      </div>
+      </button>
             {/* ==========================================
           GOOGLE AUTHENTICATOR
       ========================================== */}
