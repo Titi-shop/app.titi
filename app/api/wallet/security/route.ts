@@ -89,11 +89,33 @@ export async function GET() {
 
     return NextResponse.json({
 
-      success: true,
+  success: true,
 
-      security,
+  pin_enabled:
+    security?.pin_enabled ??
+    false,
 
-    });
+  totp_enabled:
+    security?.totp_enabled ??
+    false,
+
+  biometric_enabled:
+    security?.biometric_enabled ??
+    false,
+
+  passkey_enabled:
+    security?.passkey_enabled ??
+    false,
+
+  locked:
+    !!(
+      security?.locked_until &&
+      new Date(
+        security.locked_until
+      ) > new Date()
+    ),
+
+});
 
   } catch (error) {
 
