@@ -299,31 +299,36 @@ async function submitWithdraw() {
 }
   async function loadSecurity() {
 
-    try {
+  try {
 
-        const response =
-            await apiAuthFetch(
-                "/api/wallet/security"
-            );
+    const response =
+      await apiAuthFetch(
+        "/api/wallet/security"
+      );
 
-        if (!response.ok) {
+    if (!response.ok) {
 
-            return;
-
-        }
-
-        const json =
-            await response.json();
-
-        setPinEnabled(
-            !!json.pin_enabled
-        );
-
-    } catch {
-
-        setPinEnabled(false);
+      return;
 
     }
+
+    const json =
+      await response.json();
+
+    console.log(
+      "[WITHDRAW][SECURITY]",
+      json
+    );
+
+    setPinEnabled(
+      !!json.security?.pin_enabled
+    );
+
+  } catch {
+
+    setPinEnabled(false);
+
+  }
 
 }
   /* ===================================================
