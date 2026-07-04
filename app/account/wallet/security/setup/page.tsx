@@ -5,6 +5,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -191,6 +192,37 @@ useEffect(() => {
     setError("");
 
   }
+  async function checkPin() {
+
+  try {
+
+    const response =
+      await apiAuthFetch(
+        "/api/wallet/security"
+      );
+
+    if (!response.ok) {
+      return;
+    }
+
+    const json =
+      await response.json();
+
+    if (json.security?.pin_enabled) {
+
+      router.replace(
+        "/account/wallet/security/change"
+      );
+
+    }
+
+  } catch {
+
+    // ignore
+
+  }
+
+}
   /* ===================================================
      SAVE PIN
   =================================================== */
