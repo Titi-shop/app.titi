@@ -291,16 +291,39 @@ export default function WalletSecurityPage() {
           WALLET PIN
       ========================================== */}
 
-      <div
-        className="
-          mt-8
-          rounded-3xl
-          border
-          border-[var(--nav-border)]
-          bg-[var(--card-bg)]
-          p-5
-        "
-      >
+     <button
+  type="button"
+  onClick={() => {
+
+    if (security?.pin_enabled) {
+
+      router.push(
+        "/account/wallet/security/change"
+      );
+
+      return;
+
+    }
+
+    router.push(
+      "/account/wallet/security/setup"
+    );
+
+  }}
+  className="
+    mt-8
+    w-full
+    rounded-3xl
+    border
+    border-[var(--nav-border)]
+    bg-[var(--card-bg)]
+    p-5
+    text-left
+    transition
+    hover:border-primary/30
+    active:scale-[0.99]
+  "
+>
 
         <div
           className="
@@ -366,27 +389,21 @@ export default function WalletSecurityPage() {
 
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-
-              if (
-                security?.pin_enabled
-              ) {
-
-                router.push(
-                  "/account/wallet/security/change"
-                );
-
-              } else {
-
-                router.push(
-                  "/account/wallet/security/setup"
-                );
-
-              }
-
-            }}
+       <button
+  type="button"
+  tabIndex={-1}
+  className="
+    flex
+    h-10
+    w-10
+    items-center
+    justify-center
+    rounded-xl
+    border
+    border-[var(--nav-border)]
+    pointer-events-none
+  "
+>
             className="
               flex
               h-10
