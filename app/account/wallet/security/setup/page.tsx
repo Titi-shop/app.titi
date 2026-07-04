@@ -87,7 +87,18 @@ const {
   /* ===================================================
      CURRENT PIN
   =================================================== */
+useEffect(() => {
 
+  if (authLoading || !user) {
+    return;
+  }
+
+  void checkPin();
+
+}, [
+  authLoading,
+  user,
+]);
   const currentPin =
     step === "create"
       ? pin
@@ -480,7 +491,14 @@ const {
     router.back();
 
   }
+if (authLoading) {
+  return null;
+}
 
+if (!user) {
+  router.replace("/");
+  return null;
+}
     /* ===================================================
      UI
   =================================================== */
