@@ -4,10 +4,8 @@
 
 "use client";
 
-import {
-  useState,
-} from "react";
-
+import { useState,useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   useRouter,
 } from "next/navigation";
@@ -62,6 +60,25 @@ export default function WalletChangePinPage() {
     error,
     setError,
   ] = useState("");
+const {
+  user,
+  loading: authLoading,
+} = useAuth();
+  useEffect(() => {
+
+  if (authLoading) {
+    return;
+  }
+
+  if (!user) {
+    router.replace("/");
+  }
+
+}, [
+  authLoading,
+  user,
+  router,
+]);
   /* ===================================================
      SUBMIT
   =================================================== */
@@ -190,6 +207,13 @@ export default function WalletChangePinPage() {
     }
 
   }
+  if (authLoading) {
+  return null;
+}
+
+if (!user) {
+  return null;
+}
     /* ===================================================
      UI
   =================================================== */
