@@ -15,6 +15,9 @@ import {
   useState,
 } from "react";
 
+import WalletDefaultAddress
+  from "./WalletDefaultAddress";
+
 import {
   useTranslationClient as useTranslation,
 } from "@/app/lib/i18n/client";
@@ -56,21 +59,13 @@ onHistory?: () => void;
 export default function WalletHero({
 
   balance,
-
   refreshing,
-
   defaultWallet,
-
   onRefresh,
-
   onWithdraw,
-
   onWalletClick,
-
   onSecurity,
-
   onHistory,
-
 }: Props) {
 
   const { t } =
@@ -250,158 +245,26 @@ export default function WalletHero({
           </button>
 
         </div>
-        {/* ======================================
-            DEFAULT WALLET
-        ====================================== */}
+      {/* ======================================
+    DEFAULT WALLET
+====================================== */}
 
-        <button
-          type="button"
-          onClick={onWalletClick}
-          className="
-            mt-6
-            flex
-            w-full
-            items-center
-            justify-between
-            rounded-2xl
-            border
-            border-white/20
-            bg-white/10
-            p-4
-            backdrop-blur-md
-            transition-all
-            active:scale-[0.98]
-          "
-        >
+<div className="mt-6">
 
-          {/* LEFT */}
+  <WalletDefaultAddress
+    wallet={
+      defaultWallet
+        ? {
+            address: defaultWallet.address,
+            network: defaultWallet.network,
+            is_verified:
+              defaultWallet.isVerified,
+          }
+        : null
+    }
+  />
 
-          <div
-            className="
-              min-w-0
-              flex-1
-            "
-          >
-
-            <p
-              className="
-                text-xs
-                text-white/70
-              "
-            >
-              {t.wallet_default ??
-                "Default Wallet"}
-            </p>
-
-            <div
-              className="
-                mt-2
-                flex
-                items-center
-                gap-2
-              "
-            >
-
-              <p
-                className="
-                  truncate
-                  text-base
-                  font-bold
-                  tracking-wide
-                  text-white
-                "
-              >
-
-                {defaultWallet
-                  ? defaultWallet.address.slice(0, 6) +
-                    "..." +
-                    defaultWallet.address.slice(-6)
-                  : (
-                      t.wallet_not_linked ??
-                      "No wallet linked"
-                    )}
-
-              </p>
-
-              {defaultWallet?.isVerified && (
-
-                <span
-                  className="
-                    rounded-full
-                    bg-green-500/20
-                    px-2
-                    py-0.5
-                    text-[11px]
-                    font-semibold
-                    text-green-100
-                  "
-                >
-                  {t.wallet_verified ??
-                    "Verified"}
-                </span>
-
-              )}
-
-              {defaultWallet &&
-                !defaultWallet.isVerified && (
-
-                <span
-                  className="
-                    rounded-full
-                    bg-yellow-500/20
-                    px-2
-                    py-0.5
-                    text-[11px]
-                    font-semibold
-                    text-yellow-100
-                  "
-                >
-                  {t.wallet_unverified ??
-                    "Unverified"}
-                </span>
-
-              )}
-
-            </div>
-
-            <p
-              className="
-                mt-2
-                text-xs
-                text-white/70
-              "
-            >
-              {defaultWallet?.network ??
-                "Pi Network"}
-            </p>
-
-          </div>
-
-          {/* RIGHT */}
-
-          <div
-            className="
-              ml-4
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              bg-white/10
-            "
-          >
-
-            <ChevronRight
-              size={18}
-              className="
-                text-white
-              "
-            />
-
-          </div>
-
-        </button>
+</div>
         {/* ======================================
             ACTIONS
         ====================================== */}
