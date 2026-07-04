@@ -8,6 +8,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
+  Copy,
   Wallet,
 } from "lucide-react";
 
@@ -42,8 +43,46 @@ export default function WalletDefaultAddress({
   onClick,
 }: Props) {
 
-  const { t } =
-    useTranslation();
+  const { t } = useTranslation();
+
+  const copyAddress = async (
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+
+    e.stopPropagation();
+
+    if (!wallet?.address) return;
+
+    try {
+
+      await navigator.clipboard.writeText(
+        wallet.address
+      );
+
+    } catch {
+
+      const textarea =
+        document.createElement("textarea");
+
+      textarea.value = wallet.address;
+
+      document.body.appendChild(textarea);
+
+      textarea.select();
+
+      document.execCommand("copy");
+
+      document.body.removeChild(textarea);
+
+    }
+
+  };
+
+  if (!wallet) {
+
+    return null;
+
+  }
 
   return (
 
@@ -57,11 +96,12 @@ export default function WalletDefaultAddress({
         w-full
         items-center
         justify-between
-        gap-4
+        gap-3
         px-4
         py-3
         text-left
         active:scale-[0.98]
+        transition-all
       "
     >
 
@@ -93,9 +133,7 @@ export default function WalletDefaultAddress({
           "
         >
 
-          <Wallet
-            size={18}
-          />
+          <Wallet size={18} />
 
         </div>
 
@@ -103,19 +141,10 @@ export default function WalletDefaultAddress({
 
         <div className="min-w-0 flex-1">
 
-          <p
-            className="
-              text-xs
-              text-muted
-            "
-          >
-            {t.wallet_default ??
-              "Default Wallet"}
-          </p>
+          {/* ADDRESS */}
 
           <p
             className="
-              mt-1
               truncate
               text-sm
               font-semibold
@@ -125,79 +154,79 @@ export default function WalletDefaultAddress({
                 "var(--text-primary)",
             }}
           >
-
-            {wallet
-              ? formatWalletAddress(
-                  wallet.address
-                )
-              : (
-                  t.wallet_not_linked ??
-                  "No wallet linked"
-                )}
-
+            {formatWalletAddress(
+              wallet.address
+            )}
           </p>
 
-          {wallet && (
+          {/* STATUS */}
 
-            <div
-              className="
-                mt-1
-                flex
-                items-center
-                gap-1
-                text-xs
-              "
-            >
+          <div
+            className="
+              mt-1
+              flex
+              items-center
+              gap-2
+            "
+          >
 
-              {wallet.is_verified ? (
+            {wallet.is_verified ? (
 
-                <>
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  gap-1
+                  rounded-full
+                  bg-emerald-500/10
+                  px-2.5
+                  py-1
+                  text-xs
+                  font-medium
+                  text-emerald-600
+                  dark:text-emerald-400
+                "
+              >
 
-                  <CheckCircle2
-                    size={12}
-                    className="
-                      text-success
-                    "
-                  />
+                <CheckCircle2
+                  size={13}
+                />
 
-                  <span
-                    className="
-                      text-success
-                    "
-                  >
-                    {t.wallet_verified ??
-                      "Verified"}
-                  </span>
+                {t.wallet_verified ??
+                  "Đã xác minh"}
 
-                </>
+              </span>
 
-              ) : (
+            ) : (
 
-                <>
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  gap-1
+                  rounded-full
+                  bg-amber-500/10
+                  px-2.5
+                  py-1
+                  text-xs
+                  font-medium
+                  text-amber-600
+                  dark:text-amber-400
+                "
+              >
 
-                  <AlertCircle
-                    size={12}
-                    className="
-                      text-warning
-                    "
-                  />
+                <AlertCircle
+                  size={13}
+                />
 
-                  <span
-                    className="
-                      text-warning
-                    "
-                  >
-                    {t.wallet_unverified ??
-                      "Unverified"}
-                  </span>
+                {t.wallet_unverified ??
+                  "Chưa xác minh"}
 
-                </>
+              </span>
 
-              )}
+            )}
 
-            </div>
-
-          )}
+          </div>
 
         </div>
 
@@ -205,13 +234,52 @@ export default function WalletDefaultAddress({
 
       {/* ================= RIGHT ================= */}
 
-      <ChevronRight
-        size={18}
+      <div
         className="
+          flex
+          items-center
+          gap-2
           shrink-0
-          text-muted
         "
-      />
+      >
+
+        {/* COPY */}
+
+        <button
+          type="button"
+          onClick={copyAddress}
+          title={t.copy ?? "Copy"}
+          className="
+            flex
+            h-9
+            w-9
+            items-center
+            justify-center
+            rounded-lg
+            bg-primary/10
+            text-primary
+            transition
+            hover:bg-primary/20
+            active:scale-95
+          "
+        >
+
+          <Copy
+            size={17}
+          />
+
+        </button>
+
+        {/* GO */}
+
+        <ChevronRight
+          size={18}
+          className="
+            text-muted
+          "
+        />
+
+      </div>
 
     </button>
 
