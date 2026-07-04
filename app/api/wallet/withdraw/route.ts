@@ -170,6 +170,8 @@ const withdrawal =
 
     amount,
 
+    walletAddressId,
+
     withdrawWallet:
       wallet.address,
 
