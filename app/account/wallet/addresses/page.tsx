@@ -3,7 +3,9 @@
 // =====================================================
 
 "use client";
-
+import {
+  useAuth,
+} from "@/context/AuthContext";
 import {
   useState,
 } from "react";
@@ -52,13 +54,23 @@ export default function WalletAddressesPage() {
     error,
     setError,
   ] = useState("");
-
+const {
+  user,
+  loading: authLoading,
+} = useAuth();
   /* ===================================================
      SAVE
   =================================================== */
+if (!user) {
 
+  setError(
+    "Please login first."
+  );
+
+  return;
+
+}
   async function handleSave() {
-
     const wallet =
       address.trim();
 
@@ -75,9 +87,7 @@ export default function WalletAddressesPage() {
     try {
 
       setLoading(true);
-
       setError("");
-
       const response =
         await apiAuthFetch(
           "/api/wallet/addresses",
@@ -103,29 +113,44 @@ export default function WalletAddressesPage() {
 
         setError(
           json.error ??
-          "{t.wallet_save_faile}"
+       t.wallet_save_failed ??
+       "Save failed."
         );
 
         return;
       }
 
-      router.push(
-        "/account/wallet"
-      );
+      router.replace(
+"/account/wallet"
+);
 
-    } catch {
-
-      setError(
+   catch (error) {
+    console.error(
+        error
+    );
+    setError(
         t.wallet_network_error ??
         "Network error."
-      );
-
-    } finally {
+    );
+} finally {
 
       setLoading(false);
 
     }
   }
+  if (authLoading) {
+
+  return null;
+
+}
+
+if (!user) {
+
+  router.replace("/");
+
+  return null;
+
+}
     /* ===================================================
      UI
   =================================================== */
@@ -251,7 +276,7 @@ export default function WalletAddressesPage() {
               e.target.value
             );
           }}
-          placeholder="G..."
+          placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
@@ -304,7 +329,10 @@ export default function WalletAddressesPage() {
 
         <button
           type="button"
-          disabled={loading}
+          disabled={
+  loading ||
+  authLoading
+           }
           onClick={() => {
             void handleSave();
           }}
