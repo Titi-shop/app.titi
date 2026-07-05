@@ -12,77 +12,83 @@ import {
    TYPES
 ===================================================== */
 
+export type WithdrawStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "rejected"
+  | "cancelled";
+
 export type WalletWithdrawHistoryItem = {
 
   id: string;
 
   amount: number;
+
+  fee: number;
+
+  receive_amount: number;
+
   currency: string;
+
+  network: string;
+
   wallet_address: string;
-  wallet_address_id: string | null;
-  status:
-    | "pending"
-    | "processing"
-    | "completed"
-    | "failed";
 
-  requested_at: string;
+  status: WithdrawStatus;
 
-  completed_at: string | null;
+  tx_hash: string | null;
 
-  network: string | null;
+  admin_note: string | null;
 
-  txid: string | null;
+  created_at: string;
 
-  payment_id: string | null;
+  updated_at: string;
 
-  blockchain_ledger: number | null;
-
-  blockchain_memo: string | null;
-
-  admin_feedback: string | null;
-
-  fail_reason: string | null;
+  processed_at: string | null;
 
 };
 
 /* =====================================================
-   STATUS
+   STATUS MAP
 ===================================================== */
+
+const STATUS_MAP: Record<
+  string,
+  WithdrawStatus
+> = {
+
+  PENDING:
+    "pending",
+
+  PROCESSING:
+    "processing",
+
+  COMPLETED:
+    "completed",
+
+  FAILED:
+    "failed",
+
+  REJECTED:
+    "rejected",
+
+  CANCELLED:
+    "cancelled",
+
+};
 
 function normalizeStatus(
   status: string
-): WalletWithdrawHistoryItem["status"] {
+): WithdrawStatus {
 
-  switch (
-    status.toUpperCase()
-  ) {
-
-    case "PENDING":
-
-      return "pending";
-
-    case "PROCESSING":
-
-      return "processing";
-
-    case "COMPLETED":
-
-      return "completed";
-
-    case "FAILED":
-
-    case "REJECTED":
-
-    case "CANCELLED":
-
-      return "failed";
-
-    default:
-
-      return "pending";
-
-  }
+  return (
+    STATUS_MAP[
+      status.toUpperCase()
+    ] ??
+    "pending"
+  );
 
 }
 
@@ -94,70 +100,68 @@ function mapWithdrawal(
   row: WalletWithdrawalHistoryRow
 ): WalletWithdrawHistoryItem {
 
+  const amount =
+    Number(
+      row.amount
+    );
+
+  const fee =
+    0;
+
   return {
 
     id:
       row.id,
 
-    amount:
-      Number(
-        row.amount
-      ),
+    amount,
+
+    fee,
+
+    receive_amount:
+      amount - fee,
 
     currency:
       row.currency,
 
+    network:
+      row.blockchain_network ??
+      "Pi Network",
+
     wallet_address:
       row.withdraw_wallet,
-
-    wallet_address_id:
-      row.wallet_address_id,
 
     status:
       normalizeStatus(
         row.status
       ),
 
-    requested_at:
-      row.requested_at,
-
-    completed_at:
-      row.completed_at,
-
-    network:
-      row.blockchain_network,
-
-    txid:
+    tx_hash:
       row.blockchain_txid ??
       row.txid,
 
-    payment_id:
-      row.pi_payment_id,
-
-    blockchain_ledger:
-      row.blockchain_ledger,
-
-    blockchain_memo:
-      row.blockchain_memo,
-
-    admin_feedback:
+    admin_note:
       row.admin_feedback,
 
-    fail_reason:
-      row.fail_reason,
+    created_at:
+      row.requested_at,
+
+    updated_at:
+      row.completed_at ??
+      row.requested_at,
+
+    processed_at:
+      row.completed_at,
 
   };
 
 }
 
 /* =====================================================
-   LIST
+   GET HISTORY
 ===================================================== */
 
 export async function getUserWithdrawHistory(
-
   userId: string
-
 ): Promise<
   WalletWithdrawHistoryItem[]
 > {
@@ -174,26 +178,20 @@ export async function getUserWithdrawHistory(
 }
 
 /* =====================================================
-   DETAIL
+   GET DETAIL
 ===================================================== */
 
 export async function getUserWithdrawHistoryDetail(
-
   withdrawalId: string,
-
   userId: string
-
 ): Promise<
   WalletWithdrawHistoryItem | null
 > {
 
   const row =
     await getWalletWithdrawHistoryDetail(
-
       withdrawalId,
-
       userId
-
     );
 
   if (!row) {
