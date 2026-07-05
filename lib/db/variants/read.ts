@@ -59,36 +59,6 @@ const t0 = performance.now();
     `,
     [productId]
   );
-console.log(
-    "⏱️ SQL getVariantsByProduct:",
-    productId,
-    performance.now() - t0
-
-  );
-/* ===== LOG DB RAW ===== */
-console.log(
-  "🧪 VARIANT_DB_ROWS",
-  result.rows.map((v) => ({
-    id: v.id,
-
-    price: v.price,
-    sale_price: v.sale_price,
-    final_price: v.final_price,
-
-    sale_enabled: v.sale_enabled,
-
-    sale_stock: v.sale_stock,
-    sale_sold: v.sale_sold,
-
-    stock: v.stock,
-  }))
-);
-
-vlog(
-  "GET_BY_PRODUCT_ROWS",
-  result.rows.length
-);
-
 /* ===== MAP ===== */
 const mapped =
   result.rows.map(
@@ -121,12 +91,30 @@ return mapped;
 export async function getVariantById(
   variantId: string
 ): Promise<VariantRow | null> {
-  vlog(
-    "GET_VARIANT_START",
-    {
-      variantId,
-    }
+  function maskId(
+  value: string
+): string {
+  if (value.length <= 8) {
+    return value;
+
+  }
+
+  return (
+    value.slice(0, 4) +
+    "..." +
+    value.slice(-4)
   );
+
+}
+  vlog(
+  "GET_BY_PRODUCT_START",
+  {
+    productId:
+      maskId(
+        productId
+      ),
+  }
+);
 
   const result =
     await query<VariantRow>(
