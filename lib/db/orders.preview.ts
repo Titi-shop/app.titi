@@ -52,7 +52,23 @@ function vlog(
     data ?? ""
   );
 }
+function maskId(
+  value: string
+): string {
 
+  if (value.length <= 8) {
+
+    return value;
+
+  }
+
+  return (
+    value.slice(0, 4) +
+    "..." +
+    value.slice(-4)
+  );
+
+}
 /* =========================================================
    MAPPER
 ========================================================= */
@@ -86,7 +102,22 @@ function mapPricingToPreview(
 export async function previewOrder(
   input: PreviewOrderInput
 ) {
-  vlog("START", input);
+  vlog("START", {
+
+  userId:
+    maskId(
+      input.userId
+    ),
+
+  addressId:
+    maskId(
+      input.address_id
+    ),
+
+  itemCount:
+    input.items.length,
+
+});
 
   if (!input.userId) {
     throw new Error("INVALID_USER");
@@ -102,10 +133,42 @@ const pricingInput: PricingInput = {
   })),
 };
 
-  vlog("PRICING_INPUT", pricingInput);
+  vlog(
+  "PRICING_INPUT",
+  {
+
+    userId:
+      maskId(
+        pricingInput.user_id
+      ),
+
+    addressId:
+      maskId(
+        pricingInput.address_id
+      ),
+
+    itemCount:
+      pricingInput.items.length,
+
+  }
+);
 
   const pricing =
     await calculatePricing(pricingInput);
+vlog(
+  "SUCCESS",
+  {
 
+    subtotal:
+      pricing.subtotal,
+
+    shipping:
+      pricing.shipping_fee,
+
+    total:
+      pricing.total,
+
+  }
+);
   return mapPricingToPreview(pricing);
 }
