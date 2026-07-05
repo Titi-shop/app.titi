@@ -20,81 +20,20 @@ function vlog(
   step: string,
   payload?: unknown
 ): void {
+
   console.log(
-    `🧪 [DB][VARIANTS] ${step}`,
+    `[DB][VARIANTS][${step}]`,
     payload ?? ""
   );
+
 }
 
-/* =========================================================
-   GET VARIANTS BY PRODUCT
-========================================================= */
-
-export async function getVariantsByProductId(
-  productId: string
-) {
-  vlog(
-    "GET_BY_PRODUCT_START",
-    {
-      productId,
-    }
-  );
-
-  if (!productId) {
-    throw new Error(
-      "INVALID_PRODUCT_ID"
-    );
-  }
-const t0 = performance.now();
-  const result =
-  await query<ProductVariantDB>(
-    `
-    SELECT *
-    FROM product_variants
-    WHERE product_id = $1
-      AND deleted_at IS NULL
-    ORDER BY
-      sort_order ASC,
-      created_at ASC
-    `,
-    [productId]
-  );
-/* ===== MAP ===== */
-const mapped =
-  result.rows.map(
-    mapVariantToApp
-  );
-
-/* ===== LOG AFTER MAP ===== */
-console.log(
-  "🧪 VARIANT_APP_ROWS",
-  mapped.map((v) => ({
-    id: v.id,
-
-    price: v.price,
-    sale_price: v.sale_price,
-    final_price: v.final_price,
-
-    sale_enabled: v.sale_enabled,
-
-    stock: v.stock,
-  }))
-);
-
-return mapped;
-}
-
-/* =========================================================
-   GET SINGLE VARIANT
-========================================================= */
-
-export async function getVariantById(
-  variantId: string
-): Promise<VariantRow | null> {
-  function maskId(
+function maskId(
   value: string
 ): string {
+
   if (value.length <= 8) {
+
     return value;
 
   }
@@ -106,15 +45,81 @@ export async function getVariantById(
   );
 
 }
-  vlog(
-  "GET_BY_PRODUCT_START",
-  {
-    productId:
-      maskId(
-        productId
-      ),
+
+/* =========================================================
+   GET VARIANTS BY PRODUCT
+========================================================= */
+
+export async function getVariantsByProductId(
+  productId: string
+) {
+
+  if (!productId) {
+
+    throw new Error(
+      "INVALID_PRODUCT_ID"
+    );
+
   }
-);
+
+  vlog(
+    "GET_BY_PRODUCT_START",
+    {
+      productId:
+        maskId(
+          productId
+        ),
+    }
+  );
+
+  const result =
+    await query<ProductVariantDB>(
+      `
+      SELECT *
+      FROM product_variants
+      WHERE product_id = $1
+        AND deleted_at IS NULL
+      ORDER BY
+        sort_order ASC,
+        created_at ASC
+      `,
+      [productId]
+    );
+
+  const mapped =
+    result.rows.map(
+      mapVariantToApp
+    );
+
+  vlog(
+    "GET_BY_PRODUCT_DONE",
+    {
+      count:
+        mapped.length,
+    }
+  );
+
+  return mapped;
+
+}
+
+/* =========================================================
+   GET SINGLE VARIANT
+========================================================= */
+
+export async function getVariantById(
+  variantId: string
+): Promise<VariantRow | null> {
+
+  vlog(
+    "GET_VARIANT_START",
+    {
+      variantId:
+        maskId(
+          variantId
+        ),
+    }
+  );
 
   const result =
     await query<VariantRow>(
@@ -140,7 +145,16 @@ export async function getVariantById(
     result.rows[0] ?? null;
 
   if (!row) {
+
+    vlog(
+      "GET_VARIANT_DONE",
+      {
+        found: false,
+      }
+    );
+
     return null;
+
   }
 
   if (
@@ -148,19 +162,22 @@ export async function getVariantById(
       row.final_price
     ) <= 0
   ) {
+
     throw new Error(
       "VARIANT_FINAL_PRICE_INVALID"
     );
+
   }
 
   vlog(
-  "GET_VARIANT_DONE",
-  {
-    found: true,
-  }
-);
+    "GET_VARIANT_DONE",
+    {
+      found: true,
+    }
+  );
 
   return row;
+
 }
 
 /* =========================================================
@@ -171,13 +188,16 @@ export async function validateVariantOwnership(
   variantId: string,
   productId: string
 ): Promise<boolean> {
+
   const variant =
     await getVariantById(
       variantId
     );
 
   if (!variant) {
+
     return false;
+
   }
 
   return (
@@ -185,4 +205,5 @@ export async function validateVariantOwnership(
     variant.product_id ===
       productId
   );
+
 }
