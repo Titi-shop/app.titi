@@ -12,11 +12,13 @@ import {
 } from "@/lib/auth/getUserFromBearer";
 
 import {
-  createWalletWithdrawal,
-} from "@/lib/db/wallet/wallet.withdraw";
+  createWithdrawal,
+} from "@/lib/services/wallet.withdraw.service";
+
 import {
-  getWalletAddressById,
-} from "@/lib/db/wallet-addresses";
+  getUserWithdrawHistory,
+  getUserWithdrawHistoryDetail,
+} from "@/lib/services/wallet.withdraw.history.service";
 
 export const runtime =
   "nodejs";
@@ -26,26 +28,35 @@ export const runtime =
 ===================================================== */
 
 type RequestBody = {
+
   amount?: unknown;
+
   walletAddressId?: unknown;
+
 };
 
 /* =====================================================
-   POST
+   AUTH
 ===================================================== */
 
-export async function POST(
+async function authenticate() {
+
+  return getUserFromBearer();
+
+}
+
+/* =====================================================
+   GET
+===================================================== */
+
+export async function GET(
   request: NextRequest
 ) {
 
   try {
 
-    /* =================================================
-       AUTH
-    ================================================= */
-
     const auth =
-      await getUserFromBearer();
+      await authenticate();
 
     if (!auth) {
 
@@ -58,134 +69,60 @@ export async function POST(
           status: 401,
         }
       );
+
     }
 
-    const userId =
-      auth.userId;
-
-    /* =================================================
-       BODY
-    ================================================= */
-
-    const body:
-      unknown =
-        await request.json();
-
-    if (
-      typeof body !==
-        "object" ||
-      body === null
-    ) {
-
-      return NextResponse.json(
-        {
-          error:
-            "INVALID_BODY",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const data =
-      body as RequestBody;
-
-    /* =================================================
-       AMOUNT
-    ================================================= */
-
-    const amount =
-      Number(
-        data.amount
+    const id =
+      request.nextUrl.searchParams.get(
+        "id"
       );
 
-    if (
-      Number.isNaN(
-        amount
-      ) ||
-      amount <= 0
-    ) {
+    if (id) {
 
-      return NextResponse.json(
-        {
-          error:
-            "INVALID_AMOUNT",
-        },
-        {
-          status: 400,
-        }
+      const item =
+        await getUserWithdrawHistoryDetail(
+
+          id,
+
+          auth.userId
+
+        );
+
+      if (!item) {
+
+        return NextResponse.json(
+          {
+            error:
+              "NOT_FOUND",
+          },
+          {
+            status: 404,
+          }
+        );
+
+      }
+
+      return NextResponse.json({
+
+        success: true,
+
+        item,
+
+      });
+
+    }
+
+    const items =
+      await getUserWithdrawHistory(
+        auth.userId
       );
-    }
-
-  /* =================================================
-   WALLET
-================================================= */
-
-const walletAddressId =
-  typeof data.walletAddressId ===
-  "string"
-    ? data.walletAddressId.trim()
-    : "";
-
-if (!walletAddressId) {
-
-  return NextResponse.json(
-    {
-      error:
-        "INVALID_WALLET",
-    },
-    {
-      status: 400,
-    }
-  );
-}
-
-const wallet =
-  await getWalletAddressById(
-    userId,
-    walletAddressId
-  );
-
-if (!wallet) {
-
-  return NextResponse.json(
-    {
-      error:
-        "INVALID_WALLET",
-    },
-    {
-      status: 400,
-    }
-  );
-}
-    /* =================================================
-   CREATE
-================================================= */
-
-const withdrawal =
-  await createWalletWithdrawal({
-    userId,
-    amount,
-    walletAddressId,
-    withdrawWallet:
-      wallet.address,
-
-  });
-    if (!withdrawal) {
-  throw new Error(
-    "WITHDRAW_CREATE_FAILED"
-  );
-}
-    /* =================================================
-       SUCCESS
-    ================================================= */
 
     return NextResponse.json({
+
       success: true,
 
-      withdrawalId:
-        withdrawal.id,
+      items,
+
     });
 
   } catch (
@@ -193,7 +130,7 @@ const withdrawal =
   ) {
 
     console.error(
-      "[WALLET][WITHDRAW][API]",
+      "[WALLET][WITHDRAW][GET]",
       error
     );
 
@@ -206,5 +143,141 @@ const withdrawal =
         status: 500,
       }
     );
+
   }
+
+}
+
+/* =====================================================
+   POST
+===================================================== */
+
+export async function POST(
+  request: NextRequest
+) {
+
+  try {
+
+    const auth =
+      await authenticate();
+
+    if (!auth) {
+
+      return NextResponse.json(
+        {
+          error:
+            "UNAUTHORIZED",
+        },
+        {
+          status: 401,
+        }
+      );
+
+    }
+
+    const body:
+      unknown =
+        await request.json();
+
+    if (
+
+      typeof body !==
+        "object" ||
+
+      body === null
+
+    ) {
+
+      return NextResponse.json(
+        {
+          error:
+            "INVALID_BODY",
+        },
+        {
+          status: 400,
+        }
+      );
+
+    }
+
+    const data =
+      body as RequestBody;
+
+    const withdrawal =
+      await createWithdrawal({
+
+        userId:
+          auth.userId,
+
+        amount:
+          Number(
+            data.amount
+          ),
+
+        walletAddressId:
+          typeof data.walletAddressId ===
+          "string"
+            ? data.walletAddressId.trim()
+            : "",
+
+      });
+
+    return NextResponse.json({
+
+      success: true,
+
+      withdrawalId:
+        withdrawal.id,
+
+    });
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "[WALLET][WITHDRAW][POST]",
+      error
+    );
+
+    if (
+      error instanceof Error
+    ) {
+
+      switch (
+        error.message
+      ) {
+
+        case "INVALID_AMOUNT":
+
+        case "INVALID_WALLET":
+
+        case "INVALID_USER":
+
+          return NextResponse.json(
+            {
+              error:
+                error.message,
+            },
+            {
+              status: 400,
+            }
+          );
+
+      }
+
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "INTERNAL_ERROR",
+      },
+      {
+        status: 500,
+      }
+    );
+
+  }
+
 }
