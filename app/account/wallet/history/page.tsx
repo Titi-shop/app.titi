@@ -4,11 +4,15 @@
 
 "use client";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
+
+import {
+  useEffect,
+} from "react";
 
 import {
   ArrowLeft,
-  Clock3,
 } from "lucide-react";
 
 import {
@@ -18,6 +22,26 @@ import {
 import {
   useTranslationClient as useTranslation,
 } from "@/app/lib/i18n/client";
+
+import {
+  useAuth,
+} from "@/context/AuthContext";
+
+import {
+  useWithdrawHistory,
+} from "./history.hooks";
+
+import WithdrawTabs
+  from "./components/WithdrawTabs";
+
+import WithdrawHistoryList
+  from "./components/WithdrawHistoryList";
+
+import WithdrawHistorySkeleton
+  from "./components/WithdrawHistorySkeleton";
+
+import EmptyWithdrawHistory
+  from "./components/EmptyWithdrawHistory";
 
 /* =====================================================
    PAGE
@@ -30,6 +54,106 @@ export default function WalletHistoryPage() {
 
   const { t } =
     useTranslation();
+
+  /* ===================================================
+     AUTH
+  =================================================== */
+
+  const {
+
+    user,
+
+    loading:
+      authLoading,
+
+  } = useAuth();
+
+  /* ===================================================
+     HISTORY
+  =================================================== */
+
+  const {
+
+    loading,
+
+    filteredItems,
+
+    filter,
+
+    counts,
+
+    setFilter,
+
+  } =
+    useWithdrawHistory();
+
+  /* ===================================================
+     LOGIN
+  =================================================== */
+
+  useEffect(() => {
+
+    if (
+      authLoading
+    ) {
+
+      return;
+
+    }
+
+    if (!user) {
+
+      router.replace(
+        "/login"
+      );
+
+    }
+
+  }, [
+
+    authLoading,
+
+    user,
+
+    router,
+
+  ]);
+
+  /* ===================================================
+     AUTH LOADING
+  =================================================== */
+
+  if (
+
+    authLoading ||
+
+    !user
+
+  ) {
+
+    return (
+      <WithdrawHistorySkeleton />
+    );
+
+  }
+
+  /* ===================================================
+     DATA LOADING
+  =================================================== */
+
+  if (
+    loading
+  ) {
+
+    return (
+      <WithdrawHistorySkeleton />
+    );
+
+  }
+
+  /* ===================================================
+     PAGE
+  =================================================== */
 
   return (
 
@@ -65,7 +189,9 @@ export default function WalletHistoryPage() {
         <button
           type="button"
           onClick={() => {
+
             router.back();
+
           }}
           className="
             flex
@@ -93,8 +219,10 @@ export default function WalletHistoryPage() {
               font-bold
             "
           >
+
             {t.wallet_history ??
               "Withdrawal History"}
+
           </h1>
 
           <p
@@ -103,8 +231,10 @@ export default function WalletHistoryPage() {
               text-muted
             "
           >
+
             {t.wallet_history_desc ??
               "View all withdrawal requests"}
+
           </p>
 
         </div>
@@ -115,117 +245,39 @@ export default function WalletHistoryPage() {
           FILTER
       ========================================== */}
 
-      <div
-        className="
-          flex
-          gap-2
-          overflow-x-auto
-          px-4
-          py-4
-        "
-      >
+      <WithdrawTabs
 
-        <button
-          className="
-            rounded-full
-            bg-primary
-            px-4
-            py-2
-            text-sm
-            font-medium
-            text-white
-          "
-        >
-          {t.all ?? "All"}
-        </button>
+        value={
+          filter
+        }
 
-        <button
-          className="
-            rounded-full
-            border
-            border-border
-            px-4
-            py-2
-            text-sm
-          "
-        >
-          {t.pending ?? "Pending"}
-        </button>
+        counts={
+          counts
+        }
 
-        <button
-          className="
-            rounded-full
-            border
-            border-border
-            px-4
-            py-2
-            text-sm
-          "
-        >
-          {t.completed ?? "Completed"}
-        </button>
+        onChange={
+          setFilter
+        }
 
-      </div>
+      />
 
       {/* ==========================================
-          EMPTY
+          CONTENT
       ========================================== */}
 
-      <section
-        className="
-          flex
-          min-h-[55vh]
-          flex-col
-          items-center
-          justify-center
-          px-6
-          text-center
-        "
-      >
+      {filteredItems.length === 0 ? (
 
-        <div
-          className="
-            flex
-            h-20
-            w-20
-            items-center
-            justify-center
-            rounded-full
-            bg-primary/10
-            text-primary
-          "
-        >
+        <EmptyWithdrawHistory />
 
-          <Clock3
-            size={34}
-          />
+      ) : (
 
-        </div>
+        <WithdrawHistoryList
+          items={
+            filteredItems
+          }
+        />
 
-        <h2
-          className="
-            mt-6
-            text-lg
-            font-semibold
-          "
-        >
-          {t.no_withdraw_history ??
-            "No withdrawal requests"}
-        </h2>
-
-        <p
-          className="
-            mt-2
-            max-w-sm
-            text-sm
-            text-muted
-          "
-        >
-          {t.no_withdraw_history_desc ??
-            "Your withdrawal requests will appear here after you submit one."}
-        </p>
-
-      </section>
+      )}
 
     </main>
 
