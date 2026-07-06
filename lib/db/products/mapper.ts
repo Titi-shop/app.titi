@@ -38,90 +38,84 @@ export function mapRow(
     );
 
   return {
-    ...row,
+  ...row,
 
-    price:
-      row.price == null
-        ? null
-        : safeNumber(
-            row.price
-          ),
+  price,
 
-    sale_price:
-  saleActive
-    ? salePrice
-    : null,
+  sale_price:
+    saleActive
+      ? salePrice
+      : null,
 
-final_price:
-  saleActive
-    ? Number(salePrice)
-    : price,
+  final_price:
+    saleActive
+      ? salePrice
+      : price,
 
-    stock:
-      row.stock == null
-        ? null
-        : safeNumber(
-            row.stock
-          ),
+  stock:
+    row.stock == null
+      ? null
+      : safeNumber(
+          row.stock
+        ),
 
-    sale_stock:
-      row.sale_stock == null
-        ? null
-        : safeNumber(
-            row.sale_stock
-          ),
+  sale_stock:
+    row.sale_stock == null
+      ? null
+      : safeNumber(
+          row.sale_stock
+        ),
 
-    sale_sold:
-      safeNumber(
-        row.sale_sold
-      ),
+  sale_sold:
+    safeNumber(
+      row.sale_sold
+    ),
 
-    sold:
-      safeNumber(
-        row.sold
-      ),
+  sold:
+    safeNumber(
+      row.sold
+    ),
 
-    views:
-      safeNumber(
-        row.views
-      ),
+  views:
+    safeNumber(
+      row.views
+    ),
 
-    rating_avg:
-      safeNumber(
-        row.rating_avg
-      ),
+  rating_avg:
+    safeNumber(
+      row.rating_avg
+    ),
 
-    rating_count:
-      safeNumber(
-        row.rating_count
-      ),
+  rating_count:
+    safeNumber(
+      row.rating_count
+    ),
 
-    images:
-      normalizeImages(
-        row.images
-      ),
+  images:
+    normalizeImages(
+      row.images
+    ),
 
-    detail_images:
-      normalizeImages(
-        row.detail_images
-      ),
+  detail_images:
+    normalizeImages(
+      row.detail_images
+    ),
 
-    is_active:
-      row.is_active === true,
+  is_active:
+    row.is_active === true,
 
-    is_featured:
-      row.is_featured === true,
+  is_featured:
+    row.is_featured === true,
 
-    is_digital:
-      row.is_digital === true,
+  is_digital:
+    row.is_digital === true,
 
-    is_unlimited:
-      row.is_unlimited === true,
+  is_unlimited:
+    row.is_unlimited === true,
 
-    sale_enabled:
-  saleActive,
+  sale_enabled:
+    saleActive,
 
-    has_variants:
-      row.has_variants === true,
-  };
-}
+  has_variants:
+    row.has_variants === true,
+};
