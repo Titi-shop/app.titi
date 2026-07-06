@@ -58,9 +58,6 @@ export async function upsertShippingRates({
   rates: ShippingRateInput[];
 }) {
   console.log("\n🚀 [SHIPPING][UPSERT] START");
-  console.log("📌 productId:", productId);
-  console.log("📦 input rates:", rates);
-
   if (!isUUID(productId)) {
     console.error("❌ INVALID_PRODUCT_ID");
     throw new Error("INVALID_PRODUCT_ID");
@@ -88,10 +85,7 @@ export async function upsertShippingRates({
     return ok;
   });
 
-  console.log("🧼 CLEAN RATES:", cleanRates);
-
   /* ================= DELETE OLD ================= */
-  console.log("🗑️ DELETE old shipping_rates...");
   await query(
     `DELETE FROM shipping_rates WHERE product_id = $1`,
     [productId]
@@ -105,8 +99,6 @@ export async function upsertShippingRates({
   /* ================= GET ZONES ================= */
   const zones = cleanRates.map((r) => r.zone);
 
-  console.log("🌍 LOOKUP ZONES:", zones);
-
   const zoneRes = await query<{ id: string; code: string }>(
     `
     SELECT id, code
@@ -116,16 +108,12 @@ export async function upsertShippingRates({
     [zones]
   );
 
-  console.log("🧠 DB ZONES FOUND:", zoneRes.rows);
-
   if (zoneRes.rows.length === 0) {
     console.error("❌ NO SHIPPING_ZONES FOUND IN DB");
     return;
   }
 
   const zoneMap = new Map(zoneRes.rows.map((z) => [z.code, z.id]));
-
-  console.log("🧩 ZONE MAP:", [...zoneMap.entries()]);
 
   /* ================= BUILD INSERT ================= */
   const rows: string[] = [];
@@ -152,10 +140,6 @@ export async function upsertShippingRates({
       isDomestic ? r.domestic_country_code ?? null : null
     );
   }
-
-  console.log("🧱 INSERT ROWS COUNT:", rows.length);
-  console.log("📦 VALUES:", values);
-
   /* ================= SAFETY CHECK ================= */
   if (rows.length === 0) {
     console.error("❌ NO VALID ROWS TO INSERT (ZONE MAP FAILED)");
@@ -176,14 +160,10 @@ export async function upsertShippingRates({
     values
   );
 
-  console.log("✅ INSERT DONE");
-  console.log("📊 ROWS AFFECTED:", result.rowCount);
-
   if (!result.rowCount) {
     console.error("❌ INSERT FAILED OR ZERO ROWS INSERTED");
   }
 
-  console.log("🎉 [SHIPPING][UPSERT] SUCCESS\n");
 }
 
 /* =====================================================
@@ -197,11 +177,7 @@ export async function getShippingRatesByProduct(
   );
 
   try {
-    console.log(
-      "📥 Product ID:",
-      productId
-    );
-
+    
     if (!isUUID(productId)) {
       console.error(
         "❌ INVALID_PRODUCT_ID:",
@@ -213,10 +189,6 @@ export async function getShippingRatesByProduct(
       );
     }
 
-    console.log(
-      "🗄️ Preparing shipping query..."
-    );
-
     const sql = `
       SELECT
         sr.product_id,
@@ -226,18 +198,8 @@ export async function getShippingRatesByProduct(
       FROM shipping_rates sr
       JOIN shipping_zones sz
         ON sz.id = sr.zone_id
-      WHERE sr.product_id = $1
-    `;
-
-    console.log(
-      "📜 SQL:",
-      sql
-    );
-
-    console.log(
-      "📦 SQL PARAMS:",
-      [productId]
-    );
+        WHERE sr.product_id = $1
+    ;
 
     const { rows } =
       await query<ShippingRateRow>(
@@ -249,31 +211,8 @@ export async function getShippingRatesByProduct(
       "✅ Shipping query success"
     );
 
-    console.log(
-      "📊 Raw rows count:",
-      rows.length
-    );
-
-    console.log(
-      "📦 RAW DB ROWS:",
-      rows
-    );
-
-    console.log(
-      "🔎 Filtering valid regions..."
-    );
-
     const filtered = rows.filter((r) =>
       isValidRegion(r.zone)
-    );
-
-    console.log(
-      "✅ Valid region rows:",
-      filtered
-    );
-
-    console.log(
-      "🧩 Mapping shipping rows..."
     );
 
     const mapped = filtered.map(
@@ -283,16 +222,6 @@ export async function getShippingRatesByProduct(
         domestic_country_code:
           r.domestic_country_code,
       })
-    );
-
-    console.log(
-      "🎯 FINAL SHIPPING RESULT:",
-      mapped
-    );
-
-    console.log(
-      "📊 Final shipping count:",
-      mapped.length
     );
 
     console.log(
