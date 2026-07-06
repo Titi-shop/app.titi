@@ -221,16 +221,15 @@ if (!address) {
   throw new Error("ADDRESS_NOT_FOUND");
 }
 
-const shipping: ShippingInput = {
+const shipping = normalizeShipping({
   name: String(address.full_name ?? ""),
   phone: String(address.phone ?? ""),
   address_line: String(address.address_line ?? ""),
-
-  ward: address.ward ?? null,
-  district: address.district ?? null,
-  region: address.region ?? null,
-  postal_code: address.postal_code ?? null,
-};
+  ward: address.ward,
+  district: address.district,
+  region: address.region,
+  postal_code: address.postal_code,
+});
   logger.info(
   "PAYMENT_INTENT.NORMALIZED",
   {
@@ -314,27 +313,24 @@ const shipping: ShippingInput = {
   shipping,
   pricing,
 });
-  logger.info(
+  const paymentIntentId =
+  extractPaymentIntentId(dbResult);
+
+logger.info(
   "PAYMENT_INTENT.DB_READY",
   {
     paymentIntentId:
-      maskId(
-        extractPaymentIntentId(
-          dbResult
-        )
-      ),
-
+      maskId(paymentIntentId),
     amount:
-      Number(
-        dbResult.amount
-      ),
+      Number(dbResult.amount),
   }
 );
 
-  const paymentIntentId =
-    extractPaymentIntentId(
-      dbResult
-    );
+if (!paymentIntentId) {
+  throw new Error(
+    "CREATE_INTENT_RETURN_INVALID"
+  );
+}
 
   if (!paymentIntentId) {
     throw new Error(
