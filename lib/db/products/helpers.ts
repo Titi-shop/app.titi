@@ -157,18 +157,27 @@ export function log(
   step: string,
   data?: unknown
 ): void {
+
   console.log(
-    `🧪 [DB][PRODUCTS] ${step}`,
+    `[DB][PRODUCTS][${step}]`,
     data ?? ""
   );
+
 }
 
 export function logError(
   step: string,
   error: unknown
 ): void {
+
   console.error(
-    `💥 [DB][PRODUCTS] ${step}`,
-    error
+    `[DB][PRODUCTS][${step}]`,
+    {
+      error:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR",
+    }
   );
+
 }
