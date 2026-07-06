@@ -207,3 +207,56 @@ export async function validateVariantOwnership(
   );
 
 }
+/* =========================================================
+   GET VARIANTS BY PRODUCTS
+========================================================= */
+
+export async function getVariantsByProductIds(
+  productIds: string[]
+) {
+
+  if (productIds.length === 0) {
+
+    return [];
+
+  }
+
+  vlog(
+    "GET_BY_PRODUCTS_START",
+    {
+      productCount:
+        productIds.length,
+    }
+  );
+
+  const result =
+    await query<ProductVariantDB>(
+      `
+      SELECT *
+      FROM product_variants
+      WHERE product_id = ANY($1::uuid[])
+        AND deleted_at IS NULL
+      ORDER BY
+        product_id ASC,
+        sort_order ASC,
+        created_at ASC
+      `,
+      [productIds]
+    );
+
+  const mapped =
+    result.rows.map(
+      mapVariantToApp
+    );
+
+  vlog(
+    "GET_BY_PRODUCTS_DONE",
+    {
+      count:
+        mapped.length,
+    }
+  );
+
+  return mapped;
+
+}
