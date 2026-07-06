@@ -181,3 +181,26 @@ export function logError(
   );
 
 }
+/* =========================================================
+   MASK ID
+========================================================= */
+
+export function maskId(
+  value: string
+): string {
+
+  if (
+    value.length <= 8
+  ) {
+
+    return value;
+
+  }
+
+  return (
+    value.slice(0, 4) +
+    "..." +
+    value.slice(-4)
+  );
+
+}
