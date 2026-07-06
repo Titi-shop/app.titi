@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/products/helpers";
 
 import {
-  getVariantsByProductId,
+  getVariantsByProductIds,
 } from "@/lib/db/variants";
 
 import {
@@ -73,7 +73,36 @@ export async function listProductsService(
         (product) =>
           product.id
       );
+const allVariants =
+  productIds.length > 0
+    ? await getVariantsByProductIds(
+        productIds
+      )
+    : [];
+    const variantMap =
+  new Map<
+    string,
+    typeof allVariants
+  >();
 
+for (const variant of allVariants) {
+
+  if (
+    !variantMap.has(
+      variant.product_id
+    )
+  ) {
+    variantMap.set(
+      variant.product_id,
+      []
+    );
+  }
+
+  variantMap
+    .get(variant.product_id)!
+    .push(variant);
+
+}
     /* =========================
        SHIPPING
     ========================= */
@@ -181,9 +210,9 @@ export async function listProductsService(
           ===================== */
 
           const variants =
-            await getVariantsByProductId(
-              product.id
-            );
+  variantMap.get(
+    product.id
+  ) ?? [];
 
           log(
             "VARIANTS_LOADED",
