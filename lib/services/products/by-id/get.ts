@@ -12,6 +12,8 @@ import {
 
 import {
   log,
+  logError,
+  maskId,
   calculatePriceSummary,
 } from "./helpers";
 
@@ -23,10 +25,12 @@ export async function getProductService(
   id: string
 ) {
   log(
-    "PRODUCT.GET",
-    "START",
-    { id }
-  );
+  "GET_START",
+  {
+    productId:
+      maskId(id),
+  }
+);
 
   try {
     if (!id) {
@@ -47,20 +51,23 @@ export async function getProductService(
     }
 
     log(
-      "PRODUCT.GET",
-      "FOUND",
-      {
-        id,
-        has_variants:
-          product.has_variants,
-      }
-    );
+  "GET_FOUND",
+  {
+    productId:
+      maskId(id),
+
+    hasVariants:
+      product.has_variants,
+  }
+);
 
     log(
-      "VARIANTS.LOAD",
-      "START",
-      { id }
-    );
+  "VARIANTS_LOAD_START",
+  {
+    productId:
+      maskId(id),
+  }
+);
 
     const variants =
       product.has_variants
@@ -70,13 +77,12 @@ export async function getProductService(
         : [];
 
     log(
-      "VARIANTS.LOAD",
-      "DONE",
-      {
-        count:
-          variants.length,
-      }
-    );
+  "VARIANTS_LOAD_DONE",
+  {
+    count:
+      variants.length,
+  }
+);
 
     const {
       enrichedVariants,
@@ -88,13 +94,12 @@ export async function getProductService(
       );
 
     log(
-      "PRICE.SUMMARY",
-      "CALCULATED",
-      {
-        minPrice,
-        maxPrice,
-      }
-    );
+  "PRICE_SUMMARY_READY",
+  {
+    hasVariants:
+      product.has_variants,
+  }
+);
 
     const shippingRates =
       await getShippingRatesByProduct(
@@ -102,56 +107,12 @@ export async function getProductService(
       );
 
     log(
-      "SHIPPING.LOAD",
-      "DONE",
-      {
-        count:
-          shippingRates.length,
-      }
-    );
-
-    console.log(
-      "🧪 PRODUCT_RESPONSE_DATA",
-      {
-        id: product.id,
-
-        category_id:
-          product.category_id,
-
-        has_variants:
-          product.has_variants,
-
-        price:
-          product.price,
-
-        sale_price:
-          product.sale_price,
-
-        final_price:
-          product.final_price,
-
-        stock:
-          product.stock,
-
-        sale_stock:
-          product.sale_stock,
-
-        sale_enabled:
-          product.sale_enabled,
-
-        sale_start:
-          product.sale_start,
-
-        sale_end:
-          product.sale_end,
-
-        variantCount:
-          enrichedVariants.length,
-
-        shippingCount:
-          shippingRates.length,
-      }
-    );
+  "SHIPPING_LOAD_DONE",
+  {
+    count:
+      shippingRates.length,
+  }
+);
 
     return {
       ...product,
@@ -172,12 +133,10 @@ export async function getProductService(
         shippingRates,
     };
   } catch (error) {
-    log(
-      "PRODUCT.GET",
-      "ERROR",
-      error
-    );
-
+    logError(
+  "GET_ERROR",
+  error
+);
     return {
       error:
         "INTERNAL_SERVER_ERROR",
