@@ -3,7 +3,17 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireSeller } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
+function maskId(value: string): string {
+  if (value.length <= 8) {
+    return value;
+  }
 
+  return (
+    value.slice(0, 4) +
+    "..." +
+    value.slice(-4)
+  );
+}
 /* =====================================================
    POST /api/upload-url (PRODUCT IMAGE)
 ===================================================== */
@@ -22,7 +32,12 @@ export async function POST(): Promise<NextResponse> {
 
     const userId = auth.userId;
 
-    console.log("👤 [UPLOAD][PRODUCT] USER:", userId);
+    console.log(
+  "[UPLOAD][PRODUCT] USER",
+  {
+    userId: maskId(userId),
+  }
+);
 
     /* ================= VALIDATE ================= */
     if (!userId || typeof userId !== "string") {
@@ -37,7 +52,9 @@ export async function POST(): Promise<NextResponse> {
     const fileName = `${Date.now()}-${crypto.randomUUID()}.jpg`;
     const filePath = `products/${userId}/${fileName}`;
 
-    console.log("📂 [UPLOAD][PRODUCT] PATH:", filePath);
+    console.log(
+  "[UPLOAD][PRODUCT] PATH_READY"
+);
 
     /* ================= SIGNED URL ================= */
     const { data, error } = await supabaseAdmin.storage
@@ -45,7 +62,12 @@ export async function POST(): Promise<NextResponse> {
       .createSignedUploadUrl(filePath);
 
     if (error || !data?.signedUrl) {
-      console.error("❌ [UPLOAD][PRODUCT] SIGNED_URL_FAILED", error);
+      console.error(
+  "[UPLOAD][PRODUCT] SIGNED_URL_FAILED",
+  {
+    message: error?.message,
+  }
+);
       return NextResponse.json(
         { error: "SIGNED_URL_FAILED" },
         { status: 500 }
@@ -67,7 +89,9 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    console.log("🌍 [UPLOAD][PRODUCT] URL:", publicUrl);
+    console.log(
+  "[UPLOAD][PRODUCT] URL_CREATED"
+);
 
     return NextResponse.json({
       uploadUrl: data.signedUrl,
@@ -75,7 +99,15 @@ export async function POST(): Promise<NextResponse> {
     });
 
   } catch (err) {
-    console.error("💥 [UPLOAD][PRODUCT] ERROR:", err);
+    console.error(
+  "[UPLOAD][PRODUCT] ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN_ERROR",
+  }
+);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
