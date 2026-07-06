@@ -16,6 +16,7 @@ import {
   isUUID,
   log,
   logError,
+  maskId,
 } from "./helpers";
 import { calcFinalPrice }from "./pricing";
 import { mapRow } from "./mapper";
@@ -270,15 +271,7 @@ const saleEnd =
 
 }
 
-    const row =
-      result.rows[0];
-
-    if (!row) {
-      throw new Error(
-        "FAILED_TO_CREATE_PRODUCT"
-      );
-    }
-
+    
     log(
   "CREATE_SUCCESS",
   {
