@@ -5,6 +5,12 @@ import {
 } from "@/lib/db/products";
 
 import {
+  log,
+  logError,
+  maskId,
+} from "@/lib/db/products/helpers";
+
+import {
   getVariantsByProductId,
 } from "@/lib/db/variants";
 
@@ -29,10 +35,14 @@ export async function listProductsService(
   const ids =
     searchParams.get("ids");
 
-  console.log(
-    "🧪 LIST_PRODUCTS_REQUEST",
-    { ids }
-  );
+  log(
+  "LIST_REQUEST",
+  {
+    idsCount: ids
+      ? ids.split(",").filter(Boolean).length
+      : null,
+  }
+);
 
   /* =========================
      LOAD PRODUCTS
@@ -46,13 +56,12 @@ export async function listProductsService(
       )
     : await getAllProducts();
 
-  console.log(
-    "🧪 LIST_PRODUCTS_RESULT",
-    {
-      count:
-        products.length,
-    }
-  );
+  log(
+  "LIST_SUCCESS",
+  {
+    count: products.length,
+  }
+);
 
   const productIds =
     products.map(
@@ -71,13 +80,13 @@ export async function listProductsService(
         )
       : [];
 
-  console.log(
-    "🧪 SHIPPING_ROWS",
-    {
-      count:
-        shippingRows.length,
-    }
-  );
+  log(
+  "SHIPPING_LOADED",
+  {
+    count:
+      shippingRows.length,
+  }
+);
 
   const shippingMap =
     new Map<
@@ -119,29 +128,6 @@ export async function listProductsService(
   return Promise.all(
     products.map(
       async (product) => {
-        console.log(
-          "🧪 [PRODUCT_SERVICE]",
-          {
-            id:
-              product.id,
-
-            name:
-              product.name,
-
-            has_variants:
-              product.has_variants,
-
-            price:
-              product.price,
-
-            sale_price:
-              product.sale_price,
-
-            final_price:
-              product.final_price,
-          }
-        );
-
         const hasVariants =
           product.has_variants ===
           true;
@@ -192,21 +178,14 @@ const variants =
     product.id
   );
 
-console.log(
-  "🔵 [HAS_VARIANTS]",
+log(
+  "VARIANTS_LOADED",
   {
-    id: product.id,
-    name: product.name,
-    variantCount: variants.length,
+    productId:
+      maskId(product.id),
 
-    productSaleEnabled:
-      product.sale_enabled,
-
-    productSaleStart:
-      product.sale_start,
-
-    productSaleEnd:
-      product.sale_end,
+    variantCount:
+      variants.length,
   }
 );
 
@@ -220,35 +199,6 @@ const enrichedVariants =
         product.sale_start,
         product.sale_end
       );
-
-    console.log(
-      "🧪 [VARIANT_SALE_CHECK]",
-      {
-        productId:
-          product.id,
-
-        variantId:
-          variant.id,
-
-        price:
-          variant.price,
-
-        sale_price:
-          variant.sale_price,
-
-        variantSaleEnabled:
-          variant.sale_enabled,
-
-        productSaleStart:
-          product.sale_start,
-
-        productSaleEnd:
-          product.sale_end,
-
-        saleActive,
-      }
-    );
-
     return {
       ...variant,
 
@@ -284,23 +234,14 @@ const saleVariants =
     (v) => v.sale_enabled
   );
 
-console.log(
-  "🧪 [PRODUCT_VARIANT_SUMMARY]",
+log(
+  "VARIANT_SUMMARY",
   {
     productId:
-      product.id,
+      maskId(product.id),
 
     variantCount:
       enrichedVariants.length,
-
-    activeSaleVariants:
-      saleVariants.length,
-
-    minFinalPrice:
-      Math.min(...prices),
-
-    maxFinalPrice:
-      Math.max(...prices),
   }
 );
         return {
