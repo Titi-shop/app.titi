@@ -180,9 +180,8 @@ export async function getShippingRatesByProduct(
     
     if (!isUUID(productId)) {
       console.error(
-        "❌ INVALID_PRODUCT_ID:",
-        productId
-      );
+  "[SHIPPING][GET_BY_PRODUCT][INVALID_PRODUCT_ID]"
+);
 
       throw new Error(
         "INVALID_PRODUCT_ID"
@@ -190,16 +189,16 @@ export async function getShippingRatesByProduct(
     }
 
     const sql = `
-      SELECT
-        sr.product_id,
-        sz.code AS zone,
-        sr.price,
-        sr.domestic_country_code
-      FROM shipping_rates sr
-      JOIN shipping_zones sz
-        ON sz.id = sr.zone_id
-        WHERE sr.product_id = $1
-    ;
+  SELECT
+    sr.product_id,
+    sz.code AS zone,
+    sr.price,
+    sr.domestic_country_code
+  FROM shipping_rates sr
+  JOIN shipping_zones sz
+    ON sz.id = sr.zone_id
+  WHERE sr.product_id = $1
+`;
 
     const { rows } =
       await query<ShippingRateRow>(
@@ -231,9 +230,14 @@ export async function getShippingRatesByProduct(
     return mapped;
   } catch (error) {
     console.error(
-      "💥 [SHIPPING][GET_BY_PRODUCT] ERROR:",
-      error
-    );
+  "[SHIPPING][GET_BY_PRODUCT][FAILED]",
+  {
+    error:
+      error instanceof Error
+        ? error.message
+        : "UNKNOWN_ERROR",
+  }
+);
 
     throw error;
   }
