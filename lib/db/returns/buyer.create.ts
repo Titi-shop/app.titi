@@ -214,16 +214,21 @@ const returnId =
 if (
   itemResult.rowCount !== 1
 ) {
+
   error(
     "FAILED_TO_CREATE_RETURN_ITEM"
   );
-    return {
+
+}
+
+return {
   returnId,
   buyerId,
   sellerId: order.seller_id,
   orderId,
 };
-  });
+
+});
    try {
 
   await sendNotification({
