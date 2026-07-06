@@ -161,8 +161,8 @@ export async function createReturn(
 
     const returnId =
       returnRows[0].id;
-
-    await client.query(
+    const itemResult =
+  await client.query(
       `
       INSERT INTO return_items (
         return_id,
@@ -205,7 +205,12 @@ export async function createReturn(
         reason,
       ]
     );
-
+if (
+  itemResult.rowCount !== 1
+) {
+  error(
+    "FAILED_TO_CREATE_RETURN_ITEM"
+  );
     return {
   returnId,
   buyerId,
@@ -240,9 +245,14 @@ export async function createReturn(
 } catch (err) {
 
   console.error(
-    "[NOTIFICATION][RETURN_CREATED]",
-    err
-  );
+  "[NOTIFICATION][RETURN_CREATED]",
+  {
+    error:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN_ERROR",
+  }
+);
 }
    return result.returnId;
 }
