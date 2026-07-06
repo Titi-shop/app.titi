@@ -22,6 +22,8 @@ import type {
 
 import {
   log,
+  logError,
+  maskId,
   normalizeShippingRates,
 } from "./helpers";
 
@@ -35,10 +37,12 @@ export async function updateProductService(
   body: ProductRequestBody
 ) {
   log(
-    "PRODUCT.UPDATE",
-    "START",
-    { id }
-  );
+  "UPDATE_START",
+  {
+    productId:
+      maskId(id),
+  }
+);
 
   try {
     if (!id) {
@@ -55,30 +59,20 @@ export async function updateProductService(
       body.variants ?? [],
   });
 
-console.log(
-  "🧪 VALIDATION_RESULT",
-  error
+log(
+  "VALIDATION_RESULT",
+  {
+    valid: !error,
+    variantCount:
+      body.variants?.length ?? 0,
+  }
 );
 
 if (error) {
-  console.error(
-    "❌ VALIDATION_FAILED",
-    error,
-    {
-      sale_enabled:
-        body.sale_enabled,
-
-      sale_start:
-        body.sale_start,
-
-      sale_end:
-        body.sale_end,
-
-      variantCount:
-        body.variants?.length ??
-        0,
-    }
-  );
+  logError(
+  "VALIDATION_FAILED",
+  error
+);
 
   return { error };
 }
@@ -90,17 +84,14 @@ if (error) {
 
     const hasVariants =
       variants.length > 0;
-
-    log(
-      "VARIANTS.PROCESS",
-      "DONE",
-      {
-        count:
-          variants.length,
-
-        hasVariants,
-      }
-    );
+log(
+  "VARIANTS_READY",
+  {
+    count:
+      variants.length,
+    hasVariants,
+  }
+);
 
     const finalPrice =
       hasVariants
@@ -135,14 +126,11 @@ if (error) {
           );
 
     log(
-      "PRICE.STOCK",
-      "CALCULATED",
-      {
-        finalPrice,
-        finalStock,
-      }
-    );
-
+  "PRICE_READY",
+  {
+    hasVariants,
+  }
+);
     const payload: UpdateProductInput =
       {
         name:
@@ -214,11 +202,6 @@ sale_end:
           hasVariants,
       };
 
-    console.log(
-      "🧪 UPDATE_PAYLOAD",
-      payload
-    );
-
     const updated =
       await updateProductBySeller(
         userId,
@@ -234,10 +217,12 @@ sale_end:
     }
 
     log(
-      "PRODUCT.UPDATE",
-      "SUCCESS",
-      { id }
-    );
+  "UPDATE_SUCCESS",
+  {
+    productId:
+      maskId(id),
+  }
+);
 
     await replaceVariantsByProductId(
       id,
@@ -245,13 +230,12 @@ sale_end:
     );
 
     log(
-      "VARIANTS.UPDATE",
-      "DONE",
-      {
-        count:
-          variants.length,
-      }
-    );
+  "VARIANTS_SAVED",
+  {
+    count:
+      variants.length,
+  }
+);
 
     const cleanedRates =
       normalizeShippingRates(
@@ -264,13 +248,12 @@ sale_end:
     });
 
     log(
-      "SHIPPING.UPDATE",
-      "DONE",
-      {
-        count:
-          cleanedRates.length,
-      }
-    );
+  "SHIPPING_SAVED",
+  {
+    count:
+      cleanedRates.length,
+  }
+);
 
     return {
       success: true,
@@ -289,11 +272,10 @@ sale_end:
       },
     };
   } catch (error) {
-    log(
-      "PRODUCT.UPDATE",
-      "ERROR",
-      error
-    );
+    logError(
+  "UPDATE_ERROR",
+  error
+);
 
     return {
       error:
