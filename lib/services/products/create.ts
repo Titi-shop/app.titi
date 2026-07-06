@@ -23,7 +23,11 @@ import {
   buildSaleFields,
   buildProductFields,
 } from "./helpers";
-
+import {
+  log,
+  logError,
+  maskId,
+} from "@/lib/db/products/helpers";
 /* =========================================================
    CREATE PRODUCT
 ========================================================= */
@@ -36,14 +40,17 @@ export async function createProductService(
     const body =
       (await req.json()) as ProductRequestBody;
 
-    console.log(
-      "📦 CREATE_PRODUCT_BODY",
-      JSON.stringify(
-        body,
-        null,
-        2
-      )
-    );
+    log(
+  "CREATE_REQUEST",
+  {
+    hasVariants:
+      body.has_variants,
+    imageCount:
+      body.images?.length ?? 0,
+    variantCount:
+      body.variants?.length ?? 0,
+  }
+);
 
     /* =========================
        VALIDATE
@@ -54,31 +61,20 @@ export async function createProductService(
         body
       );
 
-    console.log(
-      "🧪 VALIDATION_RESULT",
-      {
-        error,
-
-        sale_enabled:
-          body.sale_enabled,
-
-        sale_start:
-          body.sale_start,
-
-        sale_end:
-          body.sale_end,
-
-        variantCount:
-          body.variants?.length ??
-          0,
-      }
-    );
+    log(
+  "VALIDATION_RESULT",
+  {
+    valid: !error,
+    variantCount:
+      body.variants?.length ?? 0,
+  }
+);
 
     if (error) {
-      console.error(
-        "❌ PRODUCT_VALIDATION_FAILED",
-        error
-      );
+      logError(
+  "VALIDATION_FAILED",
+  error
+);
 
       return { error };
     }
@@ -92,14 +88,13 @@ export async function createProductService(
         body.variants ?? []
       );
 
-    console.log(
-      "🧪 NORMALIZED_VARIANTS",
-      JSON.stringify(
-        variants,
-        null,
-        2
-      )
-    );
+    log(
+  "VARIANTS_NORMALIZED",
+  {
+    count:
+      variants.length,
+  }
+);
 
     const hasVariants =
       variants.length > 0;
@@ -127,50 +122,14 @@ export async function createProductService(
       hasVariants
     );
 
-    console.log(
-      "🚀 CREATE_PRODUCT_DB",
-      {
-        productPrice:
-          price,
-
-        stock,
-
-        sale_enabled,
-
-        sale_price,
-
-        sale_stock,
-
-        sale_start,
-
-        sale_end,
-
-        variantCount:
-          variants.length,
-      }
-    );
-
-    console.log(
-      "🧪 CREATE_PRODUCT_INPUT",
-      {
-        hasVariants,
-
-        price,
-
-        stock,
-
-        sale_enabled,
-
-        sale_price,
-
-        sale_stock,
-
-        sale_start,
-
-        sale_end,
-      }
-    );
-
+    log(
+  "CREATE_DB_READY",
+  {
+    hasVariants,
+    variantCount:
+      variants.length,
+  }
+);
     /* =========================
        CREATE PRODUCT
     ========================= */
@@ -221,13 +180,13 @@ export async function createProductService(
         }
       );
 
-    console.log(
-      "✅ PRODUCT_CREATED",
-      {
-        id:
-          product.id,
-      }
-    );
+    log(
+  "CREATE_SUCCESS",
+  {
+    productId:
+      maskId(product.id),
+  }
+);
 
     /* =========================
        VARIANTS SAVE
@@ -236,25 +195,24 @@ export async function createProductService(
     if (
       variants.length > 0
     ) {
-      console.log(
-        "🧪 REPLACE_VARIANTS_START",
-        {
-          productId:
-            product.id,
-
-          count:
-            variants.length,
-        }
-      );
+      log(
+  "SAVE_VARIANTS_START",
+  {
+    productId:
+      maskId(product.id),
+    count:
+      variants.length,
+  }
+);
 
       await replaceVariantsByProductId(
         product.id,
         variants
       );
 
-      console.log(
-        "✅ REPLACE_VARIANTS_DONE"
-      );
+      log(
+  "SAVE_VARIANTS_DONE"
+);
     }
 
     /* =========================
@@ -267,15 +225,13 @@ export async function createProductService(
         body.primary_shipping_country
       );
 
-    console.log(
-      "🧪 CREATE_SHIPPING_RATES",
-      cleanedRates
-    );
-
-    console.log(
-      "🧪 SHIPPING_RATES",
-      cleanedRates
-    );
+    log(
+  "SHIPPING_READY",
+  {
+    count:
+      cleanedRates.length,
+  }
+);
 
     if (
       cleanedRates.length > 0
@@ -288,13 +244,13 @@ export async function createProductService(
           cleanedRates,
       });
 
-      console.log(
-        "✅ UPDATE_SHIPPING_SAVED"
-      );
-
-      console.log(
-        "✅ SHIPPING_SAVED"
-      );
+      log(
+  "SHIPPING_SAVED",
+  {
+    productId:
+      maskId(product.id),
+  }
+);
     }
 
     /* =========================
@@ -309,10 +265,10 @@ export async function createProductService(
       },
     };
   } catch (error) {
-    console.error(
-      "💥 CREATE_PRODUCT_SERVICE_ERROR",
-      error
-    );
+    logError(
+  "CREATE_ERROR",
+  error
+);
 
     return {
       error:
