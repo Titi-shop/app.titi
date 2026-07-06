@@ -261,28 +261,28 @@ const saleEnd =
   hasVariants,
 ]
       );
-    if (
-  result.rowCount !== 1
-) {
-
+    if (result.rowCount !== 1) {
   throw new Error(
     "FAILED_TO_CREATE_PRODUCT"
   );
-
 }
 
-    
-    log(
+const row = result.rows[0];
+
+if (!row) {
+  throw new Error(
+    "FAILED_TO_CREATE_PRODUCT"
+  );
+}
+
+log(
   "CREATE_SUCCESS",
   {
-    productId:
-      maskId(
-        row.id
-      ),
+    productId: maskId(row.id),
   }
 );
 
-    return mapRow(row);
+return mapRow(row);
   } catch (error) {
     logError(
       "CREATE_ERROR",
