@@ -97,7 +97,13 @@ export async function getProductById(
       null;
 
     if (!row) {
-      
+      log(
+  "GET_BY_ID_NOT_FOUND",
+  {
+    productId:
+      maskId(product_id),
+  }
+);
       return null;
     }
 
@@ -105,9 +111,12 @@ export async function getProductById(
       mapRow(row);
 
     log(
-      "GET_BY_ID_SUCCESS",
-      product_id
-    );
+  "GET_BY_ID_SUCCESS",
+  {
+    productId:
+      maskId(product_id),
+  }
+);
 
     return mapped;
   } catch (error) {
@@ -128,9 +137,12 @@ export async function getProductsByIds(
   ids: string[]
 ): Promise<ProductRecord[]> {
   log(
-    "GET_BY_IDS_START",
-    ids
-  );
+  "GET_BY_IDS_START",
+  {
+    count:
+      ids.length,
+  }
+);
 
   try {
     if (
@@ -195,7 +207,10 @@ export async function getSellerProducts(
 ): Promise<ProductRecord[]> {
   log(
     "GET_SELLER_PRODUCTS_START",
-    { seller_id }
+   {
+  sellerId:
+    maskId(seller_id),
+}
   );
 
   try {
@@ -257,14 +272,12 @@ ORDER BY p.created_at DESC
       );
 
     log(
-      "GET_SELLER_PRODUCTS_SUCCESS",
-      {
-        count:
-          result.rows.length,
-        first:
-          result.rows[0] ?? null,
-      }
-    );
+  "GET_SELLER_PRODUCTS_SUCCESS",
+  {
+    count:
+      result.rows.length,
+  }
+);
 
     return result.rows.map(
       mapRow
