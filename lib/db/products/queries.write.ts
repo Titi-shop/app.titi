@@ -99,7 +99,8 @@ export async function deleteProductById(
   }
 );
 
-  return withTransaction(
+  try {
+    return await withTransaction(
     async (client) => {
       await client.query(
         `
