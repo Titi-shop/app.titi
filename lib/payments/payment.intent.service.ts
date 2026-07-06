@@ -11,19 +11,13 @@ import type {
   CreateIntentServiceResult,
   ShippingInput,
 } from "@/lib/payments/types";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =========================================================
    HELPERS
 ========================================================= */
-
-function vlog(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[PAYMENT_INTENT_SERVICE_V7][${step}]`,
-    data ?? ""
-  );
-}
 
 function isUUID(
   value: unknown
@@ -202,9 +196,13 @@ export async function createPiIntentFromRequest({
   userId,
   raw,
 }: RawInput): Promise<CreateIntentServiceResult> {
-  vlog("START", {
-    userId,
-  });
+  logger.info(
+  "PAYMENT_INTENT.START",
+  {
+    userId:
+      maskId(userId),
+  }
+);
 
   const normalized =
     normalizeCreateIntentInput(
@@ -232,10 +230,35 @@ const shipping: ShippingInput = {
   region: address.region ?? null,
   postal_code: address.postal_code ?? null,
 };
-  vlog(
-    "NORMALIZED",
-    normalized
-  );
+  logger.info(
+  "PAYMENT_INTENT.NORMALIZED",
+  {
+    userId:
+      maskId(
+        normalized.userId
+      ),
+
+    addressId:
+      maskId(
+        normalized.addressId
+      ),
+
+    productId:
+      maskId(
+        normalized.productId
+      ),
+
+    variantId:
+      normalized.variantId
+        ? maskId(
+            normalized.variantId
+          )
+        : null,
+
+    quantity:
+      normalized.quantity,
+  }
+);
 
   /* =====================================================
      AUTHORITATIVE PRICING
@@ -246,20 +269,35 @@ const shipping: ShippingInput = {
       normalized
     );
 
-  vlog(
-    "PRICING_INPUT",
-    pricingInput
-  );
+  logger.debug(
+  "PAYMENT_INTENT.PRICING_INPUT",
+  {
+    itemCount:
+      pricingInput.items.length,
+  }
+);
 
   const pricing: PricingResult =
     await calculatePricing(
       pricingInput
     );
 
-  vlog(
-    "PRICING_RESULT",
-    pricing
-  );
+  logger.info(
+  "PAYMENT_INTENT.PRICING_READY",
+  {
+    subtotal:
+      pricing.subtotal,
+
+    shipping:
+      pricing.shipping_fee,
+
+    total:
+      pricing.total,
+
+    itemCount:
+      pricing.items.length,
+  }
+);
 
   /* =====================================================
      CREATE DB INTENT
@@ -275,10 +313,22 @@ const shipping: ShippingInput = {
   shipping,
   pricing,
 });
-  vlog(
-    "DB_RESULT",
-    dbResult
-  );
+  logger.info(
+  "PAYMENT_INTENT.DB_READY",
+  {
+    paymentIntentId:
+      maskId(
+        extractPaymentIntentId(
+          dbResult
+        )
+      ),
+
+    amount:
+      Number(
+        dbResult.amount
+      ),
+  }
+);
 
   const paymentIntentId =
     extractPaymentIntentId(
@@ -328,13 +378,17 @@ const shipping: ShippingInput = {
           : "",
     };
 
-  vlog("SUCCESS", {
+  logger.info(
+  "PAYMENT_INTENT.SUCCESS",
+  {
     paymentIntentId:
-      result.payment_intent_id,
+      maskId(
+        result.payment_intent_id
+      ),
 
     amount:
       result.amount,
-  });
-
+  }
+);
   return result;
 }
