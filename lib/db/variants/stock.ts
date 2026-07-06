@@ -23,7 +23,21 @@ function vlog(
     payload ?? ""
   );
 }
+function maskId(
+  value: string
+): string {
 
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return (
+    value.slice(0, 4) +
+    "..." +
+    value.slice(-4)
+  );
+
+}
 /* =========================================================
    DECREASE STOCK
 ========================================================= */
@@ -37,13 +51,15 @@ export async function decreaseVariantStock(
   return withTransaction(
     async (client) => {
       vlog(
-        "DECREASE_START",
-        {
-          variantId,
-          quantity,
-        }
-      );
-
+  "DECREASE_START",
+  {
+    variantId:
+      maskId(
+        variantId
+      ),
+    quantity,
+  }
+);
       const result =
         await client.query<VariantWithSaleWindow>(
           `
@@ -134,7 +150,8 @@ export async function decreaseVariantStock(
         }
       }
 
-      await client.query(
+      const rs =
+  await client.query(
         `
         UPDATE product_variants
         SET
@@ -151,9 +168,7 @@ export async function decreaseVariantStock(
           END,
 
           sold = sold + $2,
-
           updated_at = NOW()
-
         WHERE id = $1
         `,
         [
@@ -162,15 +177,21 @@ export async function decreaseVariantStock(
           isSaleWindow,
         ]
       );
-
+      if (rs.rowCount !== 1) {
+  throw new Error(
+    "VARIANT_STOCK_UPDATE_FAILED"
+  );
+}
       vlog(
-        "DECREASE_SUCCESS",
-        {
-          variantId,
-          quantity,
-        }
-      );
-
+  "DECREASE_SUCCESS",
+  {
+    variantId:
+      maskId(
+        variantId
+      ),
+    quantity,
+  }
+);
       return {
         success: true,
       };
