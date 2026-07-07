@@ -43,7 +43,10 @@ import type {
   FinalizePaidOrderResult,
   PaymentIntentRow,
 } from "@/lib/db/orders.payment.types";
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 export async function finalizePaidOrderFromIntent(
   params: FinalizePaidOrderParams
 ): Promise<FinalizePaidOrderResult> {
@@ -276,9 +279,9 @@ await auditPaymentReceiptCreated(
   client
 );
 
-    console.log(
-  "[PAYMENT][FINALIZE_INTENT_CALL]"
-);
+    logger.info("PAYMENT.FINALIZE_INTENT_START", {
+  paymentIntentId: maskId(paymentIntentId),
+});
 
 await finalizePaymentIntent(
   client,
@@ -289,10 +292,10 @@ await finalizePaymentIntent(
   }
 );
 
-console.log(
-  "[PAYMENT][FINALIZE_INTENT_DONE]"
-);
-console.log("[STEP] auditPaymentIntentFinalized");
+logger.info("PAYMENT.FINALIZE_INTENT_DONE", {
+  paymentIntentId: maskId(paymentIntentId),
+});
+logger.debug("PAYMENT.AUDIT_PAYMENT_INTENT_FINALIZED");
 await auditPaymentIntentFinalized(
   paymentIntentId,
   {
@@ -303,7 +306,7 @@ await auditPaymentIntentFinalized(
   },
   client
 );
-console.log("[STEP] auditFinalizeDone");
+logger.debug("PAYMENT.AUDIT_FINALIZE_DONE");
 await auditFinalizeDone(
   paymentIntentId,
   {
@@ -314,7 +317,9 @@ await auditFinalizeDone(
   },
   client
 );
-    console.log("[STEP] createEscrow");
+    logger.debug("PAYMENT.CREATE_ESCROW_START", {
+  paymentIntentId: maskId(paymentIntentId),
+});
     const escrowId = await createEscrow(
   client,
   {
@@ -327,24 +332,24 @@ await auditFinalizeDone(
     piPaymentId,
   }
 );
-console.log("[STEP] markPiVerified");
+logger.debug("PAYMENT.MARK_PI_VERIFIED");
 await markPiVerified(
   client,
   escrowId
 );
-console.log("[STEP] markRpcVerified");
+logger.debug("PAYMENT.MARK_PI_VERIFIED");
 await markRpcVerified(
   client,
   paymentIntentId,
   escrowId
 );
-console.log("[STEP] linkOrder");
+logger.debug("PAYMENT.LINK_ORDER");
     await linkOrder(
   client,
    escrowId,
   orderId
 );
-    console.log("[STEP] creditSeller");
+    logger.debug("PAYMENT.CREDIT_SELLER");
     const sellerCreditId = await creditSeller(
   client,
   {
@@ -356,7 +361,7 @@ console.log("[STEP] linkOrder");
     piPaymentId,
   }
 );
-    console.log("[STEP] receiptLink");
+    logger.debug("PAYMENT.RECEIPT_LINK");
     await linkReceiptSettlementByIds({
   paymentIntentId,
   escrowId,
@@ -431,20 +436,23 @@ await sendNotification({
 
  } catch (err) {
 
-  console.error(
-    "[NOTIFICATION]",
-    err
-  );
+  logger.error("PAYMENT.NOTIFICATION_FAILED", {
+  orderId: result.orderId
+    ? maskId(result.orderId)
+    : null,
+  message:
+    err instanceof Error
+      ? err.message
+      : String(err),
+});
 
-  console.log(
-    "[BUYER]",
-    result.buyerId
-  );
+  logger.debug("PAYMENT.NOTIFICATION_BUYER", {
+  buyerId: maskId(result.buyerId),
+});
 
-  console.log(
-    "[SELLER]",
-    result.sellerId
-  );
+  logger.debug("PAYMENT.NOTIFICATION_SELLER", {
+  sellerId: maskId(result.sellerId),
+});
 
 }
 
@@ -458,19 +466,19 @@ export async function linkReceiptSettlementByIds(input: {
   sellerCreditId: string;
 }): Promise<void> {
   return withTransaction(async (client) => {
-    console.log(
-      "[PAYMENT][RECEIPT_LINK] START",
-      input
-    );
-
+    logger.info("PAYMENT.RECEIPT_LINK.START", {
+  paymentIntentId: maskId(input.paymentIntentId),
+  escrowId: maskId(input.escrowId),
+  sellerCreditId: maskId(input.sellerCreditId),
+});
     await linkReceiptSettlement(
       client,
       input
     );
 
-    console.log(
-      "[PAYMENT][RECEIPT_LINK] DONE",
-      input
-    );
+    logger.info("PAYMENT.RECEIPT_LINK.DONE", {
+  paymentIntentId: maskId(input.paymentIntentId),
+  escrowId: maskId(input.escrowId),
+});
   });
 }
