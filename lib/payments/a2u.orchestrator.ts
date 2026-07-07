@@ -26,15 +26,10 @@ import {
   completeA2UPayment,
 } from "@/lib/pi/pi.a2u";
 
-function log(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[A2U_ORCHESTRATOR] ${step}`,
-    data ?? ""
-  );
-}
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 
 export async function payWithdrawal(
   withdrawalId: string
@@ -44,10 +39,12 @@ export async function payWithdrawal(
 
   try {
 
-    log(
-      "START",
-      withdrawalId
-    );
+    logger.info(
+  "A2U_ORCHESTRATOR.START",
+  {
+    withdrawalId: maskId(withdrawalId),
+  }
+);
 
     const withdrawal =
       await getWalletWithdrawalById(
@@ -142,15 +139,18 @@ await verifyWithdrawalRpc(
 );
 
 await markWithdrawalCompleted(withdrawal.id);
-log("AFTER_MARK_COMPLETED");
+logger.info(
+  "A2U_ORCHESTRATOR.AFTER_MARK_COMPLETED"
+);
 
-    const result = {
-  withdrawalId: withdrawal.id,
-  piPaymentId,
-  txid: tx.txid,
-};
-
-log("RETURN", result);
+    logger.info(
+  "A2U_ORCHESTRATOR.RETURN",
+  {
+    withdrawalId: maskId(withdrawal.id),
+    piPaymentId: maskId(piPaymentId),
+    txid: maskId(tx.txid),
+  }
+);
 
 return result;
   }
@@ -170,10 +170,23 @@ return result;
       catch (
         rollbackError
       ) {
-        console.error(
-          "[A2U_ORCHESTRATOR][ROLLBACK]",
-          rollbackError
-        );
+        logger.error(
+  "A2U_ORCHESTRATOR.ROLLBACK",
+  {
+    withdrawalId: maskId(withdrawalId),
+    message:
+      rollbackError instanceof Error
+        ? rollbackError.message
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(rollbackError);
+}
       }
     }
 
