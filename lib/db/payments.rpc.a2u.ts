@@ -4,6 +4,11 @@ import {
   upsertWithdrawalReceipt,
 } from "@/lib/db/wallet/wallet.withdraw.receipt";
 import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
+import {
   getWalletWithdrawalById,
 } from "@/lib/db/wallet/wallet.withdraw";
 export type InsertA2URpcLogInput = {
@@ -105,23 +110,16 @@ memo_type: string | null;
 
 };
 
-function log(
-  tag: string,
-  data?: unknown
-) {
-  console.log(
-    `[A2U_RPC_DB] ${tag}`,
-    data ?? ""
-  );
-}
-
 export async function insertA2URpcLog(
   input: InsertA2URpcLogInput
 ): Promise<void> {
-  log("INSERT_START", {
-    withdrawalId: input.withdrawalId,
-    txid: input.txid,
-  });
+  logger.info(
+  "A2U_RPC_DB.INSERT_START",
+  {
+    withdrawalId: maskId(input.withdrawalId),
+    txid: maskId(input.txid),
+  }
+);
   const values = [
   input.withdrawalId,           // $1
   input.piPaymentId,            // $2
@@ -205,15 +203,13 @@ export async function insertA2URpcLog(
   ),                            // $49
 ];
 
-console.log(
-  "[RPC_VALUES_LENGTH]",
-  values.length
+logger.debug(
+  "A2U_RPC_DB.VALUES_LENGTH",
+  {
+    length: values.length,
+  }
 );
 
-console.log(
-  "[RPC_VALUES]",
-  values
-);
   await query(
   `
   INSERT INTO rpc_verification_logs (
@@ -296,19 +292,25 @@ verification_snapshot,
   `,
   values
 );
-  log("INSERT_DONE", {
-    txid: input.txid,
-  });
+  logger.info(
+  "A2U_RPC_DB.INSERT_DONE",
+  {
+    txid: maskId(input.txid),
+  }
+);
 }
 export async function verifyWithdrawalRpc(
   withdrawalId: string,
   txid: string
 ): Promise<RpcVerificationRow> {
 
-  log("VERIFY_START", {
-    withdrawalId,
-    txid,
-  });
+  logger.info(
+  "A2U_RPC_DB.VERIFY_START",
+  {
+    withdrawalId: maskId(withdrawalId),
+    txid: maskId(txid),
+  }
+);
 
   const withdrawal =
     await getWalletWithdrawalById(
@@ -326,8 +328,16 @@ export async function verifyWithdrawalRpc(
       txid
     );
 
-  log("RPC_RESULT", rpc);
-
+  logger.info(
+  "A2U_RPC_DB.RPC_RESULT",
+  {
+    confirmed: rpc.confirmed,
+    amount: rpc.amount,
+    network: rpc.network,
+    successful: rpc.successful,
+    txStatus: rpc.txStatus,
+  }
+);
 
 const expectedAmount =
   Number(withdrawal.amount);
@@ -481,18 +491,22 @@ payload: rpc.raw,
     withdrawalId
   );
 
-console.log(
-  "[A2U_RPC_DB] RECEIPT_START",
-  withdrawalId
+logger.info(
+  "A2U_RPC_DB.RECEIPT_START",
+  {
+    withdrawalId: maskId(withdrawalId),
+  }
 );
 
 await upsertWithdrawalReceipt(
   withdrawalId
 );
 
-console.log(
-  "[A2U_RPC_DB] RECEIPT_DONE",
-  withdrawalId
+logger.info(
+  "A2U_RPC_DB.RECEIPT_DONE",
+  {
+    withdrawalId: maskId(withdrawalId),
+  }
 );
 
 if (!verified) {
