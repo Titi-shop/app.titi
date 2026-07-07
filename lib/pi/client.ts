@@ -14,8 +14,7 @@ const PI_API = process.env.PI_API_URL;
 logger.info(
   "PI_CLIENT.CONFIG",
   {
-    apiUrl: PI_API,
-    hasApiKey: !!process.env.PI_API_KEY,
+    hasApiKey: !!PI_KEY,
   }
 );
 const PI_KEY = process.env.PI_API_KEY;
@@ -71,10 +70,15 @@ async function piRequest<T>(
   path: string,
   init: RequestInit
 ): Promise<T> {
-   logger.debug(
+   const safePath = path.replace(
+  /\/payments\/([^/]+)/,
+  (_, id) => `/payments/${maskId(id)}`
+);
+
+logger.debug(
   "PI_CLIENT.REQUEST",
   {
-    path,
+    path: safePath,
     method: init.method,
   }
 );
@@ -127,9 +131,8 @@ logger.info(
     logger.error(
   "PI_CLIENT.HTTP_FAIL",
   {
-    path,
+    path: safePath,
     status: res.status,
-    body: json,
   }
 );
 
