@@ -5,9 +5,7 @@ import {
 } from "@/lib/db/payments.guard";
 
 import { verifyRpcPaymentForReconcile } from "@/lib/db/payments.rpc";
-
 import { piCompletePayment } from "@/lib/pi/client";
-
 import {
   finalizePaidOrderFromIntent,
 } from "@/lib/db/orders.payment";
@@ -16,6 +14,11 @@ import type {
   RunPaymentSettlementInput,
   PaymentSettlementResult,
 } from "@/lib/payments/types";
+import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
 /* =========================================================
    RESULT BUILDERS
 ========================================================= */
@@ -58,29 +61,51 @@ async function safeCompletePi(
   piPaymentId: string,
   txid: string
 ): Promise<boolean> {
-  console.log("[PAYMENT][PI_COMPLETE] START", {
-    paymentIntentId,
-    piPaymentId,
-    txid,
-  });
+  logger.info(
+  "PAYMENT.PI_COMPLETE.START",
+  {
+    paymentIntentId: maskId(paymentIntentId),
+    piPaymentId: maskId(piPaymentId),
+    txid: maskId(txid),
+  }
+);
 
   try {
     await piCompletePayment(piPaymentId, txid);
 
-    console.log("[PAYMENT][PI_COMPLETE] SUCCESS", {
-      paymentIntentId,
-    });
+    logger.info(
+  "PAYMENT.PI_COMPLETE.SUCCESS",
+  {
+    paymentIntentId: maskId(paymentIntentId),
+  }
+);
 
-    console.log("[PAYMENT][PI_COMPLETE] AUDIT_OK", {
-      paymentIntentId,
-    });
+    logger.info(
+  "PAYMENT.PI_COMPLETE.AUDIT_OK",
+  {
+    paymentIntentId: maskId(paymentIntentId),
+  }
+);
 
     return true;
   } catch (e) {
-    console.error("[PAYMENT][PI_COMPLETE] FAIL", {
-      paymentIntentId,
-      error: e,
-    });
+    logger.error(
+  "PAYMENT.PI_COMPLETE.FAIL",
+  {
+    paymentIntentId: maskId(paymentIntentId),
+    message:
+      e instanceof Error
+        ? e.message
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(e);
+}
 
     return false;
   }
@@ -97,12 +122,15 @@ export async function runPaymentSettlement({
   userId,
 }: RunPaymentSettlementInput): Promise<PaymentSettlementResult> {
   try {
-  console.log("[PAYMENT][SETTLEMENT] START", {
-    paymentIntentId,
-    piPaymentId,
-    txid,
-    userId,
-  });
+  logger.info(
+  "PAYMENT.SETTLEMENT.START",
+  {
+    paymentIntentId: maskId(paymentIntentId),
+    piPaymentId: maskId(piPaymentId),
+    txid: maskId(txid),
+    userId: maskId(userId),
+  }
+);
 
   /* =====================================================
      1. GUARD
