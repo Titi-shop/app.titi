@@ -446,12 +446,10 @@ logger.info(
 }
 
   /* =====================================================
-     13. APPROVE PAYMENT
-  ===================================================== */
+   13. APPROVE PAYMENT
+===================================================== */
 
-  if (
-  !payment.status?.developer_approved
-) {
+if (!payment.status?.developer_approved) {
   logger.info(
     "PAYMENT.AUTHORIZE.PI_APPROVE_START"
   );
@@ -467,13 +465,7 @@ logger.info(
   logger.debug(
     "PAYMENT.AUTHORIZE.PI_ALREADY_APPROVED"
   );
-
-
-  } else {
-    logger.debug(
-  "PAYMENT.AUTHORIZE.PI_ALREADY_APPROVED"
-);
-  }
+}
 
   /* =====================================================
      14. SUCCESS
