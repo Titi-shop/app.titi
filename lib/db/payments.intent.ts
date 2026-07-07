@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import type { PoolClient } from "pg";
 import { query, withTransaction } from "@/lib/db";
 import type {
   PricingResult,
@@ -168,6 +169,7 @@ export async function createPiPaymentIntent({
   shipping,
   pricing,
 }: CreatePiPaymentIntentInput): Promise<CreateIntentResult> {
+ try {
   logger.info(
     "PAYMENT_INTENT.START",
     {
@@ -208,10 +210,13 @@ export async function createPiPaymentIntent({
       throw new Error("PRICING_VARIANT_MISMATCH");
     }
 
-    vlog("PRICING_OK", {
-      subtotal: pricing.subtotal,
-      total: pricing.total,
-    });
+    logger.info(
+  "PAYMENT_INTENT.PRICING_OK",
+  {
+    subtotal: pricing.subtotal,
+    total: pricing.total,
+  }
+);
 
     /* =====================================================
        2. VERIFY OWNER (NO PRODUCT QUERY)
@@ -253,7 +258,9 @@ await lockAndValidateInventory(
   quantity
 );
 
-vlog("INVENTORY_OK");
+logger.info(
+  "PAYMENT_INTENT.INVENTORY_OK"
+);
     /* =====================================================
        3. IDS
     ===================================================== */
@@ -265,14 +272,20 @@ vlog("INVENTORY_OK");
 
     const memo = `ORDER-${paymentIntentId.slice(0, 8)}`;
      const expiresAt = makeExpiresAt();
-    vlog("INITIAL_STATE", {
-  status: makeInitialStatus(),
-  settlement_state:
-    makeInitialSettlement(),
-  payment_state: "PENDING",
-  provider_status: "CREATED",
-  expiresAt,
-});
+    logger.debug(
+  "PAYMENT_INTENT.INITIAL_STATE",
+  {
+    status:
+      makeInitialStatus(),
+    settlementState:
+      makeInitialSettlement(),
+    paymentState:
+      "PENDING",
+    providerStatus:
+      "CREATED",
+    expiresAt,
+  }
+);
     /* =====================================================
        4. SNAPSHOT (TRUST PRICING ENGINE)
     ===================================================== */
@@ -293,15 +306,32 @@ vlog("INVENTORY_OK");
     /* =====================================================
        5. INSERT INTENT
     ===================================================== */
-vlog("INSERT_PREPARE", {
-  paymentIntentId,
-  buyer_id: userId,
-  seller_id,
-  productId,
-  variantId,
-  quantity,
-  total: pricing.total,
-});
+logger.info(
+  "PAYMENT_INTENT.INSERT_PREPARE",
+  {
+    paymentIntentId:
+      maskId(paymentIntentId),
+
+    buyerId:
+      maskId(userId),
+
+    sellerId:
+      maskId(seller_id),
+
+    productId:
+      maskId(productId),
+
+    variantId:
+      variantId
+        ? maskId(variantId)
+        : null,
+
+    quantity,
+
+    total:
+      pricing.total,
+  }
+);
     await client.query(
       `
       INSERT INTO payment_intents (
@@ -384,10 +414,16 @@ vlog("INSERT_PREPARE", {
       ]
     );
 
-    vlog("INSERT_OK", {
-      paymentIntentId,
-      total: pricing.total,
-    });
+    logger.info(
+  "PAYMENT_INTENT.INSERT_OK",
+  {
+    paymentIntentId:
+      maskId(paymentIntentId),
+
+    total:
+      pricing.total,
+  }
+);
 
     return {
       ok: true,
@@ -408,9 +444,13 @@ vlog("INSERT_PREPARE", {
 export async function getPaymentIntent(
   id: string
 ): Promise<PaymentIntentRow | null> {
-  vlog("GET_START", {
-    paymentIntentId: id,
-  });
+  logger.info(
+  "PAYMENT_INTENT.GET_START",
+  {
+    paymentIntentId:
+      maskId(id),
+  }
+);
   const res =
     await query<PaymentIntentRow>(
     `
@@ -422,20 +462,45 @@ export async function getPaymentIntent(
     [id]
   );
 
-vlog("GET_RESULT", {
-  found: res.rows.length > 0,
-  paymentIntentId: id,
-  status: res.rows[0]?.status ?? null,
-  settlementState:
-    res.rows[0]?.settlement_state ?? null,
-  paymentState:
-    res.rows[0]?.payment_state ?? null,
-  providerStatus:
-    res.rows[0]?.provider_status ?? null,
-});
+logger.info(
+  "PAYMENT_INTENT.GET_RESULT",
+  {
+    found:
+      res.rows.length > 0,
+
+    paymentIntentId:
+      maskId(id),
+
+    status:
+      res.rows[0]?.status,
+
+    settlementState:
+      res.rows[0]?.settlement_state,
+
+    paymentState:
+      res.rows[0]?.payment_state,
+
+    providerStatus:
+      res.rows[0]?.provider_status,
+  }
+);
 
 return res.rows[0] ?? null;
 }
+logger.info(
+  "PAYMENT_INTENT.RELEASE_RESERVED.START",
+  {
+    productId:
+      maskId(productId),
+
+    variantId:
+      variantId
+        ? maskId(variantId)
+        : null,
+
+    quantity,
+  }
+);
 export async function releaseReservedStock(
     client: PoolClient,
     productId: string,
@@ -466,6 +531,12 @@ export async function releaseReservedStock(
     [quantity, productId]
   );
 }
+logger.info(
+  "PAYMENT_INTENT.RELEASE_RESERVED.SUCCESS"
+);
+logger.info(
+  "PAYMENT_INTENT.FIND_EXPIRED.START"
+);
 export async function findExpiredPaymentIntents(
     client: PoolClient
 ): Promise<ExpiredPaymentIntentRow[]> {
@@ -491,6 +562,20 @@ export async function findExpiredPaymentIntents(
 
   return res.rows;
 }
+logger.info(
+  "PAYMENT_INTENT.FIND_EXPIRED.DONE",
+  {
+    count:
+      res.rows.length,
+  }
+);
+logger.info(
+  "PAYMENT_INTENT.EXPIRE.START",
+  {
+    paymentIntentId:
+      maskId(intent.id),
+  }
+);
 export async function expirePaymentIntentFlow({
     client,
     intent,
@@ -518,3 +603,10 @@ export async function expirePaymentIntentFlow({
     [intent.id]
   );
 }
+logger.info(
+  "PAYMENT_INTENT.EXPIRE.SUCCESS",
+  {
+    paymentIntentId:
+      maskId(intent.id),
+  }
+);
