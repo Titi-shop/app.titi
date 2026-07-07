@@ -1,5 +1,4 @@
 import {
-  piGetMe,
   piGetPayment,
   piApprovePayment,
 } from "@/lib/pi/client";
@@ -12,10 +11,6 @@ import {
   bindPiPaymentToIntent,
 } from "@/lib/db/payments.bind";
 
-
-import type {
-  PaymentIntentStatus,
-} from "@/lib/payments/types";
 import {
   getUserById,
 } from "@/lib/db/users";
@@ -235,9 +230,11 @@ logger.info(
     await piGetPayment(
       piPaymentId
     );
-vlog(
-  "PI_IDENTIFIER",
-  payment.identifier
+logger.debug(
+  "PAYMENT.AUTHORIZE.PI_IDENTIFIER",
+  {
+    identifier: payment.identifier,
+  }
 );
   logger.info(
   "PAYMENT.AUTHORIZE.PI_PAYMENT_OK",
@@ -258,20 +255,17 @@ vlog(
       payment.status?.developer_completed,
   }
 );
-vlog(
-  "PI_STATUS",
+logger.debug(
+  "PAYMENT.AUTHORIZE.PI_STATUS",
   {
-    developer_approved:
-      payment.status
-        ?.developer_approved,
+    developerApproved:
+      payment.status?.developer_approved,
 
-    transaction_verified:
-      payment.status
-        ?.transaction_verified,
+    transactionVerified:
+      payment.status?.transaction_verified,
 
-    developer_completed:
-      payment.status
-        ?.developer_completed,
+    developerCompleted:
+      payment.status?.developer_completed,
   }
 );
   /* =====================================================
@@ -305,9 +299,9 @@ vlog(
   payment.status
     ?.developer_completed
 ) {
-  vlog(
-    "PI_ALREADY_COMPLETED"
-  );
+  logger.debug(
+  "PAYMENT.AUTHORIZE.PI_ALREADY_COMPLETED"
+);
 
   return {
     success: true,
@@ -456,33 +450,24 @@ logger.info(
   ===================================================== */
 
   if (
-    !payment.status
-      ?.developer_approved
-  ) {
-    logger.info(
-  "PAYMENT.AUTHORIZE.PI_APPROVE_START"
-);
+  !payment.status?.developer_approved
+) {
+  logger.info(
+    "PAYMENT.AUTHORIZE.PI_APPROVE_START"
+  );
 
-    try {
   await piApprovePayment(
     piPaymentId
   );
 
   logger.info(
-  "PAYMENT.AUTHORIZE.PI_APPROVE_DONE"
-);
-} catch (error) {
-  logger.error(
-  "PAYMENT.AUTHORIZE.BIND_ERROR",
-  {
-    message:
-      error instanceof Error
-        ? error.message
-        : "UNKNOWN_ERROR",
-  }
-);
-
-  throw error;
+    "PAYMENT.AUTHORIZE.PI_APPROVE_DONE"
+  );
+} else {
+  logger.debug(
+    "PAYMENT.AUTHORIZE.PI_ALREADY_APPROVED"
+  );
+}
 }
   } else {
     logger.debug(
