@@ -4,10 +4,19 @@
    Single source of truth for all Pi API communication
 ========================================================= */
 
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
+
 const PI_API = process.env.PI_API_URL;
-console.log(
-  "[PI_CLIENT][ENV_PI_API_URL]",
-  process.env.PI_API_URL
+
+logger.info(
+  "PI_CLIENT.CONFIG",
+  {
+    apiUrl: PI_API,
+    hasApiKey: !!process.env.PI_API_KEY,
+  }
 );
 const PI_KEY = process.env.PI_API_KEY;
 
@@ -62,14 +71,30 @@ async function piRequest<T>(
   path: string,
   init: RequestInit
 ): Promise<T> {
-   console.log(
-  "[PI_CLIENT][REQUEST_URL]",
-  `${PI_API}${path}`
+   logger.debug(
+  "PI_CLIENT.REQUEST",
+  {
+    url: `${PI_API}${path}`,
+    method: init.method,
+  }
 );
 
-console.log(
-  "[PI_CLIENT][REQUEST_HEADERS]",
-  init.headers
+const headers =
+  init.headers as Record<
+    string,
+    unknown
+  >;
+
+logger.debug(
+  "PI_CLIENT.REQUEST_HEADERS",
+  {
+    ...headers,
+
+    Authorization:
+      headers.Authorization
+        ? "REDACTED"
+        : undefined,
+  }
 );
   const res = await fetch(`${PI_API}${path}`, {
     ...init,
@@ -77,14 +102,18 @@ console.log(
   });
 
   const text = await res.text();
-console.log(
-  "[PI_CLIENT][RAW_RESPONSE]",
-  text
+logger.debug(
+  "PI_CLIENT.RESPONSE_RAW",
+  {
+    length: text.length,
+  }
 );
 
-console.log(
-  "[PI_CLIENT][STATUS]",
-  res.status
+logger.info(
+  "PI_CLIENT.STATUS",
+  {
+    status: res.status,
+  }
 );
   let json: unknown = null;
 
@@ -95,11 +124,14 @@ console.log(
   }
 
   if (!res.ok) {
-    console.error("🔥 [PI CLIENT] HTTP_FAIL", {
-      path,
-      status: res.status,
-      body: json,
-    });
+    logger.error(
+  "PI_CLIENT.HTTP_FAIL",
+  {
+    path,
+    status: res.status,
+    body: json,
+  }
+);
 
     throw new Error(`PI_HTTP_${res.status}`);
   }
@@ -137,12 +169,11 @@ export async function piGetMe(
     }
   );
 
-console.log(
-  "[PI_CLIENT][ME_RESPONSE]",
+logger.info(
+  "PI_CLIENT.ME",
   {
-    uid: data?.uid,
-    username:
-      data?.username,
+    uid: maskId(data.uid),
+    username: data.username,
   }
 );
 
@@ -167,9 +198,11 @@ export async function piGetPayment(
   if (!id) {
     throw new Error("MISSING_PI_PAYMENT_ID");
   }
-console.log(
-  "[PI_CLIENT][GET_PAYMENT_URL]",
-  `${PI_API}/v2/payments/${id}`
+logger.debug(
+  "PI_CLIENT.GET_PAYMENT",
+  {
+    paymentId: maskId(id),
+  }
 );
 
 const data =
@@ -180,18 +213,39 @@ const data =
       Authorization: `Key ${PI_KEY}`,
     },
   });
-console.log(
-  "[PI_CLIENT][PAYMENT_RESPONSE]",
-  data
+logger.info(
+  "PI_CLIENT.PAYMENT",
+  {
+    paymentId:
+      maskId(data.identifier),
+
+    amount:
+      data.amount,
+
+    developerApproved:
+      data.status?.developer_approved,
+
+    developerCompleted:
+      data.status?.developer_completed,
+
+    transactionVerified:
+      data.status?.transaction_verified,
+  }
 );
   if (!data?.identifier) {
     throw new Error("PI_PAYMENT_FETCH_FAILED");
   }
 
-  console.log("🟢 [PI CLIENT] PAYMENT_OK", {
-    paymentId: data.identifier,
-    amount: data.amount,
-  });
+  logger.info(
+  "PI_CLIENT.PAYMENT_OK",
+  {
+    paymentId:
+      maskId(data.identifier),
+
+    amount:
+      data.amount,
+  }
+);
 
   return data;
 }
@@ -219,7 +273,13 @@ export async function piApprovePayment(
     body: JSON.stringify({}),
   });
 
-  console.log("🟢 [PI CLIENT] APPROVE_OK", id);
+  logger.info(
+  "PI_CLIENT.APPROVE_OK",
+  {
+    paymentId:
+      maskId(id),
+  }
+);
 
   return { success: true };
 }
@@ -258,18 +318,37 @@ export async function piCompletePayment(
 
   if (!res.ok) {
     if (text.includes("already_completed")) {
-      console.log("[PI CLIENT] COMPLETE_ALREADY_DONE", id);
+      logger.info(
+  "PI_CLIENT.COMPLETE_ALREADY_DONE",
+  {
+    paymentId:
+      maskId(id),
+  }
+);
       return { success: true };
     }
 
-    console.error("[PI CLIENT] COMPLETE_FAIL", {
-      status: res.status,
-    });
+    logger.error(
+  "PI_CLIENT.COMPLETE_FAIL",
+  {
+    paymentId:
+      maskId(id),
+
+    status:
+      res.status,
+  }
+);
 
     throw new Error("PI_COMPLETE_FAILED");
   }
 
-  console.log("[PI CLIENT] COMPLETE_OK", id);
+  logger.info(
+  "PI_CLIENT.COMPLETE_OK",
+  {
+    paymentId:
+      maskId(id),
+  }
+);
 
   return { success: true };
 }
