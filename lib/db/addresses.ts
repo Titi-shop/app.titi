@@ -126,7 +126,7 @@ return address;
     throw error;
 
   }
-  return res.rows[0];
+  
 }
 
 /* =========================
@@ -136,15 +136,18 @@ export async function setDefaultAddress(
   userId: string,
   addressId: string
 ) {
-   logger.info(
-  "ADDRESS.SET_DEFAULT.START",
-  {
-    userId: maskId(userId),
-    addressId: maskId(addressId),
-  }
-);
+  logger.info(
+    "ADDRESS.SET_DEFAULT.START",
+    {
+      userId: maskId(userId),
+      addressId: maskId(addressId),
+    }
+  );
+
   await query(
-    `UPDATE addresses SET is_default = false WHERE user_id = $1`,
+    `UPDATE addresses
+     SET is_default = false
+     WHERE user_id = $1`,
     [userId]
   );
 
@@ -152,17 +155,19 @@ export async function setDefaultAddress(
     `
     UPDATE addresses
     SET is_default = true
-    WHERE id = $1 AND user_id = $2
+    WHERE id = $1
+      AND user_id = $2
     `,
     [addressId, userId]
   );
+
+  logger.info(
+    "ADDRESS.SET_DEFAULT.SUCCESS",
+    {
+      addressId: maskId(addressId),
+    }
+  );
 }
-logger.info(
-  "ADDRESS.SET_DEFAULT.SUCCESS",
-  {
-    addressId: maskId(addressId),
-  }
-);
 /* =========================
    DELETE
 ========================= */
@@ -191,7 +196,7 @@ logger.info(
     addressId: maskId(addressId),
   }
 );
-
+}
 /* =========================
    UPDATE ADDRESS
 ========================= */
@@ -265,7 +270,6 @@ logger.info(
 );
 
 return address;
-  return res.rows[0] ?? null;
 }
 export async function getAddressById(
   userId: string,
@@ -299,5 +303,4 @@ logger.info(
 );
 
 return address;
-  return res.rows[0] ?? null;
 }
