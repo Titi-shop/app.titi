@@ -437,6 +437,17 @@ logger.info(
       },
     };
   });
+   } catch (error) {
+  logger.error(
+    "PAYMENT_INTENT.ERROR",
+    {
+      message:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR",
+    }
+  );
+  throw error;
 }
 /* =========================================================
    GET PAYMENT INTENT
