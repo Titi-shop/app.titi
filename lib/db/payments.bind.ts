@@ -232,12 +232,20 @@ FOR UPDATE
   }
 );
 let payloadJson = "{}";
-        try }
+
+try {
   payloadJson = JSON.stringify(
     piPayload ?? {}
   );
-} 
-  
+} catch (error) {
+  logger.error(
+    "PAYMENTS.BIND.PAYLOAD_SERIALIZE_FAILED",
+    {
+      message:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR",
+    }
   );
 }
       await client.query(
