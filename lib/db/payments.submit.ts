@@ -1,5 +1,8 @@
 import { withTransaction } from "@/lib/db";
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =========================================================
    TYPES
 ========================================================= */
@@ -38,12 +41,12 @@ export async function markPaymentVerifying({
   paymentIntentId: string;
 }> {
   return withTransaction(async (client) => {
-    console.log("[PAYMENT][SUBMIT] START", {
-      paymentIntentId,
-      userId,
-      piPaymentId,
-      txid,
-    });
+    logger.info("PAYMENT.SUBMIT.START", {
+  paymentIntentId: maskId(paymentIntentId),
+  userId: maskId(userId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+});
 
     /* =====================================================
        1. LOCK INTENT
