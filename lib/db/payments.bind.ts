@@ -68,6 +68,7 @@ export async function bindPiPaymentToIntent(
 ): Promise<void> {
   return withTransaction(
     async (client) => {
+      try {
       const {
         userId,
         paymentIntentId,
@@ -231,21 +232,11 @@ FOR UPDATE
   }
 );
 let payloadJson = "{}";
-
-try {
   payloadJson = JSON.stringify(
     piPayload ?? {}
   );
 } 
-  catch (error) {
-  logger.error(
-    "PAYMENTS.BIND.PAYLOAD_SERIALIZE_FAILED",
-    {
-      message:
-        error instanceof Error
-          ? error.message
-          : "UNKNOWN_ERROR",
-    }
+  
   );
 }
       await client.query(
@@ -284,6 +275,15 @@ updated_at = now()
       logger.info(
   "PAYMENTS.BIND.SUCCESS"
 );
+    }
+catch (error) {
+  logger.error(
+    "PAYMENTS.BIND.PAYLOAD_SERIALIZE_FAILED",
+    {
+      message:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR",
     }
   );
 }
