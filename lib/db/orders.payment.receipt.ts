@@ -4,25 +4,12 @@ import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import type {
   UpsertPaymentReceiptInput,
 } from "./orders.payment.types";
-function logReceipt(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.log(
-    `[PAYMENT][RECEIPT] ${event}`,
-    payload
-  );
-}
+import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
 
-function logReceiptFail(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.error(
-    `[PAYMENT][RECEIPT][FAIL] ${event}`,
-    payload
-  );
-}
 export async function upsertPaymentReceipt(
   client: PoolClient,
   input: UpsertPaymentReceiptInput
@@ -271,22 +258,19 @@ export async function upsertPaymentReceipt(
       paymentIntentId,
     ]
   );
-  logReceipt(
-  "UPSERT_START",
-  {
-    paymentIntentId,
-    orderId,
-    buyerId,
-    piPaymentId,
-    txid,
-    expectedAmount,
-    verifiedAmount,
-    ledger:
-      rpcPayload.ledger,
-    txStatus:
-      rpcPayload.txStatus,
-  }
-);
+  logger.info("PAYMENT.RECEIPT.UPSERT_START", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  buyerId: maskId(buyerId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+
+  expectedAmount,
+  verifiedAmount,
+
+  ledger: rpcPayload.ledger,
+  txStatus: rpcPayload.txStatus,
+});
   if (!paymentIntentId) {
   throw new Error(
     "PAYMENT_INTENT_ID_REQUIRED"
@@ -330,29 +314,24 @@ if (
   );
 }
 
-logReceipt(
-  "UPSERT_SUCCESS",
-  {
-    paymentIntentId,
-    orderId,
-    piPaymentId,
-    txid,
-  }
-);
+logger.info("PAYMENT.RECEIPT.UPSERT_SUCCESS", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+});
 }
 catch (error) {
-  logReceiptFail(
-    "UPSERT_FAILED",
-    {
-      paymentIntentId,
-      piPaymentId,
-      txid,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    }
-  );
+  logger.error("PAYMENT.RECEIPT.UPSERT_FAILED", {
+  paymentIntentId: maskId(paymentIntentId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+
+  message:
+    error instanceof Error
+      ? error.message
+      : String(error),
+});
 
   throw error;
 }
@@ -381,15 +360,9 @@ export async function linkReceiptSettlement(
     ]
   );
 
-  console.log(
-    "[PAYMENT][RECEIPT_LINKED]",
-    {
-      paymentIntentId:
-        input.paymentIntentId,
-      escrowId:
-        input.escrowId,
-      sellerCreditId:
-        input.sellerCreditId,
-    }
-  );
+  logger.info("PAYMENT.RECEIPT_LINKED", {
+  paymentIntentId: maskId(input.paymentIntentId),
+  escrowId: maskId(input.escrowId),
+  sellerCreditId: maskId(input.sellerCreditId),
+});
 }
