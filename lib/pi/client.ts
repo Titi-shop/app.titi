@@ -74,7 +74,7 @@ async function piRequest<T>(
    logger.debug(
   "PI_CLIENT.REQUEST",
   {
-    url: `${PI_API}${path}`,
+    path,
     method: init.method,
   }
 );
