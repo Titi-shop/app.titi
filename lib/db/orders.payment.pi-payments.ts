@@ -3,25 +3,11 @@ import { getRpcVerificationLog } from "@/lib/db/payments.rpc";
 import type {
   UpsertPiPaymentInput,
 } from "./orders.payment.types";
-function logPiPayment(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.log(
-    `[PAYMENT][PI_PAYMENTS] ${event}`,
-    payload
-  );
-}
-
-function logPiPaymentFail(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.error(
-    `[PAYMENT][PI_PAYMENTS][FAIL] ${event}`,
-    payload
-  );
-}
+import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
 export async function upsertPiPayment(
   client: PoolClient,
   input: UpsertPiPaymentInput
@@ -45,19 +31,18 @@ export async function upsertPiPayment(
 
     piPayload,
   } = input;
-logPiPayment(
-  "UPSERT_START",
-  {
-    paymentIntentId,
-    orderId,
-    buyerId,
-    piPaymentId,
-    txid,
-    expectedAmount,
-    verifiedAmount,
-    receiverWallet,
-  }
-);
+logger.info("PAYMENT.PI_PAYMENT.UPSERT_START", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  buyerId: maskId(buyerId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+
+  receiverWallet: maskWallet(receiverWallet),
+
+  expectedAmount,
+  verifiedAmount,
+});
 const rpcPayload =
   await getRpcVerificationLog(paymentIntentId);
 
@@ -65,10 +50,9 @@ if (!rpcPayload) {
   throw new Error("RPC_LOG_NOT_FOUND");
 }
 if (!paymentIntentId) {
-  logPiPaymentFail(
-    "PAYMENT_INTENT_ID_REQUIRED",
-    {}
-  );
+  logger.error(
+  "PAYMENT.PI_PAYMENT.PAYMENT_INTENT_ID_REQUIRED"
+);
 
   throw new Error(
     "PAYMENT_INTENT_ID_REQUIRED"
@@ -130,24 +114,25 @@ if (
     "RPC_RECEIVER_MISMATCH"
   );
 }
-  logPiPayment(
-  "UPSERT_PAYLOAD",
-  {
-    paymentIntentId,
-    orderId,
-    buyerId,
-    expectedAmount,
-    verifiedAmount,
-    txid,
-    ledger:
-      rpcPayload.ledger,
-    txStatus:
-      rpcPayload.txStatus,
-    chainReference:
-      rpcPayload.chainReference,
-    receiverWallet,
-  }
-);
+  logger.debug("PAYMENT.PI_PAYMENT.UPSERT_PAYLOAD", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  buyerId: maskId(buyerId),
+
+  txid: maskId(txid),
+
+  chainReference: rpcPayload.chainReference
+    ? maskId(rpcPayload.chainReference)
+    : null,
+
+  receiverWallet: maskWallet(receiverWallet),
+
+  expectedAmount,
+  verifiedAmount,
+
+  ledger: rpcPayload.ledger,
+  txStatus: rpcPayload.txStatus,
+});
   try {
   const result =
   await client.query(
@@ -381,37 +366,26 @@ JSON.stringify({
       new Date(),
     ]
   );
-  logPiPayment(
-
-    "UPSERT_SUCCESS",
-
-    {
-
-      paymentIntentId,
-      orderId,
-      piPaymentId,
-      txid,
-      rowCount: result.rowCount,
-    }
-
-  );
+  logger.info("PAYMENT.PI_PAYMENT.UPSERT_SUCCESS", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
+  rowCount: result.rowCount,
+});
 
 } catch (error) {
-  logPiPaymentFail(
-    "UPSERT_FAILED",
+  logger.error("PAYMENT.PI_PAYMENT.UPSERT_FAILED", {
+  paymentIntentId: maskId(paymentIntentId),
+  orderId: maskId(orderId),
+  piPaymentId: maskId(piPaymentId),
+  txid: maskId(txid),
 
-    {
-
-      paymentIntentId,
-      orderId,
-      piPaymentId,
-      txid,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    }
-  );
+  message:
+    error instanceof Error
+      ? error.message
+      : String(error),
+});
   throw error;
 }
 }
