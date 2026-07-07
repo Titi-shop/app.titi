@@ -10,13 +10,6 @@ import {
 } from "@/lib/logger";
 
 const PI_API = process.env.PI_API_URL;
-
-logger.info(
-  "PI_CLIENT.CONFIG",
-  {
-    hasApiKey: !!PI_KEY,
-  }
-);
 const PI_KEY = process.env.PI_API_KEY;
 
 if (!PI_API) {
@@ -26,6 +19,13 @@ if (!PI_API) {
 if (!PI_KEY) {
   throw new Error("MISSING_PI_API_KEY");
 }
+
+logger.info(
+  "PI_CLIENT.CONFIG",
+  {
+    hasApiKey: true,
+  }
+);
 
 /* =========================================================
    TYPES
