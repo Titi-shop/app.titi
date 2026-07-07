@@ -16,9 +16,12 @@ import type {
 const APP_MERCHANT_WALLET = (
   process.env.PI_MERCHANT_WALLET || ""
 ).trim();
-console.log(
-  "[MERCHANT_WALLET_ENV]",
-  APP_MERCHANT_WALLET
+logger.info(
+  "PAYMENT_INTENT.CONFIG_READY",
+  {
+    merchant:
+      maskId(APP_MERCHANT_WALLET),
+  }
 );
 /* =========================================================
    HELPERS
@@ -165,7 +168,21 @@ export async function createPiPaymentIntent({
   shipping,
   pricing,
 }: CreatePiPaymentIntentInput): Promise<CreateIntentResult> {
-  vlog("START", { userId, productId, variantId });
+  logger.info(
+    "PAYMENT_INTENT.START",
+    {
+        userId:
+            maskId(userId),
+
+        productId:
+            maskId(productId),
+
+        variantId:
+            variantId
+                ? maskId(variantId)
+                : null,
+    }
+);
 
   if (!APP_MERCHANT_WALLET) {
     throw new Error("APP_MERCHANT_WALLET_MISSING");
@@ -222,7 +239,13 @@ export async function createPiPaymentIntent({
       throw new Error("SELF_PAYMENT_FORBIDDEN");
     }
 
-    vlog("OWNER_OK", { seller_id });
+    logger.info(
+    "PAYMENT_INTENT.OWNER_OK",
+    {
+        sellerId:
+            maskId(seller_id),
+    }
+);
 await lockAndValidateInventory(
   client,
   productId,
