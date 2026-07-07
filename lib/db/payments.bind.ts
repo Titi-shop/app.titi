@@ -232,6 +232,7 @@ FOR UPDATE
   }
 );
 let payloadJson = "{}";
+        try }
   payloadJson = JSON.stringify(
     piPayload ?? {}
   );
@@ -275,7 +276,7 @@ updated_at = now()
       logger.info(
   "PAYMENTS.BIND.SUCCESS"
 );
-    }
+  
 catch (error) {
   logger.error(
     "PAYMENTS.BIND.PAYLOAD_SERIALIZE_FAILED",
