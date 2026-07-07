@@ -1,5 +1,8 @@
 import { withTransaction } from "@/lib/db";
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =========================================================
    TYPES
 ========================================================= */
@@ -86,22 +89,20 @@ export async function createOrder(input: CreateOrderInput) {
   );
 
 if (existingOrder.rows.length) {
-  console.log(
-    "[ORDER][IDEMPOTENT_HIT]",
-    existingOrder.rows[0].id
-  );
-
+  logger.info("ORDER.IDEMPOTENT_HIT", {
+  orderId: maskId(existingOrder.rows[0].id),
+});
   return {
     orderId: existingOrder.rows[0].id,
   };
 }
-    console.log("🟡 [ORDER][V7][PAID_FLOW] START", {
-      userId,
-      itemsCount: items.length,
-      piPaymentId: input.piPaymentId,
-      txid: input.txid,
-      idempotencyKey: input.idempotencyKey,
-    });
+    logger.info("ORDER.CREATE.START", {
+  userId: maskId(userId),
+  itemsCount: items.length,
+  piPaymentId: maskId(input.piPaymentId),
+  txid: maskId(input.txid),
+  idempotencyKey: maskId(input.idempotencyKey),
+});
 
     /* =========================================================
        PRODUCTS LOAD
@@ -264,8 +265,8 @@ const lineTotal =
   total: lineTotal,
 });
 
-      console.log("🧾 [ORDER][ITEM]", {
-  productId: p.id,
+      logger.debug("ORDER.ITEM", {
+  productId: maskId(p.id),
   qty,
   price,
   total: lineTotal,
@@ -280,13 +281,10 @@ for (const item of orderItems) {
   let res;
 
   if (item.variant_id) {
-    console.log(
-      "[ORDER][STOCK][VARIANT]",
-      {
-        variantId: item.variant_id,
-        qty: item.qty,
-      }
-    );
+    logger.debug("ORDER.STOCK.VARIANT", {
+  variantId: maskId(item.variant_id),
+  qty: item.qty,
+});
 
     res = await client.query(
       `
@@ -317,13 +315,10 @@ AND reserved_stock >= $1
       );
     }
   } else {
-    console.log(
-      "[ORDER][STOCK][PRODUCT]",
-      {
-        productId: item.product.id,
-        qty: item.qty,
-      }
-    );
+    logger.debug("ORDER.STOCK.PRODUCT", {
+  productId: maskId(item.product.id),
+  qty: item.qty,
+});
 
     res = await client.query(
       `
@@ -343,33 +338,31 @@ AND reserved_stock >= $1
   }
 
   if (!res.rowCount) {
-    console.error(
-      "[ORDER][STOCK_FAIL]",
-      {
-        productId: item.product.id,
-        variantId: item.variant_id,
-        qty: item.qty,
-      }
-    );
+    logger.error("ORDER.STOCK_FAIL", {
+  productId: maskId(item.product.id),
+  variantId: item.variant_id
+    ? maskId(item.variant_id)
+    : null,
+  qty: item.qty,
+});
 
     throw new Error("OUT_OF_STOCK");
   }
 
-  console.log(
-    "[ORDER][STOCK_OK]",
-    {
-      productId: item.product.id,
-      variantId: item.variant_id,
-      qty: item.qty,
-    }
-  );
+  logger.debug("ORDER.STOCK_OK", {
+  productId: maskId(item.product.id),
+  variantId: item.variant_id
+    ? maskId(item.variant_id)
+    : null,
+  qty: item.qty,
+});
 }
 
     /* =========================================================
        CREATE ORDER (PAID ONLY FLOW)
     ========================================================= */
 
-    console.log("🟡 [ORDER][INSERT] CREATE ORDER ROW");
+    logger.debug("ORDER.INSERT");
 
     const orderRes = await client.query<{ id: string }>(
       `
@@ -470,12 +463,12 @@ AND reserved_stock >= $1
 
     const orderId = orderRes.rows[0].id;
 
-    console.log("🟢 [ORDER][CREATED][PAID_FLOW]", {
-      orderId,
-      buyerId: userId,
-      sellerId: orderItems[0].product.seller_id,
-      total,
-    });
+    logger.info("ORDER.CREATED", {
+  orderId: maskId(orderId),
+  buyerId: maskId(userId),
+  sellerId: maskId(orderItems[0].product.seller_id),
+  total,
+});
 
     /* =========================================================
        ORDER ITEMS INSERT
@@ -511,10 +504,10 @@ AND reserved_stock >= $1
       );
     }
 
-    console.log("🟢 [ORDER][ITEMS_CREATED]", {
-      orderId,
-      items: orderItems.length,
-    });
+    logger.info("ORDER.ITEMS_CREATED", {
+  orderId: maskId(orderId),
+  items: orderItems.length,
+});
 
     /* =========================================================
        RETURN
