@@ -175,27 +175,45 @@ export async function deleteAddress(
   userId: string,
   addressId: string
 ) {
-   logger.info(
-  "ADDRESS.DELETE.START",
-  {
-    userId: maskId(userId),
-    addressId: maskId(addressId),
+  try {
+    logger.info(
+      "ADDRESS.DELETE.START",
+      {
+        userId: maskId(userId),
+        addressId: maskId(addressId),
+      }
+    );
+
+    await query(
+      `
+      DELETE FROM addresses
+      WHERE id = $1
+        AND user_id = $2
+      `,
+      [addressId, userId]
+    );
+
+    logger.info(
+      "ADDRESS.DELETE.SUCCESS",
+      {
+        addressId: maskId(addressId),
+      }
+    );
+
+  } catch (error) {
+
+    logger.error(
+      "ADDRESS.DELETE.ERROR",
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : "UNKNOWN_ERROR",
+      }
+    );
+
+    throw error;
   }
-);
-  await query(
-    `
-    DELETE FROM addresses
-    WHERE id = $1 AND user_id = $2
-    `,
-    [addressId, userId]
-  );
-}
-logger.info(
-  "ADDRESS.DELETE.SUCCESS",
-  {
-    addressId: maskId(addressId),
-  }
-);
 }
 /* =========================
    UPDATE ADDRESS
