@@ -502,25 +502,20 @@ return res.rows[0] ?? null;
 }
 
 export async function releaseReservedStock(
-    client: PoolClient,
-    productId: string,
-    variantId: string | null,
-    quantity: number
+  client: PoolClient,
+  productId: string,
+  variantId: string | null,
+  quantity: number
 ) {
   logger.info(
-  "PAYMENT_INTENT.RELEASE_RESERVED.START",
-  {
-    productId:
-      maskId(productId),
+    "PAYMENT_INTENT.RELEASE_RESERVED.START",
+    {
+      productId: maskId(productId),
+      variantId: variantId ? maskId(variantId) : null,
+      quantity,
+    }
+  );
 
-    variantId:
-      variantId
-        ? maskId(variantId)
-        : null,
-
-    quantity,
-  }
-);
   if (variantId) {
     await client.query(
       `
@@ -532,6 +527,7 @@ export async function releaseReservedStock(
       [quantity, variantId]
     );
 
+    logger.info("PAYMENT_INTENT.RELEASE_RESERVED.SUCCESS");
     return;
   }
 
@@ -544,17 +540,18 @@ export async function releaseReservedStock(
     `,
     [quantity, productId]
   );
+
+  logger.info("PAYMENT_INTENT.RELEASE_RESERVED.SUCCESS");
 }
-logger.info(
-  "PAYMENT_INTENT.RELEASE_RESERVED.SUCCESS"
-);
 
 export async function findExpiredPaymentIntents(
-    client: PoolClient
+  client: PoolClient
 ): Promise<ExpiredPaymentIntentRow[]> {
- logger.info(
-  "PAYMENT_INTENT.FIND_EXPIRED.START"
-);
+
+  logger.info(
+    "PAYMENT_INTENT.FIND_EXPIRED.START"
+  );
+
   const res =
     await client.query<ExpiredPaymentIntentRow>(
       `
@@ -575,30 +572,31 @@ export async function findExpiredPaymentIntents(
       `
     );
 
+  logger.info(
+    "PAYMENT_INTENT.FIND_EXPIRED.DONE",
+    {
+      count: res.rows.length,
+    }
+  );
+
   return res.rows;
 }
-logger.info(
-  "PAYMENT_INTENT.FIND_EXPIRED.DONE",
-  {
-    count:
-      res.rows.length,
-  }
-);
 
 export async function expirePaymentIntentFlow({
-    client,
-    intent,
-}:{
-    client: PoolClient;
-    intent: ExpiredPaymentIntentRow;
+  client,
+  intent,
+}: {
+  client: PoolClient;
+  intent: ExpiredPaymentIntentRow;
 }) {
+
   logger.info(
-  "PAYMENT_INTENT.EXPIRE.START",
-  {
-    paymentIntentId:
-      maskId(intent.id),
-  }
-);
+    "PAYMENT_INTENT.EXPIRE.START",
+    {
+      paymentIntentId: maskId(intent.id),
+    }
+  );
+
   await releaseReservedStock(
     client,
     intent.product_id,
@@ -618,11 +616,11 @@ export async function expirePaymentIntentFlow({
     `,
     [intent.id]
   );
+
+  logger.info(
+    "PAYMENT_INTENT.EXPIRE.SUCCESS",
+    {
+      paymentIntentId: maskId(intent.id),
+    }
+  );
 }
-logger.info(
-  "PAYMENT_INTENT.EXPIRE.SUCCESS",
-  {
-    paymentIntentId:
-      maskId(intent.id),
-  }
-);
