@@ -4,21 +4,17 @@
 
 import * as StellarSdk
   from "@stellar/stellar-sdk";
+
+import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
 const PI_API =
   process.env.PI_API_URL;
 
 const PI_KEY =
   process.env.PI_API_KEY;
-
-function vlog(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[PI_A2U][${step}]`,
-    data ?? ""
-  );
-}
 
 if (!PI_API) {
   throw new Error(
@@ -52,17 +48,10 @@ if (!PI_HORIZON) {
 if (!PI_NETWORK_PASSPHRASE) {
   throw new Error("MISSING_PI_NETWORK_PASSPHRASE");
 }
-vlog(
-  "ENV_CHECK",
+logger.info(
+  "PI_A2U.CONFIG_READY",
   {
-    hasApiUrl:
-      !!PI_API,
-    hasApiKey:
-      !!PI_KEY,
-    hasWalletSeed:
-      !!PI_SEED,
-    apiUrl:
-      PI_API,
+    hasApiKey: !!PI_KEY,
   }
 );
 /* =====================================================
@@ -127,14 +116,20 @@ async function piRequest<T>(
   path: string,
   init: RequestInit
 ): Promise<T> {
-  vlog(
-    "REQUEST_START",
-    {
-      path,
-      method:
-        init.method,
-    }
+  const safePath =
+  path.replace(
+    /\/payments\/([^/]+)/,
+    (_, id) =>
+      `/payments/${maskId(id)}`
   );
+
+logger.debug(
+  "PI_A2U.REQUEST",
+  {
+    path: safePath,
+    method: init.method,
+  }
+);
 
   const res = await fetch(
     `${PI_API}${path}`,
@@ -165,24 +160,21 @@ async function piRequest<T>(
     );
   }
 
-  vlog(
-    "REQUEST_RESPONSE",
-    {
-      status:
-        res.status,
-    }
-  );
+  logger.info(
+  "PI_A2U.STATUS",
+  {
+    status: res.status,
+  }
+);
 
   if (!res.ok) {
-    console.error(
-      "[PI_A2U][HTTP_FAIL]",
-      {
-        path,
-        status:
-          res.status,
-        body: json,
-      }
-    );
+    logger.error(
+  "PI_A2U.HTTP_FAIL",
+  {
+    path: safePath,
+    status: res.status,
+  }
+);
 
     throw new Error(
       `PI_HTTP_${res.status}`
@@ -199,11 +191,16 @@ async function piRequest<T>(
 export async function createA2UPayment(
   input: CreateA2UPaymentInput
 ): Promise<string> {
-  vlog(
-    "CREATE_START",
-    input
-  );
+  logger.info(
+  "PI_A2U.CREATE_START",
+  {
+    uid:
+      maskId(input.uid),
 
+    amount:
+      input.amount,
+  }
+);
   const data =
     await piRequest<A2UPayment>(
       "/v2/payments",
@@ -244,13 +241,15 @@ export async function createA2UPayment(
     );
   }
 
-  vlog(
-    "CREATE_SUCCESS",
-    {
-      paymentId:
-        data.identifier,
-    }
-  );
+  logger.info(
+  "PI_A2U.CREATE_SUCCESS",
+  {
+    paymentId:
+      maskId(
+        data.identifier
+      ),
+  }
+);
 
   return data.identifier;
 }
@@ -262,10 +261,13 @@ export async function createA2UPayment(
 export async function getA2UPayment(
   paymentId: string
 ): Promise<A2UPayment> {
-  vlog(
-    "GET_START",
-    paymentId
-  );
+  logger.debug(
+  "PI_A2U.GET_START",
+  {
+    paymentId:
+      maskId(paymentId),
+  }
+);
 
   const data =
     await piRequest<A2UPayment>(
@@ -280,13 +282,15 @@ export async function getA2UPayment(
       }
     );
 
-  vlog(
-    "GET_SUCCESS",
-    {
-      paymentId:
-        data.identifier,
-    }
-  );
+  logger.info(
+  "PI_A2U.GET_SUCCESS",
+  {
+    paymentId:
+      maskId(
+        data.identifier
+      ),
+  }
+);
 
   return data;
 }
@@ -299,13 +303,16 @@ export async function completeA2UPayment(
   paymentId: string,
   txid: string
 ): Promise<void> {
-  vlog(
-    "COMPLETE_START",
-    {
-      paymentId,
-      txid,
-    }
-  );
+  logger.info(
+  "PI_A2U.COMPLETE_START",
+  {
+    paymentId:
+      maskId(paymentId),
+
+    txid:
+      maskId(txid),
+  }
+);
 
   await piRequest(
     `/v2/payments/${paymentId}/complete`,
@@ -328,12 +335,13 @@ export async function completeA2UPayment(
     }
   );
 
-  vlog(
-    "COMPLETE_SUCCESS",
-    {
-      paymentId,
-    }
-  );
+  logger.info(
+  "PI_A2U.COMPLETE_SUCCESS",
+  {
+    paymentId:
+      maskId(paymentId),
+  }
+);
 }
 /* =====================================================
    SUBMIT PAYMENT
@@ -343,31 +351,52 @@ export async function submitA2UPayment(
   paymentId: string
 ): Promise<A2USubmitResult> {
 
-  vlog(
-    "SUBMIT_START",
-    { paymentId }
-  );
+  logger.info(
+  "PI_A2U.SUBMIT_START",
+  {
+    paymentId:
+      maskId(paymentId),
+  }
+);
 
   const payment =
     await getA2UPayment(
       paymentId
     );
 
-  vlog(
-    "SUBMIT_PAYMENT",
-    payment
-  );
+  logger.info(
+  "PI_A2U.SUBMIT_PAYMENT",
+  {
+    paymentId:
+      maskId(
+        payment.identifier
+      ),
+
+    amount:
+      payment.amount,
+
+    developerApproved:
+      payment.status
+        ?.developer_approved,
+
+    developerCompleted:
+      payment.status
+        ?.developer_completed,
+  }
+);
 
   if (
   payment.transaction?.txid
 ) {
-  vlog(
-    "SUBMIT_ALREADY_EXISTS",
-    {
-      txid:
-        payment.transaction.txid,
-    }
-  );
+  logger.info(
+  "PI_A2U.SUBMIT_ALREADY_EXISTS",
+  {
+    txid:
+      maskId(
+        payment.transaction.txid
+      ),
+  }
+);
 
   return {
   txid:
@@ -390,10 +419,15 @@ export async function submitA2UPayment(
       PI_SEED
     );
 
-  vlog(
-    "WALLET_PUBLIC",
-    keypair.publicKey()
-  );
+  logger.debug(
+  "PI_A2U.WALLET_PUBLIC",
+  {
+    wallet:
+      maskWallet(
+        keypair.publicKey()
+      ),
+  }
+);
 
   const server =
   new StellarSdk.Horizon.Server(
@@ -404,21 +438,25 @@ const account =
   await server.loadAccount(
     keypair.publicKey()
   );
-  vlog(
-    "ACCOUNT_LOADED",
-    {
-      accountId:
-        account.accountId(),
-    }
-  );
+  logger.info(
+  "PI_A2U.ACCOUNT_LOADED",
+  {
+    accountId:
+      maskWallet(
+        account.accountId()
+      ),
+  }
+);
 
   const fee =
     await server.fetchBaseFee();
 
-  vlog(
-    "BASE_FEE",
-    fee
-  );
+  logger.debug(
+  "PI_A2U.BASE_FEE",
+  {
+    fee,
+  }
+);
 
   const tx =
     new StellarSdk.TransactionBuilder(
@@ -457,19 +495,27 @@ const account =
     keypair
   );
 
-  vlog(
-    "TX_SIGNED"
-  );
+  logger.debug(
+  "PI_A2U.TX_SIGNED"
+);
 
   const submitResult =
     await server.submitTransaction(
       tx
     );
 
-  vlog(
-    "TX_SUBMITTED",
-    submitResult
-  );
+  logger.info(
+  "PI_A2U.TX_SUBMITTED",
+  {
+    txid:
+      maskId(
+        String(submitResult.id)
+      ),
+
+    ledger:
+      submitResult.ledger,
+  }
+);
 
 return {
   txid: String(submitResult.id),
