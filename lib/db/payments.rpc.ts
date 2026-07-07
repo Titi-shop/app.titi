@@ -26,21 +26,7 @@ type VerifyRpcParams = {
   piPaymentId: string | null;
   txid: string;
 };
-/* =========================================================
-   LOGGER
-========================================================= */
 
-function log(tag: string, data?: unknown) {
-  console.log(`[RPC V6][${tag}]`, data ?? "");
-}
-
-function warn(tag: string, data?: unknown) {
-  console.warn(`[RPC V6][${tag}]`, data ?? "");
-}
-
-function fail(tag: string, data?: unknown) {
-  console.error(`[RPC V6][${tag}]`, data ?? "");
-}
 
 /* =========================================================
    HELPERS
@@ -120,7 +106,10 @@ async function getPaymentIntent(
   );
 
   const row = rs.rows[0] ?? null;
-  log("DB_FETCH_INTENT_RESULT", row);
+  logger.info("RPC.DB_FETCH_INTENT_RESULT", {
+  found: !!row,
+  paymentIntentId: maskId(paymentIntentId),
+});
   return row;
 }
 
@@ -399,16 +388,16 @@ export async function verifyRpcPaymentForReconcile({
   piPaymentId,
   txid,
 }: VerifyRpcParams): Promise<RpcVerifyResult> {
-  log("START", {
-    paymentIntentId,
-    txid,
-  });
+  logger.info("RPC.START", {
+  paymentIntentId: maskId(paymentIntentId),
+  txid: maskId(txid),
+});
 
   if (!isUUID(paymentIntentId) || !txid.trim()) {
     fail("INVALID_INPUT", {
-      paymentIntentId,
-      txid,
-    });
+  paymentIntentId: maskId(paymentIntentId),
+  txid: maskId(txid),
+});
 
     throw new Error("INVALID_RPC_VERIFY_INPUT");
   }
@@ -420,9 +409,9 @@ export async function verifyRpcPaymentForReconcile({
   const intent = await getPaymentIntent(paymentIntentId);
 
   if (!intent) {
-    fail("INTENT_NOT_FOUND", {
-      paymentIntentId,
-    });
+    logger.error("RPC.INTENT_NOT_FOUND", {
+  paymentIntentId: maskId(paymentIntentId),
+});
 
     throw new Error("PAYMENT_INTENT_NOT_FOUND");
   }
@@ -467,7 +456,7 @@ const expectedAmount =
 log("CHAIN_PAYMENT_AMOUNT", {
   chainPaymentAmount: rpcTx.chainPaymentAmount,
 });
-  log("RPC_TRACE", {
+  logger.debug("RPC.TRACE", {
     rpcReachable: rpcTx.rpcReachable,
     confirmed: rpcTx.confirmed,
     amountFound: rpcTx.debug.amountFound,
