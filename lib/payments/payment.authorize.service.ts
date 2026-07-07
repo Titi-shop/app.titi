@@ -468,7 +468,7 @@ logger.info(
     "PAYMENT.AUTHORIZE.PI_ALREADY_APPROVED"
   );
 }
-}
+
   } else {
     logger.debug(
   "PAYMENT.AUTHORIZE.PI_ALREADY_APPROVED"
