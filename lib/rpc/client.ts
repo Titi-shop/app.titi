@@ -10,6 +10,10 @@ import type {
   RpcEnvelope,
   JsonObj,
 } from "@/lib/rpc/rpc.internal.types";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =========================================================
    LOG
 ========================================================= */
