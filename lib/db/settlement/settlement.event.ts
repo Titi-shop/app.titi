@@ -13,6 +13,10 @@ import {
 import {
   makeEventHash,
 } from "./settlement.utils";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 
 /* =====================================================
    TYPES
@@ -47,17 +51,10 @@ export async function createSettlementEventOnce(
   const db =
     client ?? { query };
 
-  console.log(
-    "[SETTLEMENT][EVENT] START",
-    {
-      escrowId:
-        params.escrowId,
-
-      type:
-        params.type,
-    }
-  );
-
+  logger.info("SETTLEMENT.EVENT.START", {
+  escrowId: maskId(params.escrowId),
+  type: params.type,
+});
 
   /* ===================================================
      BUILD HASH
@@ -83,18 +80,10 @@ export async function createSettlementEventOnce(
   const eventHash =
     makeEventHash(payload);
 
-  console.log(
-    "[SETTLEMENT][EVENT] INSERT_START",
-    {
-      escrowId:
-        params.escrowId,
-
-      type:
-        params.type,
-
-      eventHash,
-    }
-  );
+  logger.debug("SETTLEMENT.EVENT.INSERT_START", {
+  escrowId: maskId(params.escrowId),
+  type: params.type,
+});
 
   /* ===================================================
      INSERT EVENT
@@ -154,24 +143,15 @@ export async function createSettlementEventOnce(
     ]
   );
 if ((result.rowCount ?? 0) === 0) {
-  console.log(
-    "[SETTLEMENT][EVENT] DUPLICATE_SKIP",
-    {
-      escrowId: params.escrowId,
-      type: params.type,
-    }
-  );
+  logger.info("SETTLEMENT.EVENT.DUPLICATE_SKIP", {
+  escrowId: maskId(params.escrowId),
+  type: params.type,
+});
 
   return;
 }
-  console.log(
-    "[SETTLEMENT][EVENT] DONE",
-    {
-      escrowId:
-        params.escrowId,
-
-      type:
-        params.type,
-    }
-  );
+  logger.info("SETTLEMENT.EVENT.DONE", {
+  escrowId: maskId(params.escrowId),
+  type: params.type,
+});
 }
