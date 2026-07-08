@@ -119,9 +119,6 @@ export async function payWithdrawal(
       user.pi_uid
     );
 canRollback = true;
-    processingStarted =
-      true;
-
     const tx =
   await submitA2UPayment(
     piPaymentId
@@ -138,7 +135,8 @@ await verifyWithdrawalRpc(
 );
 
 await markWithdrawalCompleted(withdrawal.id);
-logger.info(
+canRollback = false;
+    logger.info(
   "A2U_ORCHESTRATOR.AFTER_MARK_COMPLETED"
 );
 
@@ -150,7 +148,7 @@ logger.info(
     txid: maskId(tx.txid),
   }
 );
-canRollback = false;
+
 return {
     withdrawalId: withdrawal.id,
     piPaymentId,
