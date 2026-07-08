@@ -213,13 +213,12 @@ min_sale_price:
         }
       );
 
-    log(
-      "RESPONSE_READY",
-      {
-        count:
-          products.length,
-      }
-    );
+    logger.info(
+  "SELLER_PRODUCTS.RESPONSE_READY",
+  {
+    count: products.length,
+  }
+);
 
     return NextResponse.json(
       {
@@ -235,10 +234,22 @@ min_sale_price:
       }
     );
   } catch (error) {
-    logError(
-      "GET_ERROR",
-      error
-    );
+    logger.error(
+  "SELLER_PRODUCTS.GET_ERROR",
+  {
+    message:
+      error instanceof Error
+        ? error.message
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(error);
+}
 
     return NextResponse.json(
       {
