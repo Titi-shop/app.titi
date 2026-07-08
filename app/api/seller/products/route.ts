@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { requireSeller } from "@/lib/auth/guard";
 import { getSellerProducts } from "@/lib/db/products";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -35,54 +39,34 @@ type SellerProductResponse = {
 };
 
 /* =====================================================
-   LOGGER
-===================================================== */
-
-function log(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `🧪 [API][SELLER_PRODUCTS] ${step}`,
-    data ?? ""
-  );
-}
-
-function logError(
-  step: string,
-  error: unknown
-) {
-  console.error(
-    `💥 [API][SELLER_PRODUCTS] ${step}`,
-    error
-  );
-}
-
-/* =====================================================
    GET
 ===================================================== */
 
 export async function GET() {
   try {
-    log("REQUEST_START");
+    logger.info(
+  "SELLER_PRODUCTS.REQUEST_START"
+);
 
     /* ================= AUTH ================= */
 
     const auth =
       await requireSeller();
 
-    log("AUTH_RESULT", {
-      ok: auth.ok,
-      userId:
-        auth.ok
-          ? auth.userId
-          : null,
-    });
+    logger.info(
+  "SELLER_PRODUCTS.AUTH_RESULT",
+  {
+    ok: auth.ok,
+    userId: auth.ok
+      ? maskId(auth.userId)
+      : null,
+  }
+);
 
     if (!auth.ok) {
-      log(
-        "AUTH_FAILED_RETURN"
-      );
+      logger.warn(
+  "SELLER_PRODUCTS.AUTH_FAILED"
+);
 
       return auth.response;
     }
@@ -94,22 +78,13 @@ export async function GET() {
         auth.userId
       );
 
-    log(
-      "DB_PRODUCTS_LOADED",
-      {
-        count:
-          productsRaw.length,
-      }
-    );
-
-    if (
-      productsRaw.length > 0
-    ) {
-      log(
-        "FIRST_PRODUCT_SAMPLE",
-        productsRaw[0]
-      );
-    }
+    logger.info(
+  "SELLER_PRODUCTS.DB_PRODUCTS_LOADED",
+  {
+    count: productsRaw.length,
+  }
+);
+    
 
     /* ================= MAP RESPONSE ================= */
 
@@ -122,21 +97,7 @@ export async function GET() {
               unknown
             >;
 
-          log(
-            `MAP_PRODUCT_${index}`,
-            {
-              id: row.id,
-              name: row.name,
-              thumbnail:
-                row.thumbnail,
-              shop_name:
-                row.shop_name,
-              avatar_url:
-                row.avatar_url,
-              shop_banner:
-                row.shop_banner,
-            }
-          );
+          
 
           return {
             id: String(
