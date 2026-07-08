@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 export const runtime = "nodejs";
 
 const PI_API = process.env.PI_API_URL!;
@@ -22,10 +25,13 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("🟡 [INCOMPLETE] COMPLETE START", {
-      paymentId,
-      txid,
-    });
+    logger.info(
+  "PI.COMPLETE_INCOMPLETE.START",
+  {
+    paymentId: maskId(paymentId),
+    txid: maskId(txid),
+  }
+);
 
     const res = await fetch(
   `${PI_API}/v2/payments/${paymentId}/complete`,
@@ -41,7 +47,14 @@ export async function POST(req: Request) {
 
     const data = await res.text();
 
-    console.log("🟢 [INCOMPLETE] PI RES:", res.status, data);
+    logger.info(
+  "PI.COMPLETE_INCOMPLETE.RESULT",
+  {
+    paymentId: maskId(paymentId),
+    status: res.status,
+    ok: res.ok,
+  }
+);
 
     return new NextResponse(data, { status: res.status });
 
