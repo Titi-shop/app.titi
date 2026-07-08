@@ -47,12 +47,7 @@ if (!PI_HORIZON) {
 if (!PI_NETWORK_PASSPHRASE) {
   throw new Error("MISSING_PI_NETWORK_PASSPHRASE");
 }
-logger.info(
-  "PI_A2U.CONFIG_READY",
-  {
-    hasApiKey: !!PI_KEY,
-  }
-);
+
 /* =====================================================
    TYPES
 ===================================================== */
@@ -190,16 +185,7 @@ logger.debug(
 export async function createA2UPayment(
   input: CreateA2UPaymentInput
 ): Promise<string> {
-  logger.info(
-  "PI_A2U.CREATE_START",
-  {
-    uid:
-      maskId(input.uid),
-
-    amount:
-      input.amount,
-  }
-);
+  logger.info("PI_A2U.CREATE_START");
   const data =
     await piRequest<A2UPayment>(
       "/v2/payments",
@@ -240,15 +226,7 @@ export async function createA2UPayment(
     );
   }
 
-  logger.info(
-  "PI_A2U.CREATE_SUCCESS",
-  {
-    paymentId:
-      maskId(
-        data.identifier
-      ),
-  }
-);
+  logger.info("PI_A2U.CREATE_SUCCESS");
 
   return data.identifier;
 }
@@ -260,13 +238,7 @@ export async function createA2UPayment(
 export async function getA2UPayment(
   paymentId: string
 ): Promise<A2UPayment> {
-  logger.debug(
-  "PI_A2U.GET_START",
-  {
-    paymentId:
-      maskId(paymentId),
-  }
-);
+  logger.debug("PI_A2U.GET_START");
 
   const data =
     await piRequest<A2UPayment>(
@@ -281,15 +253,7 @@ export async function getA2UPayment(
       }
     );
 
-  logger.info(
-  "PI_A2U.GET_SUCCESS",
-  {
-    paymentId:
-      maskId(
-        data.identifier
-      ),
-  }
-);
+  logger.debug("PI_A2U.GET_SUCCESS");
 
   return data;
 }
@@ -302,16 +266,7 @@ export async function completeA2UPayment(
   paymentId: string,
   txid: string
 ): Promise<void> {
-  logger.info(
-  "PI_A2U.COMPLETE_START",
-  {
-    paymentId:
-      maskId(paymentId),
-
-    txid:
-      maskId(txid),
-  }
-);
+  logger.info("PI_A2U.COMPLETE_START");
 
   await piRequest(
     `/v2/payments/${paymentId}/complete`,
@@ -334,13 +289,7 @@ export async function completeA2UPayment(
     }
   );
 
-  logger.info(
-  "PI_A2U.COMPLETE_SUCCESS",
-  {
-    paymentId:
-      maskId(paymentId),
-  }
-);
+  logger.info("PI_A2U.COMPLETE_SUCCESS");
 }
 /* =====================================================
    SUBMIT PAYMENT
@@ -350,51 +299,20 @@ export async function submitA2UPayment(
   paymentId: string
 ): Promise<A2USubmitResult> {
 
-  logger.info(
-  "PI_A2U.SUBMIT_START",
-  {
-    paymentId:
-      maskId(paymentId),
-  }
-);
+  logger.info("PI_A2U.SUBMIT_START");
 
   const payment =
     await getA2UPayment(
       paymentId
     );
 
-  logger.info(
-  "PI_A2U.SUBMIT_PAYMENT",
-  {
-    paymentId:
-      maskId(
-        payment.identifier
-      ),
-
-    amount:
-      payment.amount,
-
-    developerApproved:
-      payment.status
-        ?.developer_approved,
-
-    developerCompleted:
-      payment.status
-        ?.developer_completed,
-  }
-);
+  logger.debug("PI_A2U.SUBMIT_READY");
 
   if (
   payment.transaction?.txid
 ) {
   logger.info(
-  "PI_A2U.SUBMIT_ALREADY_EXISTS",
-  {
-    txid:
-      maskId(
-        payment.transaction.txid
-      ),
-  }
+    "PI_A2U.ALREADY_SUBMITTED"
 );
 
   return {
@@ -421,7 +339,6 @@ export async function submitA2UPayment(
   logger.debug(
   "PI_A2U.WALLET_PUBLIC",
   {
-    wallet:
       maskWallet(
         keypair.publicKey()
       ),
@@ -437,24 +354,15 @@ const account =
   await server.loadAccount(
     keypair.publicKey()
   );
-  logger.info(
-  "PI_A2U.ACCOUNT_LOADED",
-  {
-    accountId:
-      maskWallet(
-        account.accountId()
-      ),
-  }
+  logger.debug(
+    "PI_A2U.ACCOUNT_READY"
 );
 
   const fee =
     await server.fetchBaseFee();
 
   logger.debug(
-  "PI_A2U.BASE_FEE",
-  {
-    fee,
-  }
+    "PI_A2U.FEE_READY"
 );
 
   const tx =
@@ -504,16 +412,7 @@ const account =
     );
 
   logger.info(
-  "PI_A2U.TX_SUBMITTED",
-  {
-    txid:
-      maskId(
-        String(submitResult.id)
-      ),
-
-    ledger:
-      submitResult.ledger,
-  }
+    "PI_A2U.TX_SUBMITTED"
 );
 
 return {
