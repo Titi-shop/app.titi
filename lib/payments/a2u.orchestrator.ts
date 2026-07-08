@@ -34,8 +34,7 @@ import {
 export async function payWithdrawal(
   withdrawalId: string
 ) {
-  let processingStarted =
-    false;
+  let canRollback = false;
 
   try {
 
@@ -119,7 +118,7 @@ export async function payWithdrawal(
       `Withdraw ${withdrawal.id}`,
       user.pi_uid
     );
-
+canRollback = true;
     processingStarted =
       true;
 
@@ -151,8 +150,12 @@ logger.info(
     txid: maskId(tx.txid),
   }
 );
-
-return result;
+canRollback = false;
+return {
+    withdrawalId: withdrawal.id,
+    piPaymentId,
+    txid: tx.txid,
+};
   }
   catch (error) {
 
