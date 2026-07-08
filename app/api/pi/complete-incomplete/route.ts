@@ -59,7 +59,23 @@ export async function POST(req: Request) {
     return new NextResponse(data, { status: res.status });
 
   } catch (err) {
-    console.error("❌ [INCOMPLETE] ERROR", err);
+    logger.error(
+  "PI.COMPLETE_INCOMPLETE.ERROR",
+  {
+    paymentId: maskId(paymentId),
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(err);
+}
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
