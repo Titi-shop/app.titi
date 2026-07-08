@@ -577,8 +577,8 @@ if (!rpcTx.rpcReachable) {
   receiverFound,
   amountFound,
 
-  rpcReachable,
-  confirmed,
+  rpcReachable: rpcTx.rpcReachable,
+  confirmed: rpcTx.confirmed,
 
   parseLayer,
   hasMeta,
