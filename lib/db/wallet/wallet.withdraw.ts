@@ -9,7 +9,6 @@ import {
 
 import {
   finalizeReservedBalance,
-  releaseReservedBalance,
 } from "./wallet.balance";
 
 import {
@@ -179,7 +178,9 @@ if (withdrawRs.rowCount !== 1) {
 export async function getWalletWithdrawals(): Promise<
   WalletWithdrawalRow[]
 > {
-  vlog("LIST_START");
+  logger.info(
+  "WALLET.WITHDRAW.LIST_START"
+);
 
   const rs =
     await query<WalletWithdrawalRow>(
@@ -192,17 +193,12 @@ ORDER BY requested_at DESC
       `
     );
 
-  vlog("LIST_DONE", {
-    count:
-      rs.rows.length,
-  });
-
-  if (rs.rows.length) {
-    vlog(
-      "FIRST_ROW",
-      rs.rows[0]
-    );
+  logger.info(
+  "WALLET.WITHDRAW.LIST_DONE",
+  {
+    count: rs.rows.length,
   }
+);
 
   return rs.rows;
 }
@@ -412,13 +408,13 @@ export async function getWalletWithdrawalById(
     [withdrawalId]
   );
 
-  vlog(
-    "GET_WITHDRAWAL_RESULT",
-    {
-      found:
-        rs.rows.length > 0,
-    }
-  );
+  logger.debug(
+  "WALLET.WITHDRAW.GET_DONE",
+  {
+    found:
+      rs.rows.length > 0,
+  }
+);
 
   return rs.rows[0] ?? null;
 }
@@ -443,9 +439,9 @@ export async function getWithdrawalByPaymentId(
 export async function getProcessingWithdrawals(): Promise<
   WalletWithdrawalRow[]
 > {
-  vlog(
-    "GET_PROCESSING_START"
-  );
+  logger.debug(
+  "WALLET.WITHDRAW.PROCESSING_START"
+);
 
   const rs =
     await query<WalletWithdrawalRow>(
@@ -458,13 +454,13 @@ export async function getProcessingWithdrawals(): Promise<
       `
     );
 
-  vlog(
-    "GET_PROCESSING_DONE",
-    {
-      count:
-        rs.rows.length,
-    }
-  );
+  logger.info(
+  "WALLET.WITHDRAW.PROCESSING_DONE",
+  {
+    count:
+      rs.rows.length,
+  }
+);
 
   return rs.rows;
 }
