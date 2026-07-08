@@ -9,25 +9,11 @@ import type {
   ValidateFinalizePaymentInput,
   FinalizeValidationResult,
 } from "./orders.payment.types";
-function logValidation(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.log(
-    `[PAYMENT][VALIDATE] ${event}`,
-    payload
-  );
-}
-
-function logValidationFail(
-  event: string,
-  payload: Record<string, unknown>
-): void {
-  console.error(
-    `[PAYMENT][VALIDATE][FAIL] ${event}`,
-    payload
-  );
-}
+import {
+  logger,
+  maskId,
+  maskWallet,
+} from "@/lib/logger";
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -141,21 +127,11 @@ export async function validateRpcPayload(
   logValidation(
     "RPC_START",
     {
-      paymentIntentId,
-      confirmed:
-        rpcPayload.confirmed,
-      txStatus:
-        rpcPayload.txStatus,
-      ledger:
-        rpcPayload.ledger,
-      amount:
-        rpcPayload.amount,
-      receiver:
-        rpcPayload.receiver,
-      chainReference:
-        rpcPayload.chainReference,
+        paymentIntentId: maskId(paymentIntentId),
+        confirmed: rpcPayload.confirmed,
+        txStatus: rpcPayload.txStatus,
     }
-  );
+);
 
   if (!rpcPayload.confirmed) {
     logValidationFail(
@@ -250,13 +226,9 @@ export async function validateRpcPayload(
   logValidation(
     "RPC_VALIDATED",
     {
-      paymentIntentId,
-      ledger:
-        rpcPayload.ledger,
-      txStatus:
-        rpcPayload.txStatus,
+        paymentIntentId: maskId(paymentIntentId),
     }
-  );
+);
 }
 
 /* =========================================================
@@ -280,14 +252,9 @@ export async function validateStrictPayment(
   logValidation(
     "START",
     {
-      paymentIntentId,
-      expectedAmount,
-      verifiedAmount,
-      merchantWallet,
-      receiverWallet,
-      txid,
+        paymentIntentId: maskId(paymentIntentId),
     }
-  );
+);
 
   if (
     !isSameAmount(
@@ -318,14 +285,6 @@ export async function validateStrictPayment(
       "AMOUNT_MISMATCH"
     );
   }
-
-  logValidation(
-    "AMOUNT_OK",
-    {
-      expectedAmount,
-      verifiedAmount,
-    }
-  );
 
   if (
     merchantWallet
@@ -363,13 +322,6 @@ export async function validateStrictPayment(
     );
   }
 
-  logValidation(
-    "RECEIVER_OK",
-    {
-      receiverWallet,
-    }
-  );
-
   if (!txid) {
     logValidationFail(
       "TXID_MISSING",
@@ -392,10 +344,8 @@ export async function validateStrictPayment(
 
   logValidation(
     "TXID_OK",
-    {
-      txid,
-    }
-  );
+    {}
+);
 
   if (
     rpcPayload.chainReference &&
@@ -429,12 +379,8 @@ export async function validateStrictPayment(
 
   logValidation(
     "CHAIN_REFERENCE_OK",
-    {
-      txid,
-      chainReference:
-        rpcPayload.chainReference,
-    }
-  );
+    {}
+);
 
   if (
     rpcPayload.amount != null &&
@@ -513,10 +459,9 @@ export async function validateStrictPayment(
   logValidation(
     "PAYMENT_VALIDATED",
     {
-      paymentIntentId,
-      txid,
+        paymentIntentId: maskId(paymentIntentId),
     }
-  );
+);
 }
 /* =========================================================
    FINALIZE VALIDATION
@@ -604,17 +549,12 @@ if (!rpcPayload) {
   await validateStrictPayment(
     {
       paymentIntentId,
-
       expectedAmount,
       verifiedAmount,
-
       merchantWallet:
         intent.merchant_wallet,
-
       receiverWallet,
-
       txid,
-
       rpcPayload,
     },
     client
@@ -623,11 +563,9 @@ if (!rpcPayload) {
   logValidation(
     "FINALIZE_OK",
     {
-      paymentIntentId,
-      expectedAmount,
-      verifiedAmount,
+        paymentIntentId: maskId(paymentIntentId),
     }
-  );
+);
 
   return {
     shipping,
