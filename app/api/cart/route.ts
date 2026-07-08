@@ -16,6 +16,10 @@ import {
   updateCartItemQuantity,
   type CartItemInput,
 } from "@/lib/db/cart";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 
 export const runtime =
   "nodejs";
@@ -72,54 +76,46 @@ function serverError(
 
 export async function GET() {
   try {
-    console.log(
-      "[API][CART][GET] START"
-    );
+    logger.info("CART.GET.START");
 
     const auth =
       await requireAuth();
 
     if (!auth.ok) {
-      console.warn(
-        "[API][CART][GET] UNAUTHORIZED"
-      );
+      logger.warn("CART.GET.UNAUTHORIZED");
 
       return unauthorized(
         "UNAUTHORIZED"
       );
     }
 
-    console.log(
-      "[API][CART][GET] AUTH_OK",
-      {
-        userId:
-          auth.userId,
-      }
-    );
+    logger.info("CART.GET.AUTH_OK");
 
     const cart =
       await getCart(
         auth.userId
       );
 
-    console.log(
-      "[API][CART][GET] SUCCESS",
-      {
-        userId:
-          auth.userId,
-        count:
-          cart.length,
-      }
-    );
+    logger.info("CART.GET.SUCCESS", {
+  count: cart.length,
+});
 
     return NextResponse.json(
       cart
     );
   } catch (err) {
-    console.error(
-      "[API][CART][GET] ERROR",
-      err
-    );
+    logger.error("CART.GET.ERROR", {
+  message:
+    err instanceof Error
+      ? err.message
+      : "UNKNOWN_ERROR",
+});
+
+if (process.env.NODE_ENV !== "production") {
+
+  console.error(err);
+
+}
 
     return serverError(
       "GET_CART_FAILED"
@@ -175,10 +171,7 @@ export async function POST(
       );
     }
 
-    console.log(
-      "[API][CART][POST] BODY",
-      body
-    );
+    logger.debug("CART.POST.BODY_PARSED");
 
     const rawItems:
       unknown[] =
@@ -223,14 +216,12 @@ export async function POST(
               : 1,
         }));
 
-    console.log(
-      "[API][CART][POST] NORMALIZED",
-      {
-        count:
-          items.length,
-        items,
-      }
-    );
+    logger.info(
+  "CART.POST.NORMALIZED",
+  {
+    count: items.length,
+  }
+);
 
     if (items.length === 0) {
       console.warn(
@@ -256,15 +247,12 @@ export async function POST(
         auth.userId
       );
 
-    console.log(
-      "[API][CART][POST] SUCCESS",
-      {
-        userId:
-          auth.userId,
-        count:
-          updated.length,
-      }
-    );
+    logger.info(
+  "CART.POST.SUCCESS",
+  {
+    count: updated.length,
+  }
+);
 
     return NextResponse.json(
       updated
@@ -358,14 +346,9 @@ export async function PATCH(
         ? data.quantity
         : null;
 
-    console.log(
-      "[API][CART][PATCH] INPUT",
-      {
-        productId,
-        variantId,
-        quantity,
-      }
-    );
+    logger.debug(
+  "CART.PATCH.INPUT"
+);
 
     if (
       !productId ||
@@ -479,13 +462,9 @@ export async function DELETE(
         ? data.variant_id
         : null;
 
-    console.log(
-      "[API][CART][DELETE] INPUT",
-      {
-        productId,
-        variantId,
-      }
-    );
+    logger.debug(
+  "CART.DELETE.INPUT"
+);
 
     if (!productId) {
       console.warn(
