@@ -24,15 +24,10 @@ import {
   createWithdrawalSettlementEventOnce,
   WithdrawalSettlementEvents,
 } from "@/lib/db/settlement/settlement.event.a2u";
-function vlog(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[WALLET_WITHDRAW][${step}]`,
-    data ?? ""
-  );
-}
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =====================================================
    TYPES
 ===================================================== */
@@ -225,9 +220,12 @@ if (!rpc) {
     "RPC_LOG_NOT_FOUND"
   );
 }
-  vlog("MARK_COMPLETED_START", {
-  withdrawalId,
-});
+  logger.info(
+  "WALLET.WITHDRAW.COMPLETE_START",
+  {
+    withdrawalId: maskId(withdrawalId),
+  }
+);
 
   await withTransaction(
     async (client) => {
@@ -258,7 +256,12 @@ if (!rpc) {
 
       const withdrawal =
         withdrawalRs.rows[0];
-      vlog("MARK_COMPLETED_ROW", withdrawal);
+      logger.debug(
+  "WALLET.WITHDRAW.LOADED",
+  {
+    userId: maskId(withdrawal.user_id),
+  }
+);
       await finalizeReservedBalance(
         withdrawal.user_id,
         Number(
@@ -266,7 +269,9 @@ if (!rpc) {
         ),
         client
       );
-      vlog("FINALIZE_RESERVED_DONE");
+      logger.debug(
+  "WALLET.WITHDRAW.RESERVE_FINALIZED"
+);
 await createWalletJournal({
   ownerId: withdrawal.user_id,
   ownerType: "SELLER",
@@ -310,7 +315,9 @@ await createWalletJournal({
 },
 client
 );
-      vlog("JOURNAL_DONE");
+      logger.debug(
+  "WALLET.WITHDRAW.JOURNAL_DONE"
+);
       const rs =
         await client.query(
           `
@@ -364,9 +371,13 @@ rpc.network,
 },
 client
 );
-vlog("UPDATE_DONE", {
-  rowCount: rs.rowCount,
-});
+logger.info(
+  "WALLET.WITHDRAW.COMPLETE_DONE",
+  {
+    updated:
+      rs.rowCount === 1,
+  }
+);
       if (
         rs.rowCount !== 1
       ) {
@@ -382,10 +393,13 @@ vlog("UPDATE_DONE", {
 export async function getWalletWithdrawalById(
   withdrawalId: string
 ): Promise<WalletWithdrawalRow | null> {
-  vlog(
-    "GET_WITHDRAWAL_START",
-    withdrawalId
-  );
+  logger.debug(
+  "WALLET.WITHDRAW.GET_START",
+  {
+    withdrawalId:
+      maskId(withdrawalId),
+  }
+);
 
   const rs =
   await query<WalletWithdrawalRow>(
@@ -459,10 +473,13 @@ export async function markWithdrawalFailed(
   reason: string
 ): Promise<void> {
 
-  vlog("MARK_FAILED_START", {
-    withdrawalId,
-    reason,
-  });
+  logger.warn(
+  "WALLET.WITHDRAW.FAIL_START",
+  {
+    withdrawalId:
+      maskId(withdrawalId),
+  }
+);
 
   const rs = await query(
     `
@@ -480,9 +497,13 @@ export async function markWithdrawalFailed(
     ]
   );
 
-  vlog("MARK_FAILED_DONE", {
-    rowCount: rs.rowCount,
-  });
+  logger.info(
+  "WALLET.WITHDRAW.FAIL_DONE",
+  {
+    updated:
+      rs.rowCount === 1,
+  }
+);
 
   if (rs.rowCount !== 1) {
     throw new Error(
