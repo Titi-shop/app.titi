@@ -13,7 +13,9 @@ import {
 import {
   makeEventHash,
 } from "./settlement.utils";
-
+import {
+  logger,
+} from "@/lib/logger";
 /* =====================================================
    TYPES
 ===================================================== */
@@ -51,19 +53,6 @@ export const WithdrawalSettlementEvents = {
   WITHDRAW_RETRY: "WITHDRAW_RETRY",
 } as const;
 
-/* =====================================================
-   LOG
-===================================================== */
-
-function log(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[A2U_SETTLEMENT] ${step}`,
-    data ?? ""
-  );
-}
 
 /* =====================================================
    CREATE EVENT
@@ -80,16 +69,9 @@ createWithdrawalSettlementEventOnce(
   const db =
     client ?? { query };
 
-  log(
-    "START",
-    {
-      withdrawalId:
-        params.withdrawalId,
-
-      eventType:
-        params.eventType,
-    }
-  );
+  logger.debug(
+  "A2U_SETTLEMENT.START"
+);
 
   /* ===============================================
      HASH
@@ -186,28 +168,14 @@ createWithdrawalSettlementEventOnce(
     === 0
   ) {
 
-    log(
-      "DUPLICATE_SKIP",
-      {
-        withdrawalId:
-          params.withdrawalId,
-
-        eventType:
-          params.eventType,
-      }
-    );
+    logger.debug(
+  "A2U_SETTLEMENT.DUPLICATE_SKIP"
+);
 
     return;
   }
 
-  log(
-    "DONE",
-    {
-      withdrawalId:
-        params.withdrawalId,
-
-      eventType:
-        params.eventType,
-    }
-  );
+  logger.debug(
+  "A2U_SETTLEMENT.DONE"
+);
 }
