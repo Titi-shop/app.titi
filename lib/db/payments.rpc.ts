@@ -194,9 +194,6 @@ async function insertRpcLog(
   input.memo,
 ];
 
-console.log("[VALUES_LENGTH]", values.length);
-console.log(values);
-
 await query(
   `
   INSERT INTO rpc_verification_logs (
@@ -426,7 +423,6 @@ const expectedAmount =
   );
 
   logger.debug("RPC.INTENT_EXPECTED", {
-  expectedAmount,
   expectedReceiver: maskWallet(expectedReceiver),
 });
 
@@ -444,17 +440,15 @@ const expectedAmount =
   );
   logger.debug("RPC.RAW_RESULT", {
   confirmed: rpcTx.confirmed,
-  amount: rpcTx.amount,
+  txStatus: rpcTx.txStatus,
   sender: maskWallet(rpcTx.sender),
   receiver: maskWallet(rpcTx.receiver),
-  ledger: rpcTx.ledger,
-  txStatus: rpcTx.txStatus,
   chainReference: maskId(rpcTx.hash),
-  createdAt: rpcTx.createdAt,
   memo: maskId(rpcTx.memo),
 });
-logger.debug("RPC.CHAIN_PAYMENT_AMOUNT", {
-  chainPaymentAmount: rpcTx.chainPaymentAmount,
+logger.debug("RPC.CHAIN_PAYMENT_PRESENT", {
+    found:
+        rpcTx.chainPaymentAmount !== null,
 });
   logger.debug("RPC.TRACE", {
     rpcReachable: rpcTx.rpcReachable,
@@ -520,10 +514,9 @@ const hasEvents = rpcTx.debug.hasEvents;
     stage = "RPC_AMOUNT_MISMATCH";
     reason = "AMOUNT_MISMATCH";
 
-    warn(stage, {
-      rpc: rpcTx.amount,
-      expected: expectedAmount,
-    });
+    warn(stage,{
+    amountMismatch:true
+});
   } else if (!rpcTx.receiver) {
     verified = false;
     stage = "RPC_RECEIVER_UNREADABLE";
@@ -537,10 +530,9 @@ const hasEvents = rpcTx.debug.hasEvents;
     stage = "RPC_RECEIVER_MISMATCH";
     reason = "RECEIVER_MISMATCH";
 
-    warn(stage, {
-      rpc: rpcTx.receiver,
-      expected: expectedReceiver,
-    });
+    warn(stage,{
+    receiverMismatch:true
+});
   }
 
   /* =====================================================
@@ -577,18 +569,17 @@ if (!rpcTx.rpcReachable) {
   verified,
   stage,
   reason,
-  amount: rpcTx.amount,
-  expectedAmount,
-  amountMatch,
 
-  sender: rpcTx.sender,
-  senderFound,
-  receiver: rpcTx.receiver,
-  expectedReceiver,
+  amountMatch,
   receiverMatch,
-  ledger: rpcTx.ledger,
-  rpcReachable: rpcTx.rpcReachable,
-  confirmed: rpcTx.confirmed,
+
+  senderFound,
+  receiverFound,
+  amountFound,
+
+  rpcReachable,
+  confirmed,
+
   parseLayer,
   hasMeta,
   hasEvents,
