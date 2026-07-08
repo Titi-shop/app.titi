@@ -5,7 +5,10 @@
    Architecture:
    NETWORK-FIRST + AUTH-CENTRIC
 ========================================================= */
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 const PI_API_URL = process.env.PI_API_URL ?? "https://api.minepi.com/v2";
 
 let cachedToken: string | null = null;
@@ -84,7 +87,13 @@ export async function getPiAccessToken(
       const auth = await window.Pi.authenticate(
   scopes,
   async (payment: PiIncompletePayment) => {
-    console.log("🔁 INCOMPLETE PAYMENT FOUND:", payment);
+    logger.info(
+  "PI.AUTH.INCOMPLETE_FOUND",
+  {
+    paymentId: maskId(paymentId),
+    hasTxid: !!txid,
+  }
+);
 
     const paymentId =
       typeof payment.identifier === "string"
@@ -100,19 +109,27 @@ export async function getPiAccessToken(
 
     if (paymentId) {
       localStorage.setItem("pi:lastPaymentId", paymentId);
-      console.log("💾 SAVED paymentId:", paymentId);
+      logger.debug(
+     "PI.AUTH.PAYMENT_ID_SAVED"
+  );
     }
 
     if (txid) {
       localStorage.setItem("pi:lastTxid", txid);
-      console.log("💾 SAVED txid:", txid);
+      logger.debug(
+  "PI.AUTH.TXID_SAVED"
+);
     }
 
     // 🔥 AUTO FIX KẸT ĐƠN
     if (paymentId && txid) {
       try {
-        console.log("🟡 AUTO COMPLETE START");
-
+        logger.info(
+  "PI.AUTH.AUTO_COMPLETE_START",
+  {
+    paymentId: maskId(paymentId),
+  }
+);
         const token = await getPiAccessToken(true);
 
         const res = await fetch("/api/pi/complete-incomplete", {
@@ -127,24 +144,48 @@ export async function getPiAccessToken(
           }),
         });
 
-        console.log("🟢 AUTO COMPLETE RES:", res.status);
+        logger.info(
+  "PI.AUTH.AUTO_COMPLETE_RESULT",
+  {
+    paymentId: maskId(paymentId),
+    status: res.status,
+    ok: res.ok,
+  }
+);
 
       } catch (err) {
-        console.error("❌ AUTO COMPLETE FAIL", err);
+        logger.error(
+  "PI.AUTH.AUTO_COMPLETE_ERROR",
+  {
+    paymentId: maskId(paymentId),
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(err);
+}
       }
     }
   }
 );
 
 
-console.log(
-  "[PI_AUTH][USER]",
-  auth.user
+logger.info(
+  "PI.AUTH.SUCCESS",
+  {
+    hasUser: !!auth.user,
+  }
 );
 
-console.log(
-  "[PI_AUTH][TOKEN]",
-  auth.accessToken?.slice(0, 20)
+logger.debug(
+  "PI.AUTH.TOKEN_RECEIVED"
 );
       if (!auth || !auth.accessToken) {
         throw new Error("PI_AUTH_FAILED");
