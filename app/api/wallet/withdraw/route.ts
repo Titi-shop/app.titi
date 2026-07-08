@@ -19,7 +19,10 @@ import {
   getUserWithdrawHistory,
   getUserWithdrawHistoryDetail,
 } from "@/lib/services/wallet.withdraw.history.service";
-
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 export const runtime =
   "nodejs";
 
@@ -54,9 +57,9 @@ export async function GET(
 
   try {
 
-    console.log(
-      "[WALLET][WITHDRAW][GET][START]"
-    );
+    logger.info(
+  "WALLET.WITHDRAW.GET.START"
+);
 
     /* ===============================================
        AUTH
@@ -67,9 +70,9 @@ export async function GET(
 
     if (!auth) {
 
-      console.warn(
-        "[WALLET][WITHDRAW][GET][UNAUTHORIZED]"
-      );
+      logger.warn(
+  "WALLET.WITHDRAW.GET.UNAUTHORIZED"
+);
 
       return NextResponse.json(
         {
@@ -83,13 +86,12 @@ export async function GET(
 
     }
 
-    console.log(
-      "[WALLET][WITHDRAW][GET][AUTH_OK]",
-      {
-        userId:
-          auth.userId,
-      }
-    );
+    logger.info(
+  "WALLET.WITHDRAW.GET.AUTH_OK",
+  {
+    userId: maskId(auth.userId),
+  }
+);
 
     /* ===============================================
        QUERY
@@ -109,13 +111,12 @@ export async function GET(
       id.trim() !== ""
     ) {
 
-      console.log(
-        "[WALLET][WITHDRAW][GET][DETAIL]",
-        {
-          withdrawalId:
-            id,
-        }
-      );
+      logger.debug(
+  "WALLET.WITHDRAW.GET.DETAIL",
+  {
+    withdrawalId: maskId(id),
+  }
+);
 
       const item =
         await getUserWithdrawHistoryDetail(
@@ -125,13 +126,12 @@ export async function GET(
 
       if (!item) {
 
-        console.warn(
-          "[WALLET][WITHDRAW][GET][NOT_FOUND]",
-          {
-            withdrawalId:
-              id,
-          }
-        );
+        logger.warn(
+  "WALLET.WITHDRAW.GET.NOT_FOUND",
+  {
+    withdrawalId: maskId(id),
+  }
+);
 
         return NextResponse.json(
           {
@@ -145,9 +145,12 @@ export async function GET(
 
       }
 
-      console.log(
-        "[WALLET][WITHDRAW][GET][DETAIL_OK]"
-      );
+      logger.info(
+  "WALLET.WITHDRAW.GET.DETAIL_OK",
+  {
+    withdrawalId: maskId(id),
+  }
+);
 
       return NextResponse.json({
 
@@ -163,22 +166,21 @@ export async function GET(
        LIST
     =============================================== */
 
-    console.log(
-      "[WALLET][WITHDRAW][GET][LIST]"
-    );
+    logger.debug(
+  "WALLET.WITHDRAW.GET.LIST"
+);
 
     const items =
       await getUserWithdrawHistory(
         auth.userId
       );
 
-    console.log(
-      "[WALLET][WITHDRAW][GET][LIST_OK]",
-      {
-        total:
-          items.length,
-      }
-    );
+    logger.info(
+  "WALLET.WITHDRAW.GET.LIST_OK",
+  {
+    total: items.length,
+  }
+);
 
     return NextResponse.json({
 
@@ -192,12 +194,22 @@ export async function GET(
     error
   ) {
 
-    console.error(
-      "[WALLET][WITHDRAW][GET][ERROR]",
+    logger.error(
+  "WALLET.WITHDRAW.GET.ERROR",
+  {
+    message:
       error instanceof Error
         ? error.message
-        : "UNKNOWN_ERROR"
-    );
+        : "UNKNOWN_ERROR",
+  }
+);
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  console.error(error);
+}
 
     return NextResponse.json(
       {
@@ -300,10 +312,9 @@ export async function POST(
     error
   ) {
 
-    console.error(
-      "[WALLET][WITHDRAW][POST]",
-      error
-    );
+    logger.info(
+  "WALLET.WITHDRAW.POST.START"
+);
 
     if (
       error instanceof Error
