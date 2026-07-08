@@ -9,7 +9,6 @@ import {
 } from "node:crypto";
 
 import {
-
   getWalletSecurityByUserId,
   hasWalletPin,
 
@@ -25,56 +24,47 @@ import {
   unlockWalletSecurity,
 
 } from "@/lib/db/wallet-security";
+
 import {
   logger,
   maskId,
 } from "@/lib/logger";
+
 /* =====================================================
    TYPES
 ===================================================== */
 
 type SetupWalletPinInput = {
-
   userId: string;
-
   pin: string;
-
 };
 
 type VerifyWalletPinInput = {
   userId: string;
   pin: string;
-
 };
 
 type ChangeWalletPinInput = {
-
   userId: string;
   currentPin: string;
   newPin: string;
-
 };
 
 type VerifyWalletPinResult = {
-
   success: boolean;
   locked: boolean;
   remainingAttempts: number;
-
 };
 
 /* =====================================================
    CONSTANTS
 ===================================================== */
 
-const MAX_FAILED_ATTEMPTS =
-  5;
+const MAX_FAILED_ATTEMPTS = 5;
 
-const LOCK_MINUTES =
-  15;
+const LOCK_MINUTES = 15;
 
-const PIN_LENGTH =
-  6;
+const PIN_LENGTH = 6;
 
 /* =====================================================
    HELPERS
@@ -83,80 +73,53 @@ const PIN_LENGTH =
 function validatePin(
   pin: string
 ) {
-
-  return /^\d{6}$/.test(
-    pin
-  );
-
+  return /^\d{6}$/.test(pin);
 }
 
 function createSalt() {
-
   return randomUUID();
-
 }
 
 function hashPin(
   pin: string,
   salt: string
 ) {
-
   return scryptSync(
     pin,
     salt,
     64
-  ).toString(
-    "hex"
-  );
-
+  ).toString("hex");
 }
 
 function encodeHash(
   salt: string,
   hash: string
 ) {
-
   return `${salt}:${hash}`;
-
 }
 
 function decodeHash(
   value: string
 ) {
-
   const [
     salt,
     hash,
-  ] =
-    value.split(
-      ":"
-    );
+  ] = value.split(":");
 
   return {
-
     salt,
-
     hash,
-
   };
-
 }
 
 function verifyHash(
   pin: string,
   encoded: string
 ) {
-
   const {
-
     salt,
-
     hash,
-
-  } =
-    decodeHash(
-      encoded
-    );
+  } = decodeHash(encoded);
 
   const calculated =
     hashPin(
@@ -165,20 +128,17 @@ function verifyHash(
     );
 
   return timingSafeEqual(
-
     Buffer.from(
       calculated,
       "hex"
     ),
-
     Buffer.from(
       hash,
       "hex"
     )
-
   );
-
 }
+
 /* =====================================================
    GET SECURITY
 ===================================================== */
@@ -188,22 +148,22 @@ export async function getWalletSecurity(
 ) {
 
   logger.info(
-  "WALLET_SECURITY.GET_START",
-  {
-    userId: maskId(userId),
-  }
-);
+    "WALLET_SECURITY.GET_START",
+    {
+      userId: maskId(userId),
+    }
+  );
 
   const security =
     await getWalletSecurityByUserId(
       userId
     );
 
-  log(
-    "GET_SECURITY_DONE",
+  logger.info(
+    "WALLET_SECURITY.GET_DONE",
     {
-      found:
-        !!security,
+      userId: maskId(userId),
+      found: !!security,
     }
   );
 
@@ -219,10 +179,10 @@ export async function hasWalletPinFlow(
   userId: string
 ) {
 
-  log(
-    "HAS_PIN_START",
+  logger.info(
+    "WALLET_SECURITY.HAS_PIN_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -231,9 +191,10 @@ export async function hasWalletPinFlow(
       userId
     );
 
-  log(
-    "HAS_PIN_DONE",
+  logger.info(
+    "WALLET_SECURITY.HAS_PIN_DONE",
     {
+      userId: maskId(userId),
       enabled,
     }
   );
@@ -250,10 +211,10 @@ async function ensureWalletSecurity(
   userId: string
 ) {
 
-  log(
-    "ENSURE_SECURITY_START",
+  logger.debug(
+    "WALLET_SECURITY.ENSURE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -262,25 +223,25 @@ async function ensureWalletSecurity(
       userId
     );
 
-  if (
-    security
-  ) {
+  if (security) {
 
     logger.debug(
-  "WALLET_SECURITY.EXISTS",
-  {
-    securityId: maskId(security.id),
-  }
-);
+      "WALLET_SECURITY.EXISTS",
+      {
+        securityId: maskId(
+          security.id
+        ),
+      }
+    );
 
     return security;
 
   }
 
-  log(
-    "SECURITY_CREATE_START",
+  logger.debug(
+    "WALLET_SECURITY.CREATE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -295,11 +256,12 @@ async function ensureWalletSecurity(
 
     });
 
-  log(
-    "SECURITY_CREATE_DONE",
+  logger.info(
+    "WALLET_SECURITY.CREATE_SUCCESS",
     {
-      id:
-        security.id,
+      securityId: maskId(
+        security.id
+      ),
     }
   );
 
@@ -314,22 +276,22 @@ export async function setupWalletPin(
   input: SetupWalletPinInput
 ) {
 
-  log(
-    "SETUP_PIN_START",
+  logger.info(
+    "WALLET_SECURITY.SETUP_START",
     {
-      userId:
-        input.userId,
+      userId: maskId(input.userId),
     }
   );
 
   if (
-    !validatePin(
-      input.pin
-    )
+    !validatePin(input.pin)
   ) {
 
-    err(
-      "INVALID_PIN_FORMAT"
+    logger.warn(
+      "WALLET_SECURITY.INVALID_PIN",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -347,11 +309,10 @@ export async function setupWalletPin(
     security.pin_enabled
   ) {
 
-    err(
-      "PIN_ALREADY_EXISTS",
+    logger.warn(
+      "WALLET_SECURITY.PIN_ALREADY_EXISTS",
       {
-        userId:
-          input.userId,
+        userId: maskId(input.userId),
       }
     );
 
@@ -363,7 +324,7 @@ export async function setupWalletPin(
 
   logger.debug(
     "WALLET_SECURITY.HASH_PIN"
-);
+  );
 
   const salt =
     createSalt();
@@ -380,58 +341,50 @@ export async function setupWalletPin(
       hash
     );
 
-  
+  logger.debug(
+    "WALLET_SECURITY.PIN_SAVE_START"
+  );
 
   const updated =
-  await setWalletPin({
+    await setWalletPin({
 
-    user_id:
-      input.userId,
+      user_id:
+        input.userId,
 
-    pin_hash:
-      encoded,
+      pin_hash:
+        encoded,
 
-    updated_by:
-      input.userId,
+      updated_by:
+        input.userId,
 
-  });
+    });
 
   if (!updated) {
 
-  err(
-    "DB_SAVE_PIN_FAILED"
-  );
+    logger.error(
+      "WALLET_SECURITY.PIN_SAVE_FAILED",
+      {
+        userId: maskId(input.userId),
+      }
+    );
 
-  throw new Error(
-    "PIN_SAVE_FAILED"
-  );
-
-}
-
-log(
-  "DB_SAVE_PIN_DONE",
-  {
-
-    pinEnabled:
-      updated.pin_enabled,
-
-    hasHash:
-      !!updated.pin_hash,
+    throw new Error(
+      "PIN_SAVE_FAILED"
+    );
 
   }
-);
 
-  log(
-    "SETUP_PIN_SUCCESS",
+  logger.info(
+    "WALLET_SECURITY.PIN_CREATED",
     {
-      userId:
-        input.userId,
+      userId: maskId(input.userId),
     }
   );
 
   return updated;
 
 }
+
 /* =====================================================
    VERIFY PIN
 ===================================================== */
@@ -440,22 +393,22 @@ export async function verifyWalletPin(
   input: VerifyWalletPinInput
 ): Promise<VerifyWalletPinResult> {
 
-  log(
-    "VERIFY_PIN_START",
+  logger.info(
+    "WALLET_SECURITY.VERIFY_START",
     {
-      userId:
-        input.userId,
+      userId: maskId(input.userId),
     }
   );
 
   if (
-    !validatePin(
-      input.pin
-    )
+    !validatePin(input.pin)
   ) {
 
-    err(
-      "INVALID_PIN_FORMAT"
+    logger.warn(
+      "WALLET_SECURITY.INVALID_PIN",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -469,12 +422,13 @@ export async function verifyWalletPin(
       input.userId
     );
 
-  if (
-    !security
-  ) {
+  if (!security) {
 
-    err(
-      "SECURITY_NOT_FOUND"
+    logger.error(
+      "WALLET_SECURITY.SECURITY_NOT_FOUND",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -487,8 +441,11 @@ export async function verifyWalletPin(
     !security.pin_enabled
   ) {
 
-    err(
-      "PIN_NOT_ENABLED"
+    logger.warn(
+      "WALLET_SECURITY.PIN_NOT_ENABLED",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -509,11 +466,10 @@ export async function verifyWalletPin(
       Date.now()
   ) {
 
-    log(
-      "PIN_LOCKED",
+    logger.warn(
+      "WALLET_SECURITY.PIN_LOCKED",
       {
-        lockedUntil:
-          security.locked_until,
+        userId: maskId(input.userId),
       }
     );
 
@@ -538,20 +494,11 @@ export async function verifyWalletPin(
 
   const matched =
     verifyHash(
-
       input.pin,
-
       security.pin_hash
-
     );
 
-  if (
-    matched
-  ) {
-
-    log(
-      "PIN_MATCHED"
-    );
+  if (matched) {
 
     await resetWalletFailedAttempts(
       security.id
@@ -565,8 +512,11 @@ export async function verifyWalletPin(
       security.id
     );
 
-    log(
-      "VERIFY_PIN_SUCCESS"
+    logger.info(
+      "WALLET_SECURITY.VERIFIED",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     return {
@@ -587,10 +537,6 @@ export async function verifyWalletPin(
   /* ===============================================
      FAILED
   =============================================== */
-
-  log(
-    "PIN_INVALID"
-  );
 
   const updated =
     await incrementWalletFailedAttempts(
@@ -621,19 +567,16 @@ export async function verifyWalletPin(
       );
 
     await lockWalletSecurity(
-
       security.id,
-
       lockedUntil
-
     );
 
     logger.warn(
-    "WALLET_SECURITY.PIN_LOCKED",
-    {
+      "WALLET_SECURITY.PIN_LOCKED",
+      {
         userId: maskId(input.userId),
-    }
-);
+      }
+    );
 
     return {
 
@@ -653,9 +596,9 @@ export async function verifyWalletPin(
   logger.warn(
     "WALLET_SECURITY.PIN_INVALID",
     {
-        userId: maskId(input.userId),
+      userId: maskId(input.userId),
     }
-);
+  );
 
   return {
 
@@ -679,11 +622,10 @@ export async function changeWalletPinFlow(
   input: ChangeWalletPinInput
 ) {
 
-  log(
-    "CHANGE_PIN_START",
+  logger.info(
+    "WALLET_SECURITY.CHANGE_START",
     {
-      userId:
-        input.userId,
+      userId: maskId(input.userId),
     }
   );
 
@@ -702,12 +644,13 @@ export async function changeWalletPinFlow(
 
     });
 
-  if (
-    !verified.success
-  ) {
+  if (!verified.success) {
 
-    err(
-      "CURRENT_PIN_INVALID"
+    logger.warn(
+      "WALLET_SECURITY.CURRENT_PIN_INVALID",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -728,8 +671,11 @@ export async function changeWalletPinFlow(
     )
   ) {
 
-    err(
-      "INVALID_NEW_PIN"
+    logger.warn(
+      "WALLET_SECURITY.INVALID_NEW_PIN",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -743,8 +689,11 @@ export async function changeWalletPinFlow(
     input.newPin
   ) {
 
-    err(
-      "PIN_NOT_CHANGED"
+    logger.warn(
+      "WALLET_SECURITY.PIN_NOT_CHANGED",
+      {
+        userId: maskId(input.userId),
+      }
     );
 
     throw new Error(
@@ -757,8 +706,8 @@ export async function changeWalletPinFlow(
      HASH NEW PIN
   =============================================== */
 
-  log(
-    "HASH_NEW_PIN_START"
+  logger.debug(
+    "WALLET_SECURITY.HASH_NEW_PIN"
   );
 
   const salt =
@@ -776,34 +725,27 @@ export async function changeWalletPinFlow(
       hash
     );
 
-  log(
-    "HASH_NEW_PIN_DONE"
-  );
-
   /* ===============================================
      SAVE
   =============================================== */
 
-  log(
-    "DB_CHANGE_PIN_START"
+  logger.debug(
+    "WALLET_SECURITY.PIN_UPDATE_START"
   );
 
   const security =
-  await changeWalletPin({
+    await changeWalletPin({
 
-    user_id:
-      input.userId,
+      user_id:
+        input.userId,
 
-    pin_hash:
-      encoded,
+      pin_hash:
+        encoded,
 
-    updated_by:
-      input.userId,
+      updated_by:
+        input.userId,
 
-  });
-  log(
-    "DB_CHANGE_PIN_DONE"
-  );
+    });
 
   await resetWalletFailedAttempts(
     security.id
@@ -813,17 +755,17 @@ export async function changeWalletPinFlow(
     security.id
   );
 
-  log(
-    "CHANGE_PIN_SUCCESS",
+  logger.info(
+    "WALLET_SECURITY.CHANGE_SUCCESS",
     {
-      userId:
-        input.userId,
+      userId: maskId(input.userId),
     }
   );
 
   return security;
 
 }
+
 /* =====================================================
    RESET PIN
 ===================================================== */
@@ -832,10 +774,10 @@ export async function resetWalletPinFlow(
   userId: string
 ) {
 
-  log(
-    "RESET_PIN_START",
+  logger.info(
+    "WALLET_SECURITY.RESET_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -846,8 +788,11 @@ export async function resetWalletPinFlow(
 
   if (!security) {
 
-    err(
-      "SECURITY_NOT_FOUND"
+    logger.error(
+      "WALLET_SECURITY.SECURITY_NOT_FOUND",
+      {
+        userId: maskId(userId),
+      }
     );
 
     throw new Error(
@@ -864,10 +809,10 @@ export async function resetWalletPinFlow(
     security.id
   );
 
-  log(
-    "RESET_PIN_SUCCESS",
+  logger.info(
+    "WALLET_SECURITY.RESET_SUCCESS",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -883,10 +828,10 @@ export async function enableTotpFlow(
   userId: string
 ) {
 
-  log(
-    "ENABLE_TOTP_START",
+  logger.info(
+    "WALLET_SECURITY.TOTP_ENABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -897,8 +842,8 @@ export async function enableTotpFlow(
    * Save Secret
    */
 
-  log(
-    "ENABLE_TOTP_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.TOTP_ENABLE_PENDING"
   );
 
 }
@@ -911,10 +856,10 @@ export async function disableTotpFlow(
   userId: string
 ) {
 
-  log(
-    "DISABLE_TOTP_START",
+  logger.info(
+    "WALLET_SECURITY.TOTP_DISABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -922,8 +867,8 @@ export async function disableTotpFlow(
    * TODO
    */
 
-  log(
-    "DISABLE_TOTP_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.TOTP_DISABLE_PENDING"
   );
 
 }
@@ -936,10 +881,10 @@ export async function enableBiometricFlow(
   userId: string
 ) {
 
-  log(
-    "ENABLE_BIOMETRIC_START",
+  logger.info(
+    "WALLET_SECURITY.BIOMETRIC_ENABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -949,8 +894,8 @@ export async function enableBiometricFlow(
    * Touch ID
    */
 
-  log(
-    "ENABLE_BIOMETRIC_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.BIOMETRIC_ENABLE_PENDING"
   );
 
 }
@@ -963,10 +908,10 @@ export async function disableBiometricFlow(
   userId: string
 ) {
 
-  log(
-    "DISABLE_BIOMETRIC_START",
+  logger.info(
+    "WALLET_SECURITY.BIOMETRIC_DISABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -974,8 +919,8 @@ export async function disableBiometricFlow(
    * TODO
    */
 
-  log(
-    "DISABLE_BIOMETRIC_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.BIOMETRIC_DISABLE_PENDING"
   );
 
 }
@@ -988,10 +933,10 @@ export async function enablePasskeyFlow(
   userId: string
 ) {
 
-  log(
-    "ENABLE_PASSKEY_START",
+  logger.info(
+    "WALLET_SECURITY.PASSKEY_ENABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -1000,8 +945,8 @@ export async function enablePasskeyFlow(
    * WebAuthn
    */
 
-  log(
-    "ENABLE_PASSKEY_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.PASSKEY_ENABLE_PENDING"
   );
 
 }
@@ -1014,10 +959,10 @@ export async function disablePasskeyFlow(
   userId: string
 ) {
 
-  log(
-    "DISABLE_PASSKEY_START",
+  logger.info(
+    "WALLET_SECURITY.PASSKEY_DISABLE_START",
     {
-      userId,
+      userId: maskId(userId),
     }
   );
 
@@ -1025,8 +970,8 @@ export async function disablePasskeyFlow(
    * TODO
    */
 
-  log(
-    "DISABLE_PASSKEY_PENDING"
+  logger.debug(
+    "WALLET_SECURITY.PASSKEY_DISABLE_PENDING"
   );
 
 }
