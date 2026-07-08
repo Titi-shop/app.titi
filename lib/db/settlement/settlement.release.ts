@@ -17,6 +17,10 @@ import {
 import {
   sendNotification,
 } from "@/lib/services/notifications.service";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =====================================================
    DB CLIENT TYPE
 ===================================================== */
@@ -39,9 +43,7 @@ export async function findReleasableEscrows(
   client: TransactionClient
 ): Promise<EscrowReleaseRow[]> {
 
-  console.log(
-    "[SETTLEMENT][RELEASE] FIND_RELEASABLE_START"
-  );
+  logger.info("SETTLEMENT.RELEASE.FIND_START");
 
   const { rows } =
     await client.query<EscrowReleaseRow>(
@@ -68,12 +70,9 @@ FROM escrow_entries
       `
     );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] FIND_RELEASABLE_DONE",
-    {
-      total: rows.length,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.FIND_DONE", {
+  total: rows.length,
+});
 
   return rows;
 }
@@ -112,33 +111,18 @@ if (!rpc.confirmed) {
 if (rpc.txStatus !== "SUCCESS") {
   throw new Error("RPC_TX_FAILED");
 }
-  console.log(
-    "[SETTLEMENT][RELEASE] FLOW_START",
-    {
-      escrowId:
-        escrow.id,
-
-      orderId:
-        escrow.order_id,
-
-      sellerId:
-        escrow.seller_id,
-
-      amount:
-        escrow.amount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.START", {
+  escrowId: maskId(escrow.id),
+  orderId: maskId(escrow.order_id),
+  sellerId: maskId(escrow.seller_id),
+});
 
   const amount = Number(escrow.amount);
 
 if (Number.isNaN(amount) || amount <= 0) {
-  console.error(
-    "[SETTLEMENT][RELEASE] INVALID_AMOUNT",
-    {
-      escrowId: escrow.id,
-      rawAmount: escrow.amount,
-    }
-  );
+  logger.error("SETTLEMENT.RELEASE.INVALID_AMOUNT", {
+  escrowId: maskId(escrow.id),
+});
 
   throw new Error("INVALID_ESCROW_AMOUNT");
 }
@@ -147,13 +131,9 @@ if (Number.isNaN(amount) || amount <= 0) {
      1. RELEASE ESCROW
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ESCROW_UPDATE_START",
-    {
-      escrowId:
-        escrow.id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.ESCROW_UPDATE_START", {
+  escrowId: maskId(escrow.id),
+});
 
   const escrowUpdate =
   await client.query(
@@ -194,30 +174,16 @@ if (
   escrowUpdate.rowCount !== 1
 ) {
 
-  console.warn(
-    "[SETTLEMENT][RELEASE] ALREADY_RELEASED",
-    {
-      escrowId:
-        escrow.id,
-
-      affected:
-        escrowUpdate.rowCount,
-    }
-  );
+  logger.warn("SETTLEMENT.RELEASE.ALREADY_RELEASED", {
+  escrowId: maskId(escrow.id),
+});
 
   return;
 }
 
-console.log(
-  "[SETTLEMENT][RELEASE] ESCROW_UPDATE_DONE",
-  {
-    escrowId:
-      escrow.id,
-
-    affected:
-      escrowUpdate.rowCount,
-  }
-);
+logger.info("SETTLEMENT.RELEASE.ESCROW_UPDATED", {
+  escrowId: maskId(escrow.id),
+});
 
   const sellerCreditUpdate =
     await client.query(
@@ -245,16 +211,9 @@ WHERE escrow_id = $1
         escrow.id,
       ]
     );
-console.log(
-  "[SETTLEMENT][RELEASE] CREDIT_RELEASE_DONE",
-  {
-    escrowId:
-      escrow.id,
-
-    affected:
-      sellerCreditUpdate.rowCount,
-  }
-);
+logger.info("SETTLEMENT.RELEASE.CREDIT_UPDATED", {
+  escrowId: maskId(escrow.id),
+});
 
 /* ===================================================
    IDEMPOTENT CREDIT GUARD
@@ -273,13 +232,9 @@ if (
      3. ENSURE WALLET
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ENSURE_WALLET_START",
-    {
-      sellerId:
-        escrow.seller_id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.ENSURE_WALLET_START", {
+  sellerId: maskId(escrow.seller_id),
+});
 
   await client.query(
     `
@@ -312,27 +267,17 @@ if (
     ]
   );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ENSURE_WALLET_DONE",
-    {
-      sellerId:
-        escrow.seller_id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.ENSURE_WALLET_DONE", {
+  sellerId: maskId(escrow.seller_id),
+});
 
   /* ===================================================
      4. CREDIT WALLET
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] WALLET_CREDIT_START",
-    {
-      sellerId:
-        escrow.seller_id,
-
-      amount,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.WALLET_CREDIT_START", {
+  sellerId: maskId(escrow.seller_id),
+});
 
   const walletUpdate =
     await client.query(
@@ -364,16 +309,9 @@ if (
       ]
     );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] WALLET_CREDIT_DONE",
-    {
-      sellerId:
-        escrow.seller_id,
-
-      affected:
-        walletUpdate.rowCount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.WALLET_CREDIT_DONE", {
+  sellerId: maskId(escrow.seller_id),
+});
 if (walletUpdate.rowCount !== 1) {
   throw new Error(
     "WALLET_CREDIT_FAILED"
@@ -383,13 +321,9 @@ if (walletUpdate.rowCount !== 1) {
      5. JOURNAL
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] JOURNAL_START",
-    {
-      escrowId:
-        escrow.id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.JOURNAL_START", {
+  escrowId: maskId(escrow.id),
+});
 
   await createSettlementJournalOnce(
   {
@@ -420,38 +354,26 @@ if (walletUpdate.rowCount !== 1) {
   client
 );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] JOURNAL_DONE",
-    {
-      escrowId:
-        escrow.id,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.JOURNAL_DONE", {
+  escrowId: maskId(escrow.id),
+});
 
   /* ===================================================
      6. COMPLETE ORDER
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ORDER_COMPLETE_START",
-    {
-      orderId:
-        escrow.order_id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.ORDER_COMPLETE_START", {
+  orderId: maskId(escrow.order_id),
+});
 /* ===================================================
    8. FINALIZE PAYMENT INTENT
 =================================================== */
 
 if (escrow.payment_intent_id) {
 
-  console.log(
-    "[SETTLEMENT][RELEASE] PAYMENT_INTENT_SETTLE_START",
-    {
-      paymentIntentId:
-        escrow.payment_intent_id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.INTENT_SETTLE_START", {
+  paymentIntentId: maskId(escrow.payment_intent_id),
+});
 
   const intentUpdate =
     await client.query(
@@ -469,16 +391,9 @@ if (escrow.payment_intent_id) {
       ]
     );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] PAYMENT_INTENT_SETTLE_DONE",
-    {
-      paymentIntentId:
-        escrow.payment_intent_id,
-
-      affected:
-        intentUpdate.rowCount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.INTENT_SETTLED", {
+  paymentIntentId: maskId(escrow.payment_intent_id),
+});
 }
   const orderUpdate =
     await client.query(
@@ -499,28 +414,17 @@ WHERE id = $1
       ]
     );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ORDER_COMPLETE_DONE",
-    {
-      orderId:
-        escrow.order_id,
-
-      affected:
-        orderUpdate.rowCount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.ORDER_ITEMS_DONE", {
+  orderId: maskId(escrow.order_id),
+});
 
   /* ===================================================
      7. COMPLETE ORDER ITEMS
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ORDER_ITEMS_COMPLETE_START",
-    {
-      orderId:
-        escrow.order_id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.ORDER_ITEMS_START", {
+  orderId: maskId(escrow.order_id),
+});
 
   const orderItemsUpdate =
     await client.query(
@@ -548,28 +452,17 @@ WHERE id = $1
       ]
     );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] ORDER_ITEMS_COMPLETE_DONE",
-    {
-      orderId:
-        escrow.order_id,
-
-      affected:
-        orderItemsUpdate.rowCount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.ORDER_ITEMS_DONE", {
+  orderId: maskId(escrow.order_id),
+});
 
   /* ===================================================
      8. EVENT
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] EVENT_START",
-    {
-      escrowId:
-        escrow.id,
-    }
-  );
+  logger.debug("SETTLEMENT.RELEASE.EVENT_START", {
+  escrowId: maskId(escrow.id),
+});
 
   await createSettlementEventOnce(
   {
@@ -599,13 +492,9 @@ WHERE id = $1
   client
 );
 
-  console.log(
-    "[SETTLEMENT][RELEASE] EVENT_DONE",
-    {
-      escrowId:
-        escrow.id,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.EVENT_DONE", {
+  escrowId: maskId(escrow.id),
+});
 /* ===================================================
    9. NOTIFICATIONS
 =================================================== */
@@ -652,29 +541,21 @@ try {
 
 } catch (err) {
 
-  console.error(
-    "[NOTIFICATION][ORDER_COMPLETED]",
-    err
-  );
-
-}
+  logger.error("SETTLEMENT.RELEASE.NOTIFICATION_FAILED", {
+  escrowId: maskId(escrow.id),
+  orderId: maskId(escrow.order_id),
+  message:
+    err instanceof Error
+      ? err.message
+      : String(err),
+});
   /* ===================================================
      COMPLETE
   =================================================== */
 
-  console.log(
-    "[SETTLEMENT][RELEASE] FLOW_SUCCESS",
-    {
-      escrowId:
-        escrow.id,
-
-      orderId:
-        escrow.order_id,
-
-      sellerId:
-        escrow.seller_id,
-
-      amount,
-    }
-  );
+  logger.info("SETTLEMENT.RELEASE.SUCCESS", {
+  escrowId: maskId(escrow.id),
+  orderId: maskId(escrow.order_id),
+  sellerId: maskId(escrow.seller_id),
+});
 }
