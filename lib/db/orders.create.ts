@@ -58,7 +58,25 @@ type CreateOrderInput = {
   }[];
 };
 };
+type ProductRow = {
+  id: string;
+  seller_id: string;
 
+  name: string;
+  thumbnail: string | null;
+  is_active: boolean;
+  deleted_at: Date | null;
+  stock: number | null;
+  reserved_stock: number | null;
+};
+
+type VariantRow = {
+  id: string;
+  product_id: string;
+  stock: number |null;
+  reserved_stock: number | null;
+  is_active: boolean;
+};
 function isUUID(v: string): boolean {
   return /^[0-9a-f-]{36}$/i.test(v);
 }
@@ -110,11 +128,18 @@ if (existingOrder.rows.length) {
 
     const productIds = items.map((i) => i.product_id);
 
-    const { rows: products } = await client.query<any>(
+    const { rows: products } =
+  await client.query<ProductRow>(
       `
-      SELECT id, seller_id, name, price,
-             sale_price, sale_start, sale_end,
-             thumbnail, is_active, deleted_at, stock, reserved_stock
+      SELECT
+    id,
+    seller_id,
+    name,
+    thumbnail,
+    is_active,
+    deleted_at,
+    stock,
+    reserved_stock
       FROM products
       WHERE id = ANY($1::uuid[])
       FOR UPDATE
@@ -132,13 +157,11 @@ if (existingOrder.rows.length) {
 
     const { rows: variants } =
       variantIds.length > 0
-        ? await client.query<any>(
+        ? await client.query<VariantRow>(
             `
             SELECT
     id,
     product_id,
-    price,
-    sale_price,
     stock,
     reserved_stock,
     is_active
@@ -148,7 +171,9 @@ FOR UPDATE
             `,
             [variantIds]
           )
-        : { rows: [] };
+       : {
+    rows: [] as VariantRow[],
+  };
 
     const variantMap = new Map(variants.map((v) => [v.id, v]));
 
