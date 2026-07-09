@@ -84,7 +84,24 @@ export async function submitPiPaymentFromRequest({
   raw,
   requestId,
 }: SubmitRequestInput) {
-  const body = normalizeSubmitBody(raw);
+
+  if (!isUUID(userId)) {
+    throw new Error(
+      "INVALID_USER_ID"
+    );
+  }
+
+  if (
+    typeof requestId !== "string" ||
+    requestId.trim() === ""
+  ) {
+    throw new Error(
+      "INVALID_REQUEST_ID"
+    );
+  }
+
+  const body =
+    normalizeSubmitBody(raw);
 logger.debug(
   "PAYMENT.SUBMIT.NORMALIZED",
   {
