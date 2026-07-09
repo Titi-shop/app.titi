@@ -6,21 +6,9 @@ import {
   query,
 } from "@/lib/db";
 
-/* =====================================================
-   LOG
-===================================================== */
-
-function vlog(
-  step: string,
-  data?: unknown
-) {
-
-  console.log(
-    `[WALLET_WITHDRAW_HISTORY][${step}]`,
-    data ?? ""
-  );
-
-}
+import {
+  logger,
+} from "@/lib/logger";
 
 /* =====================================================
    TYPES
@@ -92,12 +80,9 @@ export async function getWalletWithdrawHistoryByUser(
 
 ): Promise<WalletWithdrawalHistoryRow[]> {
 
-  vlog(
-    "LIST_START",
-    {
-      userId,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.LIST_START"
+);
 
   const rs =
     await query<WalletWithdrawalHistoryRow>(
@@ -113,13 +98,9 @@ export async function getWalletWithdrawHistoryByUser(
       ]
     );
 
-  vlog(
-    "LIST_DONE",
-    {
-      count:
-        rs.rowCount,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.LIST_DONE"
+);
 
   return rs.rows;
 
@@ -139,13 +120,9 @@ export async function getWalletWithdrawHistoryDetail(
   WalletWithdrawalHistoryRow | null
 > {
 
-  vlog(
-    "DETAIL_START",
-    {
-      withdrawalId,
-      userId,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.DETAIL_START"
+);
 
   const rs =
     await query<WalletWithdrawalHistoryRow>(
@@ -163,13 +140,9 @@ export async function getWalletWithdrawHistoryDetail(
       ]
     );
 
-  vlog(
-    "DETAIL_DONE",
-    {
-      found:
-        rs.rowCount === 1,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.DETAIL_DONE"
+);
 
   return (
     rs.rows[0] ??
@@ -192,13 +165,9 @@ export async function getWalletWithdrawHistoryByStatus(
   WalletWithdrawalHistoryRow[]
 > {
 
-  vlog(
-    "STATUS_START",
-    {
-      userId,
-      status,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.STATUS_START"
+);
 
   const rs =
     await query<WalletWithdrawalHistoryRow>(
@@ -216,13 +185,9 @@ export async function getWalletWithdrawHistoryByStatus(
       ]
     );
 
-  vlog(
-    "STATUS_DONE",
-    {
-      count:
-        rs.rowCount,
-    }
-  );
+  logger.debug(
+  "WALLET_WITHDRAW_HISTORY.STATUS_DONE"
+);
 
   return rs.rows;
 
