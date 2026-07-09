@@ -5,6 +5,10 @@ import {
 import {
   sendNotification,
 } from "@/lib/services/notifications.service";
+import {
+  logger,
+  maskId,
+} from "@/lib/logger";
 /* =========================================================
    SELLER — ORDER COUNTS
 ========================================================= */
@@ -296,13 +300,13 @@ export async function startShippingBySeller(
           res.rowCount === 0
         ) {
 
-          console.warn(
-            "[ORDER][SELLER][SHIP][NO_ITEMS]",
-            {
-              orderId,
-              sellerId,
-            }
-          );
+          logger.warn(
+  "ORDER.SELLER.SHIP.NO_ITEMS",
+  {
+    orderId: maskId(orderId),
+    sellerId: maskId(sellerId),
+  }
+);
 
           return false;
         }
@@ -392,14 +396,10 @@ if (!buyerId) {
     ]
   );
 
-console.log(
-  "[ORDER][SELLER][SHIP][ESCROW_TIMER]",
+logger.debug(
+  "ORDER.SELLER.SHIP.ESCROW_UPDATED",
   {
-    rowCount:
-      escrowUpdate.rowCount,
-
-    rows:
-      escrowUpdate.rows,
+    rowCount: escrowUpdate.rowCount,
   }
 );
 
@@ -412,14 +412,12 @@ console.log(
           orderId
         );
 
-        console.log(
-  "[ORDER][SELLER][SHIP][SUCCESS]",
+        logger.info(
+  "ORDER.SELLER.SHIP.SUCCESS",
   {
-    orderId,
-    sellerId,
+    orderId: maskId(orderId),
   }
 );
-
 return {
   ok: true,
   buyerId,
@@ -448,15 +446,15 @@ return {
 
   } catch (err) {
 
-    console.error(
-      "[ORDER][SELLER][SHIP][DB_ERROR]",
-      {
-        message:
-          err instanceof Error
-            ? err.message
-            : "UNKNOWN",
-      }
-    );
+    logger.error(
+  "ORDER.SELLER.SHIP.ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN",
+  }
+);
 
     throw new Error(
       "DB_ERROR"
@@ -534,12 +532,12 @@ if (!order) {
         if (
           res.rowCount === 0
         ) {
-          console.warn(
-            "[ORDER][SELLER][CANCEL][NO_ITEMS]",
-            {
-              orderId,
-            }
-          );
+          logger.warn(
+  "ORDER.SELLER.CANCEL.NO_ITEMS",
+  {
+    orderId: maskId(orderId),
+  }
+);
 
           return {
   success: false,
@@ -551,10 +549,12 @@ if (!order) {
           orderId
         );
 
-        console.log(
-          "[ORDER][SELLER][CANCEL][SUCCESS]",
-          { orderId }
-        );
+        logger.info(
+  "ORDER.SELLER.CANCEL.SUCCESS",
+  {
+    orderId: maskId(orderId),
+  }
+);
 
         return {
   success: true,
@@ -589,25 +589,30 @@ if (!order) {
 
   } catch (err) {
 
-    console.error(
-      "[NOTIFICATION][SELLER_CANCEL]",
-      err
-    );
+    logger.error(
+  "NOTIFICATION.SELLER_CANCEL.ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN",
+  }
+);
 
   }
 
 }
     return result;
   } catch (err) {
-    console.error(
-      "[ORDER][SELLER][CANCEL][DB_ERROR]",
-      {
-        message:
-          err instanceof Error
-            ? err.message
-            : "UNKNOWN",
-      }
-    );
+    logger.error(
+  "ORDER.SELLER.CANCEL.ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN",
+  }
+);
 
     throw new Error(
       "DB_ERROR"
@@ -651,17 +656,23 @@ if (!order) {
       const order = rows[0];
 
       if (!order) {
-        console.warn("[ORDER][SELLER][CONFIRM][NOT_FOUND]", {
-          orderId,
-        });
+        logger.warn(
+  "ORDER.SELLER.CONFIRM.NOT_FOUND",
+  {
+    orderId: maskId(orderId),
+  }
+);
         return false;
       }
 
       if (order.seller_id !== sellerId) {
-        console.warn("[ORDER][SELLER][CONFIRM][FORBIDDEN]", {
-          orderId,
-          sellerId,
-        });
+        logger.warn(
+  "ORDER.SELLER.CONFIRM.FORBIDDEN",
+  {
+    orderId: maskId(orderId),
+    sellerId: maskId(sellerId),
+  }
+);
         return false;
       }
 
@@ -669,10 +680,13 @@ if (!order) {
          2. CHECK ORDER STATE
       ========================= */
       if (order.fulfillment_status !== "pending_fulfillment") {
-        console.warn("[ORDER][SELLER][CONFIRM][INVALID_STATUS]", {
-          orderId,
-          status: order.fulfillment_status,
-        });
+        logger.warn(
+  "ORDER.SELLER.CONFIRM.INVALID_STATUS",
+  {
+    orderId: maskId(orderId),
+    status: order.fulfillment_status,
+  }
+);
         return false;
       }
 
@@ -701,10 +715,13 @@ if (!order) {
       );
 
       if (res.rowCount === 0) {
-        console.warn("[ORDER][SELLER][CONFIRM][NO_ITEMS]", {
-          orderId,
-          sellerId,
-        });
+        logger.warn(
+  "ORDER.SELLER.CONFIRM.NO_ITEMS",
+  {
+    orderId: maskId(orderId),
+    sellerId: maskId(sellerId),
+  }
+);
         return false;
       }
 
@@ -714,9 +731,10 @@ if (!order) {
       await syncOrderFulfillmentStatus(client, orderId);
 
       console.log(
-  "[ORDER][SELLER][CONFIRM][SUCCESS]",
+ logger.info(
+  "ORDER.SELLER.CONFIRM.SUCCESS",
   {
-    orderId,
+    orderId: maskId(orderId),
   }
 );
 
@@ -748,10 +766,15 @@ if (result.ok) {
 
   } catch (err) {
 
-    console.error(
-      "[NOTIFICATION][ORDER_CONFIRMED]",
-      err
-    );
+    logger.error(
+  "NOTIFICATION.ORDER_CONFIRMED.ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN",
+  }
+);
 
   }
 
@@ -759,9 +782,15 @@ if (result.ok) {
 
 return result.ok;
   } catch (err) {
-    console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
-    });
+    logger.error(
+  "ORDER.SELLER.CONFIRM.ERROR",
+  {
+    message:
+      err instanceof Error
+        ? err.message
+        : "UNKNOWN",
+  }
+);
 
     throw new Error("DB_ERROR");
   }
