@@ -70,8 +70,17 @@ function isUUID(v: unknown): v is string {
 
 function safeQty(n: unknown): number {
   const q = Number(n);
-  if (!Number.isInteger(q) || q <= 0) return 1;
-  return Math.min(q, 100);
+
+  if (!Number.isInteger(q)) {
+    throw new Error("INVALID_QUANTITY");
+  }
+  if (q <= 0) {
+    throw new Error("INVALID_QUANTITY");
+  }
+  if (q > 100) {
+    throw new Error("INVALID_QUANTITY");
+  }
+  return q;
 }
 
 function safeNumber(n: unknown): number {
@@ -331,7 +340,18 @@ export async function calculatePricing(
 );
 
   if (!input.items?.length) throw new Error("INVALID_ITEMS");
+const duplicateCheck = new Set<string>();
 
+for (const item of input.items) {
+  const key =
+    `${item.product_id}:${item.variant_id ?? ""}`;
+
+  if (duplicateCheck.has(key)) {
+    throw new Error("DUPLICATE_ITEM");
+  }
+
+  duplicateCheck.add(key);
+}
   const address = await loadAddress(input.user_id, input.address_id);
   const buyerCountry = address.country;
 
@@ -378,7 +398,13 @@ export async function calculatePricing(
     }
 
    let price = product.final_price;
-
+if (
+  item.variant_id !== null &&
+  item.variant_id !== undefined &&
+  !isUUID(item.variant_id)
+) {
+  throw new Error("INVALID_VARIANT_ID");
+}
 if (item.variant_id) {
   const variant = await loadVariant(
     item.variant_id,
