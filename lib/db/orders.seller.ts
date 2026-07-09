@@ -729,8 +729,6 @@ if (!order) {
          4. SYNC ORDER STATUS
       ========================= */
       await syncOrderFulfillmentStatus(client, orderId);
-
-      console.log(
  logger.info(
   "ORDER.SELLER.CONFIRM.SUCCESS",
   {
