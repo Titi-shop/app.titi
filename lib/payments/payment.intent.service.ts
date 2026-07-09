@@ -30,19 +30,22 @@ function isUUID(
   );
 }
 
-function safeQty(
-  value: unknown
-): number {
+function safeQty(value: unknown): number {
   const n = Number(value);
 
-  if (
-    !Number.isInteger(n) ||
-    n <= 0
-  ) {
-    return 1;
+  if (!Number.isInteger(n)) {
+    throw new Error("INVALID_QUANTITY");
   }
 
-  return Math.min(n, 10);
+  if (n <= 0) {
+    throw new Error("INVALID_QUANTITY");
+  }
+
+  if (n > 10) {
+    throw new Error("INVALID_QUANTITY");
+  }
+
+  return n;
 }
 
 function normalizeShipping(
@@ -113,20 +116,29 @@ function normalizeCreateIntentInput({
     >;
 
   const productId =
-    typeof body.product_id ===
-    "string"
-      ? body.product_id.trim()
-      : "";
+  typeof body.product_id === "string"
+    ? body.product_id.trim()
+    : "";
 
-  const variantId =
-    typeof body.variant_id ===
-      "string" &&
-    body.variant_id.trim()
-      ? body.variant_id.trim()
-      : null;
+if (!isUUID(productId)) {
+  throw new Error("INVALID_PRODUCT_ID");
+}
 
-  const quantity =
-    safeQty(body.quantity);
+const variantId =
+  typeof body.variant_id === "string" &&
+  body.variant_id.trim()
+    ? body.variant_id.trim()
+    : null;
+
+if (
+  variantId !== null &&
+  !isUUID(variantId)
+) {
+  throw new Error("INVALID_VARIANT_ID");
+}
+
+const quantity =
+  safeQty(body.quantity);
   
 const addressId =
   typeof body.address_id === "string"
@@ -331,12 +343,6 @@ if (!paymentIntentId) {
     "CREATE_INTENT_RETURN_INVALID"
   );
 }
-
-  if (!paymentIntentId) {
-    throw new Error(
-      "CREATE_INTENT_RETURN_INVALID"
-    );
-  }
 
   const result: CreateIntentServiceResult =
     {
