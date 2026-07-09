@@ -44,16 +44,7 @@ function isSameAmount(
 function isValidIntentState(
   status: unknown
 ): boolean {
-  if (typeof status !== "string") {
-    return false;
-  }
-
-  return [
-    "created",
-    "authorized",
-    "submitted",
-    "pending_settlement",
-  ].includes(status);
+  return status === "created";
 }
 
 /* =========================================================
@@ -227,9 +218,15 @@ logger.info(
   ===================================================== */
 
   const payment =
-    await piGetPayment(
-      piPaymentId
-    );
+    await piGetPayment( piPaymentId );
+  if (
+  payment.identifier !==
+  piPaymentId
+) {
+  throw new Error(
+    "PI_IDENTIFIER_MISMATCH"
+  );
+}
 logger.debug(
   "PAYMENT.AUTHORIZE.PI_IDENTIFIER",
   {
@@ -317,7 +314,14 @@ logger.debug(
     Number(
       intent.total_amount
     );
-
+if (
+  payment.amount === null ||
+  payment.amount === undefined
+) {
+  throw new Error(
+    "PI_AMOUNT_MISSING"
+  );
+}
   const paymentAmount =
     Number(payment.amount);
 
@@ -387,7 +391,11 @@ logger.info(
       maskId(actualWallet),
   }
 );
-
+if (!payment.to_address) {
+  throw new Error(
+    "PI_TO_ADDRESS_MISSING"
+  );
+}
 if (
   expectedWallet !==
   actualWallet
