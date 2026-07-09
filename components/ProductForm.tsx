@@ -420,22 +420,25 @@ if (!hasSaleTime) {
       ========================= */
 
       const shippingRatesPayload: ShippingRate[] =
-  Object.entries(
-    form.shipping_rates
-  ).map(([zone, price]) => ({
-    zone:
-      zone as ShippingRate["zone"],
-    price:
-  price === "" ||
-  price === null ||
-  price === undefined
-    ? null
-    : Number(price),
-    domestic_country_code:
-      zone === "domestic"
-        ? form.domestic_country_code
-        : null,
-  }));
+  Object.entries(form.shipping_rates)
+    .filter(([, price]) => {
+      return (
+        price !== "" &&
+        price !== null &&
+        price !== undefined
+      );
+    })
+    .map(([zone, price]) => ({
+      zone:
+        zone as ShippingRate["zone"],
+
+      price: Number(price),
+
+      domestic_country_code:
+        zone === "domestic"
+          ? form.domestic_country_code
+          : null,
+    }));
 
       /* =========================
          VARIANTS
