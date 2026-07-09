@@ -425,7 +425,12 @@ if (!hasSaleTime) {
   ).map(([zone, price]) => ({
     zone:
       zone as ShippingRate["zone"],
-    price: Number(price || 0),
+    price:
+  price === "" ||
+  price === null ||
+  price === undefined
+    ? null
+    : Number(price),
     domestic_country_code:
       zone === "domestic"
         ? form.domestic_country_code
