@@ -23,20 +23,9 @@ import {
   WithdrawalSettlementEvents,
 } from "@/lib/db/settlement/settlement.event.a2u";
 
-/* =====================================================
-   LOG
-===================================================== */
-
-function vlog(
-  step: string,
-  data?: unknown
-) {
-  console.log(
-    `[WALLET_WITHDRAW][${step}]`,
-    data ?? ""
-  );
-}
-
+import {
+  logger,
+} from "@/lib/logger";
 /* =====================================================
    FAIL WITHDRAWAL
 ===================================================== */
@@ -46,13 +35,9 @@ export async function markWithdrawalFailed(
   reason: string
 ): Promise<void> {
 
-  vlog(
-    "MARK_FAILED_START",
-    {
-      withdrawalId,
-      reason,
-    }
-  );
+  logger.info(
+  "WALLET_WITHDRAW.FAIL_START"
+);
 
   await withTransaction(
     async (client) => {
@@ -90,10 +75,9 @@ export async function markWithdrawalFailed(
       const withdrawal =
         withdrawalRs.rows[0];
 
-      vlog(
-        "WITHDRAWAL_ROW",
-        withdrawal
-      );
+      logger.debug(
+  "WALLET_WITHDRAW.LOADED"
+);
 
       /* ===============================================
          RELEASE RESERVED
@@ -106,7 +90,9 @@ export async function markWithdrawalFailed(
         ),
         client
       );
-
+logger.debug(
+  "WALLET_WITHDRAW.RESERVE_RELEASED"
+);
       await createWithdrawalSettlementEventOnce(
         {
           withdrawalId,
@@ -176,7 +162,9 @@ export async function markWithdrawalFailed(
             .digest("hex"),
 
       });
-
+logger.debug(
+  "WALLET_WITHDRAW.JOURNAL_REVERTED"
+);
       await createWithdrawalSettlementEventOnce(
         {
           withdrawalId,
@@ -222,13 +210,9 @@ export async function markWithdrawalFailed(
           ]
         );
 
-      vlog(
-        "UPDATE_RESULT",
-        {
-          rowCount:
-            rs.rowCount,
-        }
-      );
+      logger.debug(
+  "WALLET_WITHDRAW.STATUS_UPDATED"
+);
 
       if (
         rs.rowCount !== 1
@@ -255,12 +239,9 @@ export async function markWithdrawalFailed(
         client
       );
 
-      vlog(
-        "MARK_FAILED_DONE",
-        {
-          withdrawalId,
-        }
-      );
+      logger.info(
+  "WALLET_WITHDRAW.FAIL_DONE"
+);
     }
   );
 }
