@@ -73,4 +73,7 @@ export async function markWithdrawalProcessing(
       piPaymentId,
     },
   });
+  logger.info(
+  "WALLET_WITHDRAW.PROCESSING_DONE"
+);
 }
