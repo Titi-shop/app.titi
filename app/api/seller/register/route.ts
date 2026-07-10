@@ -1,54 +1,68 @@
+// app/api/seller/register/route.ts
+
 import { NextResponse } from "next/server";
+
 import { requireAuth } from "@/lib/auth/guard";
-import {
-  getPendingSellerRequest,
-  createSellerRequest,
-} from "@/lib/db/sellerRequests";
+import { registerSeller } from "@/lib/services/sellerRequests.service";
+
+import { logger, maskId } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    /* 1️⃣ AUTH + ROLE */
+    /* ================= AUTH ================= */
+
     const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
 
-    const { userId, role } = auth;
-
-    /* 2️⃣ ALREADY SELLER */
-    if (role === "seller" || role === "admin") {
-      return NextResponse.json({
-        success: true,
-        role,
-        message: "ALREADY_SELLER",
-      });
+    if (!auth.ok) {
+      return auth.response;
     }
 
-    /* 3️⃣ CHECK PENDING */
-    const existing = await getPendingSellerRequest(userId);
+    logger.info(
+      "[SELLER] REGISTER_API",
+      {
+        userId: maskId(auth.userId),
+      }
+    );
 
-    if (existing) {
-      return NextResponse.json(
-        { error: "REQUEST_ALREADY_PENDING" },
-        { status: 409 }
-      );
-    }
+    /* ================= SERVICE ================= */
 
-    /* 4️⃣ CREATE REQUEST */
-    await createSellerRequest(userId);
+    const result = await registerSeller(
+      auth.userId,
+      auth.role
+    );
 
-    return NextResponse.json({
-      success: true,
-      status: "pending",
-    });
-
-  } catch (err) {
-    console.error("SELLER REGISTER FATAL:", err);
+    /* ================= RESPONSE ================= */
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
-      { status: 500 }
+      result.body,
+      {
+        status: result.status,
+      }
+    );
+
+  } catch (err) {
+
+    logger.error(
+      "[SELLER] REGISTER_FATAL",
+      {
+        code:
+          err instanceof Error
+            ? err.name
+            : "UNKNOWN",
+      }
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "INTERNAL_SERVER_ERROR",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
