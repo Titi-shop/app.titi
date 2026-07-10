@@ -258,24 +258,24 @@ useEffect(() => {
       setTimeout(() => setMessage(null), 3000);
     },
     validate: () =>
-      validateBeforePay({
-        user,
-        piReady,
-        shipping,
-        item,
-        quantity,
-        maxStock,
-        pilogin,
-        showMessage: (text, type) => {
-        setMessage({ text, type });
+  validateBeforePay({
+    user,
+    piReady,
+    shipping,
+    item,
+    quantity,
+    maxStock,
+    pilogin,
+    showMessage: (text, type) => {
+      setMessage({ text, type });
 
-       if (!user) {
-    setPendingCheckout(true);
-    setAutoPayAfterLogin(true);
-  }
-},
-  });
-
+      if (!user) {
+        setPendingCheckout(true);
+        setAutoPayAfterLogin(true);
+      }
+    },
+    t,
+  }),
   /* ================= GUARD ================= */
 
   if (!open || !item) return null;
