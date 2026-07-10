@@ -44,7 +44,6 @@ export default function CheckoutSheet({
   /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
-  const [zone, setZone] = useState<Region | null>(null);
   const [qty, setQty] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -107,9 +106,7 @@ const [autoPayAfterLogin, setAutoPayAfterLogin] =
 
 useEffect(() => {
   if (!open || !user) return;
-
   let cancelled = false;
-
   const loadAddress = async () => {
     setLoadingAddress(true);
 
@@ -158,39 +155,11 @@ useEffect(() => {
     cancelled = true;
   };
 }, [open, user, t]);
-  /* ================= AUTO PAY AFTER LOGIN ================= */
-
-useEffect(() => {
-  if (!open) return;
-  if (!user) return;
-  if (!autoPayAfterLogin) return;
-  if (!addressLoaded) return;
-  if (!shipping) return;
-  if (processingRef.current) return;
-  if (autoPayRef.current) return;
-  autoPayRef.current = true;
-  setPendingCheckout(false);
-  setAutoPayAfterLogin(false);
-  setMessage({
-    text:
-      t.continue_payment ??
-      "Continuing payment...",
-    type: "info",
-  });
-
-  setTimeout(() => {
-    handlePay();
-  }, 400);
-
-}, [
-  open,
-  user,
-  shipping,
-  addressLoaded,
-  autoPayAfterLogin,
-  handlePay,
-  t,
-]);
+  useEffect(() => {
+  if (!open) {
+    autoPayRef.current = false;
+  }
+}, [open]);
 
   /* ================= PREVIEW ================= */
 
@@ -277,6 +246,39 @@ useEffect(() => {
       t,
     }),
 });
+  /* ================= AUTO PAY AFTER LOGIN ================= */
+
+useEffect(() => {
+  if (!open) return;
+  if (!user) return;
+  if (!autoPayAfterLogin) return;
+  if (!addressLoaded) return;
+  if (!shipping) return;
+  if (processingRef.current) return;
+  if (autoPayRef.current) return;
+  autoPayRef.current = true;
+  setPendingCheckout(false);
+  setAutoPayAfterLogin(false);
+  setMessage({
+    text:
+      t.continue_payment ??
+      "Continuing payment...",
+    type: "info",
+  });
+
+  setTimeout(() => {
+    handlePay();
+  }, 400);
+
+}, [
+  open,
+  user,
+  shipping,
+  addressLoaded,
+  autoPayAfterLogin,
+  handlePay,
+  t,
+]);
   /* ================= GUARD ================= */
 
   if (!open || !item) return null;
