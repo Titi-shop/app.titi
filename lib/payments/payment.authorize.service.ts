@@ -496,15 +496,27 @@ if (!payment.status?.developer_approved) {
     success: true,
   };
   } catch (error) {
-   logger.error(
-     "PAYMENT.AUTHORIZE.ERROR",
-     {
-       message:
-         error instanceof Error
-           ? error.message
-           : "UNKNOWN_ERROR",
-     }
-   );
-   throw error;
+  logger.error(
+    "PAYMENT.AUTHORIZE.ERROR",
+    {
+      code:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR",
+
+      name:
+        error instanceof Error
+          ? error.name
+          : undefined,
+
+      stack:
+        process.env.NODE_ENV !== "production" &&
+        error instanceof Error
+          ? error.stack
+          : undefined,
+    }
+  );
+
+  throw error;
 }
 }
