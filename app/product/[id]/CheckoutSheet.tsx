@@ -40,7 +40,7 @@ export default function CheckoutSheet({
   const { user, piReady, pilogin } = useAuth();
 
   const processingRef = useRef(false);
-
+  const autoPayRef = useRef(false);
   /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
@@ -158,6 +158,39 @@ useEffect(() => {
     cancelled = true;
   };
 }, [open, user, t]);
+  /* ================= AUTO PAY AFTER LOGIN ================= */
+
+useEffect(() => {
+  if (!open) return;
+  if (!user) return;
+  if (!autoPayAfterLogin) return;
+  if (!addressLoaded) return;
+  if (!shipping) return;
+  if (processingRef.current) return;
+  if (autoPayRef.current) return;
+  autoPayRef.current = true;
+  setPendingCheckout(false);
+  setAutoPayAfterLogin(false);
+  setMessage({
+    text:
+      t.continue_payment ??
+      "Continuing payment...",
+    type: "info",
+  });
+
+  setTimeout(() => {
+    handlePay();
+  }, 400);
+
+}, [
+  open,
+  user,
+  shipping,
+  addressLoaded,
+  autoPayAfterLogin,
+  handlePay,
+  t,
+]);
 
   /* ================= PREVIEW ================= */
 
@@ -205,11 +238,7 @@ useEffect(() => {
 ]);
 
   /* ================= PAY ================= */
-console.log("🧪 CHECKOUT_ZONE", {
-  resolvedRegion,
-  shippingCountry: shipping?.country,
-  previewZone: preview?.shipping_zone,
-});
+
   const handlePay = useCheckoutPay({
     item,
     quantity,
@@ -237,10 +266,14 @@ console.log("🧪 CHECKOUT_ZONE", {
         quantity,
         maxStock,
         pilogin,
-        showMessage: (text, type) =>
-          setMessage({ text, type }),
-        t,
-      }),
+        showMessage: (text, type) => {
+        setMessage({ text, type });
+
+       if (!user) {
+    setPendingCheckout(true);
+    setAutoPayAfterLogin(true);
+  }
+},
   });
 
   /* ================= GUARD ================= */
