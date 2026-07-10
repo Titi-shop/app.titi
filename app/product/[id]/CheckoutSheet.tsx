@@ -240,42 +240,43 @@ useEffect(() => {
   /* ================= PAY ================= */
 
   const handlePay = useCheckoutPay({
-    item,
-    quantity,
-    total,
-    shipping,
-    unitPrice,
-    processing,
-    setProcessing,
-    processingRef,
-    t,
-    user,
-    router,
-    onClose,
-    product,
-    showMessage: (text, type = "error") => {
-      setMessage({ text, type });
-      setTimeout(() => setMessage(null), 3000);
-    },
-    validate: () =>
-  validateBeforePay({
-    user,
-    piReady,
-    shipping,
-    item,
-    quantity,
-    maxStock,
-    pilogin,
-    showMessage: (text, type) => {
-      setMessage({ text, type });
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  setProcessing,
+  processingRef,
+  t,
+  user,
+  router,
+  onClose,
+  product,
+  showMessage: (text, type = "error") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 3000);
+  },
+  validate: () =>
+    validateBeforePay({
+      user,
+      piReady,
+      shipping,
+      item,
+      quantity,
+      maxStock,
+      pilogin,
+      showMessage: (text, type) => {
+        setMessage({ text, type });
 
-      if (!user) {
-        setPendingCheckout(true);
-        setAutoPayAfterLogin(true);
-      }
-    },
-    t,
-  }),
+        if (!user) {
+          setPendingCheckout(true);
+          setAutoPayAfterLogin(true);
+        }
+      },
+      t,
+    }),
+});
   /* ================= GUARD ================= */
 
   if (!open || !item) return null;
