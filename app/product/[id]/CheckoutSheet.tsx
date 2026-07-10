@@ -246,6 +246,15 @@ useEffect(() => {
       t,
     }),
 });
+  /* ================= START CHECKOUT ================= */
+
+const startCheckout = () => {
+  if (!user) {
+    setAutoPayAfterLogin(true);
+  }
+
+  handlePay();
+};
   /* ================= AUTO PAY AFTER LOGIN ================= */
 
 useEffect(() => {
@@ -259,12 +268,11 @@ useEffect(() => {
   autoPayRef.current = true;
   setPendingCheckout(false);
   setAutoPayAfterLogin(false);
-  setMessage({
-    text:
-      t.continue_payment ??
-      "Continuing payment...",
-    type: "info",
-  });
+  showMessage(
+  t.continue_payment ??
+    "Continuing payment...",
+  "info"
+);
 
   setTimeout(() => {
     handlePay();
