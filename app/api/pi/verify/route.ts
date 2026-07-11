@@ -57,7 +57,16 @@ const piRes = await fetch("https://api.minepi.com/v2/me", {
         { status: 401 }
       );
     }
+  const contentType =
+piRes.headers.get("content-type");
 
+if (
+ !contentType?.includes("application/json")
+){
+ throw new Error(
+   "INVALID_PI_RESPONSE"
+ );
+  }
     const data = (await piRes.json()) as PiMeResponse;
 
     if (typeof data.uid !== "string" || typeof data.username !== "string") {
@@ -67,12 +76,45 @@ const piRes = await fetch("https://api.minepi.com/v2/me", {
       );
     }
 
-    const pi_uid = data.uid;
+const pi_uid = data.uid.trim();
+
+if (!pi_uid) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "INVALID_PI_UID",
+    },
+    {
+      status: 401,
+    }
+  );
+}
     const username = data.username.trim();
-    const wallet_address = data.wallet_address ?? null;
+
+    if (!username) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "INVALID_USERNAME",
+    },
+    {
+      status: 401,
+    }
+  );
+}
+
+    
+    const wallet_address =
+   typeof data.wallet_address === "string"
+  ? data.wallet_address.trim() || null
+  : null;
 
     /* ================= 3️⃣ UPSERT USER (DB LAYER) ================= */
-    const dbUser = await upsertUserFromPi(pi_uid, username);
+    const dbUser = await upsertUserFromPi(
+  pi_uid,
+  username,
+  wallet_address
+);
 
     if (!dbUser?.id) {
       return NextResponse.json(
@@ -101,7 +143,23 @@ const piRes = await fetch("https://api.minepi.com/v2/me", {
   },
 });
 
-  } catch (err) {
+} catch (err) {
+
+ if (
+   err instanceof DOMException &&
+   err.name === "AbortError"
+ ) {
+   return NextResponse.json(
+     {
+       success:false,
+       error:"PI_TIMEOUT",
+     },
+     {
+       status:504,
+     }
+   );
+ }
+
     console.error("❌ PI VERIFY ERROR:", err);
 
     return NextResponse.json(
