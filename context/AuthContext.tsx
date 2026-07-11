@@ -134,19 +134,6 @@ piSignIn({
 });
 
 return;
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.user) {
-        throw new Error("VERIFY_FAILED");
-      }
-
-      const verifiedUser: PiUser = data.user;
-
-      setUser(verifiedUser);
-      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
-      sessionStorage.removeItem("cart_merged");
-      console.log("🟢 LOGIN SUCCESS");
    } catch (err) {
   console.error("❌ LOGIN ERROR:", err);
 } finally {
