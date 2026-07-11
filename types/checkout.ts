@@ -17,9 +17,15 @@ export type Region =
 ========================================================= */
 
 export type MessageType =
-  | "error"
+  | "info"
   | "success"
-  | "info";
+  | "error"
+  | "loading";
+
+export interface Message {
+  text: string;
+  type: MessageType;
+}
 
 /* =========================================================
    SHIPPING
@@ -46,16 +52,6 @@ export interface ShippingInfo {
 }
 
 /* =========================================================
-   MESSAGE
-========================================================= */
-
-export interface Message {
-  text: string;
-
-  type: MessageType;
-}
-
-/* =========================================================
    CHECKOUT ITEM
 ========================================================= */
 
@@ -73,6 +69,22 @@ export interface CheckoutItem {
   stock: number;
 
   is_unlimited?: boolean;
+}
+
+/* =========================================================
+   PRODUCT VARIANT
+========================================================= */
+
+export interface CheckoutVariant {
+  id: string;
+
+  price: number;
+
+  sale_price?: number | null;
+
+  final_price?: number;
+
+  stock: number;
 }
 
 /* =========================================================
@@ -98,17 +110,7 @@ export interface CheckoutProduct {
 
   shipping_rates?: ShippingRate[];
 
-  selectedVariant?: {
-    id: string;
-
-    price: number;
-
-    sale_price?: number | null;
-
-    final_price?: number;
-
-    stock: number;
-  } | null;
+  selectedVariant?: CheckoutVariant | null;
 
   variant_id?: string | null;
 }
@@ -144,6 +146,10 @@ export interface ValidateParams {
 
   pilogin?: () => void;
 
+  onLoginStarted?: () => void;
+
+  onAddressRequired?: () => void;
+
   showMessage: (
     text: string,
     type?: MessageType
@@ -153,7 +159,7 @@ export interface ValidateParams {
 }
 
 /* =========================================================
-   PAY
+   CHECKOUT PAY
 ========================================================= */
 
 export interface UseCheckoutPayParams {
