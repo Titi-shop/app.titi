@@ -191,6 +191,21 @@ export async function getPiAccessToken(
 
       cachedToken = auth.accessToken;
 
+console.log(
+  "[AUTH] TOKEN PREFIX",
+  cachedToken.substring(0, 20)
+);
+
+console.log(
+  "[AUTH] TOKEN LENGTH",
+  cachedToken.length
+);
+
+console.log(
+  "[AUTH] USER",
+  auth.user
+);
+
       logger.info(
         "PI.AUTH.SUCCESS",
         {
