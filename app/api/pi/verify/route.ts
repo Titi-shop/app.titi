@@ -184,12 +184,13 @@ if (!pi_uid) {
    return NextResponse.json({
   success: true,
   user: {
-    id: dbUser.id,
-    username,
-    wallet_address,
-    role,
-    is_admin: !!dbUser.is_admin,
-  },
+  id: dbUser.id,
+  pi_uid,
+  username,
+  wallet_address,
+  role,
+  is_admin: !!dbUser.is_admin,
+},
 });
 
 } catch (err) {
