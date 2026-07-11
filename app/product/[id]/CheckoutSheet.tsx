@@ -41,6 +41,8 @@ export default function CheckoutSheet({
 
   const processingRef = useRef(false);
   const autoPayRef = useRef(false);
+  const messageTimerRef =
+  useRef<NodeJS.Timeout | null>(null);
   /* ================= STATE ================= */
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
@@ -50,10 +52,20 @@ export default function CheckoutSheet({
   text: string,
   type: Message["type"] = "info"
 ) => {
-  setMessage({ text, type });
-  setTimeout(() => {
-    setMessage(null);
-  }, 3000);
+  if (messageTimerRef.current) {
+    clearTimeout(messageTimerRef.current);
+  }
+
+  setMessage({
+    text,
+    type,
+  });
+
+  messageTimerRef.current =
+    setTimeout(() => {
+      setMessage(null);
+      messageTimerRef.current = null;
+    }, 3000);
 };
   const [processing, setProcessing] = useState(false);
 /* ================= WORKFLOW ================= */
@@ -162,6 +174,13 @@ useEffect(() => {
   useEffect(() => {
   if (!open) {
     autoPayRef.current = false;
+
+    if (messageTimerRef.current) {
+      clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = null;
+    }
+
+    setMessage(null);
   }
 }, [open]);
 
