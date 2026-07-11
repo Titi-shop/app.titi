@@ -808,8 +808,14 @@
   "wallet_unverified": "Chưa xác minh",
 
   "wallet_default": "Ví mặc định",
-  "wallet_not_linked": "Chưa liên kết ví"
+  "wallet_not_linked": "Chưa liên kết ví",
 
+
+  "logging_in_pi": "Đang kết nối với tài khoản Pi...",
+  "creating_order": "Đang tạo đơn hàng...",
+  "opening_pi_wallet": "Đang mở Ví Pi...",
+  "verifying_payment": "Đang xác minh thanh toán...",
+  "finalizing_order": "Đang hoàn tất đơn hàng..."
 
 
 
