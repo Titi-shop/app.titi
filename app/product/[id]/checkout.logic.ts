@@ -57,26 +57,27 @@ export function validateBeforePay({
      USER CHECK
   ========================= */
 if (!user) {
-  localStorage.setItem("pending_checkout", "1");
   showMessage(
     t.logging_in_pi ??
       "Connecting to Pi account...",
     "info"
   );
 
-  setTimeout(() => {
-    pilogin?.();
-  }, 500);
+  pilogin?.();
   return false;
 }
 
   /* =========================
      PI READY CHECK
   ========================= */
-  if (!piReady) {
-    showMessage(t.pi_not_ready ?? "pi_not_ready");
-    return false;
-  }
+ if (!piReady) {
+  showMessage(
+    t.pi_not_ready ??
+    "Pi SDK is initializing. Please wait a moment.",
+    "info"
+  );
+  return false;
+}
 
   /* =========================
      SHIPPING CHECK
@@ -219,7 +220,12 @@ showMessage(
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
-  try {
+  showMessage(
+  t.verifying_payment ??
+    "Verifying payment...",
+  "info"
+);
+            try {
     console.log("🟡 [CHECKOUT] APPROVAL_STAGE", {
       paymentId,
       paymentIntentId,
@@ -280,7 +286,11 @@ showMessage(
       txid,
       paymentIntentId,
     });
-
+showMessage(
+  t.finalizing_order ??
+    "Finalizing your order...",
+  "info"
+);
     const submitRes = await apiAuthFetch(
   "/api/payments/pi/submit",
   {
