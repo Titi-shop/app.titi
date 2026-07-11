@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { upsertUserFromPi } from "@/lib/db/users";
-
+const PI_API_URL =
+  process.env.PI_API_URL ??
+  "https://api.minepi.com/v2";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
     const controller = new AbortController();
 const timeout = setTimeout(() => controller.abort(), 5000);
 
-const piRes = await fetch("https://api.minepi.com/v2/me", {
+const piRes = await fetch(`${PI_API_URL}/me`, {
   headers: {
     Authorization: `Bearer ${accessToken}`,
     Accept: "application/json",
