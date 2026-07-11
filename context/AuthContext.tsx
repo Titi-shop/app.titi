@@ -8,8 +8,10 @@ import {
   useRef,
   ReactNode,
 } from "react";
-import { clearPiToken } from "@/lib/piAuth";
-import { piSignIn } from "@/lib/piSignIn";
+import {
+  getPiAccessToken,
+  clearPiToken,
+} from "@/lib/piAuth";
 
 /* ========================= TYPES ========================= */
 
@@ -127,13 +129,37 @@ const loginRef = useRef(false);
   try {
       setLoading(true);
 
-piSignIn({
-  clientId: process.env.NEXT_PUBLIC_PI_CLIENT_ID!,
-  redirectUri: `${window.location.origin}/signin/callback`,
-  scopes: ["username"],
+const token = await getPiAccessToken();
+
+if (!token) {
+  throw new Error("NO_ACCESS_TOKEN");
+}
+
+const res = await fetch("/api/pi/verify", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
 });
 
-return;
+const data = await res.json();
+
+if (!res.ok || !data?.user) {
+  throw new Error("VERIFY_FAILED");
+}
+
+const verifiedUser: PiUser = data.user;
+
+setUser(verifiedUser);
+
+localStorage.setItem(
+  USER_KEY,
+  JSON.stringify(verifiedUser)
+);
+
+sessionStorage.removeItem("cart_merged");
+
+console.log("🟢 LOGIN SUCCESS");
    } catch (err) {
   console.error("❌ LOGIN ERROR:", err);
 } finally {
