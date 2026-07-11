@@ -32,7 +32,10 @@ export async function POST(req: Request) {
     }
 
     const accessToken = authHeader.slice(7).trim();
-
+    console.log(
+  "[VERIFY] TOKEN LENGTH",
+  accessToken.length
+  );
     if (!accessToken) {
       return NextResponse.json(
         { success: false, error: "MISSING_ACCESS_TOKEN" },
@@ -83,7 +86,25 @@ if (
   }
     const raw = await piRes.text();
 console.log("[VERIFY] RAW", raw);
+    console.log(
+  "[VERIFY] RAW TYPE",
+  typeof raw
+);
+
+console.log(
+  "[VERIFY] RAW LENGTH",
+  raw.length
+);
 const data = raw ? JSON.parse(raw) : null;
+    console.log(
+  "[VERIFY] DATA TYPE",
+  typeof data
+);
+
+console.log(
+  "[VERIFY] DATA",
+  data
+);
 console.log("[PI RESPONSE]", data);
 
 if (
