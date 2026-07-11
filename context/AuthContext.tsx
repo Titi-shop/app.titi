@@ -113,12 +113,17 @@ const loginRef = useRef(false);
   /* ================= LOGIN ================= */
 
   const pilogin = async () => {
-    if (loginRef.current) {
-  return;
-}
+  if (!piReady) {
+    return;
+  }
 
-loginRef.current = true;
-    try {
+  if (loginRef.current) {
+    return;
+  }
+
+  loginRef.current = true;
+
+  try {
       setLoading(true);
 
       const token = await getPiAccessToken();
@@ -144,9 +149,9 @@ loginRef.current = true;
       localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
       sessionStorage.removeItem("cart_merged");
       console.log("🟢 LOGIN SUCCESS");
-    } catch (err) {
-      console.error("❌ LOGIN ERROR:", err);
-   finally {
+   } catch (err) {
+  console.error("❌ LOGIN ERROR:", err);
+} finally {
   loginRef.current = false;
   setLoading(false);
 }
