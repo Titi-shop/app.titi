@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  titi:
+    build: .
+    container_name: titi
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
