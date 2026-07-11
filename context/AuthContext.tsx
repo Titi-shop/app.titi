@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   ReactNode,
 } from "react";
 import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [piReady, setPiReady] = useState(false);
-
+const loginRef = useRef(false);
   /* ================= PI READY ================= */
 
   useEffect(() => {
@@ -112,6 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ================= LOGIN ================= */
 
   const pilogin = async () => {
+    if (loginRef.current) {
+  return;
+}
+
+loginRef.current = true;
     try {
       setLoading(true);
 
@@ -140,9 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
       console.error("❌ LOGIN ERROR:", err);
-    } finally {
-      setLoading(false);
-    }
+   finally {
+  loginRef.current = false;
+  setLoading(false);
+}
   };
 
   /* ================= LOGOUT ================= */
