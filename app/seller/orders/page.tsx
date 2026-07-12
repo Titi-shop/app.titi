@@ -143,15 +143,15 @@ function SellerOrdersContent() {
   ====================================================== */
 
   const filtered =
-    useMemo(() => {
-      return filterOrders(
-        orders,
-        filter.keyword
-      );
-    }, [
+  useMemo(() => {
+    return filterOrders(
       orders,
-      filter.keyword,
-    ]);
+      filter
+    );
+  }, [
+    orders,
+    filter,
+  ]);
 
   /* ======================================================
      STATS
