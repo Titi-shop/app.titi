@@ -1,290 +1,271 @@
 "use client";
 
-import OrderCard from "./OrderCard";
-import OrderActions from "./OrderActions";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+
+import OrderCard from "./OrderCard";
 import type {
   Order,
-  OrderFilter,
   OrderStatus,
 } from "../types";
 
+
+/* ======================================================
+   PROPS
+====================================================== */
+
 type Props = {
   orders: Order[];
+  onClick: (id: string) => void;
 
-  filter: OrderFilter;
+  initialTab?: OrderTab;
+  onTabChange?: (tab: OrderTab) => void;
 
-  onFilterChange: (
-    filter: OrderFilter
-  ) => void;
+  renderActions?: (
+    order: Order
+  ) => React.ReactNode;
 
-  loadingId?: string | null;
-
-  onDetail: (id: string) => void;
-  onConfirm: (id: string) => void;
-  onCancel: (id: string) => void;
-  onShipping: (id: string) => void;
+  renderExtra?: (
+    order: Order
+  ) => React.ReactNode;
 };
 
-const STATUS_TABS: {
-  value: OrderFilter["status"];
-  label: string;
-}[] = [
-  {
-    value: "all",
-    label: "All",
-  },
-  {
-    value: "pending",
-    label: "Pending",
-  },
-  {
-    value: "pending_fulfillment",
-    label: "To Fulfill",
-  },
-  {
-    value: "processing",
-    label: "Processing",
-  },
-  {
-    value: "shipped",
-    label: "Shipped",
-  },
-  {
-    value: "delivered",
-    label: "Delivered",
-  },
-  {
-    value: "completed",
-    label: "Completed",
-  },
-  {
-    value: "cancelled",
-    label: "Cancelled",
-  },
-];
+/* ======================================================
+   COMPONENT
+====================================================== */
 
 export default function OrdersList({
   orders,
-
-  filter,
-  onFilterChange,
-
-  loadingId,
-
-  onDetail,
-  onConfirm,
-  onCancel,
-  onShipping,
+  onClick,
+  initialTab = "all",
+  onTabChange,
+  renderActions,
+  renderExtra,
 }: Props) {
-  const stats = {
-    all: orders.length,
+  const { t } = useTranslation();
 
-    pending: orders.filter(
-      (o) =>
-        o.fulfillment_status ===
-        "pending"
-    ).length,
+  /* ======================================================
+     TAB STATE
+  ====================================================== */
 
-    pending_fulfillment:
-      orders.filter(
-        (o) =>
-          o.fulfillment_status ===
-          "pending_fulfillment"
-      ).length,
+  const [tab, setTab] =
+    useState<OrderTab>(
+      initialTab
+    );
 
-    processing:
-      orders.filter(
-        (o) =>
-          o.fulfillment_status ===
-          "processing"
-      ).length,
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
-    shipped: orders.filter(
-      (o) =>
-        o.fulfillment_status ===
-        "shipped"
-    ).length,
+  /* ======================================================
+     TABS
+  ====================================================== */
 
-    delivered:
-      orders.filter(
-        (o) =>
-          o.fulfillment_status ===
-          "delivered"
-      ).length,
+  const tabs: Array<
+    [OrderTab, string]
+  > = [
+    [
+      "all",
+      t.all ?? "All",
+    ],
+    [
+      "pending",
+      t.pending_orders ??
+        "Pending",
+    ],
+    [
+      "processing",
+      t.processing_orders ??
+        "processing",
+    ],
+    [
+      "shipped",
+      t.shipped_orders ??
+        "Shipped",
+    ],
+    [
+      "delivered",
+      t.delivered_orders??
+        "delivered",
+      ],
+    [
+      "completed",
+      t.completed_orders ??
+        "Completed",
+    ],
+    [
+      "returned",
+      t.returned_orders ??
+        "Returned",
+    ],
+    [
+      "cancelled",
+      t.cancelled_orders ??
+        "Cancelled",
+    ],
+  ];
 
-    completed:
-      orders.filter(
-        (o) =>
-          o.fulfillment_status ===
-          "completed"
-      ).length,
+  /* ======================================================
+     COUNTS
+  ====================================================== */
 
-    cancelled:
-      orders.filter(
-        (o) =>
-          o.fulfillment_status ===
-          "cancelled"
-      ).length,
-  };
+  const counts = useMemo(() => {
+    const map: Record<
+      OrderTab,
+      number
+    > = {
+      all: orders.length,
+      pending: 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+      completed: 0,
+      returned: 0,
+      cancelled: 0,
+    };
 
-  
-    /* =========================================================
-     STATUS TABS
-  ========================================================= */
+    for (const order of orders) {
+      if (
+        typeof map[
+          order.status
+        ] === "number"
+      ) {
+        map[
+          order.status
+        ] += 1;
+      }
+    }
+
+    return map;
+  }, [orders]);
+
+  /* ======================================================
+     FILTERED
+  ====================================================== */
+
+  const filtered = useMemo(() => {
+    if (tab === "all") {
+      return orders;
+    }
+
+    return orders.filter(
+      (order) =>
+        order.status === tab
+    );
+  }, [orders, tab]);
+
+  /* ======================================================
+     HANDLER
+  ====================================================== */
+
+  function handleTabChange(
+    nextTab: OrderTab
+  ) {
+    setTab(nextTab);
+    onTabChange?.(nextTab);
+  }
+
+  /* ======================================================
+     UI
+  ====================================================== */
 
   return (
-    <div className="space-y-4">
+    <section className="w-full">
+    
+       {/* ================= TABS ================= */}
+<div className="sticky top-0 z-20 overflow-x-auto scrollbar-hide border-b border-orange-500/20 bg-white">
+  <div className="flex min-w-max gap-2 px-3 py-2">
+    {tabs.map(([key, label]) => {
+      const active = tab === key;
 
-      <div
-        className="
-          sticky
-          top-0
-          z-20
-          -mx-4
-          border-y
-          border-gray-200
-          bg-white/95
-          backdrop-blur
-          dark:border-zinc-800
-          dark:bg-zinc-950/95
-        "
-      >
-        <div
-          className="
-            flex
-            gap-2
-            overflow-x-auto
-            px-4
-            py-3
-            scrollbar-none
-          "
-        >
-          {STATUS_TABS.map((tab) => {
-            const count =
-              stats[
-                tab.value as keyof typeof stats
-              ];
+      return (
+        <button
+  key={key}
+  type="button"
+  onClick={() => handleTabChange(key)}
+  className={`
+    shrink-0
+    flex items-center gap-2
+    rounded-xl
+    border
+    px-4 py-2
+    text-sm font-medium
+    transition-all
 
-            const active =
-              filter.status === tab.value;
+    ${
+      active
+        ? "border-orange-500 bg-orange-50 text-orange-600"
+        : "border-gray-200 bg-white text-gray-600"
+    }
+  `}
+>
+  <span>{label}</span>
 
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() =>
-                  onFilterChange({
-                    ...filter,
-                    status: tab.value,
-                  })
+  <span
+    className={`
+      rounded-full
+      px-2 py-0.5
+      text-xs
+
+      ${
+        active
+          ? "bg-orange-500 text-white"
+          : "bg-gray-100 text-gray-500"
+      }
+    `}
+  >
+    {counts[key]}
+  </span>
+</button>
+      );
+    })}
+  </div>
+</div>
+
+      {/* LIST */}
+      <div className="p-4 space-y-4">
+        {filtered.length ===
+        0 ? (
+          <div className="bg-white rounded-2xl border p-8 text-center text-sm text-gray-400">
+            {t.no_orders ??
+              "No orders"}
+          </div>
+        ) : (
+          filtered.map(
+            (order) => (
+              <div
+                key={
+                  order.id
                 }
-                className={`
-                  flex
-                  shrink-0
-                  items-center
-                  gap-2
-                  rounded-full
-                  border
-                  px-4
-                  py-2
-                  text-sm
-                  font-medium
-                  transition-all
-                  duration-200
-
-                  ${
-                    active
-                      ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-orange-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-                  }
-                `}
+                className="space-y-3"
               >
-                <span>
-                  {tab.label}
-                </span>
-
-                <span
-                  className={`
-                    rounded-full
-                    px-2
-                    py-0.5
-                    text-xs
-                    font-semibold
-
-                    ${
-                      active
-                        ? "bg-white/20 text-white"
-                        : "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300"
-                    }
-                  `}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-            {/* =========================================================
-          EMPTY
-      ========================================================= */}
-
-      {visibleOrders.length === 0 ? (
-        <div
-          className="
-            rounded-2xl
-            border
-            border-dashed
-            border-gray-300
-            bg-white
-            py-20
-            text-center
-            text-gray-500
-            dark:border-zinc-700
-            dark:bg-zinc-900
-            dark:text-zinc-400
-          "
-        >
-          Không có đơn hàng.
-        </div>
-      ) : (
-        <div className="space-y-4 px-4">
-
-          {visibleOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onClick={() =>
-                onDetail(order.id)
-              }
-              actions={
-                <OrderActions
-                  orderId={order.id}
-                  status={order.fulfillment_status}
-                  loading={
-                    loadingId === order.id
+                <OrderCard
+                  order={
+                    order
                   }
-                  onDetail={() =>
-                    onDetail(order.id)
+                  onClick={() =>
+                    onClick(
+                      order.id
+                    )
                   }
-                  onConfirm={() =>
-                    onConfirm(order.id)
-                  }
-                  onCancel={() =>
-                    onCancel(order.id)
-                  }
-                  onShipping={() =>
-                    onShipping(order.id)
-                  }
+                  actions={renderActions?.(
+                    order
+                  )}
                 />
-              }
-            />
-          ))}
 
-        </div>
-      )}
-
-    </div>
+                {renderExtra?.(
+                  order
+                )}
+              </div>
+            )
+          )
+        )}
+      </div>
+    </section>
   );
 }
