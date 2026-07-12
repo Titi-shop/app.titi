@@ -307,7 +307,6 @@ export async function getOrderByBuyerId(
             'seller_cancel_reason', oi.seller_cancel_reason,
 
             'snapshot', oi.snapshot
-            ORDER BY oi.created_at ASC
           )
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'::json
