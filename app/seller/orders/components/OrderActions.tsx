@@ -1,18 +1,14 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { MouseEvent } from "react";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-import type {
-  OrderStatus,
-} from "../types";
-
-/* =========================================================
-   PROPS
-========================================================= */
+import type { OrderStatus } from "../types";
 
 type Props = {
+  orderId: string;
+
   status: OrderStatus;
 
   loading?: boolean;
@@ -30,6 +26,7 @@ type Props = {
 export default function OrderActions({
   status,
   loading = false,
+
   onDetail,
   onConfirm,
   onCancel,
@@ -37,7 +34,11 @@ export default function OrderActions({
 }: Props) {
   const { t } = useTranslation();
 
-  function stop(
+  /* =========================================================
+     SAFE CLICK
+  ========================================================= */
+
+  function stopClick(
     callback?: () => void
   ) {
     return (
@@ -52,8 +53,16 @@ export default function OrderActions({
     };
   }
 
-  const btn =
-    "rounded-xl px-3 py-2 text-xs font-medium transition active:scale-95 disabled:opacity-50";
+  /* =========================================================
+     BUTTON
+  ========================================================= */
+
+  const baseButton =
+    "rounded-xl px-3 py-2 text-xs font-medium transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm";
+
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
     <div
@@ -67,17 +76,11 @@ export default function OrderActions({
       {onDetail && (
         <button
           type="button"
-          onClick={stop(onDetail)}
           disabled={loading}
-          className={`${btn}
-            border
-            border-gray-300
-            bg-white
-            text-gray-700
-
-            dark:border-zinc-700
-            dark:bg-zinc-900
-            dark:text-zinc-200`}
+          onClick={stopClick(
+            onDetail
+          )}
+          className={`${baseButton} border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200`}
         >
           {t.detail ?? "Detail"}
         </button>
@@ -85,20 +88,16 @@ export default function OrderActions({
 
       {/* PENDING */}
 
-      {(status === "pending" ||
-        status ===
-          "pending_fulfillment") && (
+      {status === "pending" && (
         <>
           {onConfirm && (
             <button
               type="button"
-              onClick={stop(
+              disabled={loading}
+              onClick={stopClick(
                 onConfirm
               )}
-              disabled={loading}
-              className={`${btn}
-                bg-orange-500
-                text-white`}
+              className={`${baseButton} bg-orange-500 text-white hover:bg-orange-600`}
             >
               {loading
                 ? "..."
@@ -110,14 +109,11 @@ export default function OrderActions({
           {onCancel && (
             <button
               type="button"
-              onClick={stop(
+              disabled={loading}
+              onClick={stopClick(
                 onCancel
               )}
-              disabled={loading}
-              className={`${btn}
-                border
-                border-red-500
-                text-red-500`}
+              className={`${baseButton} border border-red-500 bg-white text-red-600 hover:bg-red-50 dark:bg-zinc-900`}
             >
               {t.cancel ??
                 "Cancel"}
@@ -126,6 +122,26 @@ export default function OrderActions({
         </>
       )}
 
+      {/* PENDING FULFILLMENT */}
+
+      {status ===
+        "pending_fulfillment" &&
+        onConfirm && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={stopClick(
+              onConfirm
+            )}
+            className={`${baseButton} bg-orange-500 text-white hover:bg-orange-600`}
+          >
+            {loading
+              ? "..."
+              : t.confirm ??
+                "Confirm"}
+          </button>
+        )}
+
       {/* PROCESSING */}
 
       {status ===
@@ -133,13 +149,11 @@ export default function OrderActions({
         onShipping && (
           <button
             type="button"
-            onClick={stop(
+            disabled={loading}
+            onClick={stopClick(
               onShipping
             )}
-            disabled={loading}
-            className={`${btn}
-              bg-blue-600
-              text-white`}
+            className={`${baseButton} bg-blue-600 text-white hover:bg-blue-700`}
           >
             {loading
               ? "..."
@@ -150,81 +164,39 @@ export default function OrderActions({
 
       {/* SHIPPED */}
 
-      {status ===
-        "shipped" && (
-        <Badge>
+      {status === "shipped" && (
+        <span className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">
           {t.order_shipping ??
             "Shipping"}
-        </Badge>
+        </span>
       )}
 
       {/* DELIVERED */}
 
-      {status ===
-        "delivered" && (
-        <Badge>
+      {status === "delivered" && (
+        <span className="rounded-xl bg-cyan-50 px-3 py-2 text-xs font-medium text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-300">
           {t.order_delivered ??
             "Delivered"}
-        </Badge>
+        </span>
       )}
 
       {/* COMPLETED */}
 
-      {status ===
-        "completed" && (
-        <Badge>
+      {status === "completed" && (
+        <span className="rounded-xl bg-green-50 px-3 py-2 text-xs font-medium text-green-600 dark:bg-green-900/20 dark:text-green-300">
           {t.order_completed ??
             "Completed"}
-        </Badge>
+        </span>
       )}
 
       {/* CANCELLED */}
 
-      {status ===
-        "cancelled" && (
-        <Badge danger>
+      {status === "cancelled" && (
+        <span className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-300">
           {t.order_cancelled ??
             "Cancelled"}
-        </Badge>
+        </span>
       )}
     </div>
-  );
-}
-
-/* =========================================================
-   BADGE
-========================================================= */
-
-function Badge({
-  children,
-  danger = false,
-}: {
-  children: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <span
-      className={`rounded-xl px-3 py-2 text-xs font-medium
-
-      ${
-        danger
-          ? `
-          bg-red-100
-          text-red-600
-
-          dark:bg-red-950
-          dark:text-red-300
-          `
-          : `
-          bg-green-100
-          text-green-700
-
-          dark:bg-green-950
-          dark:text-green-300
-          `
-      }`}
-    >
-      {children}
-    </span>
   );
 }
