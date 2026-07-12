@@ -2,7 +2,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-import useSWR from "swr";
+import { useOrders } from "./hooks/useOrders";
+import { useOrderActions } from "./hooks/useOrderActions";
 import {
   Suspense,
   useEffect,
@@ -251,15 +252,12 @@ function SellerOrdersContent() {
     "pending";
 
   const {
-    data: orders = [],
-    isLoading,
-    mutate,
-  } = useSWR(
-    !authLoading && user
-      ? "/api/seller/orders"
-      : null,
-    fetcher
-  );
+  orders,
+  loading: isLoading,
+  mutate,
+} = useOrders(
+  !authLoading && !!user
+);
 
   /* ================= STATE ================= */
 
