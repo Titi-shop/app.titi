@@ -31,7 +31,8 @@ export type ReturnStatus =
 export type OrderItem = {
   id: string;
 
-  product_id: string;
+  product_id: string | null;
+  variant_id: string | null;
 
   product_name: string | null;
   product_slug: string | null;
@@ -43,6 +44,8 @@ export type OrderItem = {
   variant_name: string | null;
   variant_value: string | null;
 
+  is_digital: boolean;
+
   quantity: number;
 
   unit_price: string;
@@ -52,17 +55,17 @@ export type OrderItem = {
 
   fulfillment_status: string;
 
-  /* RETURN */
-  return_status: ReturnStatus | null;
-
-  seller_message: string | null;
-  seller_cancel_reason: string | null;
+  confirmed_at: string | null;
+  processing_at: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  completed_at: string | null;
 
   tracking_code: string | null;
   shipping_provider: string | null;
 
-  shipped_at: string | null;
-  delivered_at: string | null;
+  seller_message: string | null;
+  seller_cancel_reason: string | null;
 
   snapshot:
     | Record<string, unknown>
@@ -77,6 +80,10 @@ export type Order = {
   id: string;
 
   order_number: string;
+
+  pi_payment_id: string | null;
+  pi_txid: string | null;
+  idempotency_key: string | null;
 
   payment_status: PaymentStatus;
 
@@ -95,8 +102,10 @@ export type Order = {
   tax: string;
 
   created_at: string;
+  updated_at: string;
 
   paid_at: string | null;
+  refunded_at: string | null;
 
   fulfillment_started_at: string | null;
   processing_at: string | null;
@@ -127,6 +136,10 @@ export type Order = {
   total_items: number;
   total_quantity: number;
 
+  settlement_status: string | null;
+  shipment_status: string | null;
+  delivery_status: string | null;
+
   order_items: OrderItem[];
 };
 
@@ -135,7 +148,15 @@ export type Order = {
 ===================================================== */
 
 export type OrdersResponse = {
+  ok?: boolean;
   orders?: Order[];
+  error?: string;
+};
+
+export type OrderResponse = {
+  ok: boolean;
+  order?: Order;
+  error?: string;
 };
 
 /* =====================================================
