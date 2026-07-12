@@ -21,6 +21,11 @@ export async function getOrdersByBuyer(
     SELECT
       o.id,
       o.order_number,
+
+      o.pi_payment_id,
+      o.pi_txid,
+      o.idempotency_key,
+
       o.payment_status,
       o.fulfillment_status,
 
@@ -28,6 +33,7 @@ export async function getOrdersByBuyer(
 
       o.total,
       o.currency,
+
       o.items_total,
       o.subtotal,
       o.discount,
@@ -35,7 +41,10 @@ export async function getOrdersByBuyer(
       o.tax,
 
       o.created_at,
+      o.updated_at,
+
       o.paid_at,
+      o.refunded_at,
 
       o.fulfillment_started_at,
       o.processing_at,
@@ -66,31 +75,52 @@ export async function getOrdersByBuyer(
       o.total_items,
       o.total_quantity,
 
+      o.settlement_status,
+      o.shipment_status,
+      o.delivery_status,
+
       COALESCE(
         json_agg(
           json_build_object(
-  'id', oi.id,
-  'product_id', oi.product_id,
-  'product_name', oi.product_name,
-  'product_slug', oi.product_slug,
-  'thumbnail', oi.thumbnail,
-  'images', oi.images,
-  'variant_name', oi.variant_name,
-  'variant_value', oi.variant_value,
-  'quantity', oi.quantity,
-  'unit_price', oi.unit_price,
-  'total_price', oi.total_price,
-  'currency', oi.currency,
-  'fulfillment_status', oi.fulfillment_status,
-  'return_status', oi.return_status,
-  'seller_message', oi.seller_message,
-  'seller_cancel_reason', oi.seller_cancel_reason,
-  'tracking_code', oi.tracking_code,
-  'shipping_provider', oi.shipping_provider,
-  'shipped_at', oi.shipped_at,
-  'delivered_at', oi.delivered_at,
-  'snapshot', oi.snapshot
-)
+            'id', oi.id,
+
+            'product_id', oi.product_id,
+            'variant_id', oi.variant_id,
+
+            'product_name', oi.product_name,
+            'product_slug', oi.product_slug,
+
+            'thumbnail', oi.thumbnail,
+            'images', oi.images,
+
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
+
+            'is_digital', oi.is_digital,
+
+            'quantity', oi.quantity,
+
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+
+            'currency', oi.currency,
+
+            'fulfillment_status', oi.fulfillment_status,
+
+            'confirmed_at', oi.confirmed_at,
+            'processing_at', oi.processing_at,
+            'shipped_at', oi.shipped_at,
+            'delivered_at', oi.delivered_at,
+            'completed_at', oi.completed_at,
+
+            'tracking_code', oi.tracking_code,
+            'shipping_provider', oi.shipping_provider,
+
+            'seller_message', oi.seller_message,
+            'seller_cancel_reason', oi.seller_cancel_reason,
+
+            'snapshot', oi.snapshot
+          )
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'::json
       ) AS order_items
@@ -112,7 +142,10 @@ export async function getOrdersByBuyer(
     WHERE o.buyer_id = $1
       AND o.deleted_at IS NULL
 
-    GROUP BY o.id, rt.status
+    GROUP BY
+      o.id,
+      rt.status
+
     ORDER BY o.created_at DESC
     `,
     [userId]
@@ -120,7 +153,6 @@ export async function getOrdersByBuyer(
 
   return rows ?? [];
 }
-
 /* =========================================================
    BUYER — COUNTS
 ========================================================= */
@@ -189,6 +221,11 @@ export async function getOrderByBuyerId(
     SELECT
       o.id,
       o.order_number,
+
+      o.pi_payment_id,
+      o.pi_txid,
+      o.idempotency_key,
+
       o.payment_status,
       o.fulfillment_status,
 
@@ -204,7 +241,10 @@ export async function getOrderByBuyerId(
       o.tax,
 
       o.created_at,
+      o.updated_at,
+
       o.paid_at,
+      o.refunded_at,
 
       o.fulfillment_started_at,
       o.processing_at,
@@ -235,31 +275,53 @@ export async function getOrderByBuyerId(
       o.total_items,
       o.total_quantity,
 
+      o.settlement_status,
+      o.shipment_status,
+      o.delivery_status,
+
       COALESCE(
         json_agg(
           json_build_object(
-  'id', oi.id,
-  'product_id', oi.product_id,
-  'product_name', oi.product_name,
-  'product_slug', oi.product_slug,
-  'thumbnail', oi.thumbnail,
-  'images', oi.images,
-  'variant_name', oi.variant_name,
-  'variant_value', oi.variant_value,
-  'quantity', oi.quantity,
-  'unit_price', oi.unit_price,
-  'total_price', oi.total_price,
-  'currency', oi.currency,
-  'fulfillment_status', oi.fulfillment_status,
-  'return_status', oi.return_status,
-  'seller_message', oi.seller_message,
-  'seller_cancel_reason', oi.seller_cancel_reason,
-  'tracking_code', oi.tracking_code,
-  'shipping_provider', oi.shipping_provider,
-  'shipped_at', oi.shipped_at,
-  'delivered_at', oi.delivered_at,
-  'snapshot', oi.snapshot
-)
+            'id', oi.id,
+
+            'product_id', oi.product_id,
+            'variant_id', oi.variant_id,
+
+            'product_name', oi.product_name,
+            'product_slug', oi.product_slug,
+
+            'thumbnail', oi.thumbnail,
+            'images', oi.images,
+
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
+
+            'is_digital', oi.is_digital,
+
+            'quantity', oi.quantity,
+
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+
+            'currency', oi.currency,
+
+            'fulfillment_status', oi.fulfillment_status,
+
+            'confirmed_at', oi.confirmed_at,
+            'processing_at', oi.processing_at,
+            'shipped_at', oi.shipped_at,
+            'delivered_at', oi.delivered_at,
+            'completed_at', oi.completed_at,
+
+            'tracking_code', oi.tracking_code,
+            'shipping_provider', oi.shipping_provider,
+
+            'seller_message', oi.seller_message,
+            'seller_cancel_reason', oi.seller_cancel_reason,
+
+            'snapshot', oi.snapshot
+            ORDER BY oi.created_at ASC
+          )
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'::json
       ) AS order_items
@@ -282,14 +344,15 @@ export async function getOrderByBuyerId(
       AND o.buyer_id = $2
       AND o.deleted_at IS NULL
 
-    GROUP BY o.id, rt.status
+    GROUP BY
+      o.id,
+      rt.status
     `,
     [orderId, userId]
   );
 
   return rows[0] ?? null;
 }
-
 /* =========================================================
    COMPLETE ORDER
 ========================================================= */
