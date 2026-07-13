@@ -203,8 +203,7 @@ export default function OrdersList({
     <section className="w-full">
 
       {/* ================= TABS ================= */}
-
-      <div className="sticky top-0 z-20 overflow-x-auto border-b border-orange-500/20 bg-white dark:bg-zinc-950">
+className="sticky top-0 z-20 overflow-x-auto border-b border-[color:color-mix(in_srgb,var(--color-primary)_20%,transparent)] bg-[var(--surface-1)]"
 
         <div className="flex min-w-max gap-2 px-3 py-2">
 
@@ -236,8 +235,8 @@ export default function OrdersList({
 
                   ${
                     active
-                      ? "border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300"
-                      : "border-gray-200 bg-white text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                   ? "border-[var(--color-primary)] bg-[color:color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-primary)]"
+                     : "border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-secondary)]"
                   }
                 `}
               >
@@ -254,8 +253,8 @@ export default function OrdersList({
 
                     ${
                       active
-                        ? "bg-orange-500 text-white"
-                        : "bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--surface-3)] text-[var(--text-muted)]"
                     }
                   `}
                 >
@@ -274,7 +273,8 @@ export default function OrdersList({
       <div className="space-y-4 p-4">
                 {filtered.length === 0 ? (
 
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--card-bg)] p-8 text-center text-sm text-[var(--text-muted)]">
+          
             {t.no_orders ??
               "No orders"}
           </div>
