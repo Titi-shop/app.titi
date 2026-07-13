@@ -116,7 +116,7 @@ export async function getSellerOrders(
             'quantity', oi.quantity,
             'total_price', oi.total_price,
             'currency', oi.currency,
-            'status', oi.fulfillment_status,
+            'fulfillment_status', oi.fulfillment_status,
             'tracking_code', oi.tracking_code,
             'shipping_provider', oi.shipping_provider,
             'shipped_at', oi.shipped_at,
@@ -208,7 +208,7 @@ export async function getSellerOrderById(
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
-            'status', oi.fulfillment_status
+            'fulfillment_status', oi.fulfillment_status,
           )
         ) FILTER (
           WHERE oi.id IS NOT NULL
