@@ -25,7 +25,7 @@ function DialogBase({
   children,
   confirmText,
   cancelText,
-  confirmColor = "bg-[var(--color-primary)]"
+  confirmColor = "bg-[var(--color-primary)]",
   onConfirm,
   onClose,
 }: BaseProps) {
