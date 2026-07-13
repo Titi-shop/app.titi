@@ -13,16 +13,26 @@ import {
    SELLER — ORDER COUNTS
 ========================================================= */
 
+/* =========================================================
+   SELLER — ORDER COUNTS
+========================================================= */
+
 export async function getSellerOrderCounts(
   sellerId: string
 ) {
-  const { rows } = await query(
+  const { rows } = await query<
+    {
+      fulfillment_status: string;
+      total: number;
+    }
+  >(
     `
     SELECT
       fulfillment_status,
       COUNT(*)::int AS total
     FROM order_items
     WHERE seller_id = $1
+      AND deleted_at IS NULL
     GROUP BY fulfillment_status
     `,
     [sellerId]
@@ -32,19 +42,41 @@ export async function getSellerOrderCounts(
     pending: 0,
     processing: 0,
     shipped: 0,
+    delivered: 0,
     completed: 0,
     cancelled: 0,
-    returned: 0,
+    refunded: 0,
   };
 
-  for (const r of rows) {
-    const status =
-      r.fulfillment_status;
+  for (const row of rows) {
+    switch (row.fulfillment_status) {
+      case "pending":
+        result.pending = Number(row.total);
+        break;
 
-    if (status in result) {
-      result[
-        status as keyof typeof result
-      ] = Number(r.total);
+      case "processing":
+        result.processing = Number(row.total);
+        break;
+
+      case "shipped":
+        result.shipped = Number(row.total);
+        break;
+
+      case "delivered":
+        result.delivered = Number(row.total);
+        break;
+
+      case "completed":
+        result.completed = Number(row.total);
+        break;
+
+      case "cancelled":
+        result.cancelled = Number(row.total);
+        break;
+
+      case "refunded":
+        result.refunded = Number(row.total);
+        break;
     }
   }
 
@@ -61,12 +93,9 @@ export async function getSellerOrders(
   page = 1,
   limit = 20
 ) {
-  const offset =
-    (page - 1) * limit;
+  const offset = (page - 1) * limit;
 
-  const params: unknown[] = [
-    sellerId,
-  ];
+  const params: unknown[] = [sellerId];
 
   let statusFilter = "";
   let limitIndex = 2;
@@ -88,12 +117,34 @@ export async function getSellerOrders(
   const { rows } = await query(
     `
     SELECT
+
       o.id,
       o.order_number,
-      o.created_at,
+
+      o.buyer_id,
+      o.seller_id,
+
+      o.pi_payment_id,
+      o.pi_txid,
+      o.idempotency_key,
+
+      o.payment_status,
+      o.fulfillment_status,
+
+      NULL::text AS return_status,
+
+      o.items_total,
+      o.subtotal,
+      o.discount,
+      o.shipping_fee,
+      o.tax,
+      SUM(oi.total_price)::numeric AS total,
+
+      o.currency,
 
       o.shipping_name,
       o.shipping_phone,
+
       o.shipping_address_line,
       o.shipping_ward,
       o.shipping_district,
@@ -101,60 +152,172 @@ export async function getSellerOrders(
       o.shipping_country,
       o.shipping_postal_code,
 
+      o.shipping_provider,
+      o.shipping_zone,
+
+      o.buyer_note,
+      o.admin_note,
+
+      o.total_items,
+      o.total_quantity,
+
+      o.paid_at,
+      o.refunded_at,
+
+      o.fulfillment_started_at,
+      o.processing_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.completed_at,
+
+      o.cancelled_at,
+      o.cancel_reason,
+
+      o.created_at,
+      o.updated_at,
+
+      o.settlement_status,
+      o.shipment_status,
+      o.delivery_status,
+
       COALESCE(
         json_agg(
           json_build_object(
-            'id', oi.id,
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'product_slug', oi.product_slug,
-            'thumbnail', oi.thumbnail,
-            'images', oi.images,
-            'variant_name', oi.variant_name,
-            'variant_value', oi.variant_value,
-            'unit_price', oi.unit_price,
-            'quantity', oi.quantity,
-            'total_price', oi.total_price,
-            'currency', oi.currency,
-            'fulfillment_status', oi.fulfillment_status,
-            'tracking_code', oi.tracking_code,
-            'shipping_provider', oi.shipping_provider,
-            'shipped_at', oi.shipped_at,
-            'delivered_at', oi.delivered_at,
-            'created_at', oi.created_at,
-            'snapshot', oi.snapshot
+
+            'id',oi.id,
+            'order_id',oi.order_id,
+            'seller_id',oi.seller_id,
+
+            'product_id',oi.product_id,
+            'variant_id',oi.variant_id,
+
+            'product_name',oi.product_name,
+            'product_slug',oi.product_slug,
+
+            'thumbnail',oi.thumbnail,
+            'images',oi.images,
+
+            'variant_name',oi.variant_name,
+            'variant_value',oi.variant_value,
+
+            'is_digital',oi.is_digital,
+
+            'unit_price',oi.unit_price,
+            'quantity',oi.quantity,
+            'total_price',oi.total_price,
+
+            'currency',oi.currency,
+
+            'fulfillment_status',oi.fulfillment_status,
+
+            'confirmed_at',oi.confirmed_at,
+            'processing_at',oi.processing_at,
+            'shipped_at',oi.shipped_at,
+            'delivered_at',oi.delivered_at,
+            'completed_at',oi.completed_at,
+
+            'tracking_code',oi.tracking_code,
+            'shipping_provider',oi.shipping_provider,
+
+            'seller_message',oi.seller_message,
+            'seller_cancel_reason',oi.seller_cancel_reason,
+
+            'refunded_amount',oi.refunded_amount,
+            'refunded_at',oi.refunded_at,
+
+            'cost_price',oi.cost_price,
+            'profit_amount',oi.profit_amount,
+
+            'snapshot',oi.snapshot,
+
+            'seller_payout_status',oi.seller_payout_status,
+            'seller_release_at',oi.seller_release_at,
+            'seller_released_at',oi.seller_released_at,
+
+            'created_at',oi.created_at,
+            'updated_at',oi.updated_at
+
           )
+          ORDER BY oi.created_at
         ) FILTER (
           WHERE oi.id IS NOT NULL
         ),
         '[]'
-      ) AS order_items,
-
-      SUM(
-        oi.total_price
-      )::float AS total
+      ) AS order_items
 
     FROM orders o
-    JOIN order_items oi
+
+    INNER JOIN order_items oi
       ON oi.order_id = o.id
 
-    WHERE oi.seller_id = $1
-    ${statusFilter}
+    WHERE
+      oi.seller_id = $1
+      AND oi.deleted_at IS NULL
+      ${statusFilter}
 
     GROUP BY
+
       o.id,
       o.order_number,
-      o.created_at,
+
+      o.buyer_id,
+      o.seller_id,
+
+      o.pi_payment_id,
+      o.pi_txid,
+      o.idempotency_key,
+
+      o.payment_status,
+      o.fulfillment_status,
+
+      o.items_total,
+      o.subtotal,
+      o.discount,
+      o.shipping_fee,
+      o.tax,
+
+      o.currency,
+
       o.shipping_name,
       o.shipping_phone,
+
       o.shipping_address_line,
       o.shipping_ward,
       o.shipping_district,
       o.shipping_region,
       o.shipping_country,
-      o.shipping_postal_code
+      o.shipping_postal_code,
 
-    ORDER BY o.created_at DESC
+      o.shipping_provider,
+      o.shipping_zone,
+
+      o.buyer_note,
+      o.admin_note,
+
+      o.total_items,
+      o.total_quantity,
+
+      o.paid_at,
+      o.refunded_at,
+
+      o.fulfillment_started_at,
+      o.processing_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.completed_at,
+
+      o.cancelled_at,
+      o.cancel_reason,
+
+      o.created_at,
+      o.updated_at,
+
+      o.settlement_status,
+      o.shipment_status,
+      o.delivery_status
+
+    ORDER BY
+      o.created_at DESC
 
     LIMIT $${limitIndex}
     OFFSET $${offsetIndex}
