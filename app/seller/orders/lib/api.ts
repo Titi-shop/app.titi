@@ -1,20 +1,38 @@
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import type { Order } from "../types";
+
+import {
+  normalizeOrder,
+} from "./helpers";
+
+import type {
+  Order,
+  RawOrder,
+} from "../types";
 
 /* =========================================================
    GET ORDERS
 ========================================================= */
 
 export async function getOrders(): Promise<Order[]> {
-  const res = await apiAuthFetch("/api/seller/orders", {
-    cache: "no-store",
-  });
+  const res = await apiAuthFetch(
+    "/api/seller/orders",
+    {
+      cache: "no-store",
+    }
+  );
 
   if (!res.ok) {
-    throw new Error("LOAD_ORDERS_FAILED");
+    throw new Error(
+      "LOAD_ORDERS_FAILED"
+    );
   }
 
-  return await res.json();
+  const data =
+    (await res.json()) as RawOrder[];
+
+  return data.map(
+    normalizeOrder
+  );
 }
 
 /* =========================================================
