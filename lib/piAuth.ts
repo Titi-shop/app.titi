@@ -9,8 +9,6 @@ import {
   logger,
   maskId,
 } from "@/lib/logger";
-const PI_API_URL = process.env.PI_API_URL ?? "https://api.minepi.com/v2";
-
 let cachedToken: string | null = null;
 let authPromise: Promise<string> | null = null;
 
@@ -18,10 +16,7 @@ let authPromise: Promise<string> | null = null;
    PI TYPES
 ========================================================= */
 
-export type PiUser = {
-  pi_uid: string;
-  username: string;
-};
+
 type PiIncompletePayment = {
   identifier?: string;
   amount?: number;
@@ -209,67 +204,6 @@ logger.debug(
   return authPromise;
 }
 
-/* =========================================================
-   SERVER: VERIFY PI TOKEN
-========================================================= */
-
-export async function verifyPiToken(
-  token: string
-): Promise<PiUser> {
-
-  if (!token) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const res = await fetch(`${PI_API_URL}/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("PI_TOKEN_INVALID");
-  }
-
-  const data = (await res.json()) as {
-    uid?: string;
-    username?: string;
-  };
-
-  if (!data.uid || !data.username) {
-    throw new Error("PI_USER_INVALID");
-  }
-
-  return {
-    pi_uid: data.uid,
-    username: data.username,
-  };
-}
-
-/* =========================================================
-   SERVER: GET PI USER FROM REQUEST TOKEN
-========================================================= */
-
-export async function getPiUserFromToken(
-  req: Request
-): Promise<PiUser | null> {
-
-  const auth = req.headers.get("authorization");
-
-  if (!auth || !auth.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = auth.replace("Bearer ", "").trim();
-
-  try {
-    return await verifyPiToken(token);
-  } catch {
-    return null;
-  }
-}
 /* =========================================================
    CLEAR TOKEN (LOGOUT)
 ========================================================= */
