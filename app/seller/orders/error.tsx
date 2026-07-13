@@ -19,7 +19,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <className="flex min-h-screen items-center justify-center bg-[var(--background)] p-6">
+  <main className="flex min-h-screen items-center justify-center bg-[var(--background)] p-6">
       <div className="
 w-full
 max-w-md
