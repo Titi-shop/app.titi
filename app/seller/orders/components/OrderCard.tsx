@@ -28,22 +28,19 @@ export default function OrderCard({
     <article
       onClick={onClick}
       className="
-      overflow-hidden
-      rounded-2xl
-      border
-      border-gray-200
-      bg-white
-      shadow-sm
-      transition
-      active:scale-[0.99]
-
-      dark:border-zinc-800
-      dark:bg-zinc-900
-      "
+overflow-hidden
+rounded-2xl
+border
+border-[var(--border-color)]
+bg-[var(--card-bg)]
+shadow-sm
+transition
+active:scale-[0.99]
+"
     >
       {/* HEADER */}
 
-      <div className="flex items-start justify-between border-b border-gray-100 px-4 py-3 dark:border-zinc-800">
+      <div className="flex items-start justify-between border-b border-[var(--border-color)] px-4 py-3">
 
         <div>
 
@@ -51,13 +48,21 @@ export default function OrderCard({
             #{order.order_number}
           </h3>
 
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
             {formatDate(order.created_at)}
           </p>
 
         </div>
 
-      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-600 dark:bg-orange-900/40 dark:text-orange-300">
+      <span className="
+rounded-full
+bg-[color:color-mix(in_srgb,var(--color-primary)_12%,transparent)]
+px-3
+py-1
+text-xs
+font-medium
+text-[var(--color-primary)]
+">
   {t[`order_${order.fulfillment_status}`] ??
     order.fulfillment_status}
 </span>
@@ -66,13 +71,13 @@ export default function OrderCard({
 
       {/* BUYER */}
 
-      <div className="border-b border-gray-100 px-4 py-3 text-sm dark:border-zinc-800">
+      <div className="border-b border-[var(--border-color)] px-4 py-3 text-sm">
 
         <div className="font-medium">
           {order.shipping_name}
         </div>
 
-        <div className="mt-1 text-xs text-gray-500">
+        <div className="mt-1 text-xs text-[var(--text-muted)]">
           {order.shipping_phone}
         </div>
 
@@ -80,15 +85,14 @@ export default function OrderCard({
 
       {/* ITEMS */}
 
-      <div className="divide-y divide-gray-100 dark:divide-zinc-800">
-
+      <div className="divide-y divide-[var(--border-color)]">
         {order.order_items.map((item) => (
 
           <div
             key={item.id}
             className="flex gap-3 p-4"
           >
-            <div className="relative h-16 w-16 overflow-hidden rounded-xl bg-gray-100 dark:bg-zinc-800">
+            <div className="relative h-16 w-16 overflow-hidden rounded-xl bg-[var(--surface-2)]">
 
               <Image
                 src={
@@ -109,7 +113,7 @@ export default function OrderCard({
                 {item.product_name}
               </p>
 
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
 
                 x{item.quantity}
 
@@ -129,11 +133,20 @@ export default function OrderCard({
 
       {/* FOOTER */}
 
-      <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="
+flex
+items-center
+justify-between
+border-t
+border-[var(--border-color)]
+bg-[var(--card-secondary)]
+px-4
+py-3
+">
 
         <div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-[var(--text-muted)]">
             {order.total_quantity} {t.quantity ?? "Qty"}
           </div>
 
