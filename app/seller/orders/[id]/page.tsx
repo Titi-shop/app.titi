@@ -226,12 +226,12 @@ export default function SellerOrderDetailPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] p-4">
 
-      <Header
-        order={order}
-        generating={generating}
-        onBack={() => router.back()}
-        onPrint={handlePrint}
-      />
+   <Header
+  orderNumber={order.order_number}
+  generating={generating}
+  onBack={() => router.back()}
+  onPrint={handlePrint}
+/>
 
       <div
         ref={printRef}
