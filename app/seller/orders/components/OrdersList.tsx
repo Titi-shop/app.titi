@@ -9,58 +9,82 @@ import {
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 import OrderCard from "./OrderCard";
+import OrderActions from "./OrderActions";
+
 import type {
   Order,
+  OrderFilter,
   OrderStatus,
 } from "../types";
 
+/* =========================================================
+   TYPES
+========================================================= */
 
-/* ======================================================
-   PROPS
-====================================================== */
+type OrderTab =
+  | "all"
+  | OrderStatus;
 
 type Props = {
   orders: Order[];
-  onClick: (id: string) => void;
 
-  initialTab?: OrderTab;
-  onTabChange?: (tab: OrderTab) => void;
+  filter: OrderFilter;
 
-  renderActions?: (
-    order: Order
-  ) => React.ReactNode;
+  onFilterChange: (
+    filter: OrderFilter
+  ) => void;
 
-  renderExtra?: (
-    order: Order
-  ) => React.ReactNode;
+  loadingId?: string | null;
+
+  onDetail: (
+    id: string
+  ) => void;
+
+  onConfirm: (
+    id: string
+  ) => void;
+
+  onCancel: (
+    id: string
+  ) => void;
+
+  onShipping: (
+    id: string
+  ) => void;
 };
 
-/* ======================================================
+/* =========================================================
    COMPONENT
-====================================================== */
+========================================================= */
 
 export default function OrdersList({
   orders,
-  onClick,
-  initialTab = "all",
-  onTabChange,
-  renderActions,
-  renderExtra,
+
+  filter,
+  onFilterChange,
+
+  loadingId,
+
+  onDetail,
+  onConfirm,
+  onCancel,
+  onShipping,
 }: Props) {
-  const { t } = useTranslation();
+  const { t } =
+    useTranslation();
 
   /* ======================================================
-     TAB STATE
+     TAB
   ====================================================== */
 
   const [tab, setTab] =
     useState<OrderTab>(
-      initialTab
+      filter.status
     );
 
   useEffect(() => {
-    setTab(initialTab);
-  }, [initialTab]);
+    setTab(filter.status);
+  }, [filter.status]);
 
   /* ======================================================
      TABS
@@ -79,9 +103,14 @@ export default function OrdersList({
         "Pending",
     ],
     [
+      "pending_fulfillment",
+      t.pending_fulfillment ??
+        "Pending Fulfillment",
+    ],
+    [
       "processing",
       t.processing_orders ??
-        "processing",
+        "Processing",
     ],
     [
       "shipped",
@@ -90,18 +119,13 @@ export default function OrdersList({
     ],
     [
       "delivered",
-      t.delivered_orders??
-        "delivered",
-      ],
+      t.delivered_orders ??
+        "Delivered",
+    ],
     [
       "completed",
       t.completed_orders ??
         "Completed",
-    ],
-    [
-      "returned",
-      t.returned_orders ??
-        "Returned",
     ],
     [
       "cancelled",
@@ -114,60 +138,70 @@ export default function OrdersList({
      COUNTS
   ====================================================== */
 
-  const counts = useMemo(() => {
-    const map: Record<
-      OrderTab,
-      number
-    > = {
-      all: orders.length,
-      pending: 0,
-      processing: 0,
-      shipped: 0,
-      delivered: 0,
-      completed: 0,
-      returned: 0,
-      cancelled: 0,
-    };
+  const counts =
+    useMemo(() => {
+      const map: Record<
+        OrderTab,
+        number
+      > = {
+        all: orders.length,
 
-    for (const order of orders) {
-      if (
-        typeof map[
-          order.status
-        ] === "number"
-      ) {
+        pending: 0,
+
+        pending_fulfillment: 0,
+
+        processing: 0,
+
+        shipped: 0,
+
+        delivered: 0,
+
+        completed: 0,
+
+        cancelled: 0,
+      };
+
+      for (const order of orders) {
         map[
-          order.status
-        ] += 1;
+          order.fulfillment_status
+        ]++;
       }
-    }
 
-    return map;
-  }, [orders]);
+      return map;
+    }, [orders]);
 
   /* ======================================================
      FILTERED
   ====================================================== */
 
-  const filtered = useMemo(() => {
-    if (tab === "all") {
-      return orders;
-    }
+  const filtered =
+    useMemo(() => {
+      if (tab === "all") {
+        return orders;
+      }
 
-    return orders.filter(
-      (order) =>
-        order.status === tab
-    );
-  }, [orders, tab]);
-
-  /* ======================================================
-     HANDLER
+      return orders.filter(
+        (order) =>
+          order.fulfillment_status ===
+          tab
+      );
+    }, [
+      orders,
+      tab,
+    ]);
+    /* ======================================================
+     TAB CHANGE
   ====================================================== */
 
   function handleTabChange(
     nextTab: OrderTab
   ) {
     setTab(nextTab);
-    onTabChange?.(nextTab);
+
+    onFilterChange({
+      ...filter,
+      status: nextTab,
+    });
   }
 
   /* ======================================================
@@ -176,96 +210,140 @@ export default function OrdersList({
 
   return (
     <section className="w-full">
-    
-       {/* ================= TABS ================= */}
-<div className="sticky top-0 z-20 overflow-x-auto scrollbar-hide border-b border-orange-500/20 bg-white">
-  <div className="flex min-w-max gap-2 px-3 py-2">
-    {tabs.map(([key, label]) => {
-      const active = tab === key;
 
-      return (
-        <button
-  key={key}
-  type="button"
-  onClick={() => handleTabChange(key)}
-  className={`
-    shrink-0
-    flex items-center gap-2
-    rounded-xl
-    border
-    px-4 py-2
-    text-sm font-medium
-    transition-all
+      {/* ================= TABS ================= */}
 
-    ${
-      active
-        ? "border-orange-500 bg-orange-50 text-orange-600"
-        : "border-gray-200 bg-white text-gray-600"
-    }
-  `}
->
-  <span>{label}</span>
+      <div className="sticky top-0 z-20 overflow-x-auto border-b border-orange-500/20 bg-white dark:bg-zinc-950">
 
-  <span
-    className={`
-      rounded-full
-      px-2 py-0.5
-      text-xs
+        <div className="flex min-w-max gap-2 px-3 py-2">
 
-      ${
-        active
-          ? "bg-orange-500 text-white"
-          : "bg-gray-100 text-gray-500"
-      }
-    `}
-  >
-    {counts[key]}
-  </span>
-</button>
-      );
-    })}
-  </div>
-</div>
+          {tabs.map(([key, label]) => {
+            const active =
+              tab === key;
 
-      {/* LIST */}
-      <div className="p-4 space-y-4">
-        {filtered.length ===
-        0 ? (
-          <div className="bg-white rounded-2xl border p-8 text-center text-sm text-gray-400">
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  handleTabChange(
+                    key
+                  )
+                }
+                className={`
+                  shrink-0
+                  flex
+                  items-center
+                  gap-2
+                  rounded-xl
+                  border
+                  px-4
+                  py-2
+                  text-sm
+                  font-medium
+                  transition-all
+
+                  ${
+                    active
+                      ? "border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300"
+                      : "border-gray-200 bg-white text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                  }
+                `}
+              >
+                <span>
+                  {label}
+                </span>
+
+                <span
+                  className={`
+                    rounded-full
+                    px-2
+                    py-0.5
+                    text-xs
+
+                    ${
+                      active
+                        ? "bg-orange-500 text-white"
+                        : "bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }
+                  `}
+                >
+                  {counts[key]}
+                </span>
+              </button>
+            );
+          })}
+
+        </div>
+
+      </div>
+
+      {/* ================= LIST ================= */}
+
+      <div className="space-y-4 p-4">
+                {filtered.length === 0 ? (
+
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
             {t.no_orders ??
               "No orders"}
           </div>
+
         ) : (
+
           filtered.map(
             (order) => (
-              <div
-                key={
-                  order.id
-                }
-                className="space-y-3"
-              >
-                <OrderCard
-                  order={
-                    order
-                  }
-                  onClick={() =>
-                    onClick(
-                      order.id
-                    )
-                  }
-                  actions={renderActions?.(
-                    order
-                  )}
-                />
 
-                {renderExtra?.(
-                  order
-                )}
-              </div>
+              <OrderCard
+                key={order.id}
+                order={order}
+                onClick={() =>
+                  onDetail(
+                    order.id
+                  )
+                }
+                actions={
+                  <OrderActions
+                    orderId={
+                      order.id
+                    }
+                    status={
+                      order.fulfillment_status
+                    }
+                    loading={
+                      loadingId ===
+                      order.id
+                    }
+                    onDetail={() =>
+                      onDetail(
+                        order.id
+                      )
+                    }
+                    onConfirm={() =>
+                      onConfirm(
+                        order.id
+                      )
+                    }
+                    onCancel={() =>
+                      onCancel(
+                        order.id
+                      )
+                    }
+                    onShipping={() =>
+                      onShipping(
+                        order.id
+                      )
+                    }
+                  />
+                }
+              />
+
             )
           )
+
         )}
+
       </div>
+
     </section>
   );
 }
