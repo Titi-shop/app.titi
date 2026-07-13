@@ -57,9 +57,10 @@ export default function OrderCard({
 
         </div>
 
-        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-600 dark:bg-orange-900/40 dark:text-orange-300">
-          {order.fulfillment_status}
-        </span>
+      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-600 dark:bg-orange-900/40 dark:text-orange-300">
+  {t[`order_${order.fulfillment_status}`] ??
+    order.fulfillment_status}
+</span>
 
       </div>
 
