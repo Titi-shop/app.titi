@@ -316,12 +316,12 @@ function SellerOrdersContent() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-gray-100 dark:bg-zinc-950">
+      <main className="min-h-screen bg-[var(--background)]">
         <div className="space-y-4 p-4">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-36 animate-pulse rounded-2xl bg-white dark:bg-zinc-900"
+              className="h-36 animate-pulse rounded-2xl bg-[var(--card-bg)]"
             />
           ))}
         </div>
@@ -334,7 +334,7 @@ function SellerOrdersContent() {
   ====================================================== */
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-24 dark:bg-zinc-950">
+    <main className="min-h-screen bg-[var(--background)] pb-24">
 
       <Header
         title={
