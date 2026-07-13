@@ -80,7 +80,7 @@ export default function OrderActions({
           onClick={stopClick(
             onDetail
           )}
-          className={`${baseButton} border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200`}
+          className={`${baseButton} border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] hover:bg-[var(--surface-2)]`}
         >
           {t.detail ?? "Detail"}
         </button>
@@ -97,7 +97,7 @@ export default function OrderActions({
               onClick={stopClick(
                 onConfirm
               )}
-              className={`${baseButton} bg-orange-500 text-white hover:bg-orange-600`}
+              className={`${baseButton} bg-[var(--color-primary)] text-white hover:opacity-90`}
             >
               {loading
                 ? "..."
@@ -113,7 +113,7 @@ export default function OrderActions({
               onClick={stopClick(
                 onCancel
               )}
-              className={`${baseButton} border border-red-500 bg-white text-red-600 hover:bg-red-50 dark:bg-zinc-900`}
+              className={`${baseButton} border border-[var(--color-danger)] bg-[var(--card-bg)] text-[var(--color-danger)] hover:bg-[color:color-mix(in_srgb,var(--color-danger)_10%,transparent)]`}
             >
               {t.cancel ??
                 "Cancel"}
@@ -133,7 +133,7 @@ export default function OrderActions({
             onClick={stopClick(
               onConfirm
             )}
-            className={`${baseButton} bg-orange-500 text-white hover:bg-orange-600`}
+            className={`${baseButton} bg-[var(--color-info)] text-white hover:opacity-90`}
           >
             {loading
               ? "..."
@@ -165,7 +165,15 @@ export default function OrderActions({
       {/* SHIPPED */}
 
       {status === "shipped" && (
-        <span className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">
+        <span className="
+rounded-xl
+px-3
+py-2
+text-xs
+font-medium
+bg-[color:color-mix(in_srgb,var(--color-info)_12%,transparent)]
+text-[var(--color-info)]
+">
           {t.order_shipping ??
             "Shipping"}
         </span>
@@ -174,7 +182,15 @@ export default function OrderActions({
       {/* DELIVERED */}
 
       {status === "delivered" && (
-        <span className="rounded-xl bg-cyan-50 px-3 py-2 text-xs font-medium text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-300">
+        <span className="
+rounded-xl
+px-3
+py-2
+text-xs
+font-medium
+bg-[color:color-mix(in_srgb,var(--color-info)_12%,transparent)]
+text-[var(--color-info)]
+">
           {t.order_delivered ??
             "Delivered"}
         </span>
@@ -183,7 +199,15 @@ export default function OrderActions({
       {/* COMPLETED */}
 
       {status === "completed" && (
-        <span className="rounded-xl bg-green-50 px-3 py-2 text-xs font-medium text-green-600 dark:bg-green-900/20 dark:text-green-300">
+        <span className="
+rounded-xl
+px-3
+py-2
+text-xs
+font-medium
+bg-[color:color-mix(in_srgb,var(--color-success)_12%,transparent)]
+text-[var(--color-success)]
+">
           {t.order_completed ??
             "Completed"}
         </span>
@@ -192,7 +216,15 @@ export default function OrderActions({
       {/* CANCELLED */}
 
       {status === "cancelled" && (
-        <span className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-300">
+        <span className="
+rounded-xl
+px-3
+py-2
+text-xs
+font-medium
+bg-[color:color-mix(in_srgb,var(--color-danger)_12%,transparent)]
+text-[var(--color-danger)]
+">
           {t.order_cancelled ??
             "Cancelled"}
         </span>
