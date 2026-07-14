@@ -19,6 +19,9 @@ interface ShippingInfo {
   phone: string;
   address_line: string;
   country?: string;
+  province?: string;
+  district?: string;
+  ward?: string;
   postal_code?: string | null;
 }
 
@@ -98,12 +101,15 @@ export default function CartPage() {
       if (!def) return;
 
       setShipping({
-        name: def.full_name,
-        phone: def.phone,
-        address_line: def.address_line,
-        country: def.country,
-        postal_code: def.postal_code ?? null,
-      });
+    name: def.full_name,
+    phone: def.phone,
+    address_line: def.address_line,
+    country: def.country,
+    province: def.province,
+    district: def.district,
+    ward: def.ward,
+    postal_code: def.postal_code ?? null,
+});
     } catch (err) {
       console.error(
         "[CART][ADDRESS_ERROR]",
