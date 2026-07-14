@@ -9,48 +9,43 @@ import {
   maskId,
   maskWallet,
 } from "@/lib/logger";
-type PiConfig = {
-  api: string;
-  key: string;
-  seed: string;
-  horizon: string;
-  networkPassphrase: string;
-};
+const PI_API =
+  process.env.PI_API_URL;
 
-function getPiConfig(): PiConfig {
-  const api = process.env.PI_API_URL;
-  const key = process.env.PI_API_KEY;
-  const seed = process.env.PI_WALLET_PRIVATE_SEED;
-  const horizon = process.env.PI_HORIZON_URL;
-  const networkPassphrase = process.env.PI_NETWORK_PASSPHRASE;
+const PI_KEY =
+  process.env.PI_API_KEY;
 
-  if (!api) {
-    throw new Error("MISSING_PI_API_URL");
-  }
+if (!PI_API) {
+  throw new Error(
+    "MISSING_PI_API_URL"
+  );
+}
 
-  if (!key) {
-    throw new Error("MISSING_PI_API_KEY");
-  }
+if (!PI_KEY) {
+  throw new Error(
+    "MISSING_PI_API_KEY"
+  );
+}
+const PI_SEED =
+  process.env
+    .PI_WALLET_PRIVATE_SEED;
+if (!PI_SEED) {
+  throw new Error(
+    "MISSING_PI_WALLET_PRIVATE_SEED"
+  );
+}
+const PI_HORIZON =
+  process.env.PI_HORIZON_URL;
 
-  if (!seed) {
-    throw new Error("MISSING_PI_WALLET_PRIVATE_SEED");
-  }
+const PI_NETWORK_PASSPHRASE =
+  process.env.PI_NETWORK_PASSPHRASE;
 
-  if (!horizon) {
-    throw new Error("MISSING_PI_HORIZON_URL");
-  }
+if (!PI_HORIZON) {
+  throw new Error("MISSING_PI_HORIZON_URL");
+}
 
-  if (!networkPassphrase) {
-    throw new Error("MISSING_PI_NETWORK_PASSPHRASE");
-  }
-
-  return {
-    api,
-    key,
-    seed,
-    horizon,
-    networkPassphrase,
-  };
+if (!PI_NETWORK_PASSPHRASE) {
+  throw new Error("MISSING_PI_NETWORK_PASSPHRASE");
 }
 
 /* =====================================================
@@ -130,10 +125,8 @@ logger.debug(
   }
 );
 
-  const { api } = getPiConfig();
-
-const res = await fetch(
-  `${api}${path}`,
+  const res = await fetch(
+    `${PI_API}${path}`,
     {
       ...init,
       cache:
@@ -193,30 +186,44 @@ export async function createA2UPayment(
   input: CreateA2UPaymentInput
 ): Promise<string> {
   logger.info("PI_A2U.CREATE_START");
+  const data =
+    await piRequest<A2UPayment>(
+      "/v2/payments",
+      {
+        method: "POST",
 
-  const { key } = getPiConfig();
-
-  const data = await piRequest<A2UPayment>(
-    "/v2/payments",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment: {
-          uid: input.uid,
-          amount: input.amount,
-          memo: input.memo,
-          metadata: input.metadata,
+        headers: {
+          Authorization:
+            `Key ${PI_KEY}`,
+          "Content-Type":
+            "application/json",
         },
-      }),
-    }
-  );
 
-  if (!data?.identifier) {
-    throw new Error("A2U_CREATE_FAILED");
+        body:
+          JSON.stringify(
+            {
+              payment:
+                {
+                  uid:
+                    input.uid,
+                  amount:
+                    input.amount,
+                  memo:
+                    input.memo,
+                  metadata:
+                    input.metadata,
+                },
+            }
+          ),
+      }
+    );
+
+  if (
+    !data?.identifier
+  ) {
+    throw new Error(
+      "A2U_CREATE_FAILED"
+    );
   }
 
   logger.info("PI_A2U.CREATE_SUCCESS");
@@ -231,10 +238,7 @@ export async function createA2UPayment(
 export async function getA2UPayment(
   paymentId: string
 ): Promise<A2UPayment> {
-
   logger.debug("PI_A2U.GET_START");
-
-  const { key } = getPiConfig();
 
   const data =
     await piRequest<A2UPayment>(
@@ -243,7 +247,8 @@ export async function getA2UPayment(
         method: "GET",
 
         headers: {
-          Authorization: `Key ${key}`,
+          Authorization:
+            `Key ${PI_KEY}`,
         },
       }
     );
@@ -252,6 +257,7 @@ export async function getA2UPayment(
 
   return data;
 }
+
 /* =====================================================
    COMPLETE PAYMENT
 ===================================================== */
@@ -262,19 +268,24 @@ export async function completeA2UPayment(
 ): Promise<void> {
   logger.info("PI_A2U.COMPLETE_START");
 
-  const { key } = getPiConfig();
-
   await piRequest(
     `/v2/payments/${paymentId}/complete`,
     {
       method: "POST",
+
       headers: {
-        Authorization: `Key ${key}`,
-        "Content-Type": "application/json",
+        Authorization:
+          `Key ${PI_KEY}`,
+        "Content-Type":
+          "application/json",
       },
-      body: JSON.stringify({
-        txid,
-      }),
+
+      body:
+        JSON.stringify(
+          {
+            txid,
+          }
+        ),
     }
   );
 
@@ -320,17 +331,15 @@ export async function submitA2UPayment(
 };
 }
 
-  const {
-  seed,
-  horizon,
-  networkPassphrase,
-} = getPiConfig();
+  const keypair =
+    StellarSdk.Keypair.fromSecret(
+      PI_SEED
+    );
 
-const keypair =
-  StellarSdk.Keypair.fromSecret(seed);
-
-const server =
-  new StellarSdk.Horizon.Server(horizon);
+  const server =
+  new StellarSdk.Horizon.Server(
+    PI_HORIZON
+  );
 
 const account =
   await server.loadAccount(
@@ -353,7 +362,7 @@ const account =
  {
   fee: fee.toString(),
   networkPassphrase:
-    networkPassphrase,
+    PI_NETWORK_PASSPHRASE,
 }
     )
       .addOperation(
@@ -420,21 +429,25 @@ return {
 export async function cancelA2UPayment(
   paymentId: string
 ): Promise<void> {
-  logger.info("PI_A2U.CANCEL_START");
-
-  const { key } = getPiConfig();
+  logger.info(
+  "PI_A2U.CANCEL_START"
+);
 
   await piRequest(
     `/v2/payments/${paymentId}/cancel`,
     {
       method: "POST",
+
       headers: {
-        Authorization: `Key ${key}`,
+        Authorization:
+          `Key ${PI_KEY}`,
       },
     }
   );
 
-  logger.info("PI_A2U.CANCEL_SUCCESS");
+  logger.info(
+  "PI_A2U.CANCEL_SUCCESS"
+);
 }
 /* =====================================================
    DEBUG PAYMENT
