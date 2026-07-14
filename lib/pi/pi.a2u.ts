@@ -187,14 +187,12 @@ export async function createA2UPayment(
 ): Promise<string> {
   logger.info("PI_A2U.CREATE_START");
 
-  const { key } = getPiConfig();
-
   const data = await piRequest<A2UPayment>(
     "/v2/payments",
     {
       method: "POST",
       headers: {
-        Authorization: `Key ${key}`,
+        Authorization: `Key ${PI_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -254,21 +252,17 @@ export async function completeA2UPayment(
 ): Promise<void> {
   logger.info("PI_A2U.COMPLETE_START");
 
-  const { key } = getPiConfig();
-
   await piRequest(
-  `/v2/payments/${paymentId}/complete`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${PI_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      txid,
-    }),
-  }
-);
+    `/v2/payments/${paymentId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+    }
+  );
 
   logger.info("PI_A2U.COMPLETE_SUCCESS");
 }
