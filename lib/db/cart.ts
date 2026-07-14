@@ -13,15 +13,32 @@ export type CartItemInput = {
 export type CartRow = {
   product_id: string;
   variant_id: string | null;
+
   quantity: number;
-  price: string;
-  sale_price: string;
-  is_price_changed: boolean;
+
+  unit_price: string;
+  sale_price: string | null;
+  final_price: string;
+  price_snapshot: string;
+
+  currency: string;
+
+  stock_snapshot: number;
+  is_unlimited: boolean;
+
+  is_available: boolean;
   is_out_of_stock: boolean;
+
+  is_price_changed: boolean;
+  is_product_changed: boolean;
+
   name: string;
   slug: string;
   thumbnail: string;
   images: string[];
+
+  is_digital: boolean;
+  status: string;
 };
 
 /* =========================================================
