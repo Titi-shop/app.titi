@@ -9,17 +9,24 @@ import * as StellarSdk
    ENV
 ===================================================== */
 
-const PI_HORIZON =
-  process.env.PI_HORIZON_URL;
+function getRpcConfig() {
+  const PI_HORIZON =
+    process.env.PI_HORIZON_URL;
 
-const PI_NETWORK =
-  process.env.PI_NETWORK?.trim() ||
-  "Pi Testnet";
+  const PI_NETWORK =
+    process.env.PI_NETWORK?.trim()
+      || "Pi Testnet";
 
-if (!PI_HORIZON) {
-  throw new Error(
-    "MISSING_PI_HORIZON_URL"
-  );
+  if (!PI_HORIZON) {
+    throw new Error(
+      "MISSING_PI_HORIZON_URL"
+    );
+  }
+
+  return {
+    PI_HORIZON,
+    PI_NETWORK,
+  };
 }
 
 /* =====================================================
@@ -138,6 +145,11 @@ function parseBalance(
 export async function verifyPiWallet(
   address: string
 ): Promise<PiWalletVerification> {
+
+  const {
+    PI_HORIZON,
+    PI_NETWORK,
+  } = getRpcConfig();
 
   const wallet =
     address
