@@ -41,4 +41,8 @@ services:
     ports:
       - "3000:3000"
 
+<<<<<<< HEAD
     restart: unless-stopped
+=======
+    restart: unless-stopped
+>>>>>>> 47031029 (Configure production Docker)
