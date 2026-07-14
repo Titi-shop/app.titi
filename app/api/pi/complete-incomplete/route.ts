@@ -1,23 +1,33 @@
 import { NextResponse } from "next/server";
-import {
-  logger,
-  maskId,
-} from "@/lib/logger";
+import { logger, maskId } from "@/lib/logger";
+
 export const runtime = "nodejs";
 
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
-
 export async function POST(req: Request) {
+  let paymentId = "";
+
   try {
+    const PI_API = process.env.PI_API_URL;
+    const PI_KEY = process.env.PI_API_KEY;
+
+    if (!PI_API || !PI_KEY) {
+      return NextResponse.json(
+        { error: "PI_NOT_CONFIGURED" },
+        { status: 500 }
+      );
+    }
+
     const body = await req.json();
 
-    const paymentId =
-      typeof body.paymentId === "string" ? body.paymentId : "";
+    paymentId =
+      typeof body.paymentId === "string"
+        ? body.paymentId
+        : "";
 
     const txid =
-      typeof body.txid === "string" ? body.txid : "";
-
+      typeof body.txid === "string"
+        ? body.txid
+        : "";
     if (!paymentId || !txid) {
       return NextResponse.json(
         { error: "INVALID_BODY" },
