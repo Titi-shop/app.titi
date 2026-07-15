@@ -63,15 +63,15 @@ export default function CartPage() {
   ===================================================== */
 
   const total = useMemo(() => {
-    return selectedItems.reduce((sum, item) => {
-      const unit =
-        typeof item.sale_price === "number"
-          ? item.sale_price
-          : item.price;
+  return selectedItems.reduce((sum, item) => {
+    const unit =
+      item.final_price ??
+      item.sale_price ??
+      item.price;
 
-      return sum + unit * item.quantity;
-    }, 0);
-  }, [selectedItems]);
+    return sum + unit * item.quantity;
+  }, 0);
+}, [selectedItems]);
 
   /* =====================================================
      LOAD SHIPPING
@@ -237,13 +237,13 @@ if (loading) {
       <div className="bg-card">
         {cart.map((item) => {
           const unit =
-            typeof item.sale_price === "number"
-              ? item.sale_price
-              : item.price;
+       item.final_price ??
+        item.sale_price ??
+         item.price;
 
           const hasSale =
-            typeof item.sale_price === "number" &&
-            item.sale_price < item.price;
+  Number.isFinite(item.final_price) &&
+  item.final_price < item.price;
 
           return (
             <div
