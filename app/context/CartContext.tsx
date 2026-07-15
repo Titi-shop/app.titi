@@ -25,11 +25,16 @@ export type CartItem = {
 
   name: string;
   slug: string;
+
   price: number;
   sale_price: number | null;
+  final_price: number;
+
   quantity: number;
+
   thumbnail: string;
   images: string[];
+
   is_price_changed: boolean;
   is_out_of_stock: boolean;
 };
@@ -188,12 +193,21 @@ function normalizeCart(
             ? row.slug
             : "",
 
-        price: safeNumber(row.price),
+  price: safeNumber(
+    row.unit_price
+  ),
 
-        sale_price:
-          row.sale_price === null
-          ? null
-            : safeNumber(row.sale_price),
+  sale_price:
+    row.sale_price === null
+      ? null
+      : safeNumber(
+          row.sale_price
+        ),
+
+  final_price:
+    safeNumber(
+      row.final_price
+    ),
 
         quantity:
           normalizeQuantity(
