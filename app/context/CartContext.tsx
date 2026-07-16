@@ -836,11 +836,11 @@ export function CartProvider({
   const total = useMemo(() => {
     return cart.reduce(
       (sum, item) => {
-        const price =
-          safeNumber(
-            item.sale_price ||
-              item.price
-          );
+        const price = safeNumber(
+  item.final_price ??
+  item.sale_price ??
+  item.price
+);
 
         return (
           sum +
