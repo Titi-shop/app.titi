@@ -34,6 +34,12 @@ export type CartRow = {
   images: string[];
   status: string;
   is_digital: boolean;
+   variant_name: string | null;
+
+option_1: string | null;
+option_2: string | null;
+option_3: string | null;
+   
 };
 
 /* =========================================================
@@ -103,45 +109,53 @@ export async function getCart(
   const rs = await query<CartRow>(
     `
     SELECT
-      product_id,
-      variant_id,
+  c.product_id,
+  c.variant_id,
 
-      quantity,
+  c.quantity,
 
-      unit_price::text,
-      sale_price::text,
-      final_price::text,
-      price_snapshot::text,
+  c.unit_price::text,
+  c.sale_price::text,
+  c.final_price::text,
+  c.price_snapshot::text,
 
-      currency,
+  c.currency,
 
-      stock_snapshot,
-      is_unlimited,
+  c.stock_snapshot,
+  c.is_unlimited,
 
-      is_selected,
-      is_available,
-      is_out_of_stock,
+  c.is_selected,
+  c.is_available,
+  c.is_out_of_stock,
 
-      is_price_changed,
-      is_product_changed,
+  c.is_price_changed,
+  c.is_product_changed,
 
-      product_name AS name,
-      product_slug AS slug,
+  c.product_name AS name,
+  c.product_slug AS slug,
 
-      thumbnail,
-      images,
+  c.thumbnail,
+  c.images,
 
-      status,
-      is_digital
+  c.status,
+  c.is_digital,
 
-    FROM cart_items
+  v.name AS variant_name,
+
+  v.option_1,
+  v.option_2,
+  v.option_3
+
+    FROM cart_items c
+
+LEFT JOIN product_variants v
+  ON v.id = c.variant_id
 
     WHERE
-      user_id = $1
-      AND deleted_at IS NULL
+    c.user_id = $1
+AND c.deleted_at IS NULL
 
-    ORDER BY
-      created_at DESC
+    ORDER BY c.created_at DESC
     `,
     [userId]
   );
