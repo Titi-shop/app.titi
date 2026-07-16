@@ -24,7 +24,7 @@ export default function CartPage() {
     updateQty,
     removeFromCart,
 } = useCart();
-  const { user } = useAuth();
+  
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [openCheckout, setOpenCheckout] = useState(false);
