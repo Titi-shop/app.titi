@@ -326,7 +326,23 @@ if (loading) {
                 <p className="line-clamp-2 text-sm font-semibold">
                   {item.name}
                 </p>
-
+{[
+  item.option_1,
+  item.option_2,
+  item.option_3,
+]
+.filter(Boolean)
+.length > 0 && (
+  <p className="mt-1 text-xs text-[var(--text-muted)]">
+    {[
+      item.option_1,
+      item.option_2,
+      item.option_3,
+    ]
+      .filter(Boolean)
+      .join(" / ")}
+  </p>
+)}
                 {/* PRICE */}
 
                 <div className="mt-2 flex items-center gap-2">
