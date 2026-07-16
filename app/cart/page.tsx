@@ -169,24 +169,30 @@ export default function CartPage() {
      CHECKOUT ACTION
 ===================================================== */
 
-  const handleCheckout = () => {
-    if (!validate()) return;
+  const handleCheckout = async () => {
+  if (!validate()) return;
 
-    const item = selectedItems[0];
+  const item = selectedItems[0];
+  const res = await fetch(`/api/products/${item.product_id}`);
 
-    setCheckoutItem({
-      id: item.product_id ?? item.id,
-      name: item.name,
-      price: item.price,
-      sale_price: item.sale_price,
-      final_price: item.final_price,
-      thumbnail: item.thumbnail,
-      quantity: item.quantity,
-      variant_id: item.variant?.id ?? null,
-    });
+  if (!res.ok) {
+    showMessage("Cannot load product");
+    return;
+  }
 
-    setOpenCheckout(true);
-  };
+  const product = await res.json();
+  const selectedVariant =
+    product.variants?.find(
+      (v: { id: string }) => v.id === item.variant_id
+    ) ?? null;
+
+  setCheckoutItem({
+    ...product,
+    selectedVariant,
+  });
+
+  setOpenCheckout(true);
+};
 
   /* =====================================================
      EMPTY CART
@@ -420,23 +426,11 @@ style={{
 
       {/* CHECKOUT SHEET */}
       {checkoutItem && (
-        <CheckoutSheet
-          open={openCheckout}
-          onClose={() => setOpenCheckout(false)}
-          product={{
-            id: checkoutItem.id,
-            selectedVariant: null,
-            name: checkoutItem.name,
-            price: checkoutItem.price,
-            salePrice: checkoutItem.sale_price,
-            finalPrice: checkoutItem.final_price,
-            thumbnail: checkoutItem.thumbnail,
-            stock: 9999,
-            shipping_rates: null,
-            variant_id: checkoutItem.variant_id,
-        
-          }}
-        />
+       <CheckoutSheet
+  open={openCheckout}
+  onClose={() => setOpenCheckout(false)}
+  product={checkoutItem}
+/>
       )}
 
     </main>
