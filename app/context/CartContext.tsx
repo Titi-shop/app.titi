@@ -349,7 +349,6 @@ const mergedRef = useRef(false);
     }
 
     const data: unknown = await res.json();
-
     return normalizeCart(data);
   },
   []
@@ -405,22 +404,18 @@ setCart(serverCart);
 
     const mergeGuestCart =
       async () => {
+        setIsMerging(true);
+       setMergeDone(false);
         try {
           const guestCart =
             loadGuestCart();
 
           /* ================= NO GUEST CART ================= */
 
-          if (
-            guestCart.length === 0
-          ) {
-            const serverCart =
-              await fetchServerCart();
-
-            setCart(serverCart);
-
-            return;
-          }
+          if (guestCart.length === 0) {
+    setMergeDone(true);
+    return;
+     }
 
           console.log(
             "[CART][MERGE] START",
@@ -750,7 +745,6 @@ setCart(serverCart);
               });
 
             saveGuestCart(next);
-
             setCart(next);
 
             return;
