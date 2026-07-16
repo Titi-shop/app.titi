@@ -295,37 +295,42 @@ if (loading) {
 
               {/* IMAGE */}
 
-              <div className="relative">
-                <Image
-                  src={
-                    item.thumbnail ||
-                    "/placeholder.png"
-                  }
-                  alt={item.name}
-                  width={88}
-                  height={88}
-                  className="
-  h-[88px] w-[88px]
-  rounded-xl
-  border
-  border-[var(--nav-border)]
-  object-cover
-"
-                />
+              <Link
+  href={`/product/${item.product_id}`}
+  className="relative block"
+>
+  <Image
+    src={item.thumbnail || "/placeholder.png"}
+    alt={item.name}
+    width={88}
+    height={88}
+    className="
+      h-[88px] w-[88px]
+      rounded-xl
+      border
+      border-[var(--nav-border)]
+      object-cover
+    "
+  />
 
-                {hasSale && (
-                  <div className="absolute left-0 top-0 rounded-br-lg bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    SALE
-                  </div>
-                )}
-              </div>
+  {hasSale && (
+    <div className="absolute left-0 top-0 rounded-br-lg bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+      SALE
+    </div>
+  )}
+</Link>
 
               {/* CONTENT */}
 
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-sm font-semibold">
-                  {item.name}
-                </p>
+                <Link
+  href={`/product/${item.product_id}`}
+  className="block"
+>
+  <p className="line-clamp-2 text-sm font-semibold hover:text-orange-500">
+    {item.name}
+  </p>
+</Link>
 {[
   item.option_1,
   item.option_2,
