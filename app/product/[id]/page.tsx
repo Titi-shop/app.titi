@@ -210,13 +210,13 @@ if (!product) {
     selectedVariant?.name ?? null,
 
   option_1:
-    selectedVariant?.option_1 ?? null,
+    selectedVariant?.option1 ?? null,
 
   option_2:
-    selectedVariant?.option_2 ?? null,
+    selectedVariant?.option2 ?? null,
 
   option_3:
-    selectedVariant?.option_3 ?? null,
+    selectedVariant?.option3 ?? null,
 });
 
   const add = (): void => {
