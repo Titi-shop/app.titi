@@ -12,7 +12,7 @@ import React, {
 
 import { useAuth } from "@/context/AuthContext";
 
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================================================
    TYPES
@@ -330,41 +330,23 @@ export function CartProvider({
      API
   ========================================================= */
 
-  const fetchServerCart =
-    useCallback(async (): Promise<
-      CartItem[]
-    > => {
-      const token =
-        await getPiAccessToken();
+  const fetchServerCart = useCallback(
+  async (): Promise<CartItem[]> => {
+    const res = await apiAuthFetch("/api/cart", {
+      method: "GET",
+      cache: "no-store",
+    });
 
-      if (!token) {
-        return [];
-      }
+    if (!res.ok) {
+      throw new Error("FETCH_CART_FAILED");
+    }
 
-      const res = await fetch(
-        "/api/cart",
-        {
-          method: "GET",
+    const data: unknown = await res.json();
 
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "FETCH_CART_FAILED"
-        );
-      }
-
-      const data: unknown =
-        await res.json();
-
-      return normalizeCart(data);
-    }, []);
+    return normalizeCart(data);
+  },
+  []
+);
 
   /* =========================================================
      INITIAL LOAD
@@ -438,13 +420,6 @@ export function CartProvider({
             return;
           }
 
-          const token =
-            await getPiAccessToken();
-
-          if (!token) {
-            return;
-          }
-
           console.log(
             "[CART][MERGE] START",
             {
@@ -455,34 +430,19 @@ export function CartProvider({
 
           /* ================= POST GUEST ================= */
 
-          const res = await fetch(
-            "/api/cart",
-            {
-              method: "POST",
-
-              headers: {
-                Authorization: `Bearer ${token}`,
-
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify(
-                guestCart.map(
-                  (item) => ({
-                    product_id:
-                      item.product_id,
-
-                    variant_id:
-                      item.variant_id,
-
-                    quantity:
-                      item.quantity,
-                  })
-                )
-              ),
-            }
-          );
+          const res = await apiAuthFetch("/api/cart", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(
+    guestCart.map((item) => ({
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+      quantity: item.quantity,
+    }))
+  ),
+});
 
           if (!res.ok) {
             throw new Error(
@@ -642,21 +602,10 @@ export function CartProvider({
 
           /* ================= SERVER ================= */
 
-          const token =
-            await getPiAccessToken();
-
-          if (!token) {
-            return;
-          }
-
-          const res = await fetch(
-            "/api/cart",
-            {
+          const res = await apiAuthFetch("/api/cart", {
               method: "POST",
 
               headers: {
-                Authorization: `Bearer ${token}`,
-
                 "Content-Type":
                   "application/json",
               },
@@ -723,21 +672,11 @@ export function CartProvider({
 
           /* ================= SERVER ================= */
 
-          const token =
-            await getPiAccessToken();
-
-          if (!token) {
-            return;
-          }
-
-          const res = await fetch(
-            "/api/cart",
-            {
+          const res = await apiAuthFetch("/api/cart", {
               method: "DELETE",
 
               headers: {
-                Authorization: `Bearer ${token}`,
-
+                
                 "Content-Type":
                   "application/json",
               },
@@ -829,21 +768,13 @@ export function CartProvider({
 
           /* ================= SERVER ================= */
 
-          const token =
-            await getPiAccessToken();
-
-          if (!token) {
-            return;
-          }
-
-          const res = await fetch(
+          const res = await apiAuthFetch("/api/cart", {
             "/api/cart",
             {
               method: "PATCH",
 
               headers: {
-                Authorization: `Bearer ${token}`,
-
+                
                 "Content-Type":
                   "application/json",
               },
