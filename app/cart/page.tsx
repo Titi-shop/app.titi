@@ -10,7 +10,7 @@ import CheckoutSheet from "@/app/product/[id]/CheckoutSheet";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import AppLoading from "@/components/AppLoading";
-
+import { useAuth } from "@/context/AuthContext";
 
 /* =====================================================
    PAGE
@@ -18,6 +18,7 @@ import AppLoading from "@/components/AppLoading";
 
 export default function CartPage() {
   const { t } = useTranslation();
+   const { user, loading: authLoading } = useAuth();
   const {
     cart,
     loading,
@@ -143,7 +144,7 @@ export default function CartPage() {
   /* =====================================================
      EMPTY CART
 ===================================================== */
-if (loading) {
+if (authLoading || loading) {
   return <AppLoading />;
 }
   if (cart.length === 0) {
