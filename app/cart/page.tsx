@@ -35,7 +35,6 @@ export default function CartPage() {
   const { user, pilogin } = useAuth();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [checkoutItem, setCheckoutItem] = useState<any>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -140,25 +139,16 @@ export default function CartPage() {
   ===================================================== */
 
   const validate = () => {
-    
-    if (!shipping) {
-      showMessage(
-        t.please_add_shipping_address ??
-          "Add shipping address"
-      );
-      return false;
-    }
+  if (selectedItems.length !== 1) {
+    showMessage(
+      t.only_one_product_supported ??
+        "Select 1 product"
+    );
+    return false;
+  }
 
-    if (selectedItems.length !== 1) {
-      showMessage(
-        t.only_one_product_supported ??
-          "Select 1 product"
-      );
-      return false;
-    }
-
-    return true;
-  };
+  return true;
+};
 
   /* =====================================================
      CHECKOUT ACTION
