@@ -207,7 +207,13 @@ if (!product) {
   quantity: 1,
 
   variant_name:
-    selectedVariant?.name ?? null,
+    [
+      selectedVariant?.option1,
+      selectedVariant?.option2,
+      selectedVariant?.option3,
+    ]
+      .filter(Boolean)
+      .join(" / ") || null,
 
   option_1:
     selectedVariant?.option1 ?? null,
