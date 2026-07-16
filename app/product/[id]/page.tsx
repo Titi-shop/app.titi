@@ -184,22 +184,40 @@ if (!product) {
   };
 
   const buildCartItem = () => ({
-    id: product.id,
-    product_id: product.id,
-    variant_id: selectedVariant?.id ?? null,
+  product_id: product.id,
 
-    name:
-      hasVariants && selectedVariant
-        ? `${product.name} - ${selectedVariant.option1}`
-        : product.name,
+  variant_id: selectedVariant?.id ?? null,
 
-    price: selectedVariant?.price ?? product.price,
-    final_price:
-      selectedVariant?.final_price ?? product.final_price,
+  name: product.name,
 
-    thumbnail: product.thumbnail,
-    quantity: 1,
-  });
+  slug: product.slug,
+
+  price:
+    selectedVariant?.price ??
+    product.price,
+
+  sale_price:
+    selectedVariant?.sale_price ??
+    product.sale_price,
+
+  thumbnail: product.thumbnail,
+
+  images: product.images ?? [],
+
+  quantity: 1,
+
+  variant_name:
+    selectedVariant?.name ?? null,
+
+  option_1:
+    selectedVariant?.option_1 ?? null,
+
+  option_2:
+    selectedVariant?.option_2 ?? null,
+
+  option_3:
+    selectedVariant?.option_3 ?? null,
+});
 
   const add = (): void => {
     if (!requireVariant()) return;
