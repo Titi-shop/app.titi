@@ -7,7 +7,7 @@ import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import CheckoutSheet from "@/app/product/[id]/CheckoutSheet";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 import AppLoading from "@/components/AppLoading";
 
@@ -95,7 +95,9 @@ export default function CartPage() {
   if (!validate()) return;
 
   const item = selectedItems[0];
-  const res = await fetch(`/api/products/${item.product_id}`);
+  const res = await apiAuthFetch(
+  `/api/products/${item.product_id}`
+);
 
   if (!res.ok) {
     showMessage("Cannot load product");
