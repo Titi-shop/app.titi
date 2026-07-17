@@ -98,12 +98,11 @@ export default function CartPage() {
 
   const handleCheckout = async () => {
   if (!validate()) return;
-  
-     if (!user) {
-    await pilogin();
+
+  if (!user) {
+    router.push("/login?redirect=/cart");
     return;
-     }
-  
+  }
   const item = selectedItems[0];
   const res = await apiAuthFetch(
   `/api/products/${item.product_id}`
