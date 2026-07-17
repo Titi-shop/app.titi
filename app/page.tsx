@@ -592,7 +592,7 @@ useEffect(() => {
       </div>
 
       <button
-        onClick={() => router.push("/flash-sale")}
+        onClick={() => router.push("")}
         className="text-[11px] bg-white/20 px-3 py-1 rounded-lg"
       >
         {t.view}
