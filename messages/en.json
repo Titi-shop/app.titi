@@ -767,7 +767,7 @@
   
   "wallet_default": "Default Wallet",
   "wallet_not_linked": "No wallet linked",
-
+  "favorites": "favorites",
   "logging_in_pi": "Connecting to your Pi account...",
   "creating_order": "Creating your order...",
   "opening_pi_wallet": "Opening Pi Wallet...",
