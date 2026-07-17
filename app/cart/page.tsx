@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
+import { useRouter } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import CheckoutSheet from "@/app/product/[id]/CheckoutSheet";
@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 ===================================================== */
 
 export default function CartPage() {
+   const router = useRouter();
   const { t } = useTranslation();
    const { user, loading: authLoading } = useAuth();
   const {
@@ -100,7 +101,15 @@ export default function CartPage() {
   if (!validate()) return;
 
   if (!user) {
-    router.push("/login?redirect=/cart");
+    showMessage(
+      t.login_required ??
+      "Please login before checkout."
+    );
+
+    setTimeout(() => {
+      router.push("/login?redirect=/cart");
+    }, 800);
+
     return;
   }
   const item = selectedItems[0];
