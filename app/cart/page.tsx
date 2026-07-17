@@ -102,7 +102,7 @@ export default function CartPage() {
      if (!user) {
     await pilogin();
     return;
-
+     }
   
   const item = selectedItems[0];
   const res = await apiAuthFetch(
