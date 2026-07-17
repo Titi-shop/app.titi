@@ -7,7 +7,9 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { ShoppingCart } from "lucide-react";
 import { prefetchProduct } from "@/lib/prefetch";
-import ProductReviews from "./ProductReviews";
+import ProductReviews, {
+  type ProductReview,
+} from "./ProductReviews";
 import type {
   ProductRecord,
   ProductVariantView,
@@ -110,7 +112,6 @@ const [favorite, setFavorite] = useState(false);
 
   /* ================= SAFE ================= */
   if (!product) return null;
-const [lastTap, setLastTap] = useState(0);
 
   /* ================= IMAGES ================= */
   const displayImages = [
