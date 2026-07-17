@@ -810,7 +810,7 @@
   "wallet_default": "Ví mặc định",
   "wallet_not_linked": "Chưa liên kết ví",
 
-
+  "favorites": "yêu thích",
   "logging_in_pi": "Đang kết nối với tài khoản Pi...",
   "creating_order": "Đang tạo đơn hàng...",
   "opening_pi_wallet": "Đang mở Ví Pi...",
