@@ -392,11 +392,13 @@ style={{
 
 
         <button
-          onClick={handleCheckout}
-          className="w-full bg-primary text-white py-3 rounded-xl font-bold"
-        >
-          {t.pay_now ?? "Checkout"}
-        </button>
+  onClick={handleCheckout}
+  className="w-full bg-primary text-white py-3 rounded-xl font-bold"
+>
+  {user
+    ? (t.pay_now ?? "Checkout")
+    : (t.login_to_checkout ?? "Login to Checkout")}
+</button>
 
       </div>
 
