@@ -14,28 +14,17 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 /* =========================================================
    FETCHER
 ========================================================= */
+const fetcher = async (url: string) => {
+  const res = await apiAuthFetch(url, {
+    cache: "no-store",
+  });
 
-const fetcher = async (
-  url: string
-) => {
-  try {
-    const res = await apiAuthFetch(
-      url,
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) {
-      return null;
-    }
-
-    return await res.json();
-  } catch {
-    return null;
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status}`);
   }
-};
 
+  return res.json();
+};
 /* =========================================================
    HOOK
 ========================================================= */
