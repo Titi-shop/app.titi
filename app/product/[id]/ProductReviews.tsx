@@ -1,7 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
-
 export interface ProductReview {
   id: string;
   username: string;
@@ -23,14 +21,34 @@ type ProductReviewsProps = {
 
 function renderStars(rating: number) {
   return (
-    <div className="flex items-center gap-0.5 text-yellow-500 text-sm">
-      {Array.from({ length: 5 }, (_, i) => (
-        <span key={i}>
-          {i < rating ? "★" : "☆"}
+    <div className="flex items-center gap-0.5 text-yellow-500">
+      {Array.from({ length: 5 }, (_, index) => (
+        <span
+          key={index}
+          className="text-sm"
+        >
+          {index < rating ? "★" : "☆"}
         </span>
       ))}
     </div>
   );
+}
+
+function formatReviewDate(date: string): string {
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+function getAvatar(username: string): string {
+  if (!username) return "?";
+
+  return username
+    .trim()
+    .charAt(0)
+    .toUpperCase();
 }
 
 export default function ProductReviews({
@@ -42,21 +60,27 @@ export default function ProductReviews({
 }: ProductReviewsProps) {
   return (
     <section
-      className="mt-2 rounded-xl"
+      className="mt-2 rounded-xl overflow-hidden"
       style={{
         background: "var(--card-bg)",
       }}
     >
-      {/* Header */}
-      <div className="p-4 border-b border-[var(--nav-border)] flex justify-between items-center">
+      {/* HEADER */}
+
+      <div
+        className="flex items-center justify-between p-4 border-b"
+        style={{
+          borderColor: "var(--nav-border)",
+        }}
+      >
         <div>
           <h2 className="font-semibold text-base">
             ⭐ {t.customer_reviews}
           </h2>
 
-          <div className="mt-1 flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-1">
             <span
-              className="text-xl font-bold"
+              className="text-2xl font-bold"
               style={{
                 color: "var(--color-primary)",
               }}
@@ -80,7 +104,7 @@ export default function ProductReviews({
         {onViewAll && (
           <button
             onClick={onViewAll}
-            className="text-sm"
+            className="text-sm font-medium"
             style={{
               color: "var(--color-primary)",
             }}
@@ -90,19 +114,21 @@ export default function ProductReviews({
         )}
       </div>
 
-      {/* Empty */}
+      {/* EMPTY */}
+
       {reviews.length === 0 && (
         <div
-          className="p-8 text-center"
+          className="py-10 text-center"
           style={{
             color: "var(--text-muted)",
           }}
         >
-          {t.no_reviews}
+          ⭐ {t.no_reviews}
         </div>
       )}
 
-      {/* List */}
+      {/* REVIEW LIST */}
+
       {reviews.slice(0, 5).map((review) => (
         <div
           key={review.id}
@@ -111,81 +137,119 @@ export default function ProductReviews({
             borderColor: "var(--nav-border)",
           }}
         >
-          <div className="flex items-center justify-between">
-            <div className="font-medium">
-              @{review.username}
-            </div>
+          {/* USER */}
 
+          <div className="flex items-start gap-3">
             <div
-              className="text-xs"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shrink-0"
               style={{
-                color: "var(--text-muted)",
+                background: "var(--color-primary)",
               }}
             >
-              {format(
-                new Date(review.created_at),
-                "dd/MM/yyyy"
+              {getAvatar(review.username)}
+            </div>
+
+            <div className="flex-1">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-medium">
+                    @{review.username}
+                  </div>
+
+                  <div className="mt-1">
+                    {renderStars(review.rating)}
+                  </div>
+                </div>
+
+                <div
+                  className="text-xs"
+                  style={{
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {formatReviewDate(review.created_at)}
+                </div>
+              </div>
+
+              {review.is_verified_purchase && (
+                <div
+                  className="mt-2 text-xs inline-flex items-center gap-1"
+                  style={{
+                    color: "var(--success)",
+                  }}
+                >
+                  ✔ {t.verified_purchase}
+                </div>
+              )}
+
+              {review.comment && (
+                <p className="mt-3 text-sm whitespace-pre-wrap leading-6">
+                  {review.comment}
+                </p>
+              )}
+
+              {review.images.length > 0 && (
+                <div className="flex gap-2 mt-3 overflow-x-auto">
+                  {review.images.map((image) => (
+                    <img
+                      key={image}
+                      src={image}
+                      alt="Review"
+                      loading="lazy"
+                      className="w-20 h-20 rounded-lg object-cover border"
+                      style={{
+                        borderColor: "var(--nav-border)",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {review.seller_reply && (
+                <div
+                  className="mt-4 rounded-lg p-3"
+                  style={{
+                    background: "var(--surface-2)",
+                  }}
+                >
+                  <div
+                    className="font-medium text-sm"
+                    style={{
+                      color: "var(--color-primary)",
+                    }}
+                  >
+                    🏪 {t.shop_reply}
+                  </div>
+
+                  <div className="mt-2 text-sm leading-6">
+                    {review.seller_reply}
+                  </div>
+                </div>
               )}
             </div>
           </div>
-
-          <div className="mt-2">
-            {renderStars(review.rating)}
-          </div>
-
-          {review.is_verified_purchase && (
-            <div
-              className="mt-1 text-xs"
-              style={{
-                color: "var(--success)",
-              }}
-            >
-              ✔ {t.verified_purchase}
-            </div>
-          )}
-
-          {review.comment && (
-            <p className="mt-3 whitespace-pre-wrap text-sm">
-              {review.comment}
-            </p>
-          )}
-
-          {review.images.length > 0 && (
-            <div className="mt-3 flex gap-2 overflow-x-auto">
-              {review.images.map((img) => (
-                <img
-                  key={img}
-                  src={img}
-                  alt=""
-                  className="w-16 h-16 rounded object-cover"
-                />
-              ))}
-            </div>
-          )}
-
-          {review.seller_reply && (
-            <div
-              className="mt-4 rounded-lg p-3"
-              style={{
-                background: "var(--surface-2)",
-              }}
-            >
-              <div
-                className="text-xs font-medium"
-                style={{
-                  color: "var(--color-primary)",
-                }}
-              >
-                {t.shop_reply}
-              </div>
-
-              <div className="mt-1 text-sm">
-                {review.seller_reply}
-              </div>
-            </div>
-          )}
         </div>
       ))}
+
+      {reviews.length > 0 && onViewAll && (
+        <div
+          className="p-4 border-t"
+          style={{
+            borderColor: "var(--nav-border)",
+          }}
+        >
+          <button
+            onClick={onViewAll}
+            className="w-full py-3 rounded-lg font-medium transition"
+            style={{
+              background: "var(--surface-2)",
+              color: "var(--color-primary)",
+            }}
+          >
+            {t.view_all_reviews} ({ratingCount})
+          </button>
+        </div>
+      )}
     </section>
   );
 }
