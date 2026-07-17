@@ -769,8 +769,8 @@
   "opening_pi_wallet": "正在打开 Pi 钱包...",
   "verifying_payment": "正在验证付款...",
   "finalizing_order": "正在完成订单...",
-  "continue_payment": "正在继续付款..."
-"login_to_checkout": "请先登录后再进行结账。",
+  "continue_payment": "正在继续付款...",
+"login_to_checkout": "请先登录后再进行结账。"
 
 
 
