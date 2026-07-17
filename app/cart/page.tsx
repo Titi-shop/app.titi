@@ -105,11 +105,6 @@ export default function CartPage() {
       t.login_required ??
       "Please login before checkout."
     );
-
-    setTimeout(() => {
-      router.push("/login?redirect=/cart");
-    }, 800);
-
     return;
   }
   const item = selectedItems[0];
