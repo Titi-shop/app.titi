@@ -177,13 +177,25 @@ export async function createReview(
   /* ===== UPDATE AVG ===== */
   await query(
     `
-    update products
-    set rating_avg = (
-      select avg(rating)
-      from reviews
-      where product_id = $1
-    )
-    where id = $1
+    UPDATE products
+SET
+  rating_avg = (
+    SELECT COALESCE(AVG(rating), 0)
+    FROM reviews
+    WHERE product_id = $1
+      AND deleted_at IS NULL
+      AND status = 'published'
+      AND is_hidden = false
+  ),
+  rating_count = (
+    SELECT COUNT(*)
+    FROM reviews
+    WHERE product_id = $1
+      AND deleted_at IS NULL
+      AND status = 'published'
+      AND is_hidden = false
+  )
+WHERE id = $1
     `,
     [productId]
   );
@@ -212,4 +224,54 @@ export async function getReviewsByUser(userId: string) {
   );
 
   return res.rows;
+}
+/* =========================================================
+   GET REVIEWS BY PRODUCT
+========================================================= */
+
+export type ProductReviewRow = {
+  id: string;
+  username: string | null;
+  rating: number;
+  comment: string | null;
+  images: string[];
+  seller_reply: string | null;
+  created_at: string;
+  is_verified_purchase: boolean;
+};
+
+export async function getReviewsByProduct(
+  productId: string,
+  limit = 5
+): Promise<ProductReviewRow[]> {
+  const res = await query<ProductReviewRow>(
+    `
+    SELECT
+      r.id,
+      u.username,
+      r.rating,
+      r.comment,
+      COALESCE(r.images, '{}'::text[]) AS images,
+      r.seller_reply,
+      r.created_at,
+      r.is_verified_purchase
+    FROM reviews r
+    LEFT JOIN users u
+      ON u.id = r.user_id
+    WHERE
+      r.product_id = $1
+      AND r.deleted_at IS NULL
+      AND r.status = 'published'
+      AND r.is_hidden = false
+    ORDER BY r.created_at DESC
+    LIMIT $2
+    `,
+    [productId, limit]
+  );
+
+  return res.rows.map((row) => ({
+    ...row,
+    username: row.username ?? "Anonymous",
+    images: Array.isArray(row.images) ? row.images : [],
+  }));
 }
