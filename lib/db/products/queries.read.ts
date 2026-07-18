@@ -68,93 +68,75 @@ export async function getAllProducts(
 ========================================================= */
 
 export async function getProductById(
-    productId: string,
-    userId: string | null
+  productId: string,
+  userId: string | null
 ): Promise<ProductRecord | null> {
-  log(
-  "GET_BY_ID_START",
-  {
-    productId:
-      maskId(productId),
-  }
-);
+  log("GET_BY_ID_START", {
+    productId: maskId(productId),
+  });
 
   try {
-    if (
-  !productId ||
-  !isUUID(productId)
-    ) {
-      log(
-  "GET_BY_ID_INVALID_ID",
-  productId
-);
+    if (!productId || !isUUID(productId)) {
+      log("GET_BY_ID_INVALID_ID", {
+        productId,
+      });
 
       return null;
     }
 
-    const result =
-      await query<ProductRow>(
-        `
-        SELECT
-    p.*,
+    const { rows } = await query<ProductRow>(
+      `
+      SELECT
+        p.*,
 
-    (
-        SELECT COUNT(*)
-        FROM product_favorites pf
-        WHERE pf.product_id = p.id
-    )::int AS favorite_count,
+        (
+          SELECT COUNT(*)
+          FROM product_favorites pf
+          WHERE pf.product_id = p.id
+        )::int AS favorite_count,
 
-    EXISTS (
-        SELECT 1
-        FROM product_favorites pf
-        WHERE pf.product_id = p.id
-          AND pf.user_id = $2
-    ) AS is_favorite
+        COALESCE(
+          EXISTS (
+            SELECT 1
+            FROM product_favorites pf
+            WHERE pf.product_id = p.id
+              AND pf.user_id = $2
+          ),
+          FALSE
+        ) AS is_favorite
 
-FROM products p
+      FROM products p
 
-WHERE p.id = $1
-AND p.deleted_at IS NULL
+      WHERE p.id = $1
+        AND p.deleted_at IS NULL
 
-LIMIT 1
-        `,
-        [
-  productId,
-  userId,]
-      );
+      LIMIT 1
+      `,
+      [
+        productId,
+        userId,
+      ]
+    );
 
-    const row =
-      result.rows[0] ??
-      null;
+    const row = rows[0] ?? null;
 
     if (!row) {
-      log(
-  "GET_BY_ID_NOT_FOUND",
-  {
-    productId:
-      maskId(product_id),
-  }
-);
+      log("GET_BY_ID_NOT_FOUND", {
+        productId: maskId(productId),
+      });
+
       return null;
     }
 
-    const mapped =
-      mapRow(row);
+    const product = mapRow(row);
 
-    log(
-  "GET_BY_ID_SUCCESS",
-  {
-    productId:
-      maskId(product_id),
-  }
-);
+    log("GET_BY_ID_SUCCESS", {
+      productId: maskId(productId),
+    });
 
-    return mapped;
+    return product;
   } catch (error) {
-    logError(
-      "GET_BY_ID_ERROR",
-      error
-    );
+    logError("GET_BY_ID_ERROR", error);
 
     throw error;
   }
