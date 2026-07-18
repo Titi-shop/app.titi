@@ -111,34 +111,45 @@ function ProductCard({
   />
 
   {/* SALE */}
-  {product.sale_price && (
-    <div className="absolute left-2 top-2 rounded bg-red-600 px-2 py-[2px] text-[10px] font-bold text-white">
-      -{getDiscount(product)}%
-    </div>
-  )}
-
-  {/* VARIANT */}
-  {product.has_variants && (
+{product.has_variants ? (
+  <div
+    className="
+      absolute
+      left-2
+      top-2
+      rounded-full
+      px-2
+      py-1
+      text-[9px]
+      font-bold
+    "
+    style={{
+      background: "#f97316",
+      color: "#fff",
+    }}
+  >
+    SELECT SIZE
+  </div>
+) : (
+  product.sale_price && (
     <div
       className="
         absolute
-        right-2
+        left-2
         top-2
-        rounded-full
+        rounded
+        bg-red-600
         px-2
-        py-1
+        py-[2px]
         text-[10px]
-        font-semibold
+        font-bold
+        text-white
       "
-      style={{
-        background:
-          "rgba(0,0,0,.65)",
-        color: "#fff",
-      }}
     >
-      Size
+      -{getDiscount(product)}%
     </div>
-  )}
+  )
+)}
 
   {/* ADD TO CART */}
   <button
