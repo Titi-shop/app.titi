@@ -626,7 +626,24 @@ style={{
 
                         {product.rating_avg ||
                           5}
+              <div
+  className="mt-2 flex gap-2 text-[11px]"
+  style={{
+    color:
+      "var(--text-muted)",
+  }}
+>
+  <span>
+    ❤️{" "}
+    {product.favorite_count ??
+      0}
+  </span>
 
+  <span>
+    👁{" "}
+    {product.views ?? 0}
+  </span>
+</div>
                         <span>
                           •{" "}
                           {
