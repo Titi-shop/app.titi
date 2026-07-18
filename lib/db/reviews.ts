@@ -231,7 +231,9 @@ export async function getReviewsByUser(userId: string) {
 
 export type ProductReviewRow = {
   id: string;
-  username: string | null;
+
+  display_name: string;
+  avatar_url: string | null;
   rating: number;
   comment: string | null;
   images: string[];
@@ -247,31 +249,52 @@ export async function getReviewsByProduct(
   const res = await query<ProductReviewRow>(
     `
     SELECT
-      r.id,
-      u.username,
-      r.rating,
-      r.comment,
-      COALESCE(r.images, '{}'::text[]) AS images,
-      r.seller_reply,
-      r.created_at,
-      r.is_verified_purchase
-    FROM reviews r
-    LEFT JOIN users u
-      ON u.id = r.user_id
-    WHERE
-      r.product_id = $1
-      AND r.deleted_at IS NULL
-      AND r.status = 'published'
-      AND r.is_hidden = false
-    ORDER BY r.created_at DESC
-    LIMIT $2
+    r.id,
+
+    CASE
+        WHEN up.full_name IS NOT NULL
+         AND trim(up.full_name) <> ''
+        THEN up.full_name
+
+        WHEN u.username IS NOT NULL
+        THEN upper(left(u.username,1)) || '...'
+
+        ELSE 'Anonymous'
+    END AS display_name,
+    up.avatar_url,
+    r.rating,
+    r.comment,
+    COALESCE(
+        r.images,
+        '{}'::text[]
+    ) AS images,
+    r.seller_reply,
+    r.created_at,
+    r.is_verified_purchase
+
+FROM reviews r
+
+LEFT JOIN users u
+ON u.id = r.user_id
+
+LEFT JOIN user_profiles up
+ON up.user_id = r.user_id
+
+WHERE
+    r.product_id = $1
+AND r.deleted_at IS NULL
+AND r.status='published'
+AND r.is_hidden=false
+ORDER BY r.created_at DESC
+LIMIT $2
     `,
     [productId, limit]
   );
 
-  return res.rows.map((row) => ({
-    ...row,
-    username: row.username ?? "Anonymous",
-    images: Array.isArray(row.images) ? row.images : [],
-  }));
+  return res.rows.map((r) => ({
+    ...r,
+    images: Array.isArray(r.images)
+        ? r.images
+        : [],
+}));
 }
