@@ -2,7 +2,8 @@
 
 export interface ProductReview {
   id: string;
-  username: string;
+  display_name: string;
+  avatar_url: string | null;
   rating: number;
   comment: string | null;
   images: string[];
@@ -42,10 +43,10 @@ function formatReviewDate(date: string): string {
   }).format(new Date(date));
 }
 
-function getAvatar(username: string): string {
-  if (!username) return "?";
+function getAvatar(name: string): string {
+  if (!name) return "?";
 
-  return username
+  return name
     .trim()
     .charAt(0)
     .toUpperCase();
@@ -140,21 +141,29 @@ export default function ProductReviews({
           {/* USER */}
 
           <div className="flex items-start gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shrink-0"
-              style={{
-                background: "var(--color-primary)",
-              }}
-            >
-              {getAvatar(review.username)}
-            </div>
+ {review.avatar_url ? (
+  <img
+    src={review.avatar_url}
+    alt={review.display_name}
+    className="w-10 h-10 rounded-full object-cover shrink-0"
+  />
+) : (
+  <div
+    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shrink-0"
+    style={{
+      background: "var(--color-primary)",
+    }}
+  >
+    {getAvatar(review.display_name)}
+  </div>
+)}
 
             <div className="flex-1">
               <div className="flex justify-between items-start">
                 <div>
-                  <div className="font-medium">
-                    @{review.username}
-                  </div>
+                 <div className="font-medium">
+               {review.display_name}
+              </div>
 
                   <div className="mt-1">
                     {renderStars(review.rating)}
