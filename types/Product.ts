@@ -134,7 +134,8 @@ export interface ProductRecord {
   views: number;
   rating_avg: number;
   rating_count: number;
-
+  favorite_count: number;
+  is_favorite: boolean;
   meta_title: string;
   meta_description: string;
 
