@@ -20,8 +20,9 @@ export async function GET(
   
   const result =
     await getProductService(
-      ctx.params.id
-    );
+    ctx.params.id,
+    userId
+);
 console.log(
   "[API][PRODUCTS][GET_DONE]",
   {
