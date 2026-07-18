@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import {
   getProductService,
   updateProductService,
@@ -17,22 +17,23 @@ export async function GET(
   req: NextRequest,
   ctx: { params: { id: string } }
 ) {
-  
-  const result =
-    await getProductService(
+  const auth = await getUserFromBearer();
+
+  const userId = auth?.userId ?? null;
+
+  const result = await getProductService(
     ctx.params.id,
     userId
-);
-console.log(
-  "[API][PRODUCTS][GET_DONE]",
-  {
-    productId:
-      maskId(ctx.params.id),
+  );
 
-    ok:
-      !("error" in result),
-  }
-);
+  console.log(
+    "[API][PRODUCTS][GET_DONE]",
+    {
+      productId: maskId(ctx.params.id),
+      ok: !("error" in result),
+    }
+  );
+
   return NextResponse.json(result);
 }
 /* ================= PATCH ================= */
