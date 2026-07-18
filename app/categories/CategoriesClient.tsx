@@ -613,31 +613,43 @@ style={{
                         {product.name}
                       </h3>
 
-                      <div
-  className="mt-3 flex items-center gap-2 text-xs"
-  style={{
-    color: "var(--text-muted)",
-  }}
->
-                        <div
+                   <div
   className="
     mt-2
     flex
     items-center
-    justify-between
-    text-[10px]
+    gap-3
+    text-[11px]
   "
   style={{
     color: "var(--text-muted)",
   }}
 >
-  <span>⭐ 4.8</span>
+  <span className="flex items-center gap-1">
+    <Star
+      size={12}
+      className="
+        fill-yellow-400
+        text-yellow-400
+      "
+    />
 
-  <span>❤️ 52</span>
+    {Number(
+      product.rating_avg ?? 0
+    ).toFixed(1)}
+  </span>
 
-  <span>👁 1.2K</span>
+  <span>
+    ❤️ {product.favorite_count ?? 0}
+  </span>
 
-  <span>🛒 324</span>
+  <span>
+    👁 {product.views ?? 0}
+  </span>
+
+  <span>
+    🛒 {product.sold ?? 0}
+  </span>
 </div>
 
                       <div className="mt-4 flex items-end justify-between">
