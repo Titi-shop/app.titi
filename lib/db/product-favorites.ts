@@ -43,11 +43,10 @@ export async function toggleProductFavorite(
   userId: string,
   productId: string
 ) {
-  const exists =
-    await isProductFavorited(
-      userId,
-      productId
-    );
+  const exists = await isProductFavorited(
+    userId,
+    productId
+  );
 
   if (exists) {
     await query(
@@ -60,52 +59,24 @@ export async function toggleProductFavorite(
       [userId, productId]
     );
 
-    await query(
-      `
-      UPDATE products
-      SET favorite_count = (
-        SELECT COUNT(*)
-        FROM product_favorites
-        WHERE product_id = $1
-      )
-      WHERE id = $1
-      `,
-      [productId]
-    );
-
     return {
       favorited: false,
     };
   }
 
-  const insert = await query<ProductFavoriteRow>(
-    `
-    INSERT INTO product_favorites
-    (
-      user_id,
-      product_id
-    )
-    VALUES ($1,$2)
-    RETURNING *
-    `,
-    [
-      userId,
-      productId,
-    ]
-  );
-
-  await query(
-    `
-    UPDATE products
-    SET favorite_count = (
-      SELECT COUNT(*)
-      FROM product_favorites
-      WHERE product_id = $1
-    )
-    WHERE id = $1
-    `,
-    [productId]
-  );
+  const insert =
+    await query<ProductFavoriteRow>(
+      `
+      INSERT INTO product_favorites
+      (
+        user_id,
+        product_id
+      )
+      VALUES ($1,$2)
+      RETURNING *
+      `,
+      [userId, productId]
+    );
 
   return {
     favorited: true,
