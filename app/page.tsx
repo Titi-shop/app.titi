@@ -23,7 +23,12 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
-
+type HomeResponse = {
+  products: Product[];
+  categories: Category[];
+  trending: Product[];
+  flashSale: Product[];
+};
 /* =========================================================
    FETCHER
 ========================================================= */
@@ -279,39 +284,36 @@ export default function HomePage() {
   ========================================================= */
 
   const {
-    data: productsData,
-    isLoading: loadingProducts,
-  } = useSWR<Product[]>(
-    "/api/products",
-    fetcher,
-    {
-      refreshInterval: 5000,
-      revalidateOnFocus: true,
-    }
-  );
+  data,
+  isLoading,
+} = useSWR<HomeResponse>(
+  "/api/home",
+  fetcher,
+  {
+    refreshInterval: 5000,
+    revalidateOnFocus: true,
+  }
+);
 
-  const {
-    data: categoriesData,
-    isLoading: loadingCategories,
-  } = useSWR<Category[]>(
-    "/api/categories",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  );
+  const products = useMemo(
+  () => data?.products ?? [],
+  [data]
+);
 
-  const products = useMemo(() => {
-    return productsData || [];
-  }, [productsData]);
+const categories = useMemo(
+  () => data?.categories ?? [],
+  [data]
+);
 
-  const categories = useMemo(() => {
-    return categoriesData || [];
-  }, [categoriesData]);
+const trendingProducts = useMemo(
+  () => data?.trending ?? [],
+  [data]
+);
 
-  const loading =
-    loadingProducts || loadingCategories;
+const flashSaleProducts = useMemo(
+  () => data?.flashSale ?? [],
+  [data]
+);
 
   /* =========================================================
      EFFECTS
@@ -361,16 +363,6 @@ useEffect(() => {
         Number(selectedCategory)
     );
   }, [products, selectedCategory]);
-
-  /* =========================================================
-     TRENDING
-  ========================================================= */
-
-  const trendingProducts = useMemo(() => {
-    return [...products]
-      .sort((a, b) => b.sold - a.sold)
-      .slice(0, 8);
-  }, [products]);
 
   /* =========================================================
      CART
@@ -701,46 +693,54 @@ useEffect(() => {
         WebkitOverflowScrolling: "touch",
       }}
     >
-      {products
-        .filter((p) => p.sale_price)
-        .slice(0, 10)
-        .map((product) => (
-          <div
-            key={product.id}
-            onClick={() => router.push(`/product/${product.id}`)}
-            className="
-              min-w-[130px]
-              flex-shrink-0
-              rounded-xl
-              bg-white
-              text-black
-              overflow-hidden
-              shadow-sm
-              snap-start
-              active:scale-[0.97]
-              transition
-            "
-            >
-  
-<Image
-  src={getMainImage(product)}
-  alt={product.name}
-  width={300}
-  height={300}
-  className="h-24 w-full object-cover"
-/>
+    {flashSaleProducts.map((product) => (
+  <div
+    key={product.id}
+    onClick={() =>
+      router.push(
+        `/product/${product.id}`
+      )
+    }
+    className="
+      min-w-[130px]
+      flex-shrink-0
+      rounded-xl
+      bg-white
+      text-black
+      overflow-hidden
+      shadow-sm
+      snap-start
+      active:scale-[0.97]
+      transition
+    "
+  >
+    <Image
+      src={getMainImage(product)}
+      alt={product.name}
+      width={300}
+      height={300}
+      className="
+        h-24
+        w-full
+        object-cover
+      "
+    />
 
-            <div className="p-2">
-              <p className="text-[11px] line-clamp-2">
-                {product.name}
-              </p>
+    <div className="p-2">
+      <p className="text-[11px] line-clamp-2">
+        {product.name}
+      </p>
 
-              <p className="text-sm font-bold text-red-500 mt-1">
-                {formatPi(product.final_price || product.price)} π
-              </p>
-            </div>
-          </div>
-        ))}
+      <p className="mt-1 text-sm font-bold text-red-500">
+        {formatPi(
+          product.final_price ||
+          product.price
+        )}{" "}
+        π
+      </p>
+    </div>
+  </div>
+))}
     </div>
   </div>
 </section>
