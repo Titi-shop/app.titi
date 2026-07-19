@@ -37,17 +37,26 @@ export function useProduct(
   data,
   isLoading,
 } = useSWR(
-      id
-        ? `/api/products/${id}`
-        : null,
-      fetcher,
-      {
-  revalidateOnFocus: false,
-  revalidateIfStale: false,
-  keepPreviousData: true,
-  dedupingInterval: 60000,
-}
-    );
+  id
+    ? `/api/products/${id}/detail`
+    : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    keepPreviousData: true,
+    dedupingInterval: 60000,
+  }
+);
+  const reviews =
+  Array.isArray(data?.reviews)
+    ? data.reviews
+    : [];
+
+const related =
+  Array.isArray(data?.related)
+    ? data.related
+    : [];
 useEffect(() => {
   if (!id) return;
 
@@ -68,7 +77,8 @@ useEffect(() => {
     }
 
     const api =
-  data as Partial<ProductRecord>;
+  data?.product as
+    Partial<ProductRecord>;
 
     const normalizedProduct = {
       ...api,
@@ -174,6 +184,8 @@ is_favorite:
 
   return {
   product,
+  reviews,
+  related,
   isLoading,
 };
 }
