@@ -23,11 +23,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
-type HomeResponse = {
-  products: Product[];
-  trending: Product[];
-  flashSale: Product[];
-};
+
 /* =========================================================
    FETCHER
 ========================================================= */
@@ -284,14 +280,23 @@ export default function HomePage() {
 
   const {
   data: productsData,
-} = useSWR("/api/products");
+  isLoading: loadingProducts,
+} = useSWR<Product[]>(
+  "/api/products",
+  fetcher
+);
 
 const {
   data: categoriesData,
-} = useSWR("/api/categories");
-  const products = useMemo(
-  () => data?.products ?? [],
-  [data]
+  isLoading: loadingCategories,
+} = useSWR<Category[]>(
+  "/api/categories",
+  fetcher
+);
+
+const products = useMemo(
+  () => productsData ?? [],
+  [productsData]
 );
 
 const categories = useMemo(
@@ -300,14 +305,24 @@ const categories = useMemo(
 );
 
 const trendingProducts = useMemo(
-  () => data?.trending ?? [],
-  [data]
+  () =>
+    [...products]
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, 8),
+  [products]
 );
 
 const flashSaleProducts = useMemo(
-  () => data?.flashSale ?? [],
-  [data]
+  () =>
+    products
+      .filter((p) => p.sale_price)
+      .slice(0, 10),
+  [products]
 );
+
+const loading =
+  loadingProducts ||
+  loadingCategories;
 
   /* =========================================================
      EFFECTS
