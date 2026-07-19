@@ -25,6 +25,8 @@ export async function GET(
     }>;
   }
 ) {
+  console.log("[DETAIL][ROUTE_START]");
+
   const auth =
     await getUserFromBearer();
 
@@ -34,11 +36,17 @@ export async function GET(
   const { id } =
     await context.params;
 
+  console.log("[DETAIL][ID]", id);
+
   const result =
     await getProductDetailService(
       id,
       userId
     );
+
+  console.log(
+    "[DETAIL][RESULT_READY]"
+  );
 
   return NextResponse.json(
     result
