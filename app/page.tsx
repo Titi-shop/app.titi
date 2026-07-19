@@ -110,28 +110,28 @@ function ProductCard({
     "
   />
 
-  {/* SALE */}
-{product.has_variants ? (
+ {/* SALE */}
+{product.sale_price && (
   <div
     className="
       absolute
       left-2
       top-2
       rounded-full
+      bg-red-600
       px-2
       py-1
-      text-[9px]
+      text-[10px]
       font-bold
+      text-white
     "
-    style={{
-      background: "#f97316",
-      color: "#fff",
-    }}
   >
-    SELECT SIZE
+    -{getDiscount(product)}%
   </div>
-) : (
-  {product.has_variants && (
+)}
+
+{/* SIZE */}
+{product.has_variants && (
   <div
     className="
       absolute
