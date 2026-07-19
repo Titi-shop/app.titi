@@ -87,14 +87,8 @@ const [initialScale, setInitialScale] =
   /* ================= RELATED PRODUCTS ================= */
 
   useEffect(() => {
-  const timer = setTimeout(
-    loadRelatedProducts,
-    300
-  );
-
-  return () =>
-    clearTimeout(timer);
-}, [product?.category_id]);
+  const loadRelatedProducts =
+    async (): Promise<void> => {
       if (!product?.category_id) return;
 
       try {
@@ -112,49 +106,27 @@ const [initialScale, setInitialScale] =
           .slice(0, 10);
 
         setRelated(filtered);
-
-        if (
-          process.env.NODE_ENV ===
-          "development"
-        ) {
-          console.log(
-            "[RELATED PRODUCTS]",
-            filtered.map((p) => ({
-              name: p.name,
-              has_variants: p.has_variants,
-              price: p.price,
-              sale_price: p.sale_price,
-              final_price: p.final_price,
-              variants: p.variants?.length,
-            }))
-          );
-        }
       } catch (err) {
-        if (
-          process.env.NODE_ENV ===
-          "development"
-        ) {
-          console.error(
-            "[RELATED ERROR]",
-            err
-          );
-        }
+        console.error(
+          "[RELATED ERROR]",
+          err
+        );
       }
     };
 
-  void loadRelatedProducts();
-}, [product?.category_id]);
-/* ================= PRODUCT REVIEWS ================= */
-
-useEffect(() => {
   const timer = setTimeout(
-    loadReviews,
+    () => {
+      void loadRelatedProducts();
+    },
     300
   );
 
-  return () =>
-    clearTimeout(timer);
-}, [product?.id]);
+  return () => clearTimeout(timer);
+}, [product?.category_id, product?.id]);
+/* ================= PRODUCT REVIEWS ================= */
+
+useEffect(() => {
+  const loadReviews = async () => {
     if (!product?.id) return;
 
     try {
@@ -179,7 +151,14 @@ useEffect(() => {
     }
   };
 
-  void loadReviews();
+  const timer = setTimeout(
+    () => {
+      void loadReviews();
+    },
+    300
+  );
+
+  return () => clearTimeout(timer);
 }, [product?.id]);
 /* ================= GUARD ================= */
 
