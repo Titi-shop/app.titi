@@ -1,14 +1,21 @@
-import { getProductById } from "@/lib/db/products";
-import { getProductsByCategory } from "@/lib/db/products";
-import { getReviewsByProductId } from "@/lib/db/reviews";
+import {
+  getProductById,
+  getProductsByCategory,
+  getSoldByProduct,
+} from "@/lib/db/products";
+
+import {
+  getReviewsByProduct,
+} from "@/lib/db/reviews";
 
 export async function getProductDetailService(
-  productId: string
+  productId: string,
+  userId: string | null
 ) {
   const product =
     await getProductById(
       productId,
-      null
+      userId
     );
 
   if (!product) {
@@ -16,25 +23,35 @@ export async function getProductDetailService(
       product: null,
       reviews: [],
       related: [],
+      sold: 0,
     };
   }
 
-  const [reviews, related] =
-    await Promise.all([
-      getReviewsByProductId(
-        product.id
-      ),
+  const [
+    reviews,
+    related,
+    sold,
+  ] = await Promise.all([
+    getReviewsByProduct(
+      product.id
+    ),
 
-      getProductsByCategory(
-        product.category_id,
-        10
-      ),
-    ]);
+    getProductsByCategory(
+      product.category_id,
+      10
+    ),
+
+    getSoldByProduct(
+      product.id
+    ),
+  ]);
 
   return {
     product,
 
     reviews,
+
+    sold,
 
     related:
       related.filter(
