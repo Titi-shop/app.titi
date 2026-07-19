@@ -29,16 +29,27 @@ export default function ProductDetail() {
   const params = useParams();
 
   const id = String(params?.id ?? "");
-  const { product, isLoading } = useProduct(id);
+  const {
+  data,
+  isLoading,
+} = useSWR(
+  `/api/products/${id}/detail`,
+  fetcher
+);
+
+const product =
+  data?.product ?? null;
+
+const reviews =
+  data?.reviews ?? [];
+
+const related =
+  data?.related ?? [];
 
   /* ================= STATE ================= */
 
   const [selectedVariant, setSelectedVariant] =
     useState<ProductVariant | null>(null);
-
-  const [related, setRelated] = useState<ProductRecord[]>([]);
-  const [reviews, setReviews] =
-  useState<ProductReview[]>([]);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [zoomImage, setZoomImage] =
   useState<string | null>(null);
@@ -84,82 +95,6 @@ const [initialScale, setInitialScale] =
   setSelectedVariant(first);
 }, [product]);
 
-  /* ================= RELATED PRODUCTS ================= */
-
-  useEffect(() => {
-  const loadRelatedProducts =
-    async (): Promise<void> => {
-      if (!product?.category_id) return;
-
-      try {
-        const res = await fetch(
-  `/api/products?category_id=${product.category_id}`
-);
-
-        if (!res.ok) return;
-
-        const data: ProductRecord[] =
-          await res.json();
-
-        const filtered = data
-          .filter((p) => p.id !== product.id)
-          .slice(0, 10);
-
-        setRelated(filtered);
-      } catch (err) {
-        console.error(
-          "[RELATED ERROR]",
-          err
-        );
-      }
-    };
-
-  const timer = setTimeout(
-    () => {
-      void loadRelatedProducts();
-    },
-    300
-  );
-
-  return () => clearTimeout(timer);
-}, [product?.category_id, product?.id]);
-/* ================= PRODUCT REVIEWS ================= */
-
-useEffect(() => {
-  const loadReviews = async () => {
-    if (!product?.id) return;
-
-    try {
-      const res = await fetch(
-  `/api/reviews?product_id=${product.id}`
-);
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      setReviews(
-        Array.isArray(data.reviews)
-          ? data.reviews
-          : []
-      );
-    } catch (err) {
-      console.error(
-        "[PRODUCT REVIEWS]",
-        err
-      );
-    }
-  };
-
-  const timer = setTimeout(
-    () => {
-      void loadReviews();
-    },
-    300
-  );
-
-  return () => clearTimeout(timer);
-}, [product?.id]);
 /* ================= GUARD ================= */
 
 if (isLoading) {
