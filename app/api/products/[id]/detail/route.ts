@@ -1,14 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import {
+  getUserFromBearer,
+} from "@/lib/auth/getUserFromBearer";
 
 import {
   getProductDetailService,
 } from "@/lib/services/products/detail";
 
-export const runtime = "nodejs";
+export const runtime =
+  "nodejs";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
 export async function GET(
   req: NextRequest,
@@ -18,52 +25,22 @@ export async function GET(
     }>;
   }
 ) {
-  try {
-    const { id } =
-      await context.params;
+  const auth =
+    await getUserFromBearer();
 
-    /* OPTIONAL AUTH */
+  const userId =
+    auth?.userId ?? null;
 
-    let userId: string | null =
-      null;
+  const { id } =
+    await context.params;
 
-    try {
-      const auth =
-        await getUserFromBearer(
-          req
-        );
-
-      userId =
-        auth?.userId ?? null;
-    } catch {
-      userId = null;
-    }
-
-    /* SERVICE */
-
-    const result =
-      await getProductDetailService(
-        id,
-        userId
-      );
-
-    return NextResponse.json(
-      result
-    );
-  } catch (error) {
-    console.error(
-      "[API][PRODUCT_DETAIL]",
-      error
+  const result =
+    await getProductDetailService(
+      id,
+      userId
     );
 
-    return NextResponse.json(
-      {
-        error:
-          "INTERNAL_ERROR",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
+  return NextResponse.json(
+    result
+  );
 }
