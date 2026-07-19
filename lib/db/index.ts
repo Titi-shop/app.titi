@@ -53,6 +53,12 @@ export async function query<
 
   const start = Date.now();
 
+  console.log("[POOL]", {
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount,
+  });
+
   console.log("[DB] QUERY_START");
 
   const result =
