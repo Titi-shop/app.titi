@@ -34,19 +34,24 @@ export async function listProductsService(
       new URL(req.url);
 
     const ids =
-      searchParams.get("ids");
+  searchParams.get("ids");
+
+const categoryId =
+  searchParams.get("category_id");
 
     log(
-      "LIST_REQUEST",
-      {
-        idsCount: ids
-          ? ids
-              .split(",")
-              .filter(Boolean)
-              .length
-          : null,
-      }
-    );
+  "LIST_REQUEST",
+  {
+    idsCount: ids
+      ? ids.split(",").filter(Boolean).length
+      : null,
+
+    categoryId:
+      categoryId
+        ? maskId(categoryId)
+        : null,
+  }
+);
 
     /* =========================
        LOAD PRODUCTS
