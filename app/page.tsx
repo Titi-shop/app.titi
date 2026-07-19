@@ -436,8 +436,7 @@ useEffect(() => {
 
   if (
   showSplash ||
-  (isLoading &&
-    products.length === 0)
+  (loading && products.length === 0)
 ) {
   return <SplashScreen />;
 }
