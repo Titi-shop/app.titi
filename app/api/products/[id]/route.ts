@@ -17,8 +17,9 @@ export async function GET(
   req: NextRequest,
   ctx: { params: { id: string } }
 ) {
-  const auth = await getUserFromBearer();
+  const start = Date.now();
 
+  const auth = await getUserFromBearer();
   const userId = auth?.userId ?? null;
 
   const result = await getProductService(
@@ -27,11 +28,9 @@ export async function GET(
   );
 
   console.log(
-    "[API][PRODUCTS][GET_DONE]",
-    {
-      productId: maskId(ctx.params.id),
-      ok: !("error" in result),
-    }
+    "[API TOTAL]",
+    Date.now() - start,
+    "ms"
   );
 
   return NextResponse.json(result);
