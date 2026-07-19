@@ -87,8 +87,14 @@ const [initialScale, setInitialScale] =
   /* ================= RELATED PRODUCTS ================= */
 
   useEffect(() => {
-  const loadRelatedProducts =
-    async (): Promise<void> => {
+  const timer = setTimeout(
+    loadRelatedProducts,
+    300
+  );
+
+  return () =>
+    clearTimeout(timer);
+}, [product?.category_id]);
       if (!product?.category_id) return;
 
       try {
@@ -141,7 +147,14 @@ const [initialScale, setInitialScale] =
 /* ================= PRODUCT REVIEWS ================= */
 
 useEffect(() => {
-  const loadReviews = async () => {
+  const timer = setTimeout(
+    loadReviews,
+    300
+  );
+
+  return () =>
+    clearTimeout(timer);
+}, [product?.id]);
     if (!product?.id) return;
 
     try {
