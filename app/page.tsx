@@ -283,26 +283,12 @@ export default function HomePage() {
   ========================================================= */
 
   const {
-  data,
-  isLoading,
-} = useSWR<HomeResponse>(
-  "/api/home",
-  fetcher,
-  {
-    refreshInterval: 5000,
-    revalidateOnFocus: true,
-  }
-);
+  data: productsData,
+} = useSWR("/api/products");
+
 const {
   data: categoriesData,
-} = useSWR<Category[]>(
-  "/api/categories",
-  fetcher,
-  {
-    revalidateOnFocus: false,
-    dedupingInterval: 10000,
-  }
-);
+} = useSWR("/api/categories");
   const products = useMemo(
   () => data?.products ?? [],
   [data]
