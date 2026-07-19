@@ -38,50 +38,33 @@ export function useProduct(
   const {
   data,
   isLoading,
-  mutate,
 } = useSWR(
       id
         ? `/api/products/${id}`
         : null,
       fetcher,
       {
-        revalidateOnFocus: false,
-        revalidateIfStale: true,
-        keepPreviousData: true,
-      }
+  revalidateOnFocus: false,
+  revalidateIfStale: false,
+  keepPreviousData: true,
+  dedupingInterval: 60000,
+}
     );
 useEffect(() => {
-  if (!id) {
-    return;
-  }
+  if (!id) return;
 
-  const run = async () => {
-    try {
-      await apiAuthFetch(
-        "/api/products/view",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            id,
-          }),
-        }
-      );
-
-      await mutate();
-    } catch (error) {
-      console.error(
-        "[PRODUCT_VIEW]",
-        error
-      );
+  void apiAuthFetch(
+    "/api/products/view",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify({ id }),
     }
-  };
-
-  void run();
-}, [id, mutate]);
+  );
+}, [id]);
   const product = useMemo(() => {
     if (
       !data ||
