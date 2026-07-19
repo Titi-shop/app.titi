@@ -25,7 +25,6 @@ import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
 type HomeResponse = {
   products: Product[];
-  categories: Category[];
   trending: Product[];
   flashSale: Product[];
 };
@@ -294,15 +293,24 @@ export default function HomePage() {
     revalidateOnFocus: true,
   }
 );
-
+const {
+  data: categoriesData,
+} = useSWR<Category[]>(
+  "/api/categories",
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  }
+);
   const products = useMemo(
   () => data?.products ?? [],
   [data]
 );
 
 const categories = useMemo(
-  () => data?.categories ?? [],
-  [data]
+  () => categoriesData ?? [],
+  [categoriesData]
 );
 
 const trendingProducts = useMemo(
@@ -426,11 +434,12 @@ useEffect(() => {
   ========================================================= */
 
   if (
-    showSplash ||
-    (loading && products.length === 0)
-  ) {
-    return <SplashScreen />;
-  }
+  showSplash ||
+  (isLoading &&
+    products.length === 0)
+) {
+  return <SplashScreen />;
+}
 
   /* =========================================================
      UI
