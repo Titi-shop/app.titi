@@ -131,24 +131,23 @@ function ProductCard({
     SELECT SIZE
   </div>
 ) : (
-  product.sale_price && (
-    <div
-      className="
-        absolute
-        left-2
-        top-2
-        rounded
-        bg-red-600
-        px-2
-        py-[2px]
-        text-[10px]
-        font-bold
-        text-white
-      "
-    >
-      -{getDiscount(product)}%
-    </div>
-  )
+  {product.has_variants && (
+  <div
+    className="
+      absolute
+      right-2
+      top-2
+      rounded-full
+      bg-black/70
+      px-2
+      py-1
+      text-[9px]
+      font-bold
+      text-white
+    "
+  >
+    SIZE
+  </div>
 )}
 
   {/* ADD TO CART */}
@@ -402,18 +401,34 @@ useEffect(() => {
     return;
   }
 
-  const isOutOfStock =
-    !product.is_unlimited &&
-    (product.stock ?? 0) <= 0;
+  const hasVariant =
+  Boolean(product.has_variants) ||
+  (product.variants?.length ?? 0) > 0 ||
+  (product.options?.size?.length ?? 0) > 0;
 
-  if (isOutOfStock) {
-    showMessage(
-      t.out_of_stock || "Out of stock"
-    );
-    return;
-  }
+if (hasVariant) {
+  showMessage(
+    t.please_select_variant ||
+    "Please select size"
+  );
 
-  // 🔥 TYPE SAFE VARIANT CHECK (NO ANY)
+  setTimeout(() => {
+    router.push(`/product/${product.id}`);
+  }, 500);
+
+  return;
+}
+
+const isOutOfStock =
+  !product.is_unlimited &&
+  (product.stock ?? 0) <= 0;
+
+if (isOutOfStock) {
+  showMessage(
+    t.out_of_stock || "Out of stock"
+  );
+  return;
+}
   const hasVariant =
     Boolean(product.has_variants) ||
     (product.variants?.length ?? 0) > 0 ||
