@@ -1,5 +1,4 @@
 "use client";
-
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
@@ -7,12 +6,14 @@ import { useParams, useRouter } from "next/navigation";
 import type { ProductReview } from "./ProductReviews";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import AppLoading from "@/components/AppLoading";
 import { useProduct } from "./product.logic";
 import { ProductView } from "./product.components";
 import CheckoutSheet from "./CheckoutSheet";
 
 import type {
+  ProductRecord,
   ProductVariant,
 } from "@/types/Product";
 
@@ -27,17 +28,16 @@ export default function ProductDetail() {
   const params = useParams();
 
   const id = String(params?.id ?? "");
-  const {
-  product,
-  reviews,
-  related,
-  isLoading,
-} = useProduct(id);
+  const { product, isLoading } = useProduct(id);
 
   /* ================= STATE ================= */
 
   const [selectedVariant, setSelectedVariant] =
     useState<ProductVariant | null>(null);
+
+  const [related, setRelated] = useState<ProductRecord[]>([]);
+  const [reviews, setReviews] =
+  useState<ProductReview[]>([]);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [zoomImage, setZoomImage] =
   useState<string | null>(null);
@@ -83,7 +83,82 @@ const [initialScale, setInitialScale] =
   setSelectedVariant(first);
 }, [product]);
 
- 
+  /* ================= RELATED PRODUCTS ================= */
+
+  useEffect(() => {
+  const loadRelatedProducts =
+    async (): Promise<void> => {
+      if (!product?.category_id) return;
+
+      try {
+        const res = await fetch(
+  `/api/products?category_id=${product.category_id}`
+);
+
+        if (!res.ok) return;
+
+        const data: ProductRecord[] =
+          await res.json();
+
+        const filtered = data
+          .filter((p) => p.id !== product.id)
+          .slice(0, 10);
+
+        setRelated(filtered);
+      } catch (err) {
+        console.error(
+          "[RELATED ERROR]",
+          err
+        );
+      }
+    };
+
+  const timer = setTimeout(
+    () => {
+      void loadRelatedProducts();
+    },
+    300
+  );
+
+  return () => clearTimeout(timer);
+}, [product?.category_id, product?.id]);
+/* ================= PRODUCT REVIEWS ================= */
+
+useEffect(() => {
+  const loadReviews = async () => {
+    if (!product?.id) return;
+
+    try {
+      const res = await fetch(
+  `/api/reviews?product_id=${product.id}`
+);
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      setReviews(
+        Array.isArray(data.reviews)
+          ? data.reviews
+          : []
+      );
+    } catch (err) {
+      console.error(
+        "[PRODUCT REVIEWS]",
+        err
+      );
+    }
+  };
+
+  const timer = setTimeout(
+    () => {
+      void loadReviews();
+    },
+    300
+  );
+
+  return () => clearTimeout(timer);
+}, [product?.id]);
 /* ================= GUARD ================= */
 
 if (isLoading) {
@@ -132,9 +207,13 @@ if (!product) {
 
   const buildCartItem = () => ({
   product_id: product.id,
+
   variant_id: selectedVariant?.id ?? null,
+
   name: product.name,
+
   slug: product.slug,
+
   price:
     selectedVariant?.price ??
     product.price,
