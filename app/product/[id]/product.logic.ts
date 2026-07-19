@@ -1,5 +1,3 @@
-app/product/[id]/product.logic.ts
-
 "use client";
 
 import useSWR from "swr";
