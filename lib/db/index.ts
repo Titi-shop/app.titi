@@ -48,29 +48,35 @@ export async function query<
 >(
   text: string,
   params?: unknown[],
-  db: Pool | PoolClient = pool
 ): Promise<QueryResult<T>> {
 
-  const start = Date.now();
+  const t1 = Date.now();
 
-  console.log("[POOL]", {
-    total: pool.totalCount,
-    idle: pool.idleCount,
-    waiting: pool.waitingCount,
-  });
-
-  console.log("[DB] QUERY_START");
-
-  const result =
-    await db.query(text, params);
+  const client = await pool.connect();
 
   console.log(
-    "[DB] QUERY_DONE",
-    Date.now() - start,
+    "[DB][CONNECT]",
+    Date.now() - t1,
     "ms"
   );
 
-  return result;
+  try {
+    const t2 = Date.now();
+
+    const result =
+      await client.query(text, params);
+
+    console.log(
+      "[DB][QUERY]",
+      Date.now() - t2,
+      "ms"
+    );
+
+    return result;
+
+  } finally {
+    client.release();
+  }
 }
 
 /* =========================================================
