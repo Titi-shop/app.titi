@@ -33,11 +33,18 @@ export async function getAllProducts(
     const { rows } =
       await query<ProductRow>(
         `
-        SELECT *
-        FROM products
-        WHERE deleted_at IS NULL
-        ORDER BY created_at DESC
-        LIMIT $1
+        SELECT
+  p.*,
+
+  (
+    SELECT COUNT(*)
+    FROM product_favorites pf
+    WHERE pf.product_id = p.id
+  )::int AS favorite_count
+FROM products p
+WHERE p.deleted_at IS NULL
+ORDER BY p.created_at DESC
+LIMIT $1
         `,
         [limit]
       );
