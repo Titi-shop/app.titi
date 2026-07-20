@@ -6,11 +6,62 @@ import { AuthProvider } from "@/context/AuthContext";
 import AlertProvider from "@/app/components/AlertProvider";
 import { SWRConfig } from "swr";
 import ThemeProvider from "@/components/ThemeProvider";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "aliali",
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    "https://muasam.titi.onl"
+  ),
+
+  title: {
+    default: "TiTi Shop",
+    template: "%s | TiTi Shop",
+  },
+
   description:
-    "Ứng dụng thương mại điện tử thanh toán qua Pi Network Testnet",
+    "Sàn thương mại điện tử Pi Network",
+
+  applicationName:
+    "TiTi Shop",
+
+  keywords: [
+    "Pi Network",
+    "TiTi Shop",
+    "Marketplace",
+    "Pi Commerce",
+  ],
+
+  openGraph: {
+    title: "TiTi Shop",
+    description:
+      "Sàn thương mại điện tử Pi Network",
+
+    siteName:
+      "TiTi Shop",
+
+    type: "website",
+
+    images: [
+      {
+        url: "/logo.png",
+      },
+    ],
+  },
+
+  twitter: {
+    card:
+      "summary_large_image",
+
+    title:
+      "TiTi Shop",
+
+    description:
+      "Sàn thương mại điện tử Pi Network",
+
+    images: [
+      "/logo.png",
+    ],
+  },
 };
 
 export default function RootLayout({
