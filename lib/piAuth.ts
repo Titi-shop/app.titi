@@ -54,27 +54,48 @@ export async function getPiAccessToken(
   forceRefresh = false
 ): Promise<string> {
 
-  // Ưu tiên Pi Sign-In OAuth
-  if (
-    !forceRefresh &&
-    typeof window !== "undefined"
-  ) {
-    const oauthToken =
-      localStorage.getItem(
-        "pi_access_token"
-      );
+ if (
+  !forceRefresh &&
+  typeof window !== "undefined" &&
+  !window.Pi
+) {
+  try {
 
-    if (oauthToken) {
-      cachedToken =
-        oauthToken;
+  const res =
+    await fetch(
+      "https://api.minepi.com/v2/me",
+      {
+        headers: {
+          Authorization:
+            `Bearer ${oauthToken}`,
+        },
+      }
+    );
 
-      logger.debug(
-        "PI.AUTH.OAUTH_TOKEN_FOUND"
-      );
+  if (res.ok) {
+    cachedToken =
+      oauthToken;
 
-      return oauthToken;
-    }
+    return oauthToken;
   }
+
+  localStorage.removeItem(
+    "pi_access_token"
+  );
+
+} catch {
+  localStorage.removeItem(
+    "pi_access_token"
+  );
+}
+
+  if (oauthToken) {
+    cachedToken =
+      oauthToken;
+
+    return oauthToken;
+  }
+}
 
   // Cache hiện tại
   if (!forceRefresh && cachedToken) {
@@ -89,9 +110,16 @@ export async function getPiAccessToken(
     throw new Error("PI_BROWSER_REQUIRED");
   }
 
-  if (!window.Pi) {
-    throw new Error("PI_SDK_NOT_AVAILABLE");
-  }
+  if (
+  !window.Pi ||
+  typeof
+    window.Pi.authenticate !==
+    "function"
+) {
+  throw new Error(
+    "PI_SDK_NOT_AVAILABLE"
+  );
+}
 
   const scopes = [
   "username",
