@@ -57,7 +57,61 @@ export default function PiLoginPage() {
     user,
     router,
   ]);
+const login = async () => {
 
+  if (!agreed) {
+    return;
+  }
+
+  // Pi Browser
+  if (typeof window !== "undefined" && window.Pi) {
+    await pilogin();
+    return;
+  }
+
+  // OAuth (Chrome/Safari/Desktop)
+  const state =
+    crypto.randomUUID();
+
+  sessionStorage.setItem(
+    "pi_oauth_state",
+    state
+  );
+
+  const url = new URL(
+    "https://accounts.pinet.com/oauth/authorize"
+  );
+
+  url.searchParams.set(
+    "response_type",
+    "token"
+  );
+
+  url.searchParams.set(
+    "client_id",
+    process.env
+      .NEXT_PUBLIC_PI_CLIENT_ID ??
+      ""
+  );
+
+  url.searchParams.set(
+    "redirect_uri",
+    "https://app.titi.onl/signin/callback"
+  );
+
+  url.searchParams.set(
+    "scope",
+    "username"
+  );
+
+  url.searchParams.set(
+    "state",
+    state
+  );
+
+  window.location.href =
+    url.toString();
+};
   /* ===================================================
      LOADING
   =================================================== */
@@ -284,19 +338,20 @@ export default function PiLoginPage() {
             LOGIN
         ====================== */}
 <button
-  onClick={pilogin}
-  disabled={
-    !piReady ||
-    !agreed
-  }
+  onClick={login}
+  disabled={!agreed}
   className={
     piReady && agreed
       ? "btn-primary mt-8 h-14 w-full"
       : "btn-primary mt-8 h-14 w-full opacity-50 cursor-not-allowed"
   }
 >
-  {t.continue_with_pi ??
-    "Continue with Pi Network"}
+  {
+  typeof window !== "undefined" &&
+  window.Pi
+    ? "Continue with Pi Network"
+    : "Sign in with Pi"
+}
 </button>
 
         {/* ======================
