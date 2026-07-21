@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: {
-    default: "TiTi Shop",
-    template: "%s | TiTi Shop",
-  },
+export async function generateMetadata(
+  props: {
+    params: Promise<{
+      id: string;
+    }>;
+  }
+): Promise<Metadata> {
+   // lấy id
+   // gọi getProductService(id)
+   // trả về metadata của sản phẩm
+},
 
   description:
     "Sàn thương mại điện tử Pi Network",
