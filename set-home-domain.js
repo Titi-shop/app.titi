@@ -7,9 +7,7 @@ const server = new StellarSDK.Horizon.Server(
 const NETWORK_PASSPHRASE = "Pi Testnet";
 
 // THAY BẰNG SECRET KEY THẬT CỦA ISSUER
-const issuer = StellarSDK.Keypair.fromSecret(
-  "SB46BZVVARG7ITVQ37J5DPEV2NFTHD7AHC327RDTSIJ4HIBFAZ6YGVU4"
-);
+const issuer = StellarSDK.Keypair.fromSecret("SECRET_ISSUER");
 
 async function main() {
   // Luôn lấy account mới nhất để có sequence number mới nhất
