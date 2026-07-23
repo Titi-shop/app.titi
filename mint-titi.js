@@ -6,8 +6,8 @@ const server = new StellarSDK.Horizon.Server(
 
 const NETWORK_PASSPHRASE = "Pi Testnet";
 
-const issuer = StellarSDK.Keypair.fromSecret("SECRET_ISSUER");
-const distributor = StellarSDK.Keypair.fromSecret("SECRET_DISTRIBUTOR");
+const issuer = StellarSDK.Keypair.fromSecret("SB46BZVVARG7ITVQ37J5DPEV2NFTHD7AHC327RDTSIJ4HIBFAZ6YGVU4");
+const distributor = StellarSDK.Keypair.fromSecret("SAYG3RMBIAXSFBTSNRB2ZW6CM5SLHKTNIPTKDFKH7FQ33JOBLQRGBQ23");
 
 const token = new StellarSDK.Asset(
   "TITI",
