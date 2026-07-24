@@ -5,16 +5,12 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
-
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 export default function PiLoginPage() {
 
   const router =
@@ -29,7 +25,11 @@ export default function PiLoginPage() {
     piReady,
     pilogin,
   } = useAuth();
-
+const isPiBrowser =
+  typeof navigator !== "undefined" &&
+  navigator.userAgent.includes(
+    "PiBrowser"
+  );
   const [
     agreed,
     setAgreed,
@@ -63,13 +63,7 @@ const login = async () => {
     return;
   }
 
-  const canUsePiBrowserAuth =
-    typeof window !== "undefined" &&
-    !!window.Pi &&
-    typeof window.Pi.authenticate ===
-      "function";
-
-  if (canUsePiBrowserAuth) {
+  if (isPiBrowser) {
 
     console.log(
       "[LOGIN] PI_BROWSER"
@@ -362,8 +356,7 @@ const login = async () => {
   }
 >
   {
-  typeof window !== "undefined" &&
-  window.Pi
+  isPiBrowser
     ? "Continue with Pi Network"
     : "Sign in with Pi"
 }
